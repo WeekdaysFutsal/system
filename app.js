@@ -2,7 +2,7 @@
 const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
-const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '교환'], ['notice', '공지'], ['match', '경기']];
+const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
 const DEF_TIMING = { h1: 300, gk: 5, h2: 300, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -249,7 +249,7 @@ async function doPick(pid) {
     return d }));
   if (!ok) { toast('이미 지명됐거나 차례가 바뀌었어요.'); return }
   sysChat(`${(s.picks || []).length + 1}순위 ${team(s, k).name}: ${pname(pid)}`);
-  if (done) { sysChat('드래프트 완료! 교환 단계로 넘어가요.'); toast('드래프트가 끝났어요.') }
+  if (done) { sysChat('드래프트 완료! 밸런스 조정 단계로 넘어가요.'); toast('드래프트가 끝났어요.') }
 }
 async function undoPick() {
   if (!needAdmin()) return; const s = cur(); if (!(s.picks || []).length) return;
@@ -413,7 +413,7 @@ function withSession(fn) { const s = cur(); if (!s) return `<p class="empty">아
 function vMemberNotice(s) {
   if (stageIdx(s.stage) >= stageIdx('notice')) return vNotice(s);
   if (s.draftStatus === 'live') return `<div class="notice"><span class="dot"></span> 지금 드래프트가 진행 중이에요. 실시간으로 볼 수 있어요.</div>` + vDraft(s);
-  if (s.draftStatus === 'done') return `<div class="notice">드래프트가 끝나고 팀 밸런스를 맞추는 중이에요. 곧 공지가 올라와요.</div>` + vTrade(s);
+  if (s.draftStatus === 'done') return `<div class="notice">드래프트가 끝나고 팀 밸런스를 조정하는 중이에요. 곧 공지가 올라와요.</div>` + vTrade(s);
   const ids = s.applicants || []; const caps = KEYS.filter(k => s.captains?.[k]);
   return `<h2>${fmtDate(s.date)} 경기</h2><div class="panel list2"><div><span>시간</span><b>${esc(s.time || '-')}</b></div><div><span>장소</span><b>${esc(s.venue || '-')}</b></div><div><span>진행 단계</span><b>${STAGES[stageIdx(s.stage)][1]}</b></div></div>
   ${caps.length ? `<h2>주장</h2><div class="panel list2">${caps.map(k => `<div><span>${tag(team(s, k))}</span><b>👑 ${esc(pname(s.captains[k]))}</b></div>`).join('')}</div>` : ''}
@@ -523,9 +523,8 @@ function seatHTML(s, k, ph) {
   const turn = ph === 'draft' && pickTeamAt(s, (s.picks || []).length) === k; const cturn = ph === 'color' && !t.picked && inRoom; const me = myTeam(s) === k;
   const ps = teamPlayers(s, k).slice(1);
   return `<div class="seat ${t.picked ? 'picked' : ''} ${turn || cturn ? 'onturn' : ''} ${me ? 'me' : ''}" style="--tc:${t.color};--ti:${inkOn(t.color)}">
-    ${bubbleFor(m => m.team === k)}${turn ? '<span class="turnb">차례</span>' : ''}<div class="sv"><span class="av ${inRoom ? 'on' : ''}">${esc((pname(cap) || '?').slice(-2))}</span>${orderDecided(s) && o >= 0 && ph !== 'ladder' && ph !== 'cards' ? `<em class="ord">${o + 1}</em>` : ''}</div>
-    <div class="sn">${esc(pname(cap))}${me ? '<span class="meb">나</span>' : ''}</div>
-    <div class="st2"><span class="tok">${esc(t.name)}</span>${ps.length ? `<small class="cnt">+${ps.length}</small>` : `<small>${inRoom ? '입장' : '대기'}</small>`}</div>
+    ${bubbleFor(m => m.team === k)}${turn ? '<span class="turnb">차례</span>' : ''}<div class="sv"><span class="av ${inRoom ? 'on' : ''} ${(pname(cap) || '').length > 3 ? 'long' : ''}">${esc(pname(cap) || '?')}</span>${orderDecided(s) && o >= 0 && ph !== 'ladder' && ph !== 'cards' ? `<em class="ord">${o + 1}</em>` : ''}</div>
+    <div class="st2">${me ? '<span class="meb">나</span>' : ''}<span class="tok">${esc(t.name)}</span>${ps.length ? `<small class="cnt">+${ps.length}</small>` : `<small>${inRoom ? '입장' : '대기'}</small>`}</div>
     ${ps.length ? `<ol class="hand">${ps.map(id => `<li>${esc(pname(id))}</li>`).join('')}</ol>` : ''}
     ${me && !inRoom && ph !== 'done' ? `<button class="btn sm primary" data-act="joinroom" data-k="${k}">입장하기</button>` : ''}</div>`;
 }
@@ -564,11 +563,14 @@ function feltHTML(s, ph) {
     return `<div class="fx"><div class="rnd">STEP 2 · 순번 결정</div><div class="ocards">${(s.order || KEYS).map(k => { const t = team(s, k); return `<div class="ocard up big2" style="--tc:${t.color};--ti:${inkOn(t.color)}"><em>${g.deck[g.picks[k]]}</em><small>${esc(t.name)}</small></div>` }).join('')}</div><b>곧 팀원 선택을 시작해요!</b></div>` }
   if (ph === 'ladder') { if (!S.ladderT) S.ladderT = setTimeout(() => { S.ladderT = null; render() }, Math.max(50, s.ladder.at + LADDER_MS - Date.now() + 60)); return `<div class="fx"><div class="rnd">STEP 2 · 순번 정하기</div>${ladderSVG(s)}<p>순번을 정하는 중…</p></div>` }
   if (ph === 'draft') { const i = (s.picks || []).length, tot = draftTotal(s); const k = pickTeamAt(s, i); const t = team(s, k); const pd = s.pending && s.pending.t === k ? s.pending.p : null;
-    return `<div class="fx"><div class="rnd">STEP 3 · 팀원 선택 ${i + 1} / ${tot}</div><b><span class="tok" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}</span> ${esc(pname(s.captains[k]))} 주장 차례${my === k ? ', 내 차례!' : ''}</b>
+    const from = Math.max(0, i - 3), to = Math.min(tot, from + 12); const ord = s.order || KEYS;
+    const flow = `<div class="flow" aria-label="지명 순서">${Array.from({ length: to - from }, (_, x) => { const j = from + x; const kk = pickTeamAt(s, j); const tt = team(s, kk);
+      return `<span class="${j < i ? 'past' : j === i ? 'cur' : ''}" style="--tc:${tt.color};--ti:${inkOn(tt.color)}" title="${j + 1}순위 ${esc(tt.name)}">${ord.indexOf(kk) + 1}</span>` }).join('')}${to < tot ? '<em>…</em>' : ''}</div>`;
+    return `<div class="fx"><div class="rnd">STEP 3 · 팀원 선택 ${i + 1} / ${tot}</div>${flow}<b><span class="tok" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}</span> ${esc(pname(s.captains[k]))} 주장 차례${my === k ? ', 내 차례!' : ''}</b>
       <div class="card3 ${pd ? 'up' : ''}" style="--tc:${t.color};--ti:${inkOn(t.color)}"><i>${esc(t.name)}</i><span>${pd ? esc(pname(pd)) : '?'}</span></div>
       <p>${pd ? (S.admin ? '확인되면 다음 턴으로 넘겨 주세요.' : '운영진이 다음 턴으로 넘기면 확정돼요.') : my === k ? '위 명단에서 선수를 눌러 고르세요.' : '선수를 고르는 중…'}</p>
       ${S.admin ? `<div class="row" style="justify-content:center"><button class="btn primary" data-act="nextturn" ${pd ? '' : 'disabled'}>다음 턴 ▶</button>${i ? '<button class="btn sm" data-act="undo">↶ 되돌리기</button>' : ''}</div>` : ''}</div>` }
-  return `<div class="fx"><b>드래프트 완료! 🎉</b><p>이제 팀 밸런스를 맞추는 교환 단계예요.</p>${S.admin ? '<button class="btn primary" data-act="gostage" data-v="trade">교환 단계로</button>' : ''}</div>`;
+  return `<div class="fx"><b>드래프트 완료! 🎉</b><p>이제 팀 밸런스를 조정하는 단계예요.</p>${S.admin ? '<button class="btn primary" data-act="gostage" data-v="trade">밸런스 조정으로</button>' : ''}</div>`;
 }
 function vDraft(s) {
   const ph = roomPhase(s); const my = myTeam(s); const turnK = ph === 'draft' ? pickTeamAt(s, (s.picks || []).length) : null;
@@ -668,24 +670,26 @@ function chatPanel(room) {
   const form = cls => `<form data-form="chat" class="${cls}"><label class="sr" for="chatin">메시지</label><input id="chatin" class="inp" type="text" placeholder="${ph}" maxlength="300" autocomplete="off" enterkeyhint="send"><button class="btn primary" type="submit">보내기</button></form>`;
   if (room && S.dm) { const unread = Math.max(0, S.chat.length - (S.chatSeen?.[S.sid] ?? S.chat.length));
     return `<form data-form="chat" class="chatbar"><button type="button" class="btn logbtn" data-act="chatlog" aria-label="메시지 내역 보기">💬${unread ? `<em class="unread">${unread}</em>` : ''}</button><label class="sr" for="chatin">메시지</label><input id="chatin" class="inp" type="text" placeholder="${ph}" maxlength="300" autocomplete="off" enterkeyhint="send"><button class="btn primary" type="submit">보내기</button></form>` }
-  if (room) { const n = S.chat.filter(m => m.uid !== 'sys').length; const unread = Math.max(0, S.chat.length - (S.chatSeen?.[S.sid] ?? S.chat.length));
-    return `<div class="row chatrow"><button class="btn" data-act="chatlog">💬 메시지 내역 보기 <span class="muted">(${n})</span>${unread ? `<em class="unread">${unread}</em>` : ''}</button><button class="btn" data-act="leaveroom">채팅 나가기</button></div>${form('chatbar')}<div class="chatbar-space"></div>` }
-  return `<h2>팀 선정 채팅</h2><div class="panel chat">${chatMsgs()}${form('')}</div>`;
+  const n = S.chat.filter(m => m.uid !== 'sys').length; const unread = Math.max(0, S.chat.length - (S.chatSeen?.[S.sid] ?? S.chat.length));
+  return `<div class="row chatrow"><button class="btn" data-act="chatlog">💬 메시지 내역 보기 <span class="muted">(${n})</span>${unread ? `<em class="unread">${unread}</em>` : ''}</button>${room ? '<button class="btn" data-act="leaveroom">채팅 나가기</button>' : ''}</div>${form('chatbar')}<div class="chatbar-space"></div>`;
 }
 function vTrade(s) {
-  const cp = colorPanel(s);
-  const ad = S.admin && s.draftStatus === 'done';
-  let h = s.draftStatus !== 'done' ? `<div class="notice">드래프트가 끝나면 선수를 맞바꿀 수 있어요.</div>` : `<p class="note" style="margin-top:14px">${ad ? '바꿀 선수 한 명을 누르고, 다른 팀 선수를 누르면 맞바꿔요. 주장은 바꿀 수 없어요.' : '운영진이 팀 밸런스를 맞추는 중이에요.'}</p>`;
-  h += cp;
-  h += `<h2>팀 구성</h2><div class="cols">${KEYS.map(k => { const t = team(s, k); const ps = teamPlayers(s, k);
-    return `<div class="col"><div class="hd" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}<small>${ps.length}명</small></div><ol>${ps.map((id, j) =>
-      `<li class="${S.sel === id ? 'swap' : ''}">${j === 0 ? `<em>👑</em><span>${esc(pname(id))}</span>` : `<button data-act="selswap" data-id="${id}" ${ad ? '' : 'disabled'}><em>·</em><span>${esc(pname(id))}</span></button>`}</li>`).join('')}</ol></div>` }).join('')}</div>`;
-  if (ad) h += `<div style="height:14px"></div><button class="btn primary block" data-act="gostage" data-v="notice" ${allPicked(s) ? '' : 'disabled'}>팀 확정, 공지 이미지 만들기</button>${allPicked(s) ? '' : '<p class="note">세 팀 모두 색을 골라야 공지 이미지를 만들 수 있어요. 필요하면 운영진이 대신 골라도 돼요.</p>'}`;
-  return `<div class="split"><div class="main">${h}</div><aside class="side">${chatPanel()}</aside></div>`;
+  const ad = S.admin && s.draftStatus === 'done'; const my = myTeam(s);
+  let h = s.draftStatus !== 'done' ? `<div class="notice">드래프트가 끝나면 팀 구성을 볼 수 있어요.</div>` : '';
+  h += `<div class="tradehd"><b>밸런스 조정</b><small>${ad ? '선수 한 명을 누르고 다른 팀 선수를 누르면 맞바꿔요. 팀 색 이름을 누르면 색을 바꿀 수 있어요.' : my ? '팀 색 이름을 누르면 우리 팀 색을 바꿀 수 있어요. 운영진이 밸런스를 조정하는 중이에요.' : '운영진이 팀 밸런스를 조정하는 중이에요.'}</small></div>`;
+  h += `<div class="tradehost">${bubbleFor(m => m.admin)}<span class="av on hostav">운영</span><b>운영진</b></div>`;
+  h += `<div class="tcards">${KEYS.map(k => { const t = team(s, k); const ps = teamPlayers(s, k); const canC = S.admin || my === k;
+    return `<div class="tcard ${my === k ? 'me' : ''}" style="--tc:${t.color};--ti:${inkOn(t.color)}">${bubbleFor(m => m.team === k)}
+      <button class="tchd" data-act="${canC ? 'colorpick' : 'noop'}" data-k="${k}" ${canC ? '' : 'tabindex="-1"'}><span>${esc(t.name)}</span>${canC ? '<i>색 변경 ▾</i>' : ''}<small>${ps.length}명</small></button>
+      <ol>${ps.map((id, j) => j === 0 ? `<li class="cap"><em>C</em><span>${esc(pname(id))}</span></li>`
+        : `<li class="${S.sel === id ? 'swap' : ''}">${ad ? `<button data-act="selswap" data-id="${id}"><span>${esc(pname(id))}</span></button>` : `<span>${esc(pname(id))}</span>`}</li>`).join('')}</ol></div>` }).join('')}</div>`;
+  if (ad) h += `<div style="height:14px"></div><button class="btn primary block" data-act="gostage" data-v="notice" ${allPicked(s) ? '' : 'disabled'}>팀 확정, 공지 이미지 만들기</button>`;
+  h += chatPanel(!!(my || S.admin));
+  return h;
 }
 function vNotice(s) {
   const ad = S.admin; const img = S.poster[S.sid];
-  if (!allPicked(s)) return `<div class="notice warn">아직 팀 색을 고르지 않은 팀이 있어요. 교환 단계에서 팀 색을 먼저 정해 주세요.</div>`;
+  if (!allPicked(s)) return `<div class="notice warn">아직 팀 색을 고르지 않은 팀이 있어요. 밸런스 조정 화면에서 팀 색을 먼저 정해 주세요.</div>`;
   if (!img) queueMicrotask(refreshPoster);
   let h = `<div class="dgrid"><section><h2>공지 이미지</h2><img class="poster" alt="매치데이 공지 이미지 미리보기" src="${img || ''}" width="1086" height="1448">
   <div class="row" style="margin-top:10px"><button class="btn primary" data-act="share">카톡 등으로 공유</button><button class="btn" data-act="download">이미지 저장</button></div>
@@ -741,7 +745,10 @@ function viewMatch() {
 }
 function viewSheet() {
   const sh = S.sheet; let h = `<div class="scrim" data-act="closesheet"><div class="sheet" role="dialog" aria-modal="true" data-stop><div class="grab"></div>`;
-  if (sh.type === 'roommenu') { const s = cur(); const ph = roomPhase(s);
+  if (sh.type === 'colorpick') { const s = cur(); const cur0 = s.teams?.[sh.k]?.colorName;
+    h += `<h4>${esc(team(s, sh.k).name)} 팀 색 바꾸기</h4><p>다른 팀이 쓰는 색은 고를 수 없어요.</p><div class="pick cpick">${PALETTE.map(p => { const by = KEYS.find(o => o !== sh.k && s.teams?.[o]?.colorName === p.name);
+      return `<button class="${cur0 === p.name ? 'cur' : ''}" style="background:${p.color};color:${inkOn(p.color)}" data-act="colorset" data-c="${p.name}" ${by ? 'disabled' : ''}>${p.name}${by ? '<small>사용 중</small>' : cur0 === p.name ? '<small>지금 색</small>' : ''}</button>` }).join('')}</div>` }
+  else if (sh.type === 'roommenu') { const s = cur(); const ph = roomPhase(s);
     h += `<h4>진행 메뉴</h4><p>드래프트 진행을 조정해요.</p><div class="pick" style="grid-template-columns:1fr">${ph === 'draft' && (s.picks || []).length ? '<button data-act="undo">↶ 마지막 지명 되돌리기</button>' : ''}${(ph === 'draft' || ph === 'cards') && !(s.picks || []).length ? '<button data-act="reorder">순번 다시 정하기</button>' : ''}<button class="alt" data-act="resetroom">드래프트 처음부터 다시</button></div>` }
   else if (sh.type === 'chatlog') { (S.chatSeen ??= {})[S.sid] = S.chat.length; h += `<h4>메시지 내역</h4><p>드래프트 방에서 주고받은 메시지예요.</p><div class="panel chat logsheet">${chatMsgs()}</div>` }
   else if (sh.type === 'cal') h += calSheet();
@@ -1214,6 +1221,10 @@ document.addEventListener('click', async e => {
     case 'pick': await setPending(id); break;
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
+    case 'colorpick': { const k = el.dataset.k; if (!(S.admin || myTeam(s) === k)) break; S.sheet = { type: 'colorpick', k }; render(); break }
+    case 'colorset': { const k = S.sheet?.k, c = el.dataset.c; if (!k || !(S.admin || myTeam(s) === k)) break; const old = team(s, k).name; S.sheet = null; render();
+      const ok = await w(() => S.store.txn(sp(S.sid), d => { if (!d) return null; if (KEYS.some(o => o !== k && d.teams?.[o]?.colorName === c)) return null; d.teams[k] = { ...(d.teams[k] || {}), colorName: c }; return d }));
+      if (!ok) { toast('다른 팀이 쓰는 색이에요.'); break } if (old !== c) { sysChat(`${old} 팀이 ${c}(으)로 색을 바꿨어요.`); delete S.poster[S.sid] } break }
     case 'recolor': { const k = el.dataset.k; if (!(S.admin || myTeam(s) === k)) break; const old = team(s, k).name;
       const ok = await w(() => S.store.txn(sp(S.sid), d => { if (!d || d.ladder || d.cardgame || d.draftStatus !== 'ready') return null; d.teams[k] = { ...(d.teams[k] || {}), colorName: null }; return d }));
       if (!ok) { toast('순번 정하기가 시작돼서 색을 바꿀 수 없어요.'); break } sysChat(`${pname(s.captains?.[k])} 주장이 ${old} 색을 내려놓았어요. 다시 골라 주세요.`); break }
