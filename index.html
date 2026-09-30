@@ -936,6 +936,25 @@ table.atbl .nn{font-style:normal;color:#B45309}
 table.atbl tr.lrow td{background:rgba(254,226,226,.35);text-decoration:line-through;text-decoration-color:rgba(153,27,27,.4)}
 table.atbl tr.lrow td:nth-child(n+7){text-decoration:none}
 .plist .prow .btn{min-height:30px;padding:0 9px;font-size:12px}
+.ntabs button{font-size:15px;min-height:44px}
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){.ntabs{max-width:520px}}
+/* v0.29 home balance */
+.appbar .ttl[data-act]{cursor:pointer}
+.homegrid{display:grid;grid-auto-rows:1fr;gap:6px 32px;align-items:stretch!important}
+.homegrid>section{display:flex;flex-direction:column;min-width:0}
+.homegrid .review{flex:1;display:flex;flex-direction:column}
+.homegrid .review.empty-r{justify-content:center}
+.homegrid .review .rv-rows{flex:1;display:flex;flex-direction:column;padding:4px 16px}
+.homegrid .review .rv-rows .rc-row{flex:1;min-height:44px}
+.homegrid .review .rc-row b{font-size:19px}
+.homegrid .review .pt{font-size:16px}
+.homegrid .review .more{margin-top:auto}
+.homegrid .nextwrap{flex:1;display:flex;flex-direction:column;gap:10px;min-height:0}
+.homegrid .nextwrap .hero{flex:1;display:flex;flex-direction:column;justify-content:space-between}
+.homegrid .nextwrap .act{margin-top:0}
+.homegrid .rv-rows .rc-row{padding:10px 0}
+.homegrid .rv-top{padding:18px 16px}
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){.homegrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 32px}}
 </style>
 </head>
 <body>

@@ -225,7 +225,7 @@ async function createSession(f) {
     teams: { A: { players: [] }, B: { players: [] }, C: { players: [] } }, timing: DEF_TIMING, mom: {}, createdAt: Date.now() };
   if (await w(() => S.store.set(sp(sid), doc), '경기일을 만들었어요.')) { S.sid = sid; S.step = 'apply'; S.sheet = null; render() }
 }
-async function setStage(st) { const s = cur(); if (stageIdx(st) > stageIdx(s.stage)) await w(() => S.store.update(sp(S.sid), { stage: st })); if (st === 'notice') { S.tab = 'notice'; S.step = null; render(); window.scrollTo(0, 0); return } S.step = st; render(); window.scrollTo(0, 0) }
+async function setStage(st) { const s = cur(); if (stageIdx(st) > stageIdx(s.stage)) await w(() => S.store.update(sp(S.sid), { stage: st })); if (st === 'notice') { S.tab = 'notice'; S.noticeTab = 'team'; S.step = null; render(); window.scrollTo(0, 0); return } S.step = st; render(); window.scrollTo(0, 0) }
 async function addApplicants(names) {
   const s = cur(); const ids = []; for (const nm of names) { const id = await ensurePlayer(nm); if (id) ids.push(id) }
   if (s.stage === 'apply') { let n = 0; await w(() => S.store.txn(sp(S.sid), d => { const apps = appsOf(d); n = 0; for (const id of ids) if (!apps.some(a => a.pid === id)) { apps.push({ k: rand() + rand(), pid: id, uid: 'admin', at: Date.now() }); n++ } d.apps = apps; return d }), `${ids.length}명을 반영했어요.`); return }
@@ -404,8 +404,8 @@ function render() {
 }
 function appbar() {
   const s = S.sid ? S.sessions[S.sid] : null; const back = false;
-  return `<header class="appbar"><div class="in">${back ? '<button class="back" data-act="home" aria-label="경기일 목록">‹</button>' : `<img src="${EMBLEM_SRC}" alt="">`}
-  <div class="ttl"><b>${esc(CFG.club?.name || 'WEEKDAYS FUTSAL CLUB')}</b><span>${s && S.admin && (S.tab === 'run' || S.tab === 'notice') ? `${fmtDate(s.date)} ${esc(s.time || '')} ${esc(s.venue || '')}` : ''}</span></div>
+  return `<header class="appbar"><div class="in">${back ? '<button class="back" data-act="home" aria-label="경기일 목록">‹</button>' : `<img src="${EMBLEM_SRC}" alt="홈으로" data-act="gohome" style="cursor:pointer">`}
+  <div class="ttl" data-act="gohome" role="button" tabindex="0" aria-label="홈으로"><b>${esc(CFG.club?.name || 'WEEKDAYS FUTSAL CLUB')}</b><span>${s && S.admin && (S.tab === 'run' || S.tab === 'notice') ? `${fmtDate(s.date)} ${esc(s.time || '')} ${esc(s.venue || '')}` : ''}</span></div>
   <button class="gear" data-act="tab" data-v="settings" aria-label="설정">⚙</button><button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">${S.admin ? '운영 중' : '운영모드'}</button></div></header>`;
 }
 function tabs() {
@@ -697,14 +697,14 @@ function vNotice(s) {
   const ad = S.admin; const img = S.poster[S.sid];
   if (!allPicked(s)) return `<div class="notice warn">아직 팀 색을 고르지 않은 팀이 있어요. 밸런스 조정 화면에서 팀 색을 먼저 정해 주세요.</div>`;
   if (!img) queueMicrotask(refreshPoster);
-  let h = `<div class="dgrid"><section><h2>공지 이미지</h2><img class="poster" alt="매치데이 공지 이미지 미리보기" src="${img || ''}" width="1086" height="1448">
+  let h = `<div class="dgrid"><section><h2>팀 선정 결과 공지 이미지</h2><img class="poster" alt="매치데이 공지 이미지 미리보기" src="${img || ''}" width="1086" height="1448">
   <div class="row" style="margin-top:10px"><button class="btn primary" data-act="share">카톡 등으로 공유</button><button class="btn" data-act="download">이미지 저장</button></div>
   <button class="btn block" style="margin-top:8px" data-act="copytext">공지 텍스트 복사</button>`;
   h += '</section><section>';
   if (ad) h += `<h2>공지 내용</h2><div class="panel">
     <div class="field"><label for="f-ev">E/V 비밀번호</label><input id="f-ev" class="inp" type="text" value="${esc(s.evpw || '')}" data-in="sfield" data-f="evpw" ${ad ? '' : 'disabled'}></div>
     <div class="field"><label for="f-nt">NOTICE 문구</label><input id="f-nt" class="inp" type="text" value="${esc(s.notice || '')}" data-in="sfield" data-f="notice" ${ad ? '' : 'disabled'}><span class="note" style="margin:0">{ } 로 감싼 글자는 노란색으로 강조돼요.</span></div></div>`;
-  if (ad) h += `<div style="height:14px"></div><button class="btn primary block" data-act="mkmatches">경기 일정 만들기 (9경기)</button>`;
+  if (ad) h += sessMatches(s.date).length ? `<div style="height:14px"></div><button class="btn block" data-act="gorun" data-id="${s.date}" data-step="match">경기 진행 화면으로</button>` : `<div style="height:14px"></div><button class="btn primary block" data-act="mkmatches">경기 일정 만들기 (9경기)</button>`;
   return h + '</section></div>';
 }
 function vMatchDay(s) {
@@ -840,7 +840,7 @@ function viewMHome() {
     if (S.sub === 'draft' && S.dm && s.draftStatus !== 'done') return `<div class="dmroot">${backbar('홈으로')}${vDraft(s)}</div>`;
     return backbar('홈으로') + body } }
   const sid = nextSid(); let h = '';
-  h += '<div class="dgrid"><section>';
+  h += '<div class="dgrid homegrid"><section>';
   // ── MATCH REVIEW ──
   const last = pastSids().find(id => id !== sid);
   h += `<div class="sec-lab"><span>MATCH REVIEW</span>${last ? `<small>${fmtDate(last)}</small>` : ''}</div>`;
@@ -856,6 +856,7 @@ function viewMHome() {
   h += '</section><section>';
   // ── NEXT MATCH ──
   h += `<div class="sec-lab"><span>NEXT MATCH</span>${sid ? `<small>${fmtDate(sid)}</small>` : ''}</div>`;
+  h += '<div class="nextwrap">';
   if (!sid) h += `<div class="hero"><div class="hero-empty">예정된 경기가 없어요</div><p>새 경기일이 열리면 여기에 보여요.</p></div>`;
   else { S.sid = sid; const s = S.sessions[sid]; const st = sStatus(s); const n = appCounts(s).sel; const cap = s.capacity || 0; const [, m, d] = sid.split('-');
     h += `<div class="hero"><div class="hero-top"><span class="st st-${st.k}">${st.label}</span><span class="dday">${dday(sid)}</span></div>
@@ -865,7 +866,7 @@ function viewMHome() {
       <div class="cap"><div class="cap-row"><span>신청 인원</span><b>${n}<small> / ${cap || '-'}명</small></b></div>${cap ? `<div class="bar"><i style="width:${Math.min(100, n / cap * 100)}%"></i></div>` : ''}</div></div>`;
     h += homeAction(s, st);
   }
-  return h + '</section></div>';
+  return h + '</div></section></div>';
 }
 function homeAction(s, st) {
   const mt = myTeamIn(s);
@@ -1016,9 +1017,21 @@ function viewRun() {
 }
 function recruitText(s) { return [`[${CFG.club?.short || 'WF'}] ${fmtDate(s.date)} ${s.time || ''} 경기 신청 받아요`, `장소: ${s.venue || '-'}`, `정원: ${s.capacity || '-'}명`, s.applyClose ? `마감: ${fmtDT(s.applyClose)}` : '', '카톡 투표로 참여해 주세요!'].filter(Boolean).join('\n') }
 function viewNoticeAdmin() {
-  const sid = adminSid(); if (!sid) return `<div class="panel" style="margin-top:14px"><p class="empty">경기가 없어요.</p></div>`; S.sid = sid; const s = S.sessions[sid];
-  let h = schedPanel() + '<div style="height:8px"></div>' + sessionPicker() + `<h2>모집 공지<small>카톡 투표와 함께 올릴 글</small></h2><div class="panel pad"><pre class="pre">${esc(recruitText(s))}</pre><button class="btn block" data-act="copyrecruit">모집 공지 복사</button></div>`;
-  h += s.draftStatus === 'done' ? vNotice(s) : `<h2>팀 공지</h2><div class="notice">드래프트가 끝나고 팀 색이 정해지면 매치데이 공지 이미지를 만들 수 있어요.</div>`;
+  const nt = S.noticeTab || 'month';
+  let h = `<div class="seg ntabs" role="tablist" style="margin-top:16px">${[['month', '📅 월간 공지 생성'], ['team', '👥 팀 공지 생성']].map(([k, n]) => `<button role="tab" data-act="ntab" data-k="${k}" aria-selected="${nt === k}">${n}</button>`).join('')}</div>`;
+  if (nt === 'month') {
+    if (!Object.keys(S.sessions).length) return h + `<div class="panel"><p class="empty">경기가 없어요. 경기관리에서 한 달 일정을 먼저 추가하세요.</p></div>`;
+    h += schedPanel();
+    const sid = adminSid(); const s = S.sessions[sid];
+    if (s) h += `<h2>경기별 신청 안내 글<small>카톡 투표와 함께 올릴 글</small></h2>` + sessionPicker() + `<div class="panel pad" style="margin-top:10px"><pre class="pre">${esc(recruitText(s))}</pre><button class="btn block" data-act="copyrecruit">신청 안내 글 복사</button></div>`;
+    return h;
+  }
+  const done = Object.keys(S.sessions).filter(id => S.sessions[id].draftStatus === 'done').sort().reverse();
+  if (!done.length) return h + `<div class="panel pad"><p class="empty" style="padding:10px 0">아직 팀 선정이 끝난 경기가 없어요. 경기진행에서 드래프트를 마치면 여기서 팀 공지 이미지를 만들 수 있어요.</p></div>`;
+  if (!done.includes(S.sid)) { const up = done.filter(id => id >= today()); S.sid = up.length ? up[up.length - 1] : done[0] }
+  const s = S.sessions[S.sid];
+  h += `<label class="sr" for="teamsid">경기 선택</label><select id="teamsid" class="inp" style="margin-top:12px;max-width:420px" data-in="sidpick">${done.map(id => `<option value="${id}" ${id === S.sid ? 'selected' : ''}>${fmtDate(id)} ${esc(S.sessions[id].time || '')} · ${esc(S.sessions[id].venue || '')}</option>`).join('')}</select>`;
+  h += vNotice(s);
   return h;
 }
 function viewRecs() {
@@ -1456,7 +1469,7 @@ async function sendChat() {
   try { await w(() => S.store.add(sp(S.sid) + '/chat', { name, uid: myUid(), team: mk || null, admin: !mk && S.admin, text: text.slice(0, 300), at: Date.now() })) } finally { S.sending = false }
   document.getElementById('chatin')?.focus();
 }
-document.addEventListener('keydown', e => { if (e.target.id !== 'chatin' || e.key !== 'Enter' || e.shiftKey) return; e.preventDefault();
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset?.act === 'gohome') { e.target.click(); return } if (e.target.id !== 'chatin' || e.key !== 'Enter' || e.shiftKey) return; e.preventDefault();
   if (e.isComposing) { S.sendAfterCompose = true; return } sendChat() }, true);
 document.addEventListener('compositionstart', e => { if (e.target.id === 'chatin') S.composing = true });
 document.addEventListener('compositionend', e => { if (e.target.id !== 'chatin') return; S.composing = false;
@@ -1523,6 +1536,8 @@ document.addEventListener('click', async e => {
     case 'pick': await setPending(id); break;
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
+    case 'gohome': S.tab = S.admin ? 'manage' : 'mhome'; S.sub = null; S.detail = null; S.openMatch = null; S.sheet = null; S.step = null; render(); window.scrollTo(0, 0); break;
+    case 'ntab': S.noticeTab = el.dataset.k; render(); window.scrollTo(0, 0); break;
     case 'parkadd': { if (!needAdmin()) break; const sid = id; const nm = document.getElementById('pk-nm').value.trim(), car = document.getElementById('pk-cr').value.replace(/\s+/g, ''); if (!nm || !car) { toast('이름과 차량번호를 입력하세요.'); break }
       const pid = await ensurePlayer(nm); if (!pid) break; if (parkBanned(S.sessions[sid], pid) && !confirm(`${nm} 님은 지난 경기 주차 당첨자예요. 그래도 추가할까요?`)) break;
       await w(() => S.store.update(sp(sid), { [`park.${pid}`]: { car: car.slice(0, 12), at: Date.now(), manual: true } }), '주차 신청을 추가했어요.'); break }
@@ -1590,7 +1605,7 @@ document.addEventListener('click', async e => {
       if (await w(async () => { for (const m of list) { await saveMember(m); n++ } })) { S.sheet = null; toast(`${n}명을 등록했어요.`); render() } break }
     case 'mfilter': S.mfilter = el.dataset.k; render(); break;
     case 'gorun': S.sid = id; S.tab = 'run'; S.step = el.dataset.step || null; S.sel = null; render(); window.scrollTo(0, 0); break;
-    case 'gonotice': S.sid = id; S.tab = 'notice'; render(); window.scrollTo(0, 0); break;
+    case 'gonotice': S.sid = id; S.tab = 'notice'; S.noticeTab = S.sessions[id]?.draftStatus === 'done' ? 'team' : 'month'; if (S.noticeTab === 'month') S.schedYm = id.slice(0, 7); render(); window.scrollTo(0, 0); break;
     case 'delrow': S.sid = id; await deleteSessionBy(id); break;
     case 'caladd': { const d = new Date(); S.cal = { mode: 'add', y: d.getFullYear(), m: d.getMonth(), sel: [], f: { time: DEFAULTS.time, venue: DEFAULTS.venue, capacity: DEFAULTS.capacity || 18, openD: DEFAULTS.openDays, openT: DEFAULTS.openTime, closeD: DEFAULTS.closeDays, closeT: DEFAULTS.closeTime } }; S.sheet = { type: 'cal' }; render(); break }
     case 'calmove': { const [y, m] = id.split('-'); S.cal = { mode: 'move', from: id, y: +y, m: +m - 1, sel: [] }; S.sheet = { type: 'cal' }; render(); break }
