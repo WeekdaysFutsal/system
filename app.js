@@ -601,20 +601,30 @@ function viewMHome() {
     const body = S.sub === 'draft' ? (s.draftStatus === 'done' ? vTrade(s) : vDraft(s)) : S.sub === 'poster' ? vNotice(s) : vMatchDay(s);
     return backbar('홈으로') + body } }
   const sid = nextSid(); let h = '';
-  if (!sid) h += `<div class="hero"><div class="hero-k">NEXT MATCH</div><div class="hero-empty">예정된 경기가 없어요</div><p>새 경기일이 열리면 여기에 보여요.</p></div>`;
-  else { S.sid = sid; const s = S.sessions[sid]; const st = sStatus(s); const n = (s.applicants || []).length; const cap = s.capacity || 0; const [y, m, d] = sid.split('-');
-    h += `<div class="hero"><div class="hero-top"><span class="hero-k">NEXT MATCH</span><span class="dday">${dday(sid)}</span></div>
+  // ── MATCH REVIEW ──
+  const last = pastSids().find(id => id !== sid);
+  h += `<div class="sec-lab"><span>MATCH REVIEW</span>${last ? `<small>${fmtDate(last)}</small>` : ''}</div>`;
+  if (!last) h += `<div class="review empty-r">아직 지난 경기가 없어요.</div>`;
+  else { const s = S.sessions[last]; const rows = standings(last); const mt = myTeamIn(s); const top = rows[0]; const tt = team(s, top.k); const done = sessMatches(last).filter(m => m.status === 'done').length;
+    const tally = {}; for (const e of Object.values(S.events)) if (e.session === last && !e.og && e.scorer) tally[e.scorer] = (tally[e.scorer] || 0) + 1;
+    const best = Math.max(0, ...Object.values(tally)); const scorers = Object.keys(tally).filter(k => tally[k] === best && best > 0);
+    const moms = KEYS.map(k => s.mom?.[k]).filter(Boolean);
+    h += `<button class="review" data-act="result" data-id="${last}">
+      <div class="rv-top" style="--tc:${tt.color};--ti:${inkOn(tt.color)}"><span class="rv-trophy">🏆</span><span><small>${done < 9 ? `${done}/9경기 기준 1위` : '우승'}</small><b>${esc(tt.name)}</b></span><span class="rv-pts">${top.pts}<small>점</small></span></div>
+      <div class="rv-rows">${rows.map(r => { const t = team(s, r.k); return `<div class="rc-row ${mt === r.k ? 'mine' : ''}"><em class="rk rk${r.rank}">${r.rank}</em>${bib(t.color)}<b>${esc(t.name)}</b>${mt === r.k ? '<small class="metag">내 팀</small>' : ''}<span class="wdl"><i class="w">${r.w}승</i><i class="d">${r.d}무</i><i class="l">${r.l}패</i></span><span class="pt">${r.pts}점</span></div>` }).join('')}</div>
+      ${scorers.length || moms.length ? `<div class="rv-meta">${scorers.length ? `<span><em>득점왕</em>${scorers.map(x => esc(pname(x))).join(', ')} ${best}골</span>` : ''}${moms.length ? `<span><em>MOM</em>${moms.map(x => esc(pname(x))).join(', ')}</span>` : ''}</div>` : ''}
+      <span class="more">경기 결과 자세히 보기 ›</span></button>` }
+  // ── NEXT MATCH ──
+  h += `<div class="sec-lab"><span>NEXT MATCH</span>${sid ? `<small>${fmtDate(sid)}</small>` : ''}</div>`;
+  if (!sid) h += `<div class="hero"><div class="hero-empty">예정된 경기가 없어요</div><p>새 경기일이 열리면 여기에 보여요.</p></div>`;
+  else { S.sid = sid; const s = S.sessions[sid]; const st = sStatus(s); const n = (s.applicants || []).length; const cap = s.capacity || 0; const [, m, d] = sid.split('-');
+    h += `<div class="hero"><div class="hero-top"><span class="st st-${st.k}">${st.label}</span><span class="dday">${dday(sid)}</span></div>
       <div class="hero-date">${m}.${d}<small>${dow(sid)}요일</small></div><div class="hero-time">${esc(s.time || '')}</div>
       <div class="hero-venue">📍 ${esc(s.venue || '장소 미정')}</div>
-      <div class="hero-status"><span class="st st-${st.k}">${st.label}</span>${st.k === 'open' && s.applyClose ? `<span>${fmtDT(s.applyClose)} 마감</span>` : st.k === 'soon' && s.applyOpen ? `<span>${fmtDT(s.applyOpen)} 오픈</span>` : ''}</div>
+      ${st.k === 'open' && s.applyClose ? `<div class="hero-status"><span>${fmtDT(s.applyClose)} 신청 마감</span></div>` : st.k === 'soon' && s.applyOpen ? `<div class="hero-status"><span>${fmtDT(s.applyOpen)} 신청 오픈</span></div>` : ''}
       <div class="cap"><div class="cap-row"><span>신청 인원</span><b>${n}<small> / ${cap || '-'}명</small></b></div>${cap ? `<div class="bar"><i style="width:${Math.min(100, n / cap * 100)}%"></i></div>` : ''}</div></div>`;
     h += homeAction(s, st);
   }
-  const last = pastSids().find(id => id !== sid);
-  if (last) { const s = S.sessions[last]; const rows = standings(last); const mt = myTeamIn(s);
-    h += `<h2>지난 경기<small>${fmtDate(last)}</small></h2><button class="panel resmini" data-act="result" data-id="${last}">${rows.map(r => { const t = team(s, r.k); return `<span class="rm ${mt === r.k ? 'mine' : ''}"><em>${r.rank}위</em>${bib(t.color)}<b>${esc(t.name)}</b><small>${r.w}승 ${r.d}무 ${r.l}패</small></span>` }).join('')}<span class="more">결과 자세히 보기 ›</span></button>` }
-  const me = myPid(); if (me) { const rows = playerStats(); const r = rows.find(x => x.id === me);
-    if (r) h += `<h2>내 기록<small>${esc(pname(me))}</small></h2><button class="mystats" data-act="tab" data-v="mstats">${[['참가', r.days + '회'], ['득점', r.g], ['득점 순위', (rankOf(rows, 'g', me) || '-') + '위']].map(([l, v]) => `<div><b>${v}</b><span>${l}</span></div>`).join('')}</button>` }
   return h;
 }
 function homeAction(s, st) {

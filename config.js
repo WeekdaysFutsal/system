@@ -6,12 +6,27 @@
 window.WF_CONFIG = {
   // Firebase 콘솔 > 프로젝트 설정 > 내 앱 > SDK 설정 및 구성 에서 복사한 값을 붙여넣으세요.
   firebase: {
-    apiKey: "",
-    authDomain: "",
-    projectId: "",
-    storageBucket: "",
-    messagingSenderId: "",
-    appId: ""
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyCvO0DUvGG0i8gRJ74Ppn1aqUZ3QiG5pFs",
+  authDomain: "wd-futsal.firebaseapp.com",
+  projectId: "wd-futsal",
+  storageBucket: "wd-futsal.firebasestorage.app",
+  messagingSenderId: "663428055388",
+  appId: "1:663428055388:web:92aaceb1b0c5088176c199",
+  measurementId: "G-3XENNFF6KL"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
   },
 
   // 운영진 모드 비밀번호 (운영진, 기록 담당자에게만 알려 주세요)
