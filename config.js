@@ -1,18 +1,16 @@
 // ─────────────────────────────────────────────────────────────
 // WD_FUTSAL 설정 파일
-// Firebase 설정값을 채우기 전에는 "체험 모드"로 동작해요.
-// (체험 모드: 이 기기 브라우저에만 저장, 다른 폰과 공유되지 않음)
+// Firebase 프로젝트: wd-futsal
 // ─────────────────────────────────────────────────────────────
 window.WF_CONFIG = {
   // Firebase 콘솔 > 프로젝트 설정 > 내 앱 > SDK 설정 및 구성 에서 복사한 값을 붙여넣으세요.
   firebase: {
-  apiKey: "AIzaSyCvO0DUvGG0i8gRJ74Ppn1aqUZ3QiG5pFs",
-  authDomain: "wd-futsal.firebaseapp.com",
-  projectId: "wd-futsal",
-  storageBucket: "wd-futsal.firebasestorage.app",
-  messagingSenderId: "663428055388",
-  appId: "1:663428055388:web:92aaceb1b0c5088176c199",
-  measurementId: "G-3XENNFF6KL"
+    apiKey: "AIzaSyCvO0DUvGG0i8gRJ74Ppn1aqUZ3QiG5pFs",
+    authDomain: "wd-futsal.firebaseapp.com",
+    projectId: "wd-futsal",
+    storageBucket: "wd-futsal.firebasestorage.app",
+    messagingSenderId: "663428055388",
+    appId: "1:663428055388:web:92aaceb1b0c5088176c199"
   },
 
   // 운영진 모드 비밀번호 (운영진, 기록 담당자에게만 알려 주세요)
@@ -20,12 +18,15 @@ window.WF_CONFIG = {
 
   club: { name: "WEEKDAYS FUTSAL CLUB", short: "WF" },
 
-  // 팀 이름과 조끼 색
-  teams: {
-    A: { name: "BLUE",  color: "#1E46C8" },
-    B: { name: "BLACK", color: "#16181C" },
-    C: { name: "WHITE", color: "#F2F3F5" }
-  },
+  // 조끼 색 (팀이 완성되면 각 팀 주장이 이 중에서 골라요)
+  colors: [
+    { name: "BLUE",   color: "#1E46C8" },
+    { name: "BLACK",  color: "#16181C" },
+    { name: "RED",    color: "#D7263D" },
+    { name: "WHITE",  color: "#F2F3F5" },
+    { name: "YELLOW", color: "#F5C518" },
+    { name: "GREEN",  color: "#1E9E57" }
+  ],
 
   // 새 경기일 기본값
   defaults: {
