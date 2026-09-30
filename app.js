@@ -123,8 +123,8 @@ function captainOf(s, k) { return s?.captains?.[k] || null }
 
 /* ───────── match logic ───────── */
 function orderIdx(m) { return (m.round - 1) * 3 + m.slot }
-function sessMatches(sid) { return Object.entries(S.matches).filter(([, m]) => m.session === sid).map(([id, m]) => { const t = PAIRS[m.slot - 1]; return { id, ...m, home: t[0], away: t[1] } }).sort((a, b) => a.n - b.n) }
-function M(id) { const m = S.matches[id]; if (!m) return null; const t = PAIRS[m.slot - 1]; return { id, ...m, home: t[0], away: t[1] } }
+function sessMatches(sid) { return Object.entries(S.matches).filter(([, m]) => m.session === sid).map(([id, m]) => { const t = m.home && m.away ? [m.home, m.away] : PAIRS[m.slot - 1]; return { id, ...m, home: t[0], away: t[1] } }).sort((a, b) => a.n - b.n) }
+function M(id) { const m = S.matches[id]; if (!m) return null; const t = m.home && m.away ? [m.home, m.away] : PAIRS[m.slot - 1]; return { id, ...m, home: t[0], away: t[1] } }
 function evsOf(mid) { return Object.entries(S.events).filter(([, e]) => e.match === mid).map(([id, e]) => ({ id, ...e })).sort((a, b) => a.sec - b.sec || a.at - b.at) }
 function score(m) { let h = 0, a = 0; for (const e of Object.values(S.events)) { if (e.match !== m.id) continue; if (e.team === m.home) h++; else if (e.team === m.away) a++ } return [h, a] }
 function elapsed(m) { const t = m.timer || {}; return (t.acc || 0) + (t.running && t.startedAt ? Math.max(0, (Date.now() - t.startedAt) / 1000) : 0) }
@@ -445,12 +445,7 @@ function viewSession() {
 }
 function vApply(s) {
   const ad = S.admin; const ids = s.applicants || [];
-  let h = `<h2>경기 정보</h2><div class="panel apinfo">
-    <div class="field"><label>시간</label><input class="inp" type="time" value="${esc(s.time)}" data-in="sfield" data-f="time" ${ad ? '' : 'disabled'}></div>
-    <div class="field"><label for="f-venue">장소</label><input id="f-venue" class="inp" type="text" value="${esc(s.venue)}" data-in="sfield" data-f="venue" ${ad ? '' : 'disabled'}></div>
-    <div class="field"><label for="f-cap">신청 인원 (정원)</label><input id="f-cap" class="inp" type="number" min="3" max="60" value="${s.capacity || ''}" data-in="sfield2" data-f="capacity" ${ad ? '' : 'disabled'}></div>
-    <div class="field"><label for="f-open">신청 오픈</label><input id="f-open" class="inp" type="datetime-local" value="${esc(s.applyOpen || '')}" data-in="sfield2" data-f="applyOpen" ${ad ? '' : 'disabled'}></div>
-    <div class="field"><label for="f-close">신청 마감</label><input id="f-close" class="inp" type="datetime-local" value="${esc(s.applyClose || '')}" data-in="sfield2" data-f="applyClose" ${ad ? '' : 'disabled'}></div></div>`;
+  let h = `<h2>경기 정보<small>수정은 경기관리 메뉴에서 해요</small></h2><div class="panel apinfo ro">${[['날짜', fmtDate(s.date)], ['시간', s.time || '-'], ['장소', s.venue || '-'], ['정원', s.capacity ? s.capacity + '명' : '-'], ['신청 오픈', s.applyOpen ? fmtDT(s.applyOpen) : '-'], ['신청 마감', s.applyClose ? fmtDT(s.applyClose) : '-'], ['구장 예약자', idsToNames(s.p0) || '-'], ['경기 운영자', idsToNames(s.ops) || '-']].map(([k, v]) => `<div class="field"><span>${k}</span><b>${esc(v)}</b></div>`).join('')}</div>`;
   const ast = sStatus(s); const cc = appCounts(s);
   h += `<h2>신청자<small>선발 ${cc.sel}${s.capacity ? ' / ' + s.capacity : ''}명${cc.wait ? `, 대기 ${cc.wait}명` : ''}</small><span class="st st-${ast.k}">${ast.label}</span></h2>
   <p class="note" style="margin:-4px 2px 10px">${ast.k === 'open' ? `회원들이 앱에서 직접 신청하는 중이에요. ${s.applyClose ? fmtDT(s.applyClose) + '에 자동 마감돼요.' : ''}` : ast.k === 'soon' ? `${fmtDT(s.applyOpen)}에 앱 신청이 열려요.` : '앱 신청이 마감됐어요.'} 카톡으로 받은 신청은 아래에서 직접 추가해도 돼요.</p>`;
@@ -756,7 +751,8 @@ function viewMatch() {
 }
 function viewSheet() {
   const sh = S.sheet; let h = `<div class="scrim" data-act="closesheet"><div class="sheet" role="dialog" aria-modal="true" data-stop><div class="grab"></div>`;
-  if (sh.type === 'duty') h += dutySheet(sh.sid);
+  if (sh.type === 'import') h += importSheet();
+  else if (sh.type === 'duty') h += dutySheet(sh.sid);
   else if (sh.type === 'park') h += parkSheet(sh.sid);
   else if (sh.type === 'parkapply') { const ss = S.sessions[sh.sid]; h += `<h4>🚗 주차 신청</h4><p>${fmtDate(sh.sid)} 경기 주차를 신청해요. 신청자 중 ${PARK_SLOTS}명을 추첨해요.</p><div class="panel"><div class="field"><label for="pk-car2">차량번호</label><input id="pk-car2" class="inp" type="text" maxlength="12" placeholder="예: 12가3456"></div></div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="parksave">신청</button></div>` }
   else if (sh.type === 'staffedit') { const ss = S.sessions[sh.sid];
@@ -1031,8 +1027,9 @@ function viewNoticeAdmin() {
   return h;
 }
 function viewRecs() {
+  const ib = S.admin ? `<div class="row" style="margin-top:16px"><button class="btn primary" data-act="impopen">📋 경기 기록 붙여넣기</button></div>` : '';
   const ids = pastSids();
-  let h = `<h2>경기 결과 수정<small>눌러서 골과 도움을 고칠 수 있어요</small></h2><div class="panel">${ids.length ? ids.map(id => { const s = S.sessions[id]; const top = standings(id)[0];
+  let h = ib + `<h2>경기 결과 수정<small>눌러서 골과 도움을 고칠 수 있어요</small></h2><div class="panel">${ids.length ? ids.map(id => { const s = S.sessions[id]; const top = standings(id)[0];
     return `<button class="card" data-act="gorun" data-id="${id}" data-step="match"><span><span class="d">${fmtDate(id)}</span><br><span class="s">${sessMatches(id).filter(m => m.status === 'done').length}/9경기, ${Object.values(S.events).filter(e => e.session === id).length}골</span></span><span class="r">${bib(team(s, top.k).color)} ${esc(team(s, top.k).name)} 1위</span></button>` }).join('') : '<p class="empty">아직 끝난 경기가 없어요.</p>'}</div>`;
   return h + viewStats();
 }
@@ -1319,6 +1316,88 @@ function schedPanel() {
     <p class="note">경기관리에 입력한 일정(회차, 날짜·시간, 장소, 신청 오픈, 구장 예약자)으로 자동으로 만들어져요.${noNo ? ` 회차가 비어 있는 경기가 ${noNo}개 있어요. 경기관리 표의 "회차" 칸에 입력하면 표에 들어가요.` : ''}</p></section></div>`;
 }
 
+/* ───────── record import (paste) ───────── */
+const CMAP = { '흰': 'WHITE', '화': 'WHITE', '검': 'BLACK', '블': 'BLACK', '파': 'BLUE', '빨': 'RED', '레': 'RED', '노': 'YELLOW', '옐': 'YELLOW', '초': 'GREEN', '그': 'GREEN' };
+function colorWord(w) { w = (w || '').trim(); const up = w.toUpperCase(); const p = PALETTE.find(x => up.startsWith(x.name)); if (p) return p.name; return CMAP[w[0]] || null }
+function parseRecord(txt) {
+  const sec = {}; let cur = null;
+  for (const raw of txt.split(/\r?\n/)) { const l = raw.trim(); if (!l) continue; const m = l.match(/^\[(.+?)\]\s*(.*)$/);
+    if (m) { cur = m[1].replace(/\s/g, ''); sec[cur] = sec[cur] || []; if (m[2]) sec[cur].push(m[2]); continue } if (cur) sec[cur].push(l) }
+  const pick = (...keys) => { const k = Object.keys(sec).find(x => keys.some(y => x.includes(y))); return k ? sec[k] : [] };
+  const names = lines => lines.join(' ').split(/[\s,]+/).map(x => x.trim()).filter(x => x && x !== '없음');
+  const teams = []; for (const l of pick('팀')) { const m = l.match(/^(\S+)(?:\s+(\S+))?\s*[:：]\s*(.+)$/); if (!m) continue; const col = colorWord(m[2] || m[1]) || colorWord(m[1]); if (col) teams.push({ color: col, players: names([m[3]]) }) }
+  const results = []; for (const l of pick('결과')) { const m = l.match(/^(\S+)\s+(\d+)\s+(\d+)\s+(\S+)$/); if (m) { const a = colorWord(m[1]), b = colorWord(m[4]); if (a && b) results.push({ home: a, hg: +m[2], ag: +m[3], away: b }) } }
+  return { ops: names(pick('운영')), res: names(pick('예약')), t1: names(pick('1순위')), t2: names(pick('2순위')), t3: names(pick('3순위')), wait: names(pick('대기')), late: names(pick('마감', '취소')), teams, results };
+}
+function importTemplate() {
+  return `[경기운영] 없음
+[경기장 예약자] 김바우
+
+[1순위]
+손효석 이도형 김민혁 손준민 안준영 이호열
+박종현 지유균
+
+[2순위 참확정]
+김민준 강인호 한준호 윤창민 이준현 양성필
+이정욱 이태명 이건
+
+[대기]
+도현우 고광원 권순업 문태웅
+
+[마감취소]
+김동준
+
+[팀] (맨 앞 이름이 주장)
+파 BLUE: 김민혁 이도형 안준영 한준호 윤창민 이정욱
+검 BLACK: 이준현 김바우 박종현 강인호 양성필 손효석
+흰 WHITE: 이태명 김민준 지유균 손준민 이호열 이건
+
+[경기결과]
+흰 0 0 검
+파 0 2 검
+파 1 5 흰
+파 2 1 검
+흰 0 1 검
+흰 4 1 파
+흰 1 1 검
+파 1 0 검
+파 3 3 흰`;
+}
+async function importRecord(f) {
+  const r = parseRecord(f.text); const sid = f.date;
+  if (r.teams.length !== 3) { toast('[팀] 칸에 세 팀(색: 이름들)을 적어 주세요.'); return false }
+  if (!r.results.length) { toast('[경기결과]를 찾지 못했어요.'); return false }
+  const tcol = r.teams.map(t => t.color); const bad = r.results.find(x => !tcol.includes(x.home) || !tcol.includes(x.away)); if (bad) { toast(`결과의 색(${bad.home}/${bad.away})이 팀 색과 맞지 않아요.`); return false }
+  if (S.sessions[sid] && !confirm(`${fmtDate(sid)} 경기 기록이 이미 있어요. 붙여넣은 내용으로 바꿀까요? (기존 대진과 골 기록은 지워져요)`)) return false;
+  const id = async n => await ensurePlayer(n); const ids = async arr => { const o = []; for (const n of arr) { const x = await id(n); if (x && !o.includes(x)) o.push(x) } return o };
+  const ops = await ids(r.ops), res = await ids(r.res), t1 = await ids(r.t1), t2 = await ids(r.t2), t3 = await ids(r.t3), wait = await ids(r.wait), late = await ids(r.late);
+  const K = {}; const teams = {}; const captains = {};
+  for (let i = 0; i < 3; i++) { const k = KEYS[i]; K[r.teams[i].color] = k; const ps = await ids(r.teams[i].players); teams[k] = { players: ps, colorName: r.teams[i].color }; captains[k] = ps[0] || null }
+  const applicants = [...new Set([...res, ...ops, ...t1, ...t2, ...t3])]; const at0 = new Date(sid + 'T12:00').getTime();
+  const apps = applicants.filter(p => !res.includes(p) && !ops.includes(p)).concat(wait).map((p, i) => ({ k: 'imp' + i, pid: p, uid: 'import', at: at0 + i * 1000 }));
+  const doc = { date: sid, time: f.time || DEFAULTS.time, venue: f.venue || DEFAULTS.venue, evpw: '', notice: DEFAULTS.notice || '', capacity: +f.capacity || DEFAULTS.capacity || 18,
+    applyOpen: shiftDate(sid, DEFAULTS.openDays, DEFAULTS.openTime), applyClose: shiftDate(sid, DEFAULTS.closeDays, DEFAULTS.closeTime),
+    stage: 'match', draftStatus: 'done', applicants, waitlist: wait, apps, p0: res, ops, late: Object.fromEntries(late.map(p => [p, at0])),
+    captains, captainTokens: { A: null, B: null, C: null }, order: [...KEYS], picks: [], pending: null, teams, timing: DEF_TIMING, mom: {}, no: S.sessions[sid]?.no || 0, imported: true, createdAt: Date.now() };
+  return await w(async () => {
+    for (const [eid, e] of Object.entries(S.events)) if (e.session === sid) await S.store.del('events/' + eid);
+    for (const m of sessMatches(sid)) await S.store.del(mp(m.id));
+    await S.store.set(sp(sid), doc);
+    let ev = 0;
+    for (let i = 0; i < r.results.length; i++) { const x = r.results[i]; const n = i + 1; const mid = `${sid}_${n}`; const hk = K[x.home], ak = K[x.away];
+      await S.store.set(mp(mid), { session: sid, n, round: Math.floor(i / 3) + 1, slot: i % 3 + 1, home: hk, away: ak, status: 'done', timer: { running: false, acc: 605, startedAt: 0 }, endedAt: at0 + n });
+      for (const [tk, g] of [[hk, x.hg], [ak, x.ag]]) for (let j = 0; j < g; j++) { ev++; await S.store.set(`events/imp${sid.replace(/-/g, '')}e${String(ev).padStart(3, '0')}`, { session: sid, match: mid, team: tk, scorer: null, assist: null, og: false, sec: 60 * (j + 1), half: 'h1', at: at0 + ev }) } }
+  }, `${fmtDate(sid)} 경기 기록을 넣었어요.`);
+}
+function importSheet() {
+  const f = S.imp || (S.imp = { date: '2026-09-29', time: '21:00', venue: '용산 7구장', capacity: 18, text: importTemplate() });
+  return `<h4>경기 기록 붙여넣기</h4><p>카톡에 정리한 경기 기록을 붙여넣으면 지난 경기로 저장돼요. [팀] 칸은 "색 이름: 선수들" 형식이고, 맨 앞 이름이 주장이에요. 경기결과는 "흰 0 0 검"처럼 한 줄에 한 경기예요. 득점자는 비워 두고, 나중에 경기진행 → 경기에서 채울 수 있어요.</p>
+  <div class="panel"><div class="field grid2c"><label>날짜<input class="inp" type="date" value="${esc(f.date)}" data-in="impf" data-f="date"></label><label>시간<input class="inp" type="time" value="${esc(f.time)}" data-in="impf" data-f="time"></label></div>
+  <div class="field grid2c"><label>장소<input class="inp" type="text" value="${esc(f.venue)}" data-in="impf" data-f="venue"></label><label>정원<input class="inp" type="number" value="${f.capacity}" data-in="impf" data-f="capacity"></label></div>
+  <div class="field"><label>기록<textarea class="inp" style="min-height:300px;font-size:14px" data-in="impf" data-f="text">${esc(f.text)}</textarea></label></div></div>
+  <div class="row" style="margin-top:12px"><button class="btn primary" data-act="impgo">기록 저장</button></div>`;
+}
+
 /* ───────── members (admin) ───────── */
 const MSTAT = { active: '정회원', guest: '게스트', dormant: '휴면' };
 function mstatus(p) { return p.status || (p.guest ? 'guest' : 'active') }
@@ -1400,6 +1479,7 @@ let saveT = {};
 document.addEventListener('focusout', () => setTimeout(() => { if (S.pending && !isTyping()) render() }, 0));
 document.addEventListener('input', e => { const el = e.target; const k = el.dataset.in; if (!k) return;
   if (k === 'calf' && S.cal) { S.cal.f[el.dataset.f] = el.value; return }
+  if (k === 'impf' && S.imp) { S.imp[el.dataset.f] = el.value; return }
   if (k === 'schedf' && S.admin) { const f = el.dataset.f; S.meta = S.meta || {}; S.meta.sched = { ...schedCfg(), [f]: el.value }; clearTimeout(S.schedT); S.schedT = setTimeout(async () => { await w(() => S.store.set('meta/sched', S.meta.sched)); S.schedImg = {}; refreshSchedule() }, 700); return }
   if (k === 'mq') { S.mq = el.value; clearTimeout(S.mqT); S.mqT = setTimeout(() => { const pos = el.selectionStart; S.pending = false; const a = document.activeElement; a && a.blur(); render(); const n = document.getElementById('mq'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos) } catch { } } }, 250); return }
   if (k === 'pasteApply') S.pasteApply = el.value;
@@ -1443,6 +1523,8 @@ document.addEventListener('click', async e => {
     case 'pick': await setPending(id); break;
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
+    case 'impopen': if (!needAdmin()) break; S.sheet = { type: 'import' }; render(); break;
+    case 'impgo': { if (!needAdmin()) break; el.disabled = true; const ok = await importRecord(S.imp); el.disabled = false; if (ok) { S.sheet = null; S.imp = null; render() } break }
     case 'latecancel': if (!needAdmin()) break; await cancelApp(S.sid, id, null, true); break;
     case 'schedshare': case 'scheddl': { const ym = S.schedYm || defaultMonth(); const c = await drawSchedule(ym); const b = await new Promise(r => c.toBlob(r, 'image/png')); await shareBlob(b, `WF_SCHEDULE_${ym.replace('-', '')}.png`, act === 'scheddl'); break }
     case 'dutyedit': if (!needAdmin()) break; S.sheet = { type: 'duty', sid: id }; render(); break;
