@@ -57,10 +57,11 @@ async function firebaseStore(cfg) {
 function load(k, d) { try { const v = localStorage.getItem('wf:' + k); return v === null ? d : JSON.parse(v) } catch { return d } }
 function save(k, v) { try { localStorage.setItem('wf:' + k, JSON.stringify(v)) } catch { } }
 const S = {
+  get admin() { return this.role === 'admin' },
   store: null, ready: 0, err: '',
   players: {}, sessions: {}, matches: {}, events: {}, chat: [], chatSid: null, unsubChat: null,
-  tab: 'home', sid: null, step: null, openMatch: null, sheet: null, sel: null, statsSort: 'pts',
-  admin: load('admin', false), me: load('me', ''), claim: load('claim', {}), whistle: load('whistle', true),
+  tab: (load('role', null) === 'captain' ? 'draft' : load('role', null) === 'member' ? 'notice' : 'home'), sid: null, step: null, openMatch: null, sheet: null, sel: null, statsSort: 'pts',
+  role: load('role', null), me: load('me', ''), claim: load('claim', {}), whistle: load('whistle', true),
   prev: {}, pending: false, poster: {}, pasteApply: ''
 };
 
@@ -81,7 +82,12 @@ function timing(s) { return { ...DEF_TIMING, ...(s?.timing || {}) } }
 function cur() { return S.sid ? S.sessions[S.sid] : null }
 function stageIdx(st) { return STAGES.findIndex(x => x[0] === st) }
 let toastT; function toast(t) { document.querySelectorAll('.toast').forEach(x => x.remove()); const d = document.createElement('div'); d.className = 'toast'; d.setAttribute('role', 'status'); d.textContent = t; document.body.appendChild(d); clearTimeout(toastT); toastT = setTimeout(() => d.remove(), 2600) }
-function needAdmin() { if (!S.admin) { toast('운영진 모드에서 할 수 있어요. 설정 탭에서 켜 주세요.'); return false } return true }
+function needAdmin() { if (!S.admin) { toast('운영진만 할 수 있어요.'); return false } return true }
+const ROLES = { admin: ['운영진', '🛡️'], captain: ['주장', '👑'], member: ['일반회원', '⚽'] };
+function myTeam(s) { if (!s || S.role !== 'captain') return null; const c = S.claim[S.sid]; if (c) return c;
+  return KEYS.find(k => s.captains?.[k] && S.players[s.captains[k]]?.name === S.me) || null }
+function canMom(s, k) { return S.admin || (S.role === 'captain' && myTeam(s) === k) }
+function defaultSid() { const ids = Object.keys(S.sessions).sort(); const t = today(); return ids.find(id => id >= t) || ids[ids.length - 1] || null }
 async function w(fn, ok) { try { await fn(); if (ok) toast(ok); return true } catch (e) { console.error(e); if (String(e?.message).includes('aborted')) return false; toast('저장하지 못했어요. 연결을 확인하고 다시 시도하세요.'); return false } }
 const sp = sid => 'sessions/' + sid;
 
@@ -215,7 +221,7 @@ async function startDraft() {
 }
 async function doPick(pid) {
   const s = cur(); const k = pickTeamAt(s, (s.picks || []).length);
-  if (!(S.admin || S.claim[S.sid] === k)) { toast(`${team(s, k).name} 주장 또는 운영진만 지명할 수 있어요.`); return }
+  if (!(S.admin || myTeam(s) === k)) { toast(`${team(s, k).name} 주장 또는 운영진만 지명할 수 있어요.`); return }
   let done = false;
   const ok = await w(() => S.store.txn(sp(S.sid), d => {
     if (!d || d.draftStatus !== 'live') return null; const i = (d.picks || []).length; if (pickTeamAt(d, i) !== k) return null;
@@ -334,6 +340,8 @@ function noticeText(s) {
 function isTyping() { const a = document.activeElement; return a && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && /text|search|tel|password/.test(a.type))) && document.getElementById('app').contains(a) }
 function render() {
   if (isTyping()) { S.pending = true; return } S.pending = false;
+  if (!S.role) { document.getElementById('app').innerHTML = viewOnboard(); return }
+  if (!S.admin && S.ready >= 3 && (!S.sid || !S.sessions[S.sid])) S.sid = defaultSid();
   if (S.store && S.chatSid !== S.sid) watchChat();
   const chatBox = document.querySelector('.msgs'); const atBottom = !chatBox || chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < 40;
   const ov = document.querySelector('.overlay')?.scrollTop;
@@ -342,6 +350,9 @@ function render() {
   if (S.err) h += `<div class="notice warn">${esc(S.err)}</div>`;
   if (S.ready < 3) h += '<p class="empty">불러오는 중…</p>';
   else if (S.tab === 'home') h += S.sid && S.sessions[S.sid] ? viewSession() : viewHome();
+  else if (S.tab === 'draft') h += withSession(s => s.draftStatus === 'done' ? vTrade(s) : vDraft(s));
+  else if (S.tab === 'match') h += withSession(s => vMatchDay(s));
+  else if (S.tab === 'notice') h += withSession(vMemberNotice);
   else if (S.tab === 'stats') h += viewStats(); else h += viewSettings();
   h += '</div>' + tabs();
   if (S.openMatch && S.matches[S.openMatch]) h += viewMatch();
@@ -352,12 +363,36 @@ function render() {
   tick();
 }
 function appbar() {
-  const s = S.tab === 'home' && S.sid ? S.sessions[S.sid] : null;
-  return `<header class="appbar"><div class="in">${s ? '<button class="back" data-act="home" aria-label="경기일 목록">‹</button>' : `<img src="assets/emblem.png" alt="">`}
-  <div class="ttl"><b>${esc(CFG.club?.name || 'WEEKDAYS FUTSAL CLUB')}</b><span>${s ? `${fmtDate(s.date)} ${esc(s.time || '')} ${esc(s.venue || '')}` : '팀 선정부터 경기 기록까지'}</span></div>
-  ${S.admin ? '<span class="pill admin">운영진</span>' : ''}${S.store?.kind === 'demo' ? '<span class="pill">체험</span>' : ''}</div></header>`;
+  const s = S.sid ? S.sessions[S.sid] : null; const back = S.admin && S.tab === 'home' && s;
+  return `<header class="appbar"><div class="in">${back ? '<button class="back" data-act="home" aria-label="경기일 목록">‹</button>' : `<img src="assets/emblem.png" alt="">`}
+  <div class="ttl"><b>${esc(CFG.club?.name || 'WEEKDAYS FUTSAL CLUB')}</b><span>${s && S.tab !== 'settings' && S.tab !== 'stats' ? `${fmtDate(s.date)} ${esc(s.time || '')} ${esc(s.venue || '')}` : '팀 선정부터 경기 기록까지'}</span></div>
+  ${S.role ? `<span class="pill ${S.admin ? 'admin' : ''}">${ROLES[S.role][1]} ${ROLES[S.role][0]}</span>` : ''}${S.store?.kind === 'demo' ? '<span class="pill">체험</span>' : ''}</div></header>`;
 }
-function tabs() { return `<div class="tabs"><nav>${[['home', '경기일'], ['stats', '선수 기록'], ['settings', '설정']].map(([k, n]) => `<button data-act="tab" data-v="${k}" ${S.tab === k ? 'aria-current="page"' : ''}>${n}</button>`).join('')}</nav></div>` }
+const TABS = { admin: [['home', '경기일'], ['stats', '선수 기록'], ['settings', '설정']], captain: [['draft', '드래프트'], ['match', '경기'], ['stats', '기록'], ['settings', '설정']], member: [['notice', '공지'], ['match', '경기'], ['stats', '기록'], ['settings', '설정']] };
+function tabs() { const t = TABS[S.role] || TABS.member; return `<div class="tabs"><nav style="grid-template-columns:repeat(${t.length},1fr)">${t.map(([k, n]) => `<button data-act="tab" data-v="${k}" ${S.tab === k ? 'aria-current="page"' : ''}>${n}</button>`).join('')}</nav></div>` }
+function sessionPicker() { const ids = Object.keys(S.sessions).sort().reverse(); if (ids.length < 2) return '';
+  return `<label class="sr" for="sidpick">경기일 선택</label><select id="sidpick" class="inp" style="margin-top:12px" data-in="sidpick">${ids.map(id => `<option value="${id}" ${id === S.sid ? 'selected' : ''}>${fmtDate(id)} ${esc(S.sessions[id].time || '')}</option>`).join('')}</select>` }
+function withSession(fn) { const s = cur(); if (!s) return `<p class="empty">아직 경기일이 없어요. 운영진이 만들면 여기에 보여요.</p>`; return sessionPicker() + fn(s) }
+function vMemberNotice(s) {
+  if (stageIdx(s.stage) >= stageIdx('notice')) return vNotice(s);
+  if (s.draftStatus === 'live') return `<div class="notice"><span class="dot"></span> 지금 드래프트가 진행 중이에요. 실시간으로 볼 수 있어요.</div>` + vDraft(s);
+  if (s.draftStatus === 'done') return `<div class="notice">드래프트가 끝나고 팀 밸런스를 맞추는 중이에요. 곧 공지가 올라와요.</div>` + vTrade(s);
+  const ids = s.applicants || []; const caps = KEYS.filter(k => s.captains?.[k]);
+  return `<h2>${fmtDate(s.date)} 경기</h2><div class="panel list2"><div><span>시간</span><b>${esc(s.time || '-')}</b></div><div><span>장소</span><b>${esc(s.venue || '-')}</b></div><div><span>진행 단계</span><b>${STAGES[stageIdx(s.stage)][1]}</b></div></div>
+  ${caps.length ? `<h2>주장</h2><div class="panel list2">${caps.map(k => `<div><span>${tag(team(s, k))}</span><b>👑 ${esc(pname(s.captains[k]))}</b></div>`).join('')}</div>` : ''}
+  <h2>신청자<small>${ids.length}명</small></h2><div class="panel"><div class="chips">${ids.map(id => `<span class="chip ${S.players[id]?.name === S.me ? 'sel' : ''}">${esc(pname(id))}</span>`).join('') || '<span class="muted">아직 신청자가 없어요.</span>'}</div></div>
+  <p class="note">드래프트가 시작되면 이 화면에서 실시간으로 볼 수 있어요.</p>` + chatPanel();
+}
+function viewOnboard() {
+  const card = (k, desc) => `<button class="rolecard" data-act="role" data-v="${k}"><span class="ic" aria-hidden="true">${ROLES[k][1]}</span><span><b>${ROLES[k][0]}</b><small>${desc}</small></span></button>`;
+  return `<div class="onboard"><img src="assets/emblem.png" alt="" class="obem"><div class="obclub">${esc(CFG.club?.name || 'WEEKDAYS FUTSAL CLUB')}</div>
+  <h1>어떤 역할로 사용하나요?</h1>
+  <label for="obname" class="oblab">내 이름</label><input id="obname" class="inp" type="text" maxlength="12" placeholder="팀 명단과 같은 이름으로 적어 주세요" value="${esc(S.me)}" data-in="me">
+  <div class="roles">${card('member', '공지와 팀 확인, 드래프트 관전과 채팅, 경기 현황과 내 기록')}
+  ${card('captain', '드래프트에서 선수 지명, 팀 채팅, 우리 팀 MOM 선정')}
+  ${card('admin', '경기일 만들기, 신청자와 주장 관리, 교환, 공지, 경기 기록 (비밀번호 필요)')}</div>
+  <p class="note" style="text-align:center">역할은 설정에서 언제든 바꿀 수 있어요.</p></div>`;
+}
 
 function viewHome() {
   const ids = Object.keys(S.sessions).sort().reverse();
@@ -406,11 +441,11 @@ function vCaptain(s) {
 }
 function snakePreview(s, from, n) { const out = []; const tot = draftTotal(s); for (let i = from; i < Math.min(tot, from + n); i++) out.push(pickTeamAt(s, i)); return out }
 function vDraft(s) {
-  const picks = s.picks || []; const tot = draftTotal(s); const i = picks.length; const my = S.claim[S.sid];
+  const picks = s.picks || []; const tot = draftTotal(s); const i = picks.length; const my = myTeam(s);
   let h = '';
   if (s.draftStatus === 'ready') h += `<div class="notice">아직 드래프트 전이에요. ${S.admin ? '주장 단계에서 드래프트를 시작하세요.' : '운영진이 시작하면 여기서 실시간으로 볼 수 있어요.'}</div>`;
   else if (s.draftStatus === 'live') { const k = pickTeamAt(s, i); const t = team(s, k); const mine = my === k || S.admin;
-    h += `<div class="turn ${my === k ? 'mine' : ''}" style="border-left:8px solid ${t.color}"><div class="k">${i + 1}순위 / 전체 ${tot}명</div><div class="t">${esc(t.name)} ${esc(pname(s.captains[k]))} 주장 차례${my === k ? ', 내 차례!' : ''}</div>
+    h += `<div class="turn ${my === k ? 'mine' : ''}" style="border-left:8px solid ${t.color}"><div class="k">${i + 1}순위 / 전체 ${tot}명</div><div class="t">${esc(t.name)} ${esc(pname(s.captains[k]))} 주장 차례${my === k ? ', 내 차례!' : ''}</div>${my && my !== k ? (() => { let n = 0; for (let j = i; j < tot; j++) { if (pickTeamAt(s, j) === my) return `<div class="k" style="margin-top:4px">내 팀(${esc(team(s, my).name)}) 차례까지 ${n}번 남았어요</div>`; n++ } return '' })() : ''}
       <div class="nx">다음 ${snakePreview(s, i + 1, 7).map(x => `<span style="background:${team(s, x).color};color:${inkOn(team(s, x).color)}">${esc(team(s, x).name[0])}</span>`).join('') || '없음'}</div></div>`;
     const pl = pool(s);
     h += `<h2>남은 선수<small>${pl.length}명${mine ? ', 눌러서 지명' : ''}</small></h2><div class="panel"><div class="chips">${pl.map(id => `<button class="chip" data-act="pick" data-id="${id}" ${mine ? '' : 'disabled'}>${esc(pname(id))}</button>`).join('')}</div></div>`;
@@ -418,7 +453,8 @@ function vDraft(s) {
   h += `<h2>팀 현황</h2><div class="cols">${KEYS.map(k => { const t = team(s, k); const ps = teamPlayers(s, k);
     return `<div class="col"><div class="hd" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}<small>${ps.length}명</small></div><ol>${ps.map((id, j) => { const pk = picks.findIndex(x => x.p === id);
       return `<li><em>${j === 0 ? '👑' : pk + 1}</em><span>${esc(pname(id))}</span></li>` }).join('')}</ol></div>` }).join('')}</div>`;
-  if (s.draftStatus === 'live') h += `<h2>나는 주장이에요<small>이 폰에서 지명할 팀</small></h2><div class="row">${KEYS.map(k => { const t = team(s, k); return `<button class="btn sm" data-act="claim" data-k="${k}" style="${my === k ? `background:${t.color};color:${inkOn(t.color)};border-color:${t.color}` : ''}">${my === k ? '✓ ' : ''}${esc(t.name)} ${esc(pname(s.captains[k]))}</button>` }).join('')}<button class="btn sm" data-act="claim" data-k="">주장 아님</button></div>`;
+  if (S.role === 'captain' && s.draftStatus !== 'done') { const auto = !S.claim[S.sid] && my;
+    h += `<h2>내 팀<small>${my ? (auto ? '이름으로 자동 연결됐어요' : '직접 선택함') : '내가 주장인 팀을 고르세요'}</small></h2><div class="row">${KEYS.map(k => { const t = team(s, k); return `<button class="btn sm" data-act="claim" data-k="${k}" style="${my === k ? `background:${t.color};color:${inkOn(t.color)};border-color:${t.color}` : ''}">${my === k ? '✓ ' : ''}${esc(t.name)} ${s.captains?.[k] ? esc(pname(s.captains[k])) : ''}</button>` }).join('')}</div>` }
   if (S.admin && (s.draftStatus === 'live' || s.draftStatus === 'done') && picks.length) h += `<div class="row" style="margin-top:10px"><button class="btn sm" data-act="undo">↶ 마지막 지명 되돌리기</button></div>`;
   h += chatPanel();
   return h;
@@ -445,7 +481,7 @@ function vNotice(s) {
   let h = `<h2>공지 이미지</h2><img class="poster" alt="매치데이 공지 이미지 미리보기" src="${img || ''}" width="1086" height="1448">
   <div class="row" style="margin-top:10px"><button class="btn primary" data-act="share">카톡 등으로 공유</button><button class="btn" data-act="download">이미지 저장</button></div>
   <button class="btn block" style="margin-top:8px" data-act="copytext">공지 텍스트 복사</button>`;
-  h += `<h2>공지 내용</h2><div class="panel">
+  if (ad) h += `<h2>공지 내용</h2><div class="panel">
     <div class="field"><label for="f-ev">E/V 비밀번호</label><input id="f-ev" class="inp" type="text" value="${esc(s.evpw || '')}" data-in="sfield" data-f="evpw" ${ad ? '' : 'disabled'}></div>
     <div class="field"><label for="f-nt">NOTICE 문구</label><input id="f-nt" class="inp" type="text" value="${esc(s.notice || '')}" data-in="sfield" data-f="notice" ${ad ? '' : 'disabled'}><span class="note" style="margin:0">{ } 로 감싼 글자는 노란색으로 강조돼요.</span></div></div>`;
   if (ad) h += `<div style="height:14px"></div><button class="btn primary block" data-act="mkmatches">경기 일정 만들기 (9경기)</button>`;
@@ -467,8 +503,8 @@ function vMatchDay(s) {
   const tally = {}; for (const e of Object.values(S.events)) { if (e.session !== S.sid || e.og) continue; if (e.scorer) (tally[e.scorer] ??= { g: 0, a: 0 }).g++; if (e.assist) (tally[e.assist] ??= { g: 0, a: 0 }).a++ }
   const top = Object.entries(tally).sort((x, y) => (y[1].g + y[1].a) - (x[1].g + x[1].a) || y[1].g - x[1].g).slice(0, 10);
   h += `<h2>오늘의 공격포인트</h2><div class="panel list2">${top.length ? top.map(([id, t]) => `<div><span>${esc(pname(id))}</span><span class="muted">${t.g}골 ${t.a}도움</span></div>`).join('') : '<p class="empty">아직 골이 없어요.</p>'}</div>`;
-  h += `<h2>MOM<small>팀별 한 명</small></h2><div class="panel">${KEYS.map(k => { const t = team(s, k); const pid = s.mom?.[k];
-    return `<button class="momrow" data-act="mom" data-k="${k}" ${S.admin ? '' : 'disabled'}>${bib(t.color)}<span class="t">${esc(t.name)}</span><span class="v ${pid ? 'set' : ''}">${pid ? '🏅 ' + esc(pname(pid)) : S.admin ? '선택하기' : '미정'}</span></button>` }).join('')}</div>`;
+  h += `<h2>MOM<small>팀별 한 명, ${S.admin ? '운영진' : '각 팀 주장'}이 선택</small></h2><div class="panel">${KEYS.map(k => { const t = team(s, k); const pid = s.mom?.[k];
+    return `<button class="momrow" data-act="mom" data-k="${k}" ${canMom(s, k) ? '' : 'disabled'}>${bib(t.color)}<span class="t">${esc(t.name)}${myTeam(s) === k ? ' (내 팀)' : ''}</span><span class="v ${pid ? 'set' : ''}">${pid ? '🏅 ' + esc(pname(pid)) : canMom(s, k) ? '선택하기' : '미정'}</span></button>` }).join('')}</div>`;
   if (S.admin) { const st = (key, lab, val, unit) => `<div class="stepper"><button data-act="tstep" data-key="${key}" data-d="-1" aria-label="${lab} 줄이기">−</button><span><small>${lab}</small>${val}${unit}</span><button data-act="tstep" data-key="${key}" data-d="1" aria-label="${lab} 늘리기">+</button></div>`;
     h += `<h2>경기 시간 설정</h2><div class="grid2">${st('h1', '전반', T.h1 / 60, '분')}${st('gk', 'GK 교체', T.gk, '초')}${st('h2', '후반', T.h2 / 60, '분')}${st('rest', '쉬는 시간', T.rest / 60, '분')}</div>
     <h2>관리</h2><button class="btn danger block" data-act="delsession">이 경기일 전체 삭제</button>` }
@@ -514,22 +550,22 @@ function viewStats() {
   const sorts = [['pts', '공격포인트'], ['g', '골'], ['a', '도움'], ['mom', 'MOM'], ['wr', '승률'], ['wins', '1위'], ['cap', '주장'], ['days', '출전']];
   const rows = playerStats(); const key = S.statsSort; const val = (r, k) => k === 'pts' ? r.g + r.a : k === 'wr' ? (r.gp ? r.w / r.gp : -1) : r[k];
   rows.sort((x, y) => val(y, key) - val(x, key) || (y.g + y.a) - (x.g + x.a) || S.players[x.id].name.localeCompare(S.players[y.id].name, 'ko')); const c = k => key === k ? 'hl' : '';
-  let h = `<h2>누적 개인 기록<small>경기 일정이 만들어진 날만 집계</small></h2><div class="sorts">${sorts.map(([k, n]) => `<button data-act="sort" data-k="${k}" aria-pressed="${key === k}">${n}</button>`).join('')}</div>
+  const mine = rows.find(r => S.players[r.id]?.name === S.me);
+  let h = mine ? `<h2>내 기록<small>${esc(pname(mine.id))}</small></h2><div class="mystats">${[['골', mine.g], ['도움', mine.a], ['MOM', mine.mom], ['승률', mine.gp ? Math.round(mine.w / mine.gp * 100) + '%' : '-'], ['경기', mine.gp], ['출전', mine.days + '일']].map(([l, v]) => `<div><b>${v}</b><span>${l}</span></div>`).join('')}</div>` : '';
+  h += `<h2>누적 개인 기록<small>경기 일정이 만들어진 날만 집계</small></h2><div class="sorts">${sorts.map(([k, n]) => `<button data-act="sort" data-k="${k}" aria-pressed="${key === k}">${n}</button>`).join('')}</div>
   <div class="panel tblwrap">${rows.length ? `<table class="stats"><thead><tr><th>선수</th><th>골</th><th>도움</th><th>공P</th><th>MOM</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>승률</th><th>1위</th><th>주장</th><th>출전</th></tr></thead><tbody>
-  ${rows.map(r => `<tr><td>${esc(pname(r.id))}</td><td class="${c('g')}">${r.g}</td><td class="${c('a')}">${r.a}</td><td class="${c('pts')}">${r.g + r.a}</td><td class="${c('mom')}">${r.mom}</td><td>${r.gp}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td class="${c('wr')}">${r.gp ? Math.round(r.w / r.gp * 100) + '%' : '-'}</td><td class="${c('wins')}">${r.wins}</td><td class="${c('cap')}">${r.cap}</td><td class="${c('days')}">${r.days}</td></tr>`).join('')}</tbody></table>` : '<p class="empty">경기를 치르면 기록이 쌓여요.</p>'}</div>
+  ${rows.map(r => `<tr ${r === mine ? 'class="me"' : ''}><td>${esc(pname(r.id))}</td><td class="${c('g')}">${r.g}</td><td class="${c('a')}">${r.a}</td><td class="${c('pts')}">${r.g + r.a}</td><td class="${c('mom')}">${r.mom}</td><td>${r.gp}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td class="${c('wr')}">${r.gp ? Math.round(r.w / r.gp * 100) + '%' : '-'}</td><td class="${c('wins')}">${r.wins}</td><td class="${c('cap')}">${r.cap}</td><td class="${c('days')}">${r.days}</td></tr>`).join('')}</tbody></table>` : '<p class="empty">경기를 치르면 기록이 쌓여요.</p>'}</div>
   <p class="note">표는 옆으로 밀어서 볼 수 있어요. 1위는 9경기를 모두 마친 날 팀 1위 횟수, 출전은 참가한 날 수예요.</p>`;
   if (S.admin) { const roster = Object.entries(S.players).sort((a, b) => a[1].name.localeCompare(b[1].name, 'ko'));
     h += `<h2>선수 명단<small>${roster.length}명, 눌러서 이름 수정</small></h2><div class="panel"><div class="chips">${roster.map(([id]) => `<button class="chip" data-act="editp" data-id="${id}">${esc(pname(id))}</button>`).join('') || '<span class="muted">없음</span>'}</div></div>` }
   return h;
 }
 function viewSettings() {
-  return `<h2>내 정보</h2><div class="panel"><div class="field"><label for="me">채팅에 표시할 이름</label><input id="me" class="inp" type="text" value="${esc(S.me)}" data-in="me" maxlength="12"></div></div>
-  <h2>운영진 모드</h2><div class="panel pad"><p style="margin:0 0 10px" class="muted">경기일 만들기, 신청자 관리, 주장 지정, 교환, 경기 기록은 운영진 모드에서 할 수 있어요.</p>
-  <button class="btn ${S.admin ? '' : 'primary'} block" data-act="admin">${S.admin ? '운영진 모드 끄기' : '운영진 모드 켜기 (비밀번호)'}</button></div>
-  <h2>휘슬</h2><div class="panel pad"><button class="btn block" data-act="whistle">${S.whistle ? '🔊 이 폰에서 휘슬 켜짐' : '🔇 이 폰에서 휘슬 꺼짐'}</button><p class="note">웹에서는 휘슬이 울리려면 경기 화면을 켜 두어야 해요. 안드로이드 앱에서는 화면이 꺼져도 울리도록 만들 예정이에요.</p></div>
+  return `<h2>내 정보</h2><div class="panel"><div class="field"><label for="me">이름 (채팅 표시, 주장 자동 연결, 내 기록 찾기에 쓰여요)</label><input id="me" class="inp" type="text" value="${esc(S.me)}" data-in="me" maxlength="12"></div>
+  <div class="field"><span>현재 역할</span><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><b>${ROLES[S.role][1]} ${ROLES[S.role][0]}</b><button class="btn sm" data-act="changerole">역할 바꾸기</button></div></div></div>
+  <h2>휘슬</h2><div class="panel pad"><button class="btn block" data-act="whistle">${S.whistle ? '🔊 이 폰에서 휘슬 켜짐' : '🔇 이 폰에서 휘슬 꺼짐'}</button><p class="note">웹에서는 휘슬이 울리려면 경기 화면을 켜 두어야 해요.</p></div>
   <h2>연결</h2><div class="panel pad"><p style="margin:0">${S.store?.kind === 'live' ? 'Firebase에 연결됨. 모든 기기가 같은 데이터를 봐요.' : '체험 모드 (이 기기에만 저장)'}</p></div>`;
 }
-
 /* ───────── ticking ───────── */
 function tick() {
   const cache = {}; const ci = id => cache[id] || (cache[id] = S.matches[id] ? clockInfo(M(id)) : null);
@@ -543,12 +579,12 @@ setInterval(tick, 250);
 
 /* ───────── events ───────── */
 let saveT = {};
-document.addEventListener('focusout', () => setTimeout(() => { if (S.pending && !isTyping()) render() }, 0));
+document.addEventListener('focusout', () => setTimeout(() => { if (S.pending && !isTyping() && S.role) render() }, 0));
 document.addEventListener('input', e => { const el = e.target; const k = el.dataset.in; if (!k) return;
   if (k === 'pasteApply') S.pasteApply = el.value;
   if (k === 'me') { S.me = el.value.trim(); save('me', S.me) }
   if (k === 'sfield' && S.admin) { const f = el.dataset.f; clearTimeout(saveT[f]); saveT[f] = setTimeout(async () => { await w(() => S.store.update(sp(S.sid), { [f]: el.value })); if (f === 'evpw' || f === 'notice') refreshPoster() }, 600) } });
-document.addEventListener('change', e => { const el = e.target; if (el.dataset.in === 'sfield' && el.type === 'time' && S.admin) w(() => S.store.update(sp(S.sid), { time: el.value })) });
+document.addEventListener('change', e => { const el = e.target; if (el.dataset.in === 'sidpick') { S.sid = el.value; S.openMatch = null; render(); return } if (el.dataset.in === 'sfield' && el.type === 'time' && S.admin) w(() => S.store.update(sp(S.sid), { time: el.value })) });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'addone') { e.preventDefault(); document.querySelector('[data-act="addone"]').click() } if (e.key === 'Escape') { if (S.sheet) { S.sheet = null; render() } else if (S.openMatch) { S.openMatch = null; render() } } });
 document.addEventListener('submit', async e => { e.preventDefault(); const f = e.target;
   if (f.dataset.form === 'newsession') { const d = Object.fromEntries(new FormData(f)); await createSession(d) }
@@ -561,7 +597,7 @@ document.addEventListener('click', async e => {
   if (el.classList.contains('scrim') && e.target.closest('[data-stop]')) return;
   if (el.disabled) return; const act = el.dataset.act, id = el.dataset.id; const s = cur(); const m = S.openMatch ? M(S.openMatch) : null;
   switch (act) {
-    case 'tab': S.tab = el.dataset.v; S.openMatch = null; S.sheet = null; render(); window.scrollTo(0, 0); break;
+    case 'tab': S.tab = el.dataset.v; S.openMatch = null; S.sheet = null; S.sel = null; render(); window.scrollTo(0, 0); break;
     case 'home': S.sid = null; S.step = null; watchChat(); render(); break;
     case 'opensession': S.sid = id; S.step = null; S.sel = null; watchChat(); render(); window.scrollTo(0, 0); break;
     case 'newsession': if (!needAdmin()) break; S.sheet = { type: 'newsession' }; render(); break;
@@ -580,6 +616,7 @@ document.addEventListener('click', async e => {
     case 'pick': { const nm = pname(id); if (!confirm(`${nm} 선수를 지명할까요?`)) break; await doPick(id); break }
     case 'undo': if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); break;
     case 'claim': { S.claim[S.sid] = el.dataset.k || null; save('claim', S.claim); render(); break }
+    case 'noop': break;
     case 'selswap': if (!needAdmin()) break; if (!S.sel) { S.sel = id; render(); break } if (S.sel === id) { S.sel = null; render(); break }
       { const a = S.sel; S.sel = null; if (KEYS.find(k => teamPlayers(s, k).includes(a)) === KEYS.find(k => teamPlayers(s, k).includes(id))) { S.sel = id; render(); break }
         if (confirm(`${pname(a)} ↔ ${pname(id)} 맞바꿀까요?`)) await swapPlayers(a, id); else render() } break;
@@ -599,14 +636,17 @@ document.addEventListener('click', async e => {
     case 'pickog': { const sh = S.sheet; S.sheet = null; render(); await addGoal(M(sh.match), sh.team, null, null, true); break }
     case 'pickassist': { const sh = S.sheet; S.sheet = null; render(); await addGoal(M(sh.match), sh.team, sh.scorer, id || null, false); break }
     case 'delev': if (confirm('이 골 기록을 지울까요?')) await w(() => S.store.del('events/' + id)); break;
-    case 'mom': S.sheet = { type: 'mom', k: el.dataset.k }; render(); break;
+    case 'mom': if (!canMom(s, el.dataset.k)) break; S.sheet = { type: 'mom', k: el.dataset.k }; render(); break;
     case 'pickmom': { const k = S.sheet.k; S.sheet = null; render(); await w(() => S.store.update(sp(S.sid), { [`mom.${k}`]: id || null })); break }
     case 'tstep': { const k = el.dataset.key, d = +el.dataset.d; const T = { ...timing(s) }; if (k === 'gk') T.gk = Math.min(30, Math.max(0, T.gk + d)); else T[k] = Math.min(45 * 60, Math.max(k === 'rest' ? 0 : 60, T[k] + d * 60)); await w(() => S.store.update(sp(S.sid), { timing: T })); break }
     case 'delsession': if (!confirm(fmtDate(S.sid) + ' 경기일을 통째로 지울까요? 되돌릴 수 없어요.')) break;
       await w(async () => { for (const [eid, ev] of Object.entries(S.events)) if (ev.session === S.sid) await S.store.del('events/' + eid); for (const mm of sessMatches(S.sid)) await S.store.del(mp(mm.id)); await S.store.del(sp(S.sid)) }, '삭제했어요.'); S.sid = null; render(); break;
     case 'sort': S.statsSort = el.dataset.k; render(); break;
     case 'editp': { const p = S.players[id]; const nv = prompt('선수 이름 (게스트는 뒤에 (게))', pname(id)); if (nv === null || !nv.trim()) break; const guest = /\(\s*게\s*\)/.test(nv); const name = nv.replace(/\(\s*게\s*\)/g, '').trim().slice(0, 20); if (name !== p.name || guest !== !!p.guest) await w(() => S.store.update('players/' + id, { name, guest }), '수정했어요.'); break }
-    case 'admin': if (S.admin) { S.admin = false; save('admin', false); render(); break } { const pin = prompt('운영진 비밀번호'); if (pin === null) break; if (pin === String(CFG.adminPin ?? '0000')) { S.admin = true; save('admin', true); toast('운영진 모드를 켰어요.') } else toast('비밀번호가 달라요.'); render() } break;
+    case 'role': { const v = el.dataset.v; if (!S.me.trim()) { toast('이름을 먼저 적어 주세요.'); document.getElementById('obname')?.focus(); break }
+      if (v === 'admin') { const pin = prompt('운영진 비밀번호'); if (pin === null) break; if (pin !== String(CFG.adminPin ?? '0000')) { toast('비밀번호가 달라요.'); break } }
+      S.role = v; save('role', v); S.tab = TABS[v][0][0]; S.sid = null; S.step = null; toast(`${ROLES[v][0]}(으)로 시작해요.`); render(); window.scrollTo(0, 0); break }
+    case 'changerole': S.role = null; save('role', null); S.openMatch = null; S.sheet = null; render(); break;
     case 'whistle': S.whistle = !S.whistle; save('whistle', S.whistle); if (S.whistle) { audio(); whistle([.35]) } render(); break;
     case 'closesheet': S.sheet = null; render(); break;
   }
