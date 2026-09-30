@@ -1,7 +1,7 @@
-# WF 풋살 앱 (웹 버전 Ver.0.5)
+# WD_FUTSAL (웹 버전 Ver.0.7)
 
 신청 → 주장·순번 → 드래프트와 채팅 → 교환 → 공지 이미지 → 경기 기록까지 한 앱에서 진행해요.
-Firebase 설정 전에는 **체험 모드**(이 기기에만 저장)로 동작하니, 먼저 체험해 보고 설정해도 돼요.
+GitHub Pages로 올릴 때는 config.js에 Firebase 설정이 있어야 동작해요. (체험 모드는 없앴어요)
 
 ## 파일 구성
 
@@ -16,7 +16,7 @@ Firebase 설정 전에는 **체험 모드**(이 기기에만 저장)로 동작�
 
 ## 1. Firebase 프로젝트 만들기 (약 5분)
 
-1. https://console.firebase.google.com 접속 → **프로젝트 추가** → 이름 입력(예: `wf-futsal`) → Google 애널리틱스는 꺼도 돼요.
+1. https://console.firebase.google.com 접속 → **프로젝트 추가** → 이름 입력(예: `wd-futsal`) → Google 애널리틱스는 꺼도 돼요.
 2. 왼쪽 메뉴 **빌드 → Authentication → 시작하기 → 로그인 방법** 탭에서 **익명**을 사용 설정으로 저장해요.
 3. **빌드 → Firestore Database → 데이터베이스 만들기**
    - 위치: `asia-northeast3 (서울)`
@@ -28,9 +28,9 @@ Firebase 설정 전에는 **체험 모드**(이 기기에만 저장)로 동작�
 
 ## 2. GitHub Pages에 올리기
 
-1. GitHub에 새 저장소를 만들고(예: `wf-futsal`) 이 폴더의 파일을 모두 올려요.
+1. GitHub에 새 저장소를 만들고(예: `wd-futsal`) 이 폴더의 파일을 모두 올려요.
 2. 저장소 **Settings → Pages → Branch: main / (root) → Save**
-3. 1~2분 뒤 `https://아이디.github.io/wf-futsal/` 로 접속해요.
+3. 1~2분 뒤 `https://아이디.github.io/wd-futsal/` 로 접속해요.
 4. Firebase 콘솔 **Authentication → 설정 → 승인된 도메인**에 `아이디.github.io` 를 추가해요.
 
 ## 3. 멤버들에게 공유

@@ -1,12 +1,12 @@
 // ─────────────────────────────────────────────────────────────
-// WF 풋살 앱 설정 파일
+// WD_FUTSAL 설정 파일
 // Firebase 설정값을 채우기 전에는 "체험 모드"로 동작해요.
 // (체험 모드: 이 기기 브라우저에만 저장, 다른 폰과 공유되지 않음)
 // ─────────────────────────────────────────────────────────────
 window.WF_CONFIG = {
   // Firebase 콘솔 > 프로젝트 설정 > 내 앱 > SDK 설정 및 구성 에서 복사한 값을 붙여넣으세요.
   firebase: {
-// Import the functions you need from the SDKs you need
+   // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 // TODO: Add SDKs for Firebase products that you want to use
@@ -30,7 +30,7 @@ const analytics = getAnalytics(app);
   },
 
   // 운영진 모드 비밀번호 (운영진, 기록 담당자에게만 알려 주세요)
-  adminPin: "0000",
+  adminPin: "2023",
 
   club: { name: "WEEKDAYS FUTSAL CLUB", short: "WF" },
 

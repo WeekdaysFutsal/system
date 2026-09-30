@@ -1,13 +1,21 @@
 {
-  "name": "WF 풋살",
-  "short_name": "WF 풋살",
+  "name": "WD_FUTSAL",
+  "short_name": "WD_FUTSAL",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0B1E5B",
   "theme_color": "#0B1E5B",
   "icons": [
-    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
   ]
 }

@@ -1,4 +1,4 @@
-/* WF 풋살 앱 — 신청 · 주장 · 드래프트 · 교환 · 공지 이미지 · 경기 기록 */
+/* WD_FUTSAL — 신청 · 주장 · 드래프트 · 교환 · 공지 이미지 · 경기 기록 */
 const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
@@ -11,23 +11,24 @@ const DEFAULTS = { time: '21:00', venue: '용산 7구장', notice: '', ...(CFG.d
 function clone(o) { return o == null ? o : JSON.parse(JSON.stringify(o)) }
 function setDotted(obj, path, val) { const ks = path.split('.'); let o = obj; ks.slice(0, -1).forEach(k => { if (typeof o[k] !== 'object' || o[k] === null) o[k] = {}; o = o[k] }); o[ks[ks.length - 1]] = val }
 
-function localStore() {
-  const KEY = 'wf-demo-db'; const read = () => { try { return JSON.parse(localStorage.getItem(KEY) || '{}') } catch { return {} } };
-  let data = read(); const subs = new Set();
-  const bc = 'BroadcastChannel' in window ? new BroadcastChannel('wf-demo') : null;
-  const colDocs = (p, opt) => { let out = []; for (const k in data) { const i = k.lastIndexOf('/'); if (k.slice(0, i) === p) out.push({ id: k.slice(i + 1), ...clone(data[k]) }) }
-    if (opt?.order) { out.sort((a, b) => (a[opt.order] || 0) - (b[opt.order] || 0)); if (opt.limit) out = out.slice(-opt.limit) } return out };
-  const emit = () => subs.forEach(s => queueMicrotask(() => s.cb(colDocs(s.path, s.opt))));
-  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(data)) } catch { } bc && bc.postMessage(1); emit() };
-  if (bc) bc.onmessage = () => { data = read(); emit() };
+async function artifactStore() {
+  const db = await window.claude.use('db'); if (!db) return null;
+  let dl = null; try { dl = await window.claude.use('downloads') } catch { }
+  const nest = patch => { const o = {}; for (const [k, v] of Object.entries(patch)) setDotted(o, k, v); return o };
+  const holder = 'h' + Math.random().toString(36).slice(2, 10);
   return {
-    kind: 'demo',
-    watchCol(p, cb, opt) { const s = { path: p, cb, opt }; subs.add(s); queueMicrotask(() => cb(colDocs(p, opt))); return () => subs.delete(s) },
-    async set(p, d) { data[p] = clone(d); persist() },
-    async update(p, patch) { if (!data[p]) throw new Error('not-found'); for (const [k, v] of Object.entries(patch)) setDotted(data[p], k, clone(v)); persist() },
-    async add(p, d) { const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7); data[p + '/' + id] = clone(d); persist(); return id },
-    async del(p) { delete data[p]; persist() },
-    async txn(p, fn) { const nd = fn(data[p] ? clone(data[p]) : null); if (nd == null) throw new Error('aborted'); data[p] = nd; persist() }
+    kind: 'live', dl,
+    watchCol(p, cb, opt, onErr) { let q = db.collection(p); if (opt?.order) q = q.orderBy(opt.order, 'desc').limit(opt.limit || 100);
+      return q.onSnapshot(sn => { let docs = sn.docs.map(d => ({ id: d.id, ...d.data() })); if (opt?.order) docs.reverse(); cb(docs) }, e => { console.error(e); onErr && onErr(e) }) },
+    set: (p, d) => db.doc(p).set(d),
+    update: (p, d) => db.doc(p).update(nest(d)),
+    add: async (p, d) => (await db.collection(p).add(d)).id,
+    del: p => db.doc(p).delete(),
+    async txn(p, fn) { const ref = db.doc(p);
+      for (let i = 0; i < 8; i++) { const r = await ref.acquire({ holder, ttlMs: 4000 });
+        if (r.acquired) { const sn = await ref.get(); const nd = fn(sn.exists ? sn.data() : null); if (nd == null) throw new Error('aborted'); await ref.set(nd); return }
+        await new Promise(res => setTimeout(res, 350)) }
+      throw new Error('busy') }
   };
 }
 
@@ -84,7 +85,10 @@ function cur() { return S.sid ? S.sessions[S.sid] : null }
 function stageIdx(st) { return STAGES.findIndex(x => x[0] === st) }
 let toastT; function toast(t) { document.querySelectorAll('.toast').forEach(x => x.remove()); const d = document.createElement('div'); d.className = 'toast'; d.setAttribute('role', 'status'); d.textContent = t; document.body.appendChild(d); clearTimeout(toastT); toastT = setTimeout(() => d.remove(), 2600) }
 function needAdmin() { if (!S.admin) { toast('운영진만 할 수 있어요.'); return false } return true }
-function rand() { return Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 8) }
+function rand() { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let o = ''; for (let i = 0; i < 6; i++) o += A[Math.floor(Math.random() * A.length)]; return o }
+const EMBLEM_SRC = window.WF_EMBLEM || 'assets/emblem.png';
+const IS_ARTIFACT = !!window.WF_ARTIFACT;
+function findCode(code) { code = (code || '').trim().toUpperCase(); for (const [sid, s] of Object.entries(S.sessions)) for (const k of KEYS) if (s.captainTokens?.[k] && s.captainTokens[k] === code) return { sid, k }; return null }
 function myTeam(s) { const l = S.capLinks[S.sid]; if (!s || !l) return null; return s.captainTokens?.[l.k] && s.captainTokens[l.k] === l.t ? l.k : null }
 function capLink(sid, k, t) { return `${location.origin}${location.pathname}?d=${sid}&c=${k}&t=${t}` }
 function canMom(s, k) { return S.admin || myTeam(s) === k }
@@ -263,7 +267,7 @@ async function endMatch(m) { await w(() => S.store.update(mp(m.id), { status: 'd
 async function addGoal(m, t, scorer, assist, og) { await w(() => S.store.add('events', { session: m.session, match: m.id, team: t, scorer: scorer || null, assist: assist || null, og: !!og, sec: Math.floor(elapsed(m)), half: clockInfo(m).phase, at: Date.now() }), '골을 기록했어요.') }
 
 /* ───────── poster (canvas) ───────── */
-let EMBLEM = null; function emblem() { if (EMBLEM) return Promise.resolve(EMBLEM); return new Promise(r => { const i = new Image(); i.onload = () => { EMBLEM = i; r(i) }; i.onerror = () => r(null); i.src = 'assets/emblem.png' }) }
+let EMBLEM = null; function emblem() { if (EMBLEM) return Promise.resolve(EMBLEM); return new Promise(r => { const i = new Image(); i.onload = () => { EMBLEM = i; r(i) }; i.onerror = () => r(null); i.src = EMBLEM_SRC }) }
 function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath() }
 function fitFont(g, text, font, size, maxW) { let s = size; g.font = font.replace('{s}', s); while (g.measureText(text).width > maxW && s > 10) { s -= 2; g.font = font.replace('{s}', s) } return s }
 function crown(g, x, y, s) { g.save(); g.fillStyle = '#FFC61A'; g.strokeStyle = '#8A5A00'; g.lineWidth = 2; g.beginPath(); g.moveTo(x, y + s * .78); g.lineTo(x, y + s * .22); g.lineTo(x + s * .27, y + s * .5); g.lineTo(x + s * .5, y); g.lineTo(x + s * .73, y + s * .5); g.lineTo(x + s, y + s * .22); g.lineTo(x + s, y + s * .78); g.closePath(); g.fill(); g.stroke(); g.fillRect(x, y + s * .84, s, s * .16); g.strokeRect(x, y + s * .84, s, s * .16); g.restore() }
@@ -331,6 +335,7 @@ async function refreshPoster() { const s = cur(); if (!s) return; const c = awai
 async function sharePoster(download) {
   const b = await posterBlob(); const name = `WF_MATCHDAY_${S.sid.replace(/-/g, '')}.png`; const file = new File([b], name, { type: 'image/png' });
   if (!download && navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: 'WF MATCH DAY' }); return } catch (e) { if (e.name === 'AbortError') return } }
+  if (S.store?.dl) { try { await S.store.dl.save({ filename: name, data: b }); toast('이미지를 저장했어요.') } catch (e) { if (e?.code !== 'declined') toast('이 화면에서는 저장할 수 없어요.') } return }
   const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 1000); toast('이미지를 저장했어요.');
 }
 function noticeText(s) {
@@ -348,7 +353,6 @@ function render() {
   const chatBox = document.querySelector('.msgs'); const atBottom = !chatBox || chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < 40;
   const ov = document.querySelector('.overlay')?.scrollTop;
   let h = appbar() + '<div class="wrap">';
-  if (S.store?.kind === 'demo') h += `<div class="notice warn">체험 모드예요. 이 기기에만 저장되고 다른 폰과 공유되지 않아요. config.js에 Firebase 설정을 넣으면 함께 쓸 수 있어요.</div>`;
   if (S.err) h += `<div class="notice warn">${esc(S.err)}</div>`;
   if (S.ready < 3) h += '<p class="empty">불러오는 중…</p>';
   else if (S.tab === 'home') h += S.sid && S.sessions[S.sid] ? viewSession() : viewHome();
@@ -368,9 +372,9 @@ function render() {
 }
 function appbar() {
   const s = S.sid ? S.sessions[S.sid] : null; const back = S.admin && S.tab === 'home' && s;
-  return `<header class="appbar"><div class="in">${back ? '<button class="back" data-act="home" aria-label="경기일 목록">‹</button>' : `<img src="assets/emblem.png" alt="">`}
+  return `<header class="appbar"><div class="in">${back ? '<button class="back" data-act="home" aria-label="경기일 목록">‹</button>' : `<img src="${EMBLEM_SRC}" alt="">`}
   <div class="ttl"><b>${esc(CFG.club?.name || 'WEEKDAYS FUTSAL CLUB')}</b><span>${s && S.admin && S.tab === 'home' ? `${fmtDate(s.date)} ${esc(s.time || '')} ${esc(s.venue || '')}` : ''}</span></div>
-  ${S.store?.kind === 'demo' ? '<span class="pill">체험</span>' : ''}${S.admin ? '' : `<button class="gear" data-act="tab" data-v="settings" aria-label="설정">⚙</button>`}<button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">${S.admin ? '운영 중' : '운영모드'}</button></div></header>`;
+  ${S.admin ? '' : `<button class="gear" data-act="tab" data-v="settings" aria-label="설정">⚙</button>`}<button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">${S.admin ? '운영 중' : '운영모드'}</button></div></header>`;
 }
 function tabs() {
   const t = S.admin ? [['home', '경기일'], ['stats', '선수 기록'], ['settings', '설정']] : [...(myTeam(cur()) ? [['draft', '드래프트']] : []), ['mhome', '홈'], ['sched', '일정'], ['results', '결과'], ['mstats', '기록']];
@@ -571,7 +575,7 @@ function viewSettings() {
   return `<h2>내 정보</h2><div class="panel"><div class="field"><label for="me">이름 (채팅 표시, 내 기록 찾기에 쓰여요)</label><input id="me" class="inp" type="text" value="${esc(S.me)}" data-in="me" maxlength="12"></div>
   </div>
   <h2>휘슬</h2><div class="panel pad"><button class="btn block" data-act="whistle">${S.whistle ? '🔊 이 폰에서 휘슬 켜짐' : '🔇 이 폰에서 휘슬 꺼짐'}</button><p class="note">웹에서는 휘슬이 울리려면 경기 화면을 켜 두어야 해요.</p></div>
-  <h2>연결</h2><div class="panel pad"><p style="margin:0">${S.store?.kind === 'live' ? 'Firebase에 연결됨. 모든 기기가 같은 데이터를 봐요.' : '체험 모드 (이 기기에만 저장)'}</p></div>`;
+  <h2>주장 코드</h2><div class="panel pad"><p class="muted" style="margin:0 0 10px">운영진에게 받은 주장 코드를 넣으면 그 주장 이름으로 드래프트에 참여해요.</p><div style="display:flex;gap:8px"><input class="inp" type="text" id="capcode" maxlength="8" placeholder="예: K7Q2MX" autocapitalize="characters" style="text-transform:uppercase"><button class="btn primary" data-act="capcode">입력</button></div></div>`;
 }
 /* ───────── member views ───────── */
 function dt(str) { return str ? new Date(str) : null }
@@ -631,8 +635,9 @@ function homeAction(s, st) {
   const mt = myTeamIn(s);
   if (st.k === 'soon') return `<div class="act"><b>신청은 카톡방 투표로 열려요</b><p>${fmtDT(s.applyOpen)}에 신청이 시작돼요.</p></div>`;
   if (st.k === 'open') { const left = (s.capacity || 0) - (s.applicants || []).length; return `<div class="act"><b>카톡방 투표로 신청하세요</b><p>${[s.capacity ? (left > 0 ? `남은 자리 ${left}명` : '정원이 찼어요. 대기 신청은 운영진에게 물어보세요') : '', s.applyClose ? `${fmtDT(s.applyClose)} 마감` : ''].filter(Boolean).join(', ')}</p>${(s.applicants || []).length ? `<button class="btn sm" data-act="applist">신청자 보기</button>` : ''}</div>` }
-  if (st.k === 'closed') return `<div class="act"><b>신청이 마감됐어요</b><p>주장이 정해지면 드래프트로 팀을 나눠요.</p>${capsLine(s)}</div>`;
-  if (st.k === 'draft') return `<div class="act live"><b>${s.draftStatus === 'live' ? '<span class="dot"></span> 지금 드래프트 중이에요' : '팀 밸런스를 맞추는 중이에요'}</b>${capsLine(s)}<button class="btn primary block" data-act="sub" data-v="draft">${s.draftStatus === 'live' ? '드래프트 실시간 보기' : '팀 구성 보기'}</button></div>`;
+  const capHint = KEYS.some(k => s.captains?.[k]) && !myTeam(s) ? `<button class="linkbtn" data-act="tab" data-v="settings">주장이신가요? 주장 코드 입력 ›</button>` : '';
+  if (st.k === 'closed') return `<div class="act"><b>신청이 마감됐어요</b><p>주장이 정해지면 드래프트로 팀을 나눠요.</p>${capsLine(s)}${capHint}</div>`;
+  if (st.k === 'draft') return `<div class="act live"><b>${s.draftStatus === 'live' ? '<span class="dot"></span> 지금 드래프트 중이에요' : '팀 밸런스를 맞추는 중이에요'}</b>${capsLine(s)}<button class="btn primary block" data-act="sub" data-v="draft">${s.draftStatus === 'live' ? '드래프트 실시간 보기' : '팀 구성 보기'}</button>${s.draftStatus === 'live' ? capHint : ''}</div>`;
   if (st.k === 'teams') return `<div class="act"><b>팀이 발표됐어요${mt ? `, 나는 ${esc(team(s, mt).name)}` : ''}</b>${rostersMini(s)}<button class="btn primary block" data-act="sub" data-v="poster">공지 이미지 보기</button></div>`;
   const live = sessMatches(s.date).filter(m => m.status === 'live');
   return `<div class="act live"><b><span class="dot"></span> 경기 진행 중</b>${live.map(m => { const [a, b] = score(m); return `<div class="lv">${bib(team(s, m.home).color)}${esc(team(s, m.home).name)} <b>${a} : ${b}</b> ${esc(team(s, m.away).name)}${bib(team(s, m.away).color)} <span data-clock="${m.id}"></span></div>` }).join('')}<button class="btn primary block" data-act="sub" data-v="match">경기 현황과 순위 보기</button></div>`;
@@ -736,6 +741,9 @@ document.addEventListener('click', async e => {
     case 'pick': { const nm = pname(id); if (!confirm(`${nm} 선수를 지명할까요?`)) break; await doPick(id); break }
     case 'undo': if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); break;
     case 'noop': break;
+    case 'capcode': { const f = findCode(document.getElementById('capcode')?.value); if (!f) { toast('맞는 주장 코드가 없어요. 운영진에게 다시 확인해 주세요.'); break }
+      S.capLinks[f.sid] = { k: f.k, t: S.sessions[f.sid].captainTokens[f.k] }; save('caplinks', S.capLinks); S.sid = f.sid; S.tab = 'draft'; document.activeElement?.blur();
+      toast(`${team(S.sessions[f.sid], f.k).name} 주장 ${pname(S.sessions[f.sid].captains[f.k])}(으)로 참여해요.`); render(); window.scrollTo(0, 0); break }
     case 'sub': S.sub = el.dataset.v || null; S.detail = el.dataset.v === '' && S.tab === 'results' ? null : S.detail; render(); window.scrollTo(0, 0); break;
     case 'applist': S.sub = 'applist'; render(); window.scrollTo(0, 0); break;
     case 'result': S.tab = 'results'; S.detail = id; S.sub = null; render(); window.scrollTo(0, 0); break;
@@ -771,9 +779,9 @@ document.addEventListener('click', async e => {
       { const pin = prompt('운영진 비밀번호'); if (pin === null) break; if (pin !== String(CFG.adminPin ?? '0000')) { toast('비밀번호가 달라요.'); break }
         S.adminOn = true; save('admin', true); S.tab = 'home'; S.sid = null; S.step = null; S.openMatch = null; toast('운영모드로 전환했어요.'); render(); window.scrollTo(0, 0) } break;
     case 'caplink': { const k = el.dataset.k; let t = s.captainTokens?.[k]; if (!t) { t = rand(); if (!await w(() => S.store.update(sp(S.sid), { [`captainTokens.${k}`]: t }))) break }
-      const url = capLink(S.sid, k, t); const msg = `[${CFG.club?.short || 'WF'}] ${fmtDate(S.sid)} 드래프트 ${team(s, k).name} 주장 ${pname(s.captains[k])}님 전용 링크예요.\n${url}`;
+      const url = IS_ARTIFACT ? (window.WF_APP_URL || '') : capLink(S.sid, k, t); const msg = `[${CFG.club?.short || 'WF'}] ${fmtDate(S.sid)} 드래프트 ${team(s, k).name} 주장 ${pname(s.captains[k])}님\n앱 링크: ${url}\n주장 코드: ${t}\n${IS_ARTIFACT ? '앱을 열고 오른쪽 위 ⚙ 설정에서 \'주장 코드 입력\'을 눌러 주세요.' : '링크를 누르면 바로 드래프트에 참여해요.'}`;
       if (el.dataset.how === 'share' && navigator.share) { try { await navigator.share({ text: msg }); break } catch (e) { if (e.name === 'AbortError') break } }
-      try { await navigator.clipboard.writeText(msg); toast(`${team(s, k).name} 주장 링크를 복사했어요.`) } catch { prompt('아래 링크를 복사해서 보내세요', url) } break }
+      try { await navigator.clipboard.writeText(msg); toast(`${team(s, k).name} 주장 안내를 복사했어요.`) } catch { prompt('아래 내용을 복사해서 보내세요', msg.replace(/\n/g, ' / ')) } break }
     case 'whistle': S.whistle = !S.whistle; save('whistle', S.whistle); if (S.whistle) { audio(); whistle([.35]) } render(); break;
     case 'closesheet': S.sheet = null; render(); break;
   }
@@ -788,8 +796,9 @@ function watchChat() {
   const q = new URLSearchParams(location.search);
   if (q.get('d') && q.get('c') && q.get('t')) { S.capLinks[q.get('d')] = { k: q.get('c'), t: q.get('t') }; save('caplinks', S.capLinks); S.sid = q.get('d'); S.tab = 'draft'; S.adminOn = S.adminOn && false; S.pendingLink = q.get('d'); history.replaceState(null, '', location.pathname) }
   render();
-  try { S.store = CFG.firebase?.apiKey ? await firebaseStore(CFG.firebase) : localStore() }
-  catch (e) { console.error(e); S.err = 'Firebase에 연결하지 못해 체험 모드로 열었어요. config.js 설정과 인터넷 연결을 확인하세요.'; S.store = localStore() }
+  try { S.store = (window.claude && await artifactStore()) || (CFG.firebase?.apiKey ? await firebaseStore(CFG.firebase) : null) }
+  catch (e) { console.error(e) }
+  if (!S.store) { S.err = '데이터 서버에 연결하지 못했어요. config.js의 Firebase 설정과 인터넷 연결을 확인하세요.'; S.ready = 3; render(); return }
   const onErr = () => { S.err = '데이터를 불러오지 못했어요. Firebase 규칙과 익명 로그인 설정을 확인하세요.'; render() };
   let posterT; const sub = (p, key) => { let first = true; S.store.watchCol(p, docs => { const o = {}; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); S[key] = o; if (first) { first = false; S.ready++ }
     if (key === 'sessions' && S.pendingLink) { const sid = S.pendingLink; S.pendingLink = null; S.sid = S.sessions[sid] ? sid : null; if (!S.sessions[sid] || !myTeam(S.sessions[sid])) { toast('만료되었거나 잘못된 주장 링크예요. 운영진에게 새 링크를 받아 주세요.'); S.tab = 'mhome' } else toast(`${team(S.sessions[sid], myTeam(S.sessions[sid])).name} 주장으로 드래프트에 참여해요.`) }
@@ -797,5 +806,5 @@ function watchChat() {
     render() }, null, onErr) };
   sub('players', 'players'); sub('sessions', 'sessions'); sub('matches', 'matches');
   S.store.watchCol('events', docs => { const o = {}; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); S.events = o; render() }, null, onErr);
-  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { });
+  if (!IS_ARTIFACT && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { });
 })();
