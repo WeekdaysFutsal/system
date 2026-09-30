@@ -437,11 +437,14 @@ function vApply(s) {
     <div class="field"><label for="f-cap">신청 인원 (정원)</label><input id="f-cap" class="inp" type="number" min="3" max="60" value="${s.capacity || ''}" data-in="sfield2" data-f="capacity" ${ad ? '' : 'disabled'}></div>
     <div class="field"><label for="f-open">신청 오픈</label><input id="f-open" class="inp" type="datetime-local" value="${esc(s.applyOpen || '')}" data-in="sfield2" data-f="applyOpen" ${ad ? '' : 'disabled'}></div>
     <div class="field"><label for="f-close">신청 마감</label><input id="f-close" class="inp" type="datetime-local" value="${esc(s.applyClose || '')}" data-in="sfield2" data-f="applyClose" ${ad ? '' : 'disabled'}></div></div>`;
-  h += `<h2>신청자<small>${ids.length}명</small></h2>`;
+  const ast = sStatus(s); h += `<h2>신청자<small>${ids.length}${s.capacity ? ' / ' + s.capacity : ''}명</small><span class="st st-${ast.k}">${ast.label}</span></h2>
+  <p class="note" style="margin:-4px 2px 10px">${ast.k === 'open' ? `회원들이 앱에서 직접 신청하는 중이에요. ${s.applyClose ? fmtDT(s.applyClose) + '에 자동 마감돼요.' : ''}` : ast.k === 'soon' ? `${fmtDT(s.applyOpen)}에 앱 신청이 열려요.` : '앱 신청이 마감됐어요. 이 명단이 드래프트 선수 목록이 돼요.'} 카톡으로 받은 신청은 아래에서 직접 추가해도 돼요.</p>`;
   if (ad) h += `<div class="panel"><div class="field"><label for="f-paste">카톡 투표 참여자 명단 붙여넣기</label><textarea id="f-paste" class="inp" data-in="pasteApply" placeholder="투표 참여자 이름을 복사해서 붙여넣으세요.&#10;줄바꿈, 쉼표, 띄어쓰기 모두 괜찮아요.">${esc(S.pasteApply)}</textarea></div>
     <div class="pad" style="padding-top:0"><button class="btn primary block" data-act="addapply">명단 추가</button></div></div><div style="height:10px"></div>`;
   h += `<div class="panel"><div class="chips">${ids.length ? ids.map(id => `<button class="chip ${ad ? 'x' : ''}" data-act="rmapply" data-id="${id}" ${ad ? '' : 'disabled'} aria-label="${esc(pname(id))}${ad ? ' 삭제' : ''}">${esc(pname(id))}</button>`).join('') : '<span class="muted">아직 신청자가 없어요.</span>'}</div>
     ${ad ? `<div class="pad" style="padding-top:0;display:flex;gap:8px"><input class="inp" type="text" placeholder="한 명씩 추가 (게스트는 이름(게))" data-in="addone" id="addone"><button class="btn" data-act="addone">추가</button></div>` : ''}</div>`;
+  if ((s.waitlist || []).length) h += `<h2>대기<small>${s.waitlist.length}명, 신청자가 취소하면 자동으로 올라가요</small></h2><div class="panel"><div class="chips">${s.waitlist.map(id => `<button class="chip ${ad ? 'x' : ''}" data-act="rmwait" data-id="${id}" ${ad ? '' : 'disabled'}>${esc(pname(id))}</button>`).join('')}</div>${ad ? `<div class="pad" style="padding-top:0"><button class="btn sm" data-act="promote">대기 1번을 신청자로 올리기</button></div>` : ''}</div>`;
+  if (ad && ast.k === 'open') h += `<div class="row" style="margin-top:10px"><button class="btn" data-act="closenow">지금 신청 마감하기</button></div>`;
   if (ids.length % 3 && ids.length) h += `<p class="note">${ids.length}명은 3팀으로 딱 나눠지지 않아요. 한 팀이 ${Math.ceil(ids.length / 3)}명이 돼요.</p>`;
   if (ad) h += `<div style="height:14px"></div><button class="btn primary block" data-act="gostage" data-v="captain" ${ids.length < 3 ? 'disabled' : ''}>다음: 주장 정하기</button>`;
   return h;
@@ -601,7 +604,7 @@ function viewSettings() {
   return `<h2>내 정보</h2><div class="panel"><div class="field"><label for="me">이름 (채팅 표시, 내 기록 찾기에 쓰여요)</label><input id="me" class="inp" type="text" value="${esc(S.me)}" data-in="me" maxlength="12"></div>
   </div>
   <h2>휘슬</h2><div class="panel pad"><button class="btn block" data-act="whistle">${S.whistle ? '🔊 이 폰에서 휘슬 켜짐' : '🔇 이 폰에서 휘슬 꺼짐'}</button><p class="note">웹에서는 휘슬이 울리려면 경기 화면을 켜 두어야 해요.</p></div>
-  ${S.admin ? `<h2>샘플 데이터</h2><div class="panel pad"><p class="muted" style="margin:0 0 10px">처음 실행할 때 들어간 가상 회원, 경기, 기록을 지워요. 직접 입력한 데이터는 남아요.</p><button class="btn danger block" data-act="clearsample">샘플 데이터 모두 지우기</button></div>` : ''}
+  ${S.admin ? `<h2>샘플 데이터</h2><div class="panel pad"><p class="muted" style="margin:0 0 10px">화면 확인용 가상 회원, 지난 경기 2개, 다음 경기 1개를 넣거나 지워요. 직접 입력한 데이터는 건드리지 않아요.</p><div class="row"><button class="btn" data-act="addsample">샘플 데이터 넣기</button><button class="btn danger" data-act="clearsample">샘플 데이터 모두 지우기</button></div></div>` : ''}
   <h2>주장 코드</h2><div class="panel pad"><p class="muted" style="margin:0 0 10px">운영진에게 받은 주장 코드를 넣으면 그 주장 이름으로 드래프트에 참여해요.</p><div style="display:flex;gap:8px"><input class="inp" type="text" id="capcode" maxlength="8" placeholder="예: K7Q2MX" autocapitalize="characters" style="text-transform:uppercase"><button class="btn primary" data-act="capcode">입력</button></div></div>`;
 }
 /* ───────── member views ───────── */
@@ -662,10 +665,10 @@ function viewMHome() {
 }
 function homeAction(s, st) {
   const mt = myTeamIn(s);
-  if (st.k === 'soon') return `<div class="act"><b>신청은 카톡방 투표로 열려요</b><p>${fmtDT(s.applyOpen)}에 신청이 시작돼요.</p></div>`;
-  if (st.k === 'open') { const left = (s.capacity || 0) - (s.applicants || []).length; return `<div class="act"><b>카톡방 투표로 신청하세요</b><p>${[s.capacity ? (left > 0 ? `남은 자리 ${left}명` : '정원이 찼어요. 대기 신청은 운영진에게 물어보세요') : '', s.applyClose ? `${fmtDT(s.applyClose)} 마감` : ''].filter(Boolean).join(', ')}</p>${(s.applicants || []).length ? `<button class="btn sm" data-act="applist">신청자 보기</button>` : ''}</div>` }
+  if (st.k === 'soon') return `<div class="act"><b>신청 오픈 전이에요</b><p>${fmtDT(s.applyOpen)}부터 앱에서 신청할 수 있어요.</p>${applyBox(s)}</div>`;
+  if (st.k === 'open') { const left = (s.capacity || 0) - (s.applicants || []).length; return `<div class="act"><b>지금 신청 받는 중이에요</b><p>${[s.capacity ? (left > 0 ? `남은 자리 ${left}명` : `정원이 찼어요, 대기 ${(s.waitlist || []).length}명`) : '', s.applyClose ? `${fmtDT(s.applyClose)} 마감` : ''].filter(Boolean).join(', ')}</p>${applyBox(s)}${(s.applicants || []).length ? `<button class="btn sm" data-act="applist">신청자 보기</button>` : ''}</div>` }
   const capHint = KEYS.some(k => s.captains?.[k]) && !myTeam(s) ? `<button class="linkbtn" data-act="tab" data-v="settings">주장이신가요? 주장 코드 입력 ›</button>` : '';
-  if (st.k === 'closed') return `<div class="act"><b>신청이 마감됐어요</b><p>주장이 정해지면 드래프트로 팀을 나눠요.</p>${capsLine(s)}${capHint}</div>`;
+  if (st.k === 'closed') return `<div class="act"><b>신청이 마감됐어요</b><p>신청자 ${(s.applicants || []).length}명으로 드래프트를 준비해요.</p>${applyBox(s)}${capsLine(s)}${capHint}<button class="btn sm" data-act="applist">신청자 보기</button></div>`;
   if (st.k === 'draft') return `<div class="act live"><b>${s.draftStatus === 'live' ? '<span class="dot"></span> 지금 드래프트 중이에요' : '팀 밸런스를 맞추는 중이에요'}</b>${capsLine(s)}<button class="btn primary block" data-act="sub" data-v="draft">${s.draftStatus === 'live' ? '드래프트 실시간 보기' : '팀 구성 보기'}</button>${s.draftStatus === 'live' ? capHint : ''}</div>`;
   if (st.k === 'teams') return `<div class="act"><b>팀이 발표됐어요${mt ? `, 나는 ${esc(team(s, mt).name)}` : ''}</b>${rostersMini(s)}<button class="btn primary block" data-act="sub" data-v="poster">공지 이미지 보기</button></div>`;
   const live = sessMatches(s.date).filter(m => m.status === 'live');
@@ -684,7 +687,7 @@ function viewSchedule() {
     const curI = steps.findIndex(x => !x[2]);
     h += `<div class="panel sched"><div class="sched-hd"><div><b>${fmtDate(id)} ${esc(s.time || '')}</b><span>📍 ${esc(s.venue || '')}</span></div><span class="dday sm">${dday(id)}</span></div>
       <ol class="tl">${steps.map(([l, v, done], i) => `<li class="${done ? 'done' : i === curI ? 'now' : ''}"><i></i><span>${l}</span><em>${v ? fmtDT(v) : done ? '완료' : i === 2 ? '신청 마감 후' : '-'}</em></li>`).join('')}</ol>
-      <div class="sched-ft"><span class="st st-${st.k}">${st.label}</span><span>신청 ${(s.applicants || []).length}${s.capacity ? ' / ' + s.capacity : ''}명</span></div></div>` }
+      <div class="sched-ft"><span class="st st-${st.k}">${st.label}</span><span>신청 ${(s.applicants || []).length}${s.capacity ? ' / ' + s.capacity : ''}명${(s.waitlist || []).length ? `, 대기 ${s.waitlist.length}` : ''}</span></div>${st.k === 'open' || applyState(s)?.k === 'in' ? `<div style="margin-top:10px">${applyBox(s, true)}</div>` : ''}</div>` }
   return h + '</div>';
 }
 function viewResults() {
@@ -720,7 +723,9 @@ function viewMStats() {
   if (me && r && !shown.find(x => x.id === me) && val(r) > 0) h += `<p class="note">내 순위: ${rankOf(list, key === 'wr' ? 'g' : key, me)}위</p>`;
   return h + '</section></div>';
 }
-function viewApplicants() { const s = cur(); return backbar('홈으로') + `<h2>신청자<small>${(s.applicants || []).length}명</small></h2><div class="panel"><div class="chips">${(s.applicants || []).map(id => `<span class="chip ${id === myPid() ? 'sel' : ''}">${esc(pname(id))}</span>`).join('')}</div></div>` }
+function viewApplicants() { const s = cur(); const me = myPid(); const chip = (id, i) => `<span class="chip ${id === me ? 'sel' : ''}"><small class="muted">${i + 1}</small> ${esc(pname(id))}</span>`;
+  return backbar('홈으로') + `<h2>신청자<small>${(s.applicants || []).length}${s.capacity ? ' / ' + s.capacity : ''}명</small></h2><div class="panel"><div class="chips">${(s.applicants || []).map(chip).join('') || '<span class="muted">아직 신청자가 없어요.</span>'}</div></div>
+  ${(s.waitlist || []).length ? `<h2>대기<small>${s.waitlist.length}명</small></h2><div class="panel"><div class="chips">${s.waitlist.map(chip).join('')}</div></div>` : ''}` }
 
 /* ───────── admin views ───────── */
 async function deleteSessionBy(sid) { if (!confirm(fmtDate(sid) + ' 경기를 통째로 지울까요? 신청자, 경기 기록도 함께 지워지고 되돌릴 수 없어요.')) return;
@@ -810,11 +815,11 @@ function viewRecs() {
 /* ───────── sample data ───────── */
 function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296 } }
 function dstr(d) { return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}` }
-function genSample() {
+function genSample(existing = {}) {
   const R = rng(20260930); const pick = a => a[Math.floor(R() * a.length)];
   const names = '김민혁 이도형 안준영 한준호 윤창민 이정욱 이준현 김바우 박종현 강인호 양성필 손효석 이태명 김민준 지유균 손준민 이호열 이건 종현 오태훈 장영범'.split(' ');
   const docs = []; const pid = {};
-  names.forEach((n, i) => { const id = 'p' + p2(i + 1); pid[n] = id; const guest = n === '장영범';
+  names.forEach((n, i) => { if (existing[n]) { pid[n] = existing[n]; return } const id = 'smp' + p2(i + 1); pid[n] = id; const guest = n === '장영범';
     docs.push(['players/' + id, { name: n, guest, status: guest ? 'guest' : 'active', createdAt: Date.now() - 864e5 * (90 - i), sample: true }]);
     docs.push(['contacts/' + id, { phone: `010-0000-${1001 + i}`, memo: guest ? '지인 소개' : '', sample: true }]) });
   const t = new Date(); t.setHours(0, 0, 0, 0); const back = ((t.getDay() - 2 + 7) % 7) || 7;
@@ -851,6 +856,14 @@ async function maybeSeed() {
     const docs = genSample(); for (let i = 0; i < docs.length; i += 12) await Promise.all(docs.slice(i, i + 12).map(([p, d]) => S.store.set(p, d)));
     toast('처음 실행이라 샘플 데이터를 넣었어요. 운영모드 설정에서 지울 수 있어요.') } catch (e) { console.error(e) }
 }
+async function addSampleManual() {
+  if (!confirm('샘플 데이터(가상 회원, 지난 경기 2개, 다음 경기 1개)를 넣을까요? 이미 있는 날짜의 경기와 같은 이름의 회원은 건드리지 않아요.')) return;
+  const existing = {}; for (const [id, p] of Object.entries(S.players)) existing[p.name] = id;
+  const all = genSample(existing); const skipSid = new Set(all.filter(([p]) => p.startsWith('sessions/') && S.sessions[p.slice(9)]).map(([p]) => p.slice(9)));
+  const docs = all.filter(([p, d]) => !(p.startsWith('sessions/') && skipSid.has(p.slice(9))) && !(d.session && skipSid.has(d.session)));
+  const ok = await w(async () => { for (let i = 0; i < docs.length; i += 12) await Promise.all(docs.slice(i, i + 12).map(([p, d]) => S.store.set(p, d))) });
+  if (ok) toast(skipSid.size ? `샘플을 넣었어요. ${[...skipSid].map(fmtDate).join(', ')}은 이미 경기가 있어서 건너뛰었어요.` : '샘플 데이터를 넣었어요.');
+}
 async function clearSample() {
   if (!confirm('샘플 데이터(가상 회원, 경기, 기록)를 모두 지울까요? 직접 입력한 데이터는 남아요.')) return;
   const sids = Object.entries(S.sessions).filter(([, s]) => s.sample).map(([id]) => id);
@@ -860,6 +873,40 @@ async function clearSample() {
     ...Object.entries(S.contacts || {}).filter(([, c]) => c.sample).map(([id]) => 'contacts/' + id)];
   const ok = await w(async () => { for (let i = 0; i < targets.length; i += 12) await Promise.all(targets.slice(i, i + 12).map(p => S.store.del(p))) });
   if (ok) toast(`샘플 데이터 ${targets.length}건을 지웠어요.`);
+}
+
+/* ───────── member application ───────── */
+function applyState(s) { const me = myPid(); if (!me) return null; if ((s.applicants || []).includes(me)) return { k: 'in', n: s.applicants.indexOf(me) + 1 }; if ((s.waitlist || []).includes(me)) return { k: 'wait', n: s.waitlist.indexOf(me) + 1 }; return { k: 'none' } }
+function applyBox(s, compact) {
+  const st = sStatus(s); const a = applyState(s); const n = (s.applicants || []).length, cap = s.capacity || 0, wl = (s.waitlist || []).length;
+  if (st.k === 'soon') return `<button class="btn block" disabled>${fmtDT(s.applyOpen)}에 신청이 열려요</button>`;
+  if (st.k === 'open') {
+    if (a?.k === 'in') return `<div class="applied"><span>✓ 신청 완료<small>${a.n}번째로 신청했어요</small></span><button class="btn sm" data-act="applycancel" data-id="${s.date}">신청 취소</button></div>`;
+    if (a?.k === 'wait') return `<div class="applied wait"><span>대기 ${a.n}번<small>자리가 나면 자동으로 신청돼요</small></span><button class="btn sm" data-act="applycancel" data-id="${s.date}">대기 취소</button></div>`;
+    const full = cap && n >= cap; return `<button class="btn primary block applybtn" data-act="apply" data-id="${s.date}">${full ? `대기 신청하기 (대기 ${wl}명)` : '신청하기'}</button>${S.me && !compact ? `<p class="note" style="margin:0">${esc(S.me)} 이름으로 신청돼요. <button class="linkbtn" data-act="tab" data-v="settings">이름 바꾸기</button></p>` : ''}`;
+  }
+  if (a?.k === 'in') return `<div class="applied"><span>✓ 신청 완료<small>${st.k === 'closed' ? '드래프트로 팀이 정해지면 알려 드려요' : '이번 경기 참가자예요'}</small></span></div>`;
+  if (a?.k === 'wait') return `<div class="applied wait"><span>대기 ${a.n}번<small>신청이 마감됐어요</small></span></div>`;
+  return '';
+}
+async function doApply(sid, cancel) {
+  let pid = myPid();
+  if (!pid) { const nm = (S.me || prompt('신청할 이름을 적어 주세요 (팀 명단에 쓰이는 이름)') || '').trim(); if (!nm) return; S.me = nm.slice(0, 12); save('me', S.me); pid = myPid();
+    if (!pid) { if (!confirm(`처음 신청하시네요. "${S.me}" 이름으로 회원 등록 후 신청할까요?`)) return; pid = await S.store.add('players', { name: S.me, guest: false, status: 'active', createdAt: Date.now() }); S.players[pid] = { name: S.me } } }
+  if (cancel && !confirm('신청을 취소할까요?')) return;
+  let res = null;
+  await w(() => S.store.txn(sp(sid), d => {
+    if (!d) return null; const now = Date.now();
+    if (d.draftStatus !== 'ready' || (d.applyClose && now >= new Date(d.applyClose).getTime())) { res = 'closed'; return null }
+    if (!cancel && d.applyOpen && now < new Date(d.applyOpen).getTime()) { res = 'soon'; return null }
+    const ap = d.applicants || [], wl = d.waitlist || [];
+    if (cancel) { const was = ap.includes(pid); d.applicants = ap.filter(x => x !== pid); d.waitlist = wl.filter(x => x !== pid);
+      if (was && d.waitlist.length && (!d.capacity || d.applicants.length < d.capacity)) d.applicants.push(d.waitlist.shift());
+      KEYS.forEach(k => { if (d.captains?.[k] === pid) d.captains[k] = null }); res = 'cancel'; return d }
+    if (ap.includes(pid) || wl.includes(pid)) { res = 'dup'; return null }
+    if (d.capacity && ap.length >= d.capacity) { d.waitlist = [...wl, pid]; res = 'wait' } else { d.applicants = [...ap, pid]; res = 'ok' }
+    return d }));
+  toast({ ok: '신청했어요!', wait: '정원이 차서 대기로 신청했어요.', cancel: '취소했어요.', dup: '이미 신청했어요.', closed: '신청이 마감됐어요.', soon: '아직 신청 기간이 아니에요.' }[res] || '다시 시도해 주세요.');
 }
 
 /* ───────── members (admin) ───────── */
@@ -972,6 +1019,12 @@ document.addEventListener('click', async e => {
     case 'pick': { const nm = pname(id); if (!confirm(`${nm} 선수를 지명할까요?`)) break; await doPick(id); break }
     case 'undo': if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); break;
     case 'noop': break;
+    case 'rmwait': if (!needAdmin()) break; await w(() => S.store.update(sp(S.sid), { waitlist: (s.waitlist || []).filter(x => x !== id) })); break;
+    case 'promote': if (!needAdmin() || !(s.waitlist || []).length) break; await w(() => S.store.update(sp(S.sid), { applicants: [...(s.applicants || []), s.waitlist[0]], waitlist: s.waitlist.slice(1) }), '신청자로 올렸어요.'); break;
+    case 'closenow': if (!needAdmin() || !confirm('지금 바로 신청을 마감할까요?')) break; await w(() => S.store.update(sp(S.sid), { applyClose: nowLocal() }), '신청을 마감했어요.'); break;
+    case 'apply': await doApply(id, false); break;
+    case 'applycancel': await doApply(id, true); break;
+    case 'addsample': if (!needAdmin()) break; await addSampleManual(); break;
     case 'clearsample': if (!needAdmin()) break; await clearSample(); break;
     case 'mstat': S.mstat = el.dataset.k; render(); break;
     case 'madd': S.sheet = { type: 'madd' }; render(); break;

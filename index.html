@@ -365,6 +365,14 @@ select.cell{appearance:auto}
 .tel{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;text-decoration:none}
 .tel:hover{background:var(--bg)}
 @media (min-width:1024px) and (hover:hover) and (pointer:fine){.mtools{grid-template-columns:minmax(220px,340px) auto auto;align-items:center;justify-content:start}}
+/* apply */
+.applied{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:12px;background:rgba(31,180,90,.12);border:1px solid rgba(31,180,90,.4)}
+.applied span{font-weight:700;color:#138A45;display:grid}
+.applied small{font-weight:400;font-size:12px;color:var(--muted)}
+.applied.wait{background:rgba(255,210,31,.14);border-color:rgba(200,160,0,.45)}
+.applied.wait span{color:#8A6A00}
+.applybtn{min-height:54px;font-size:17px}
+h2 .st{font-family:var(--body)}
 /* calendar */
 .cal{background:var(--bg);border-radius:14px;padding:10px}
 .cal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
