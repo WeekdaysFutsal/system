@@ -1052,6 +1052,57 @@ table.atbl tr.lrow td:nth-child(n+7){text-decoration:none}
 .lg-me{display:flex;align-items:center;gap:12px}
 .lg-me .av{width:48px;height:48px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:inline-flex;align-items:center;justify-content:center;font-weight:800;position:relative}
 .lg-me b{display:block;font-size:17px}.lg-me small{color:#16A34A;font-weight:700;font-size:12px}
+/* v0.33 schedule layout (wide calendar, fit on phone) */
+.schwrap{display:grid;gap:14px;margin-top:14px}
+.schwrap .scal{margin:0;padding:12px;display:flex;flex-direction:column;max-width:none!important}
+.schwrap .schdetail{margin:0;max-width:none!important;min-width:0}
+.scw{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));text-align:center;font-size:12px;font-weight:700;color:var(--muted);padding:4px 0}
+.scw .sun{color:#D7263D}.scw .sat{color:#1E46C8}
+.scgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;flex:1;min-height:0}
+.scd{aspect-ratio:auto!important;max-height:none!important;min-height:0;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:2px;overflow:hidden;background:transparent;border:1px solid transparent}
+.scd.blank{visibility:hidden}
+.scd .dn{font-size:15px;font-weight:600;line-height:1.1}
+.scd .ev{font-style:normal;display:flex;flex-direction:column;align-items:center;line-height:1.1;min-width:0;max-width:100%}
+.scd .ev b{font-size:10px;font-weight:700}
+.scd .ev small{display:none;font-size:11px;opacity:.9;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scd.today .dn{box-shadow:0 0 0 2px #FFD21F;border-radius:99px;padding:0 5px}
+.scd.sel{outline:3px solid #FFD21F;outline-offset:0}
+.lg-sel{background:transparent;box-shadow:inset 0 0 0 2px #FFD21F}
+.schdetail .sched{height:100%;display:flex;flex-direction:column}
+.schdetail .sched .tl{flex:1}
+/* desktop: calendar wide on the left, details on the right, fills the screen */
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){
+  .schwrap{grid-template-columns:minmax(0,2.2fr) minmax(320px,1fr);height:calc(100vh - var(--abh,70px) - 80px);min-height:560px;margin-top:18px;gap:20px}
+  .schwrap .scal{padding:16px 18px;height:100%}
+  .scal .cal-hd b{font-size:20px}
+  .scw{font-size:14px;padding:8px 0}
+  .scgrid{gap:6px}
+  .scd{align-items:flex-start;justify-content:flex-start;padding:8px 10px;border:1px solid var(--line);background:var(--surface)}
+  .scd .dn{font-size:17px}
+  .scd .ev{align-items:flex-start;margin-top:auto;width:100%;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.18)}
+  .scd .ev b{font-size:15px}
+  .scd .ev small{display:block}
+  .scd.has{border-color:transparent}
+  .schwrap .schdetail{height:100%;overflow:auto}
+  .schdetail .sched{padding:20px}
+  .schdetail .sched .sched-hd b{font-size:20px}
+  .schdetail .tl li{padding:12px 0}
+}
+/* phone: fixed, no page scroll */
+.schfit{position:fixed;left:0;right:0;top:var(--abh,60px);bottom:calc(58px + var(--adock,0px) + env(safe-area-inset-bottom,0px));margin:0;padding:8px 12px;display:flex!important;flex-direction:column;gap:8px;z-index:2}
+.schfit .scal{flex:none;padding:8px 8px 6px}
+.schfit .scal .cal-hd{padding:0 2px 2px}
+.schfit .scgrid{height:calc(var(--rowh,40px) * 6);flex:none;gap:3px}
+.schfit .scd{height:auto}
+.schfit .cal-leg{margin-top:4px;font-size:11px}
+.schfit .schdetail{flex:1;min-height:0;overflow:hidden}
+.schfit .sched{padding:10px 12px}
+.schfit .sched-hd b{font-size:15px}
+.schfit .tl{margin:6px 0}
+.schfit .tl li{padding:4px 0;font-size:13px}
+.schfit .sched-ft{padding-top:6px;font-size:13px}
+.schfit .sched{overflow:hidden}
+@media (max-height:740px){.schfit .sched-ft{display:none}.schfit{--rowh:34px}.schfit .scd .ev{display:none}.schfit .tl li{padding:2px 0;font-size:12px}.schfit .cal-leg{display:none}}
 </style>
 </head>
 <body>

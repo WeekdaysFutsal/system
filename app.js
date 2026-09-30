@@ -399,8 +399,8 @@ function render() {
   if (ciState) { const n = document.getElementById('chatin'); if (n) { n.value = ciState.v; if (ciState.f) { n.focus({ preventScroll: true }); try { n.setSelectionRange(ciState.a, ciState.b) } catch { } } } }
   scheduleBubbles();
   saveNav();
-  const dmOn = !!document.querySelector('.dmroot, .homefit'); document.body.classList.toggle('dm-on', dmOn);
-  if (dmOn) { const ab = document.querySelector('.appbar'); if (ab) document.documentElement.style.setProperty('--abh', ab.offsetHeight + 'px') }
+  const dmOn = !!document.querySelector('.dmroot, .homefit, .schfit'); document.body.classList.toggle('dm-on', dmOn);
+  { const ab = document.querySelector('.appbar'); if (ab) document.documentElement.style.setProperty('--abh', ab.offsetHeight + 'px') }
   tick();
 }
 function appbar() {
@@ -885,30 +885,35 @@ function homeAction(s, st, fit) {
 function capsLine(s) { const ks = KEYS.filter(k => s.captains?.[k]); return ks.length ? `<div class="caps">${ks.map(k => `${tag(team(s, k))}<span>👑 ${esc(pname(s.captains[k]))}</span>`).join('')}</div>` : '' }
 function rostersMini(s) { const me = myPid(); return `<div class="rosters">${KEYS.map(k => { const t = team(s, k); return `<div><div class="rh" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}</div><ul>${teamPlayers(s, k).map((id, i) => `<li class="${id === me ? 'me' : ''}">${i === 0 && captainOf(s, k) === id ? '👑' : ''}${esc(pname(id))}</li>`).join('')}</ul></div>` }).join('')}</div>` }
 
-function schedCard(id) { let h = '';
+function schedCard(id, noApply) { let h = '';
   const ids = [id];
   for (const id of ids) { const s = S.sessions[id]; const st = sStatus(s); const now = Date.now();
     const steps = [['신청 오픈', s.applyOpen, s.applyOpen && dt(s.applyOpen) <= now], ['신청 마감', s.applyClose, s.applyClose && dt(s.applyClose) <= now], ['팀 발표', null, stageIdx(s.stage) >= stageIdx('notice')], ['경기', `${id}T${s.time || '00:00'}`, st.k === 'live' || st.k === 'done']];
     const curI = steps.findIndex(x => !x[2]);
     h += `<div class="panel sched"><div class="sched-hd"><div><b>${fmtDate(id)} ${esc(s.time || '')}</b><span>📍 ${esc(s.venue || '')}</span></div><span class="dday sm">${dday(id)}</span></div>
       <ol class="tl">${steps.map(([l, v, done], i) => `<li class="${done ? 'done' : i === curI ? 'now' : ''}"><i></i><span>${l}</span><em>${v ? fmtDT(v) : done ? '완료' : i === 2 ? '신청 마감 후' : '-'}</em></li>`).join('')}</ol>
-      <div class="sched-ft"><span class="st st-${st.k}">${st.label}</span><span>신청 ${appCounts(s).sel}${s.capacity ? ' / ' + s.capacity : ''}명${appCounts(s).wait ? `, 대기 ${appCounts(s).wait}` : ''}</span></div>${st.k === 'open' || applyState(s)?.k === 'in' ? `<div style="margin-top:10px">${applyBox(s, true)}</div>` : ''}</div>` }
+      <div class="sched-ft"><span class="st st-${st.k}">${st.label}</span><span>신청 ${appCounts(s).sel}${s.capacity ? ' / ' + s.capacity : ''}명${appCounts(s).wait ? `, 대기 ${appCounts(s).wait}` : ''}</span></div>${noApply ? '' : (st.k === 'open' || applyState(s)?.k === 'in' ? `<div style="margin-top:10px">${applyBox(s, true)}</div>` : '')}</div>` }
   return h }
 function viewSchedule() {
-  const all = Object.keys(S.sessions).sort(); const nx = nextSid();
+  const all = Object.keys(S.sessions).sort(); const nx = nextSid(); const fit = S.dm;
   if (!S.schSel || !S.sessions[S.schSel]) S.schSel = nx || all[all.length - 1] || today();
   const ym = S.schM || S.schSel.slice(0, 7); const [y, m] = ym.split('-').map(Number);
-  const first = new Date(y, m - 1, 1), days = new Date(y, m, 0).getDate(), pad = first.getDay(), t = today();
-  let cells = ''; for (let i = 0; i < pad; i++) cells += '<span></span>';
+  const first = new Date(y, m - 1, 1), days = new Date(y, m, 0).getDate(), pad = first.getDay(), t = today(); const rows = Math.ceil((pad + days) / 7);
+  let cells = ''; for (let i = 0; i < pad; i++) cells += '<span class="scd blank"></span>';
   for (let d = 1; d <= days; d++) { const id = `${y}-${p2(m)}-${p2(d)}`; const s = S.sessions[id]; const wd = (pad + d - 1) % 7; const st = s ? sStatus(s) : null;
-    cells += `<button class="scd${s ? ' has st-' + st.k : ''}${id === t ? ' today' : ''}${id === S.schSel ? ' sel' : ''}${id < t ? ' past' : ''}${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}" data-act="schday" data-id="${id}" aria-pressed="${id === S.schSel}"><span>${d}</span>${s ? `<i>${esc((s.time || '').slice(0, 5))}</i>` : ''}</button>` }
+    cells += `<button class="scd${s ? ' has st-' + st.k : ''}${id === t ? ' today' : ''}${id === S.schSel ? ' sel' : ''}${id < t ? ' past' : ''}${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}" data-act="schday" data-id="${id}" aria-pressed="${id === S.schSel}"><span class="dn">${d}</span>${s ? `<em class="ev"><b>${esc((s.time || '').slice(0, 5))}</b><small>${esc(s.venue || '')}</small></em>` : ''}</button>` }
+  for (let i = pad + days; i < rows * 7; i++) cells += '<span class="scd blank"></span>';
   const cnt = all.filter(id => id.startsWith(ym)).length;
-  let h = `<div class="scal panel"><div class="cal-hd"><button data-act="schm" data-d="-1" aria-label="이전 달">‹</button><b>${y}년 ${m}월<small>${cnt ? ` · 경기 ${cnt}회` : ''}</small></b><button data-act="schm" data-d="1" aria-label="다음 달">›</button></div>
-    <div class="cal-grid">${'일월화수목금토'.split('').map((x, i) => `<span class="cw${i === 0 ? ' sun' : i === 6 ? ' sat' : ''}">${x}</span>`).join('')}${cells}</div>
-    <div class="cal-leg"><span><i class="lg-open"></i>신청 중</span><span><i class="lg-game"></i>경기</span><span><i class="lg-done"></i>종료</span></div></div>`;
-  h += S.sessions[S.schSel] ? `<div class="schdetail">${schedCard(S.schSel)}</div>` : `<div class="panel" style="margin-top:12px"><p class="empty">${fmtDate(S.schSel)}에는 경기가 없어요. 색칠된 날짜를 눌러 보세요.</p></div>`;
-  return h;
+  const cal = `<div class="scal panel"><div class="cal-hd"><button data-act="schm" data-d="-1" aria-label="이전 달">‹</button><b>${y}년 ${m}월<small>${cnt ? ` · 경기 ${cnt}회` : ''}</small></b><button data-act="schm" data-d="1" aria-label="다음 달">›</button></div>
+    <div class="scw">${'일월화수목금토'.split('').map((x, i) => `<span class="${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${x}</span>`).join('')}</div>
+    <div class="scgrid" style="grid-template-rows:repeat(${rows},minmax(0,1fr))">${cells}</div>
+    <div class="cal-leg"><span><i class="lg-open"></i>신청 중</span><span><i class="lg-game"></i>경기</span><span><i class="lg-done"></i>종료</span><span><i class="lg-sel"></i>선택한 날</span></div></div>`;
+  const sel = S.sessions[S.schSel];
+  const det = sel ? schedCard(S.schSel, fit) : `<div class="panel sched"><p class="empty">${fmtDate(S.schSel)}에는 경기가 없어요.<br>색칠된 날짜를 눌러 보세요.</p></div>`;
+  let dock = ''; if (fit && sel) { const st = sStatus(sel); const a = applyState(sel); if (st.k === 'open' || st.k === 'soon' || (st.k === 'closed' && a.k !== 'none' && sel.stage !== 'match')) { const ab = applyBox(sel, true); if (ab) dock = `<div class="applydock">${ab}</div>` } }
+  return `<div class="schwrap${fit ? ' schfit' : ''}">${cal}<div class="schdetail">${det}</div></div>${dock}`;
 }
+
 function vResultDetail(s) {
   const sid = s.date; const ms = sessMatches(sid); const done = ms.filter(m => m.status === 'done').length; const rows = standings(sid); const me = myPid();
   const st = `<div class="panel tblwrap"><table class="rdst"><thead><tr><th>순위</th><th class="l">팀</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득</th><th>실</th><th>득실</th><th>승점</th></tr></thead><tbody>
@@ -1597,7 +1602,7 @@ document.addEventListener('click', async e => {
     case 'pinchange': { const pid = myPid(); if (!pid) break; const p1 = prompt('새 비밀번호 (숫자 4자리)'); if (p1 === null) break; if (!/^\d{4}$/.test(p1)) { toast('숫자 4자리로 입력해 주세요.'); break } const p2x = prompt('새 비밀번호를 한 번 더 입력하세요'); if (p2x !== p1) { toast('두 번 입력한 번호가 달라요.'); break }
       const h = await pinHash(pid, p1); if (await w(() => S.store.set('auth/' + pid, { h, at: Date.now() }), '비밀번호를 바꿨어요.')) { S.auth = { pid, h }; saveAuth(S.auth, !!load('auth', null)); render() } break }
     case 'pinreset': { if (!needAdmin() || !confirm(`${pname(id)} 님의 비밀번호를 초기화할까요? 다음 로그인 때 새 번호를 등록하게 돼요.`)) break; await w(() => S.store.del('auth/' + id), '비밀번호를 초기화했어요.'); break }
-    case 'schday': S.schSel = id; render(); setTimeout(() => document.querySelector('.schdetail')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 30); break;
+    case 'schday': S.schSel = id; render(); break;
     case 'schm': { const [yy, mm] = (S.schM || S.schSel.slice(0, 7)).split('-').map(Number); const d = new Date(yy, mm - 1 + (+el.dataset.d), 1); S.schM = `${d.getFullYear()}-${p2(d.getMonth() + 1)}`; render(); break }
     case 'rdgo': if (!id) break; goResult(id); break;
     case 'gohome': S.tab = S.admin ? 'manage' : 'mhome'; S.sub = null; S.detail = null; S.openMatch = null; S.sheet = null; S.step = null; render(); window.scrollTo(0, 0); break;
