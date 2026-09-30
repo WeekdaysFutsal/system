@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '1.14';
+const APP_VERSION = '1.15';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1010,7 +1010,7 @@ function viewManageList() {
       <td><input class="cell w-num" type="number" min="3" max="60" value="${s.capacity || ''}" data-in="cell" data-sid="${id}" data-f="capacity"></td>
       <td><button class="cellbtn staffcell" data-act="staffedit" data-id="${id}">${(s.p0 || []).length || (s.ops || []).length ? `<span>예약 ${esc(idsToNames(s.p0) || '-')}</span><span>운영 ${esc(idsToNames(s.ops) || '-')}</span>` : '<span class="muted">+ 지정</span>'}</button></td>
       <td class="num"><b>${appCounts(s).sel}</b>${appCounts(s).wait ? `<small class="muted"> +${appCounts(s).wait}</small>` : ''}</td>
-      <td><button class="cellbtn staffcell" data-act="dutyedit" data-id="${id}">${(s.duty?.ball || []).length || (s.duty?.drink || []).length ? `<span>공 ${esc(idsToNames(s.duty?.ball) || '-')}</span><span>물 ${esc(idsToNames(s.duty?.drink) || '-')}</span>` : `<span class="muted">${applyClosed(s) ? '+ 지정' : '마감 후 지정'}</span>`}</button></td>
+      <td><button class="cellbtn staffcell" data-act="dutyedit" data-id="${id}">${(s.duty?.ball || []).length || (s.duty?.drink || []).length ? `<span>공 ${esc(idsToNames(s.duty?.ball) || '-')}</span><span>물 ${esc(idsToNames(s.duty?.drink) || '-')}</span>` : `<span class="muted">${dutyReqLabel(s) || (applyClosed(s) ? '+ 지정' : '신청 없음')}</span>`}</button></td>
       <td><button class="cellbtn staffcell" data-act="parkedit" data-id="${id}"><span>신청 ${parkApps(s).length}명</span><span>${(s.parkWin || []).length ? '당첨 ' + esc(idsToNames(s.parkWin)) : '<span class="muted">추첨 전</span>'}</span></button></td>
       <td><input class="cell w-dt" type="datetime-local" value="${esc(s.applyOpen || '')}" data-in="cell" data-sid="${id}" data-f="applyOpen"></td>
       <td><input class="cell w-dt" type="datetime-local" value="${esc(s.applyClose || '')}" data-in="cell" data-sid="${id}" data-f="applyClose"></td>
@@ -1219,7 +1219,7 @@ function applyBox(s, compact) {
   if (st.k === 'soon') return `<button class="btn block" disabled>${fmtDT(s.applyOpen)}에 신청이 열려요</button>`;
   if (a.k === 'in' && a.auto) return `<div class="applied"><span>✓ 자동 신청 · 0순위<small>${a.role}(으)로 이번 경기에 자동으로 참가 신청됐어요</small></span></div>${parkBox(s)}`;
   const canLate = !a.auto && st.k !== 'open' && s.draftStatus === 'ready' && ['apply', 'captain'].includes(s.stage);
-  if (a.k === 'in') return `<div class="applied"><span>✓ 신청 완료${a.tier != null && isBase(s) ? ` · ${TIER[a.tier]}` : ''}<small>${a.noname ? `${a.n}번째 신청 순번을 확보했어요. 이름을 입력해 주세요!` : a.n ? `${a.n}번째로 신청했어요` : '이번 경기 참가자예요'}</small></span>${nameBtn}${st.k === 'open' ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">취소</button>` : canLate ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">참가 취소</button>` : ''}</div>${a.noname ? '' : `<div class="extras">${parkBox(s)}${dutyBox(s)}</div>`}`;
+  if (a.k === 'in') return `<div class="applied"><span>✓ 신청 완료${a.tier != null && isBase(s) ? ` · ${TIER[a.tier]}` : ''}<small>${a.noname ? `${a.n}번째 신청 순번을 확보했어요. 이름을 입력해 주세요!` : a.n ? `${a.n}번째로 신청했어요` : '이번 경기 참가자예요'}</small></span>${nameBtn}${st.k === 'open' ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">취소</button>` : canLate ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">참가 취소</button>` : ''}</div>${a.noname ? '' : (() => { const x = parkBox(s) + dutyBox(s); return x ? `<div class="extras">${x}</div>` : '' })()}`;
   if (a.k === 'wait') return `<div class="applied wait"><span>대기 ${a.n}번<small>${a.noname ? '이름을 입력해 주세요!' : st.k === 'open' ? '자리가 나면 자동으로 선발돼요' : '신청이 마감됐어요'}</small></span>${nameBtn}${st.k === 'open' ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">취소</button>` : ''}</div>`;
   if (st.k !== 'open') return '';
   const full = s.capacity && c.sel >= s.capacity;
@@ -1265,20 +1265,22 @@ function parkApps(s) { return Object.entries(s.park || {}).filter(([, v]) => v &
 function dutyLine(s) { const d = s.duty || {}; const b = (d.ball || []).map(pname), w = (d.drink || []).map(pname), pw = (s.parkWin || []).map(pname);
   if (!b.length && !w.length && !pw.length) return '';
   return `<div class="duties">${b.length ? `<span><em>⚽ 공당</em>${esc(b.join(', '))}</span>` : ''}${w.length ? `<span><em>🥤 물당</em>${esc(w.join(', '))}</span>` : ''}${pw.length ? `<span><em>🚗 주차</em>${esc(pw.join(', '))}</span>` : ''}</div>` }
+function dutyReqs(s, k) { return Object.entries(s.dutyReq?.[k] || {}).filter(([, v]) => v).sort((a, b) => a[1] - b[1]).map(([pid]) => pid) }
+function dutyReqLabel(s) { const b = dutyReqs(s, 'ball').length, d = dutyReqs(s, 'drink').length; return b || d ? `신청 공 ${b} · 물 ${d}` : '' }
 function dutyBox(s) {
   const me = myPid(); if (!me || s.stage === 'match') return ''; const d = s.duty || {}; const rq = s.dutyReq || {};
-  const one = (k, ico, nm) => { const set = d[k] || []; if (set.length) return set.includes(me) ? `<span class="dutyb on fixed">${ico} ${nm}으로 지정됐어요</span>` : '';
-    const on = !!rq[k]?.[me]; return `<button class="dutyb ${on ? 'on' : ''}" data-act="dutyreq" data-k="${k}" data-id="${s.date}" aria-pressed="${on}">${ico} ${on ? `${nm} 신청함 ✓` : `${nm} 신청`}</button>` };
-  const b = one('ball', '⚽', '공당'), w0 = one('drink', '🥤', '물당'); if (!b && !w0) return '';
-  return `<div class="dutyrow">${b}${w0}</div>`;
+  const one = (k, ico, nm) => { const set = d[k] || []; if (set.length) return set.includes(me) ? `<span class="xpill fixed"><b>${ico} ${nm}</b><small>지정됐어요</small></span>` : '';
+    const on = !!rq[k]?.[me]; return `<button class="xpill ${on ? 'on' : ''}" data-act="dutyreq" data-k="${k}" data-id="${s.date}" aria-pressed="${on}"><b>${ico} ${nm}</b><small>${on ? '신청함 ✓' : '신청하기'}</small></button>` };
+  return one('ball', '⚽', '공당') + one('drink', '🥤', '물당');
 }
 function parkBox(s) {
   const me = myPid(); if (!me) return ''; const mine = s.park?.[me]; const won = (s.parkWin || []).includes(me); const drawn = !!s.parkDrawAt; const open = sStatus(s).k === 'open';
-  if (drawn) return mine?.car ? `<div class="parkst ${won ? 'won' : ''}">🚗 ${won ? `주차 당첨! (${esc(mine.car)})` : '주차 추첨에서 아쉽게 떨어졌어요'}</div>` : '';
-  if (mine?.car) return `<div class="parkst">🚗 주차 신청 완료 (${esc(mine.car)})${open ? ` <button class="linkbtn" data-act="parkcancel" data-id="${s.date}">취소</button>` : ''}</div>`;
+  const pill = (cls, sub, attrs) => `<${attrs ? 'button' : 'span'} class="xpill ${cls}" ${attrs || ''}><b>🚗 주차</b><small>${sub}</small></${attrs ? 'button' : 'span'}>`;
+  if (drawn) return mine?.car ? pill(won ? 'fixed' : 'off', won ? `당첨! ${esc(mine.car)}` : '추첨 미당첨') : '';
+  if (mine?.car) return open ? pill('on', `신청함 ✓ ${esc(mine.car)}`, `data-act="parkcancel" data-id="${s.date}" aria-pressed="true"`) : pill('on', `신청함 ✓ ${esc(mine.car)}`);
   if (!open) return '';
-  if (parkBanned(s, me)) return `<div class="parkst off">🚗 지난 경기 주차 당첨자라 이번에는 주차 신청을 할 수 없어요</div>`;
-  return `<button class="linkbtn" data-act="parkapply" data-id="${s.date}">🚗 주차 신청하기 (선택)</button>`;
+  if (parkBanned(s, me)) return pill('off', '지난 경기 당첨자');
+  return pill('', '신청하기', `data-act="parkapply" data-id="${s.date}"`);
 }
 function parkFields(s, pid) { const banned = pid && parkBanned(s, pid);
   return `<div class="field parkf"><label class="ck"><input type="checkbox" id="pk-on" ${banned ? 'disabled' : ''}> 🚗 주차 신청 (선택사항)</label>${banned ? '<span class="note" style="margin:0">지난 경기 주차 당첨자는 이번 경기 주차를 신청할 수 없어요.</span>' : `<input id="pk-car" class="inp" type="text" maxlength="12" placeholder="차량번호 (예: 12가3456)"><span class="note" style="margin:0">신청자 중 ${PARK_SLOTS}명을 추첨해요. 차량번호는 운영진만 볼 수 있어요.</span>`}</div>` }
@@ -1289,7 +1291,10 @@ async function saveParking(sid, pid, car) {
 }
 function dutySheet(sid) {
   const s = S.sessions[sid]; const ps = byName(participants(s)); const d = s.duty || {};
-  if (!applyClosed(s)) return `<h4>${fmtDate(sid)} 공당 · 물당</h4><div class="notice">경기 신청이 마감된 뒤에 신청자 중에서 지정할 수 있어요.</div>`;
+  if (!applyClosed(s)) { const lst = k => { const ids = dutyReqs(s, k); return ids.length ? `<div class="dpick">${ids.map((id, i) => `<span class="chip req"><small class="muted">${i + 1}</small> ${esc(pname(id))}</span>`).join('')}</div>` : '<p class="muted" style="margin:6px 0 0">아직 신청한 회원이 없어요.</p>' };
+    return `<h4>${fmtDate(sid)} 공당 · 물당 신청 현황</h4><p>회원들이 신청한 순서예요. 경기 신청이 마감되면 이 창에서 신청자 중에서 확정할 수 있어요.</p>
+    <div class="panel pad"><b class="dk">⚽ 공 당번 신청 <small>${dutyReqs(s, 'ball').length}명</small></b>${lst('ball')}</div><div style="height:10px"></div>
+    <div class="panel pad"><b class="dk">🥤 음료 당번 신청 <small>${dutyReqs(s, 'drink').length}명</small></b>${lst('drink')}</div>` }
   const rq = s.dutyReq || {}; const vol = kind => ps.filter(id => rq[kind]?.[id]);
   const row = kind => `<div class="dpick">${[...vol(kind), ...ps.filter(id => !rq[kind]?.[id])].map(id => `<button class="chip ${(d[kind] || []).includes(id) ? 'sel' : ''} ${rq[kind]?.[id] ? 'req' : ''}" data-act="dutytog" data-kind="${kind}" data-id="${id}">${rq[kind]?.[id] ? '🙋 ' : ''}${esc(pname(id))}</button>`).join('') || '<span class="muted">선발된 신청자가 없어요.</span>'}</div>${vol(kind).length ? `<button class="btn sm" style="margin-top:8px" data-act="dutyfill" data-kind="${kind}" data-id="${sid}">🙋 신청자 ${vol(kind).length}명으로 지정</button>` : ''}`;
   return `<h4>${fmtDate(sid)} 공당 · 물당</h4><p>선발된 신청자 중에서 눌러서 고르세요. 🙋 표시는 직접 신청한 회원이에요. 여러 명을 고를 수 있고, 다시 누르면 빠져요.</p>
@@ -1570,7 +1575,7 @@ function planSide(id) {
     <div class="pgrid">${f('회차', 'no', 'number', 'min="1"')}${f('시간', 'time', 'time')}${f('장소', 'venue', 'text', 'list="venue-list"')}${f('정원', 'capacity', 'number', 'min="3"')}${f('신청 오픈', 'applyOpen', 'datetime-local')}${f('신청 마감', 'applyClose', 'datetime-local')}</div>
     <div class="plinks">
       <button class="plink" data-act="staffedit" data-id="${id}"><span>구장 예약자 · 운영자</span><b>${esc(idsToNames(s.p0) || '-')} · ${esc(idsToNames(s.ops) || '-')}</b></button>
-      <button class="plink" data-act="dutyedit" data-id="${id}"><span>공당 · 물당</span><b>${(s.duty?.ball || []).length || (s.duty?.drink || []).length ? `${esc(idsToNames(s.duty?.ball) || '-')} · ${esc(idsToNames(s.duty?.drink) || '-')}` : applyClosed(s) ? '지정하기' : '신청 마감 후 지정'}</b></button>
+      <button class="plink" data-act="dutyedit" data-id="${id}"><span>공당 · 물당</span><b>${(s.duty?.ball || []).length || (s.duty?.drink || []).length ? `${esc(idsToNames(s.duty?.ball) || '-')} · ${esc(idsToNames(s.duty?.drink) || '-')}` : dutyReqLabel(s) || (applyClosed(s) ? '지정하기' : '아직 신청 없음')}</b></button>
       <button class="plink" data-act="parkedit" data-id="${id}"><span>주차</span><b>신청 ${parkApps(s).length}명${(s.parkWin || []).length ? ' · 당첨 ' + esc(idsToNames(s.parkWin)) : ''}</b></button>
     </div>
     <div class="row" style="margin-top:auto">${movable ? `<button class="btn sm" data-act="calmove" data-id="${id}">날짜 옮기기</button>` : ''}<button class="btn sm danger" data-act="delrow" data-id="${id}">경기 삭제</button></div></div>`;
