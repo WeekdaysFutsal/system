@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '1.8';
+const APP_VERSION = '1.8.1';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1540,7 +1540,7 @@ function mmPairView(s) {
   if (pairs) { const games = []; for (let r = 0; r < 3; r++) for (let j = 0; j < 3; j++) { const n = r * 3 + j + 1; const [a, b] = d.swap[n] ? [pairs[j][1], pairs[j][0]] : pairs[j]; games.push({ n, r: r + 1, a, b }) }
     h += `<div class="mm-card"><h3>전체 대진 <small>⇄ 로 좌우 위치를 바꿀 수 있어요</small></h3><div class="mm-games">${games.map(g => { const A = team(s, g.a), B = team(s, g.b);
       return `<div class="mm-g"><em>${g.r}R · ${g.n}경기</em><span class="gt" style="--tc:${A.color};--ti:${inkOn(A.color)}">${esc(A.name)}</span><button class="mm-sw" data-act="mmsw" data-n="${g.n}" aria-label="${g.n}경기 좌우 바꾸기">⇄</button><span class="gt" style="--tc:${B.color};--ti:${inkOn(B.color)}">${esc(B.name)}</span></div>` }).join('')}</div>
-      <button class="btn primary block mm-go cta" data-act="mmpairsave">대진 확정 → 시간 설정</button></div>`; S.mmPairs = pairs }
+      <button class="btn primary block mm-go cta" data-act="mmpairsave">대진 확정</button></div>`; S.mmPairs = pairs }
   return h;
 }
 function mmTimeView(s) {
@@ -1549,7 +1549,7 @@ function mmTimeView(s) {
   return `<div class="mm-card"><h3>② 경기 시간 설정</h3><p class="mm-note">한 경기는 전반 → GK 교체 → 후반으로 진행돼요. 시작, 전반 종료, 후반 시작, 경기 종료 때 휘슬이 울려요.</p>
     ${st('h1', '전반', '분', 0.5)}${st('gk', 'GK 교체', '초', 1)}${st('h2', '후반', '분', 0.5)}
     <p class="mm-sum">한 경기 ${Math.floor((f.h1 * 60 + f.gk + f.h2 * 60) / 60)}분 ${Math.round((f.h1 * 60 + f.gk + f.h2 * 60) % 60)}초</p>
-    <div class="row"><button class="btn" data-act="mmstage" data-v="pair">← 대진 다시 정하기</button><button class="btn primary mm-go cta" data-act="mmtimesave">설정 완료 → 경기 화면</button></div></div>`;
+    <button class="btn primary block mm-go cta" data-act="mmtimesave">설정 완료</button><button class="btn block mm-back" data-act="mmstage" data-v="pair">← 이전 화면</button></div>`;
 }
 function mmPlayView(s) {
   const ms = sessMatches(s.date); const curM = ms.find(x => x.status === 'live') || ms.find(x => x.status === 'pending') || ms[ms.length - 1]; const m = (S.mmSel && ms.find(x => x.id === S.mmSel)) || curM; const editing = m.status === 'done' && m.id !== curM.id || (m.status === 'done' && S.mmSel === m.id);
