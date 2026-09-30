@@ -978,13 +978,13 @@ function viewManage() {
   const t = today(); const f = S.mfilter || 'up';
   let ids = Object.keys(S.sessions).sort(); if (f === 'up') ids = ids.filter(id => id >= t); else if (f === 'past') ids = ids.filter(id => id < t).reverse();
   const all = Object.keys(S.sessions); const up = all.filter(id => id >= t).length;
-  let h = `<div class="mg-top"><h2 style="margin:0">경기 목록</h2><button class="btn primary sm" data-act="caladd">＋ 달력에서 경기 추가</button></div>
+  let h = `<div class="mg-top"><h2 style="margin:0">경기 목록</h2><div class="row" style="gap:6px"><button class="btn sm" data-act="fillnos">회차 자동 채우기</button><button class="btn primary sm" data-act="caladd">＋ 달력에서 경기 추가</button></div></div>
   <div class="seg" role="tablist" style="margin-top:12px">${[['up', `예정 ${up}`], ['past', `지난 ${all.length - up}`], ['all', `전체 ${all.length}`]].map(([k, n]) => `<button role="tab" data-act="mfilter" data-k="${k}" aria-selected="${f === k}">${n}</button>`).join('')}</div>`;
   if (!ids.length) return h + `<div class="panel"><p class="empty">${f === 'up' ? '예정된 경기가 없어요. 달력에서 경기를 추가해 보세요.' : '경기가 없어요.'}</p></div>`;
   h += `<div class="panel sheetwrap"><table class="grid"><thead><tr><th class="stick">날짜</th><th>회차</th><th>시간</th><th>장소</th><th>정원</th><th>예약자 · 운영자</th><th>신청</th><th>공당 · 물당</th><th>주차</th><th>신청 오픈</th><th>신청 마감</th><th>상태</th><th>관리</th></tr></thead><tbody>
   ${ids.map(id => { const s = S.sessions[id]; const st = sStatus(s); const movable = !sessMatches(id).length;
     return `<tr><td class="stick"><button class="cellbtn" data-act="calmove" data-id="${id}" ${movable ? '' : 'disabled'} title="${movable ? '눌러서 날짜 변경' : '경기 기록이 있어 날짜를 바꿀 수 없어요'}"><b>${id.slice(5).replace('-', '.')}</b> <span class="dw${dow(id) === '일' ? ' sun' : dow(id) === '토' ? ' sat' : ''}">${dow(id)}</span></button></td>
-      <td><input class="cell w-num" type="number" min="1" value="${s.no || ''}" placeholder="-" data-in="cell" data-sid="${id}" data-f="no"></td>
+      <td><input class="cell w-num" type="number" min="1" value="${s.no || ''}" placeholder="${nextNoFor(id) || '-'}" title="비어 있으면 이전 회차 다음 번호(${nextNoFor(id) || '없음'})를 추천해요" data-in="cell" data-sid="${id}" data-f="no"></td>
       <td><input class="cell" type="time" value="${esc(s.time || '')}" data-in="cell" data-sid="${id}" data-f="time"></td>
       <td><input class="cell w-venue" type="text" value="${esc(s.venue || '')}" data-in="cell" data-sid="${id}" data-f="venue"></td>
       <td><input class="cell w-num" type="number" min="3" max="60" value="${s.capacity || ''}" data-in="cell" data-sid="${id}" data-f="capacity"></td>
@@ -1014,6 +1014,7 @@ function calSheet() {
   return `<h4>경기 추가</h4><p>날짜를 여러 개 눌러서 한 번에 추가할 수 있어요.</p>${calendarHTML()}
   <div class="panel" style="margin-top:12px"><div class="field grid2c"><label>시간<input class="inp" type="time" value="${esc(f.time)}" data-in="calf" data-f="time"></label><label>정원<input class="inp" type="number" min="3" max="60" value="${f.capacity}" data-in="calf" data-f="capacity"></label></div>
   <div class="field"><label>장소<input class="inp" type="text" value="${esc(f.venue)}" data-in="calf" data-f="venue"></label></div>
+  <div class="field"><label>회차 ${c.sel.length > 1 ? '(첫 경기, 이후 날짜 순으로 +1)' : ''}<input class="inp w-num" type="number" min="1" placeholder="${c.sel.length ? '이전 회차가 없어요' : '날짜를 먼저 고르세요'}" value="${f.no || ''}" data-in="calf" data-f="no" data-noauto="1"></label><span class="note" style="margin:0">${f.noAuto !== false && f.no ? '이전 회차에 이어서 자동으로 넣었어요. 고칠 수 있어요.' : ''}</span></div>
   <div class="field"><label>구장 예약자 (0순위, 자동 신청)<input class="inp" type="text" list="mem-list" placeholder="이름 (여러 명은 쉼표로)" value="${esc(f.res || '')}" data-in="calf" data-f="res"></label></div>
   <div class="field"><label>경기 운영자 (0순위, 자동 신청)<input class="inp" type="text" list="mem-list" placeholder="이름 (여러 명은 쉼표로)" value="${esc(f.ops || '')}" data-in="calf" data-f="ops"></label></div>
   <datalist id="mem-list">${Object.values(S.players).map(p => `<option value="${esc(p.name)}">`).join('')}</datalist>
@@ -1022,13 +1023,20 @@ function calSheet() {
   ${c.sel.length ? `<p class="note">${c.sel.slice().sort().map(id => fmtDate(id)).join(', ')}</p>` : ''}
   <div class="row" style="margin-top:12px"><button class="btn primary" data-act="caladdgo" ${c.sel.length ? '' : 'disabled'}>${c.sel.length ? `${c.sel.length}개 경기 추가` : '날짜를 고르세요'}</button></div>`;
 }
+function nextNoFor(date) { const prev = Object.keys(S.sessions).filter(id => id < date && +S.sessions[id].no).sort().pop(); if (prev) return +S.sessions[prev].no + 1;
+  const after = Object.keys(S.sessions).filter(id => id > date && +S.sessions[id].no).sort()[0]; if (after) { const k = Object.keys(S.sessions).filter(id => id >= date && id < after).length; return Math.max(1, +S.sessions[after].no - k - 1) } return '' }
+async function fillNos() { const ids = Object.keys(S.sessions).sort(); let n = 0; const todo = [];
+  for (const id of ids) { const v = +S.sessions[id].no; if (v) { n = v; continue } if (n) { n++; todo.push([id, n]) } }
+  if (!todo.length) { toast(Object.values(S.sessions).some(x => +x.no) ? '비어 있는 회차가 없어요.' : '먼저 한 경기에 회차를 입력하면 그 뒤로 이어서 채워져요.'); return }
+  if (!confirm(`회차가 빈 ${todo.length}경기에 이전 회차에 이어서 번호를 넣을까요?\n${todo.slice(0, 6).map(([id, v]) => `${fmtDate(id)} → ${v}회`).join('\n')}${todo.length > 6 ? '\n…' : ''}`)) return;
+  await w(async () => { for (const [id, v] of todo) await S.store.update(sp(id), { no: v }) }, '회차를 채웠어요.') }
 async function addSessions() {
-  const c = S.cal; const f = c.f; let n = 0; const res = await namesToIds(f.res), ops = await namesToIds(f.ops); let lastNo = Math.max(0, ...Object.values(S.sessions).map(x => +x.no || 0));
+  const c = S.cal; const f = c.f; let n = 0; const res = await namesToIds(f.res), ops = await namesToIds(f.ops); const sorted = c.sel.slice().sort(); let no0 = +f.no || 0;
   const ok = await w(async () => { for (const sid of c.sel.slice().sort()) { if (S.sessions[sid]) continue;
     await S.store.set(sp(sid), { date: sid, time: f.time || DEFAULTS.time, venue: f.venue || DEFAULTS.venue, evpw: '', notice: DEFAULTS.notice || '', capacity: +f.capacity || 18,
       applyOpen: shiftDate(sid, +f.openD || 0, f.openT), applyClose: shiftDate(sid, +f.closeD || 0, f.closeT),
       stage: 'apply', applicants: [], captains: { A: null, B: null, C: null }, captainTokens: { A: null, B: null, C: null }, order: [...KEYS], picks: [], draftStatus: 'ready',
-      teams: { A: { players: [] }, B: { players: [] }, C: { players: [] } }, timing: DEF_TIMING, mom: {}, p0: res, ops, no: lastNo ? ++lastNo : 0, createdAt: Date.now() }); n++ } });
+      teams: { A: { players: [] }, B: { players: [] }, C: { players: [] } }, timing: DEF_TIMING, mom: {}, p0: res, ops, no: no0 ? no0 + sorted.indexOf(sid) : 0, createdAt: Date.now() }); n++ } });
   if (ok) { if (c.sel.some(id => id < today())) S.mfilter = 'all'; S.sheet = null; S.cal = null; toast(n ? `${n}개 경기를 추가했어요.` : '이미 경기가 있는 날짜라 추가하지 않았어요.'); render() }
 }
 async function moveSession() {
@@ -1550,7 +1558,7 @@ setInterval(tick, 250);
 let saveT = {};
 document.addEventListener('focusout', () => setTimeout(() => { if (S.pending && !isTyping()) render() }, 0));
 document.addEventListener('input', e => { const el = e.target; const k = el.dataset.in; if (!k) return;
-  if (k === 'calf' && S.cal) { S.cal.f[el.dataset.f] = el.value; return }
+  if (k === 'calf' && S.cal) { S.cal.f[el.dataset.f] = el.value; if (el.dataset.f === 'no') S.cal.f.noAuto = false; return }
   if (k === 'impf' && S.imp) { S.imp[el.dataset.f] = el.value; return }
   if (k === 'schedf' && S.admin) { const f = el.dataset.f; S.meta = S.meta || {}; S.meta.sched = { ...schedCfg(), [f]: el.value }; clearTimeout(S.schedT); S.schedT = setTimeout(async () => { await w(() => S.store.set('meta/sched', S.meta.sched)); S.schedImg = {}; refreshSchedule() }, 700); return }
   if (k === 'mq') { S.mq = el.value; clearTimeout(S.mqT); S.mqT = setTimeout(() => { const pos = el.selectionStart; S.pending = false; const a = document.activeElement; a && a.blur(); render(); const n = document.getElementById('mq'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos) } catch { } } }, 250); return }
@@ -1597,6 +1605,7 @@ document.addEventListener('click', async e => {
     case 'pick': await setPending(id); break;
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
+    case 'fillnos': if (!needAdmin()) break; await fillNos(); break;
     case 'login': { const pid = await loginFlow(document.getElementById('lg-name')?.value, document.getElementById('lg-pin')?.value, document.getElementById('lg-auto')?.checked); if (pid) { toast(`${pname(pid)} 님, 반가워요!`); render() } break }
     case 'logout': if (confirm('로그아웃할까요?')) logout(); break;
     case 'pinchange': { const pid = myPid(); if (!pid) break; const p1 = prompt('새 비밀번호 (숫자 4자리)'); if (p1 === null) break; if (!/^\d{4}$/.test(p1)) { toast('숫자 4자리로 입력해 주세요.'); break } const p2x = prompt('새 비밀번호를 한 번 더 입력하세요'); if (p2x !== p1) { toast('두 번 입력한 번호가 달라요.'); break }
@@ -1680,7 +1689,7 @@ document.addEventListener('click', async e => {
     case 'caladd': { const d = new Date(); S.cal = { mode: 'add', y: d.getFullYear(), m: d.getMonth(), sel: [], f: { time: DEFAULTS.time, venue: DEFAULTS.venue, capacity: DEFAULTS.capacity || 18, openD: DEFAULTS.openDays, openT: DEFAULTS.openTime, closeD: DEFAULTS.closeDays, closeT: DEFAULTS.closeTime } }; S.sheet = { type: 'cal' }; render(); break }
     case 'calmove': { const [y, m] = id.split('-'); S.cal = { mode: 'move', from: id, y: +y, m: +m - 1, sel: [] }; S.sheet = { type: 'cal' }; render(); break }
     case 'calnav': { const c = S.cal; c.m += +el.dataset.d; if (c.m < 0) { c.m = 11; c.y-- } if (c.m > 11) { c.m = 0; c.y++ } render(); break }
-    case 'calday': { const c = S.cal; if (c.mode === 'move') c.sel = [id]; else c.sel = c.sel.includes(id) ? c.sel.filter(x => x !== id) : [...c.sel, id]; render(); break }
+    case 'calday': { const c = S.cal; if (c.mode === 'move') c.sel = [id]; else c.sel = c.sel.includes(id) ? c.sel.filter(x => x !== id) : [...c.sel, id]; if (c.mode !== 'move' && c.f && c.f.noAuto !== false) { const f0 = c.sel.slice().sort()[0]; c.f.no = f0 ? nextNoFor(f0) : '' } render(); break }
     case 'caladdgo': await addSessions(); break;
     case 'calmovego': await moveSession(); break;
     case 'copyrecruit': { const t = recruitText(s); try { await navigator.clipboard.writeText(t); toast('모집 공지를 복사했어요.') } catch { prompt('아래 내용을 복사하세요', t.replace(/\n/g, ' / ')) } break }
