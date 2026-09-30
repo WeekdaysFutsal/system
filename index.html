@@ -979,6 +979,79 @@ table.atbl tr.lrow td:nth-child(n+7){text-decoration:none}
   .rdt ul{font-size:15px}
 }
 @media (max-width:420px){.rdt ul{font-size:13px;padding:5px 8px}.rdt-hd b{font-size:15px}}
+/* v0.31 mobile home fit, apply dock, schedule calendar, results nav */
+.homefit{position:fixed;left:0;right:0;top:var(--abh,60px);bottom:calc(58px + var(--adock,0px) + env(safe-area-inset-bottom,0px));padding:6px 12px 8px;overflow:hidden;display:flex;flex-direction:column;z-index:2}
+.homefit .homegrid{flex:1;min-height:0;grid-auto-rows:minmax(0,1fr);gap:4px}
+.homefit .sec-lab{margin:6px 2px 5px}
+.homefit .sec-lab span{font-size:17px}
+.homefit .review .rv-top{padding:8px 12px}
+.homefit .rv-trophy{font-size:20px}
+.homefit .rv-top b{font-size:20px}
+.homefit .rv-pts{font-size:20px}
+.homefit .rv-rows{padding:0 12px!important}
+.homefit .rv-rows .rc-row{min-height:0!important;padding:0!important}
+.homefit .review .rc-row b{font-size:15px}
+.homefit .review .more{padding:7px 12px;font-size:13px}
+.homefit .hero{padding:10px 14px;border-radius:16px}
+.homefit .hero-date{font-size:40px;margin-top:2px}
+.homefit .hero-date small{font-size:16px}
+.homefit .hero-time{font-size:20px}
+.homefit .hero-venue{font-size:13px;margin-top:2px}
+.homefit .hero-status{margin-top:4px}
+.homefit .cap{margin-top:6px;padding-top:6px}
+.homefit .cap-row b{font-size:22px}
+.homefit .act{padding:9px 12px;gap:6px;border-radius:12px}
+.homefit .act>b{font-size:14px}
+.homefit .act p{font-size:12px;margin:-4px 0 0}
+.homefit .act .btn{min-height:36px;font-size:13px}
+.homefit .act .duties{font-size:11.5px}
+.homefit .caps{font-size:12px}
+.applydock{position:fixed;left:0;right:0;bottom:calc(58px + env(safe-area-inset-bottom,0px));z-index:6;padding:8px 12px;background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -6px 18px rgba(15,25,50,.08)}
+.applydock .applybtn{min-height:52px;font-size:17px;border-radius:14px}
+.applydock .applied{padding:8px 12px}
+.applydock .parkst,.applydock .linkbtn{margin-top:6px}
+/* schedule calendar */
+.scal{margin-top:14px;padding:10px}
+.scal .cal-hd b small{font-weight:500;color:var(--muted);font-size:13px}
+.scd{aspect-ratio:1/1;max-height:56px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:15px;font-weight:500;background:transparent;position:relative}
+.scd.past{opacity:.5}
+.scd.today span{box-shadow:0 0 0 2px #FFD21F;border-radius:99px;padding:0 5px}
+.scd.has{background:var(--accent);color:var(--accent-ink)!important;font-weight:800;box-shadow:0 3px 8px rgba(30,70,200,.25)}
+.scd.has i{font-style:normal;font-size:9.5px;font-weight:600;opacity:.9}
+.scd.has.st-open{background:#1FB45A}
+.scd.has.st-done{background:#8A939E;box-shadow:none}
+.scd.sel{outline:3px solid #FFD21F;outline-offset:1px}
+.scd.sun{color:#D7263D}.scd.sat{color:#1E46C8}
+.lg-open{background:#1FB45A}.lg-game{background:var(--accent)}.lg-done{background:#8A939E}
+.schdetail{margin-top:12px}
+.schdetail .sched{margin:0}
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){.scal{max-width:640px}.schdetail{max-width:640px}.scd{max-height:72px;font-size:16px}}
+/* results nav */
+.rdnav{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;margin:14px 0 4px}
+.rdt2{text-align:center;display:flex;flex-direction:column}
+.rdt2 b{font-family:var(--display);font-weight:400;font-size:22px}
+.rdt2 small{color:var(--muted);font-size:12.5px}
+.navb{display:flex;flex-direction:column;align-items:center;justify-content:center;width:60px;height:52px;border-radius:14px;background:var(--surface);border:1px solid var(--line);font-size:24px;line-height:1;font-weight:700}
+.navb small{font-size:11px;font-weight:600;color:var(--muted)}
+.navb:disabled{opacity:.3}
+.rddots{display:flex;justify-content:center;gap:5px;margin:2px 0 4px}
+.rddots i{width:6px;height:6px;border-radius:50%;background:var(--line)}
+.rddots i.on{background:var(--accent);width:16px;border-radius:3px}
+.rdswipe.fromR>.rdgrid{animation:slR .3s ease}
+.rdswipe.fromL>.rdgrid{animation:slL .3s ease}
+@keyframes slR{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+@keyframes slL{from{transform:translateX(-40px);opacity:0}to{transform:none;opacity:1}}
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){.rdnav{max-width:560px;margin:18px auto 4px}}
+.caplink{color:#FFD21F!important;font-size:12px;min-height:0;padding:0;margin-left:6px}
+@media (max-height:740px){.homefit .hero-date{font-size:34px}.homefit .hero-time{font-size:17px}.homefit .hero-status{display:none}.homefit .review .rv-top{padding:6px 12px}.homefit .sec-lab{margin:4px 2px 3px}.homefit .sec-lab span{font-size:15px}}
+/* v0.32 login */
+.pin{letter-spacing:10px;font-size:22px!important;text-align:center;max-width:180px}
+.autock{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:14px}
+.autock input{width:20px;height:20px;accent-color:var(--accent)}
+.logged{display:grid;gap:12px}
+.lg-me{display:flex;align-items:center;gap:12px}
+.lg-me .av{width:48px;height:48px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:inline-flex;align-items:center;justify-content:center;font-weight:800;position:relative}
+.lg-me b{display:block;font-size:17px}.lg-me small{color:#16A34A;font-weight:700;font-size:12px}
 </style>
 </head>
 <body>
