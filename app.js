@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '1.11';
+const APP_VERSION = '1.12';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -410,6 +410,7 @@ function render() {
   if (S.openMatch && S.matches[S.openMatch]) h += viewMatch();
   if (S.sheet) h += viewSheet();
   document.getElementById('app').innerHTML = h + (S.admin ? venueList() : '');
+  if (S.slideDir) { const wr = document.querySelector('.wrap'); if (wr) { wr.classList.add('tabslide-' + S.slideDir) } }
   const nNow = S.chat.length; const grew = nNow !== S.lastChatN; S.lastChatN = nNow; if (grew) S.chatUp = false;
   const toBottom = () => document.querySelectorAll('.msgs').forEach(nb => { if (!S.chatUp) nb.scrollTop = nb.scrollHeight });
   toBottom(); requestAnimationFrame(toBottom);
@@ -419,6 +420,7 @@ function render() {
   if (ciState) { const n = document.getElementById('chatin'); if (n) { n.value = ciState.v; if (ciState.f) { n.focus({ preventScroll: true }); try { n.setSelectionRange(ciState.a, ciState.b) } catch { } } } }
   scheduleBubbles();
   saveNav();
+  if (S.swAnim) { const tgt = document.querySelector('.homefit, .schfit, .dmroot') || document.querySelector('.wrap'); if (tgt) { tgt.classList.remove('sw-fromR', 'sw-fromL'); void tgt.offsetWidth; tgt.classList.add('sw-' + S.swAnim) } S.swAnim = '' }
   const dmOn = !!document.querySelector('.dmroot, .homefit, .schfit'); document.body.classList.toggle('dm-on', dmOn); document.body.classList.toggle('hasmm', !!document.querySelector('.mmtab'));
   { const ab = document.querySelector('.appbar'); if (ab) document.documentElement.style.setProperty('--abh', ab.offsetHeight + 'px') }
   tick();
@@ -2040,11 +2042,21 @@ function resumeCaptain() {
 let lastDesk = null; window.addEventListener('resize', () => { const d = isDesk(); if (d !== lastDesk) { lastDesk = d; render() } else if (document.querySelector('.dmroot')) { const ab = document.querySelector('.appbar'); if (ab) document.documentElement.style.setProperty('--abh', ab.offsetHeight + 'px') } });
 document.addEventListener('gesturestart', e => e.preventDefault()); document.addEventListener('dblclick', e => { if (!isDesk()) e.preventDefault() }, { passive: false });
 function goResult(id, dir) { const ids = pastSids(); const o = ids.indexOf(S.detail), n = ids.indexOf(id); S.rdAnim = dir || (n < o ? 'fromR' : 'fromL'); S.detail = id; render(); window.scrollTo(0, 0); setTimeout(() => { S.rdAnim = '' }, 350) }
-let swX = null, swY = null;
-document.addEventListener('touchstart', e => { if (!e.target.closest('.rdswipe')) { swX = null; return } swX = e.touches[0].clientX; swY = e.touches[0].clientY }, { passive: true });
-document.addEventListener('touchend', e => { if (swX == null) return; const dx = e.changedTouches[0].clientX - swX, dy = e.changedTouches[0].clientY - swY; swX = null;
-  if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return; const ids = pastSids(); const i = ids.indexOf(S.detail);
-  if (dx < 0 && ids[i - 1]) goResult(ids[i - 1], 'fromR'); else if (dx > 0 && ids[i + 1]) goResult(ids[i + 1], 'fromL') }, { passive: true });
+let swX = null, swY = null, swT = 0, swMode = null;
+const NOSWIPE = '.sheetwrap,.tblwrap,.pool,.namegrid,.mm-list,.cd-log,.msgs,.scrim,input,textarea,select,.cswatch,.ocards,.board-table,.aflow,.planwrap .scgrid';
+document.addEventListener('touchstart', e => { swX = null; if (e.touches.length !== 1) return; const t = e.target;
+  if (t.closest('.rdswipe')) swMode = 'result'; else if (!S.sheet && S.tab !== 'mm' && !t.closest(NOSWIPE) && !t.closest('.tabs')) swMode = 'tab'; else return;
+  swX = e.touches[0].clientX; swY = e.touches[0].clientY; swT = Date.now() }, { passive: true });
+document.addEventListener('touchend', e => { if (swX == null) return; const dx = e.changedTouches[0].clientX - swX, dy = e.changedTouches[0].clientY - swY, dt = Date.now() - swT; swX = null;
+  if (swMode === 'result') { if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return; const ids = pastSids(); const i = ids.indexOf(S.detail);
+    if (dx < 0 && ids[i - 1]) goResult(ids[i - 1], 'fromR'); else if (dx > 0 && ids[i + 1]) goResult(ids[i + 1], 'fromL'); else if (dt < 700 && Math.abs(dx) >= 70) swipeTab(dx < 0 ? 1 : -1); return }
+  if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8 || dt > 700) return; swipeTab(dx < 0 ? 1 : -1) }, { passive: true });
+function swipeTab(dir) {
+  if (isDesk() || (!S.admin && !S.auth)) return; const order = [...document.querySelectorAll('.tabs [data-act=tab]')].map(b => b.dataset.v); if (order.length < 2) return;
+  const i = order.indexOf(S.tab); const j = i < 0 ? 0 : i + dir; if (j < 0 || j >= order.length) return;
+  S.tab = order[j]; S.sub = null; S.detail = S.tab === 'results' ? S.detail : null; S.step = S.admin && S.tab === 'run' ? S.step : S.step; S.swAnim = dir > 0 ? 'fromR' : 'fromL'; render(); window.scrollTo(0, 0);
+  setTimeout(() => { S.swAnim = '' }, 350);
+}
 (async function boot() {
   setTimeout(nativeSetup, 1500);
   S.auth = loadAuth();

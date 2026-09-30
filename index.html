@@ -1453,11 +1453,39 @@ pre,.pre{white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere}
 .dmroot .ocard.back:not(:disabled){animation:none!important}
 .dmroot .ocard.back:not(:disabled):active{transform:scale(.96)}
 .ocard.back:not(:disabled){box-shadow:0 0 0 3px rgba(255,210,31,.6),0 8px 18px rgba(0,0,0,.35)}
+/* v1.12 mobile calendar dates only + tab swipe */
+@media not all and (min-width:1024px) and (hover:hover) and (pointer:fine){
+  .scd .ev{display:none!important}
+  .scd{justify-content:center!important;align-items:center!important;padding:0!important}
+  .scd .dn{font-size:16px}
+  .scd.has .dn{font-weight:800}
+  .scd.has::after{content:"";position:absolute;bottom:5px;left:50%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:currentColor;opacity:.8}
+  .scd{position:relative}
+}
+.tabslide-fromR>*{animation:tslR .28s ease-out}
+.tabslide-fromL>*{animation:tslL .28s ease-out}
+@keyframes tslR{from{transform:translateX(28px);opacity:.3}to{transform:none;opacity:1}}
+@keyframes tslL{from{transform:translateX(-28px);opacity:.3}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.tabslide-fromR>*,.tabslide-fromL>*{animation:none}}
+/* v1.12 mobile calendar numbers only + swipe tabs */
+@media not all and (min-width:1024px) and (hover:hover) and (pointer:fine){
+  .scd .ev{display:none!important}
+  .scd{justify-content:center!important;align-items:center!important}
+  .scd .dn{font-size:16px}
+  .scd.has .dn{font-weight:800}
+  .scd.has{box-shadow:0 3px 10px rgba(30,70,200,.3)}
+  .scd.has.st-open{box-shadow:0 3px 10px rgba(31,180,90,.35)}
+}
+.sw-fromR{animation:swR .28s ease-out}
+.sw-fromL{animation:swL .28s ease-out}
+@keyframes swR{from{transform:translateX(28px);opacity:.4}to{transform:none;opacity:1}}
+@keyframes swL{from{transform:translateX(-28px);opacity:.4}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.sw-fromR,.sw-fromL{animation:none}}
 </style>
 </head>
 <body>
 <div id="app"><p class="empty">불러오는 중…</p></div>
-<script src="config.js?v=1.11"></script>
-<script type="module" src="app.js?v=1.11"></script>
+<script src="config.js?v=1.12"></script>
+<script type="module" src="app.js?v=1.12"></script>
 </body>
 </html>
