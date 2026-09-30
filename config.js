@@ -43,5 +43,5 @@ window.WF_CONFIG = {
   },
 
   // 경기 시간(초): 전반, GK 교체, 후반, 쉬는 시간
-  timing: { h1: 300, gk: 5, h2: 300, rest: 180 }
+  timing: { h1: 360, gk: 3, h2: 360, rest: 180 }
 };
