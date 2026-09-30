@@ -1593,11 +1593,20 @@ table.grid tbody tr:hover td{background:var(--surface2)}
 /* focus */
 :focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:2px}
 
+.extras{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.extras .linkbtn,.extras .parkst{margin:0}
+.dutyrow{display:flex;gap:8px;flex-wrap:wrap}
+.dutyb{flex:1;min-height:40px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:700;font-size:14px;box-shadow:var(--sh-1);white-space:nowrap}
+.dutyb.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.dutyb.fixed{display:inline-flex;align-items:center;justify-content:center;background:#E8F7EE;border-color:#86D5A4;color:#0F7A3B}
+.chip.req{border-color:#F5C542;background:#FFF8DB;color:#6B4E00}
+.chip.req.sel{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.applydock .extras{margin-top:8px}
 </style>
 </head>
 <body>
 <div id="app"><p class="empty">불러오는 중…</p></div>
-<script src="config.js?v=1.13"></script>
-<script type="module" src="app.js?v=1.13"></script>
+<script src="config.js?v=1.14"></script>
+<script type="module" src="app.js?v=1.14"></script>
 </body>
 </html>

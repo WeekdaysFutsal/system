@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '1.13';
+const APP_VERSION = '1.14';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1219,7 +1219,7 @@ function applyBox(s, compact) {
   if (st.k === 'soon') return `<button class="btn block" disabled>${fmtDT(s.applyOpen)}에 신청이 열려요</button>`;
   if (a.k === 'in' && a.auto) return `<div class="applied"><span>✓ 자동 신청 · 0순위<small>${a.role}(으)로 이번 경기에 자동으로 참가 신청됐어요</small></span></div>${parkBox(s)}`;
   const canLate = !a.auto && st.k !== 'open' && s.draftStatus === 'ready' && ['apply', 'captain'].includes(s.stage);
-  if (a.k === 'in') return `<div class="applied"><span>✓ 신청 완료${a.tier != null && isBase(s) ? ` · ${TIER[a.tier]}` : ''}<small>${a.noname ? `${a.n}번째 신청 순번을 확보했어요. 이름을 입력해 주세요!` : a.n ? `${a.n}번째로 신청했어요` : '이번 경기 참가자예요'}</small></span>${nameBtn}${st.k === 'open' ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">취소</button>` : canLate ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">참가 취소</button>` : ''}</div>${a.noname ? '' : parkBox(s)}`;
+  if (a.k === 'in') return `<div class="applied"><span>✓ 신청 완료${a.tier != null && isBase(s) ? ` · ${TIER[a.tier]}` : ''}<small>${a.noname ? `${a.n}번째 신청 순번을 확보했어요. 이름을 입력해 주세요!` : a.n ? `${a.n}번째로 신청했어요` : '이번 경기 참가자예요'}</small></span>${nameBtn}${st.k === 'open' ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">취소</button>` : canLate ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">참가 취소</button>` : ''}</div>${a.noname ? '' : `<div class="extras">${parkBox(s)}${dutyBox(s)}</div>`}`;
   if (a.k === 'wait') return `<div class="applied wait"><span>대기 ${a.n}번<small>${a.noname ? '이름을 입력해 주세요!' : st.k === 'open' ? '자리가 나면 자동으로 선발돼요' : '신청이 마감됐어요'}</small></span>${nameBtn}${st.k === 'open' ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">취소</button>` : ''}</div>`;
   if (st.k !== 'open') return '';
   const full = s.capacity && c.sel >= s.capacity;
@@ -1265,6 +1265,13 @@ function parkApps(s) { return Object.entries(s.park || {}).filter(([, v]) => v &
 function dutyLine(s) { const d = s.duty || {}; const b = (d.ball || []).map(pname), w = (d.drink || []).map(pname), pw = (s.parkWin || []).map(pname);
   if (!b.length && !w.length && !pw.length) return '';
   return `<div class="duties">${b.length ? `<span><em>⚽ 공당</em>${esc(b.join(', '))}</span>` : ''}${w.length ? `<span><em>🥤 물당</em>${esc(w.join(', '))}</span>` : ''}${pw.length ? `<span><em>🚗 주차</em>${esc(pw.join(', '))}</span>` : ''}</div>` }
+function dutyBox(s) {
+  const me = myPid(); if (!me || s.stage === 'match') return ''; const d = s.duty || {}; const rq = s.dutyReq || {};
+  const one = (k, ico, nm) => { const set = d[k] || []; if (set.length) return set.includes(me) ? `<span class="dutyb on fixed">${ico} ${nm}으로 지정됐어요</span>` : '';
+    const on = !!rq[k]?.[me]; return `<button class="dutyb ${on ? 'on' : ''}" data-act="dutyreq" data-k="${k}" data-id="${s.date}" aria-pressed="${on}">${ico} ${on ? `${nm} 신청함 ✓` : `${nm} 신청`}</button>` };
+  const b = one('ball', '⚽', '공당'), w0 = one('drink', '🥤', '물당'); if (!b && !w0) return '';
+  return `<div class="dutyrow">${b}${w0}</div>`;
+}
 function parkBox(s) {
   const me = myPid(); if (!me) return ''; const mine = s.park?.[me]; const won = (s.parkWin || []).includes(me); const drawn = !!s.parkDrawAt; const open = sStatus(s).k === 'open';
   if (drawn) return mine?.car ? `<div class="parkst ${won ? 'won' : ''}">🚗 ${won ? `주차 당첨! (${esc(mine.car)})` : '주차 추첨에서 아쉽게 떨어졌어요'}</div>` : '';
@@ -1283,8 +1290,9 @@ async function saveParking(sid, pid, car) {
 function dutySheet(sid) {
   const s = S.sessions[sid]; const ps = byName(participants(s)); const d = s.duty || {};
   if (!applyClosed(s)) return `<h4>${fmtDate(sid)} 공당 · 물당</h4><div class="notice">경기 신청이 마감된 뒤에 신청자 중에서 지정할 수 있어요.</div>`;
-  const row = kind => `<div class="dpick">${ps.map(id => `<button class="chip ${(d[kind] || []).includes(id) ? 'sel' : ''}" data-act="dutytog" data-kind="${kind}" data-id="${id}">${esc(pname(id))}</button>`).join('') || '<span class="muted">선발된 신청자가 없어요.</span>'}</div>`;
-  return `<h4>${fmtDate(sid)} 공당 · 물당</h4><p>선발된 신청자 중에서 눌러서 고르세요. 여러 명을 고를 수 있고, 다시 누르면 빠져요.</p>
+  const rq = s.dutyReq || {}; const vol = kind => ps.filter(id => rq[kind]?.[id]);
+  const row = kind => `<div class="dpick">${[...vol(kind), ...ps.filter(id => !rq[kind]?.[id])].map(id => `<button class="chip ${(d[kind] || []).includes(id) ? 'sel' : ''} ${rq[kind]?.[id] ? 'req' : ''}" data-act="dutytog" data-kind="${kind}" data-id="${id}">${rq[kind]?.[id] ? '🙋 ' : ''}${esc(pname(id))}</button>`).join('') || '<span class="muted">선발된 신청자가 없어요.</span>'}</div>${vol(kind).length ? `<button class="btn sm" style="margin-top:8px" data-act="dutyfill" data-kind="${kind}" data-id="${sid}">🙋 신청자 ${vol(kind).length}명으로 지정</button>` : ''}`;
+  return `<h4>${fmtDate(sid)} 공당 · 물당</h4><p>선발된 신청자 중에서 눌러서 고르세요. 🙋 표시는 직접 신청한 회원이에요. 여러 명을 고를 수 있고, 다시 누르면 빠져요.</p>
     <div class="panel pad"><b class="dk">⚽ 공 당번 <small>${(d.ball || []).length}명</small></b>${row('ball')}</div><div style="height:10px"></div>
     <div class="panel pad"><b class="dk">🥤 음료 당번 <small>${(d.drink || []).length}명</small></b>${row('drink')}</div>`;
 }
@@ -1839,6 +1847,10 @@ document.addEventListener('click', async e => {
       if (!confirm(`${pname(id)} 선택을 취소할까요? 다시 내 차례가 돼요.`)) break; await undoPick(!S.admin); sysChat(`${team(s0, last.t).name} 주장이 ${pname(id)} 선택을 취소했어요`); break }
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
+    case 'dutyreq': { const me = myPid(); if (!me) { toast('로그인 후 신청할 수 있어요.'); break } const ss = S.sessions[id]; const k = el.dataset.k; const on = !!ss?.dutyReq?.[k]?.[me];
+      await w(() => S.store.update(sp(id), { [`dutyReq.${k}.${me}`]: on ? null : Date.now() }), on ? `${k === 'ball' ? '공당' : '물당'} 신청을 취소했어요.` : `${k === 'ball' ? '공당' : '물당'}을 신청했어요. 운영진이 확정해요.`); break }
+    case 'dutyfill': { if (!needAdmin()) break; const ss = S.sessions[id]; const k = el.dataset.kind; const ps = participants(ss); const vol = ps.filter(p => ss.dutyReq?.[k]?.[p]);
+      await w(() => S.store.update(sp(id), { [`duty.${k}`]: vol }), '신청자로 지정했어요.'); break }
     case 'mmtake': { const s = S.sessions[S.mmSid]; const c = mmCtl(s); if (!c.free && !c.stale && !c.mine) break; if (!c.free && !confirm(`${c.name} 님 대신 경기 진행을 맡을까요?`)) break; if (await mmTake(S.mmSid, !c.free)) toast('이제 내가 경기를 진행해요.'); else toast('다른 사람이 먼저 진행을 맡았어요.'); break }
     case 'mmrelease': { const s = S.sessions[S.mmSid]; if (s && liveAny() && !confirm('경기가 진행 중이에요. 진행을 넘기면 휘슬은 새 진행자 폰에서 울려요. 넘길까요?')) break; await mmRelease(S.mmSid); if (S.mmTry) S.mmTry[S.mmSid] = 1; break }
     case 'mksim': if (!needAdmin()) break; await makeSim(el.dataset.k); break;
