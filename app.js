@@ -527,7 +527,7 @@ function seatHTML(s, k, ph) {
   return `<div class="seat ${t.picked ? 'picked' : ''} ${turn || cturn ? 'onturn' : ''} ${me ? 'me' : ''}" style="--tc:${t.color};--ti:${inkOn(t.color)}">
     ${bubbleFor(m => m.team === k)}${turn ? '<span class="turnb">차례</span>' : ''}<div class="sv"><span class="av ${inRoom ? 'on' : ''} ${(pname(cap) || '').length > 3 ? 'long' : ''}">${esc(pname(cap) || '?')}</span>${orderDecided(s) && o >= 0 && ph !== 'ladder' && ph !== 'cards' ? `<em class="ord">${o + 1}</em>` : ''}</div>
     <div class="st2">${me ? '<span class="meb">나</span>' : ''}<span class="tok">${esc(t.name)}</span>${ps.length ? `<small class="cnt">+${ps.length}</small>` : `<small>${inRoom ? '입장' : '대기'}</small>`}</div>
-    ${ps.length ? `<ol class="hand">${ps.map(id => `<li>${esc(pname(id))}</li>`).join('')}</ol>` : ''}
+    ${ps.length ? `<div class="stk">${ps.map(id => `<span>${esc(pname(id))}</span>`).join('')}</div>` : ''}
     ${me && !inRoom && ph !== 'done' ? `<button class="btn sm primary" data-act="joinroom" data-k="${k}">입장하기</button>` : ''}</div>`;
 }
 const BUBBLE_MS = 9000;
@@ -584,8 +584,8 @@ function vDraft(s) {
       <div class="capinfo" style="--tc:${tm.color};--ti:${inkOn(tm.color)}"><span class="tok2">${esc(tm.name)}</span><span class="cn"><b>${esc(pname(s.captains?.[my]))}</b> 주장<small>참여 중</small></span></div></div>` }
   // top: applicant buttons
   const pk = {}; (s.picks || []).forEach((x, i) => pk[x.p] = { t: x.t, n: i + 1 }); const caps = captainsOf(s);
-  const list = (s.applicants || []).filter(id => !caps.includes(id));
-  const hint = ph === 'draft' ? (canPick ? '눌러서 선택' : '내 차례에만 선택할 수 있어요') : `${list.length}명`;
+  const inTeam = new Set(KEYS.flatMap(k => teamPlayers(s, k))); const list = (s.applicants || []).filter(id => !caps.includes(id) && !pk[id] && !inTeam.has(id));
+  const hint = ph === 'draft' ? `남은 ${list.length}명 · ${canPick ? '눌러서 선택' : '내 차례에만 선택할 수 있어요'}` : ph === 'done' ? '모두 선택됐어요' : `${list.length}명`;
   h += (S.dm ? `<div class="dm-hd"><b>신청자 명단</b><small>${hint}</small></div>` : `<h2>신청자 명단<small>${hint}</small></h2>`) + `<div class="namegrid">${list.map(id => { const p = pk[id]; const pend = s.pending?.p === id;
     if (p) { const t = team(s, p.t); return `<button class="nb taken" style="background:${t.color};color:${inkOn(t.color)}" disabled><small>${p.n}</small>${esc(pname(id))}</button>` }
     const pt = pend ? team(s, s.pending.t) : null;
@@ -722,9 +722,6 @@ function vMatchDay(s) {
     return `<button class="mrow ${m.status === 'live' ? 'is-live' : ''} ${win}" data-act="open" data-id="${m.id}"><span class="side">${bib(H.color)}<span>${esc(H.name)}</span></span><span class="mid"><span class="sc">${m.status === 'pending' ? 'vs' : a + ' : ' + b}</span><span class="st">${m.status === 'done' ? '종료' : `<span data-phase="${m.id}"></span>${m.status === 'live' ? ` <span data-clock="${m.id}"></span>` : ''}`}</span></span><span class="side r"><span>${esc(A.name)}</span>${bib(A.color)}</span></button>` }).join('')}</div></div>`;
   const tally = {}; for (const e of Object.values(S.events)) { if (e.session !== S.sid || e.og) continue; if (e.scorer) (tally[e.scorer] ??= { g: 0, a: 0 }).g++; if (e.assist) (tally[e.assist] ??= { g: 0, a: 0 }).a++ }
   const top = Object.entries(tally).sort((x, y) => (y[1].g + y[1].a) - (x[1].g + x[1].a) || y[1].g - x[1].g).slice(0, 10);
-  h += `<h2>오늘의 공격포인트</h2><div class="panel list2">${top.length ? top.map(([id, t]) => `<div><span>${esc(pname(id))}</span><span class="muted">${t.g}골 ${t.a}도움</span></div>`).join('') : '<p class="empty">아직 골이 없어요.</p>'}</div>`;
-  h += `<h2>MOM<small>팀별 한 명, ${S.admin ? '운영진' : '각 팀 주장'}이 선택</small></h2><div class="panel">${KEYS.map(k => { const t = team(s, k); const pid = s.mom?.[k];
-    return `<button class="momrow" data-act="mom" data-k="${k}" ${canMom(s, k) ? '' : 'disabled'}>${bib(t.color)}<span class="t">${esc(t.name)}${myTeam(s) === k ? ' (내 팀)' : ''}</span><span class="v ${pid ? 'set' : ''}">${pid ? '🏅 ' + esc(pname(pid)) : canMom(s, k) ? '선택하기' : '미정'}</span></button>` }).join('')}</div>`;
   if (S.admin) { const st = (key, lab, val, unit) => `<div class="stepper"><button data-act="tstep" data-key="${key}" data-d="-1" aria-label="${lab} 줄이기">−</button><span><small>${lab}</small>${val}${unit}</span><button data-act="tstep" data-key="${key}" data-d="1" aria-label="${lab} 늘리기">+</button></div>`;
     sch += `<h2>경기 시간 설정</h2><div class="grid2">${st('h1', '전반', T.h1 / 60, '분')}${st('gk', 'GK 교체', T.gk, '초')}${st('h2', '후반', T.h2 / 60, '분')}${st('rest', '쉬는 시간', T.rest / 60, '분')}</div>
     <h2>관리</h2><button class="btn danger block" data-act="delmatches">경기 대진(1~9경기) 삭제</button><p class="note">경기 일정(대진표)과 경기 기록만 지워요. 신청자, 팀 구성, 공지는 그대로 남고, 다시 "경기 일정 만들기"로 새 대진을 만들 수 있어요. 경기일 자체 삭제는 경기관리 메뉴에서 해요.</p>` }
@@ -855,7 +852,6 @@ function viewMHome() {
     h += `<button class="review" data-act="result" data-id="${last}">
       <div class="rv-top" style="--tc:${tt.color};--ti:${inkOn(tt.color)}"><span class="rv-trophy">🏆</span><span><small>${done < 9 ? `${done}/9경기 기준 1위` : '우승'}</small><b>${esc(tt.name)}</b></span><span class="rv-pts">${top.pts}<small>점</small></span></div>
       <div class="rv-rows">${rows.map(r => { const t = team(s, r.k); return `<div class="rc-row ${mt === r.k ? 'mine' : ''}"><em class="rk rk${r.rank}">${r.rank}</em>${bib(t.color)}<b>${esc(t.name)}</b>${mt === r.k ? '<small class="metag">내 팀</small>' : ''}<span class="wdl"><i class="w">${r.w}승</i><i class="d">${r.d}무</i><i class="l">${r.l}패</i></span><span class="pt">${r.pts}점</span></div>` }).join('')}</div>
-      ${scorers.length || moms.length ? `<div class="rv-meta">${scorers.length ? `<span><em>득점왕</em>${scorers.map(x => esc(pname(x))).join(', ')} ${best}골</span>` : ''}${moms.length ? `<span><em>MOM</em>${moms.map(x => esc(pname(x))).join(', ')}</span>` : ''}</div>` : ''}
       <span class="more">경기 결과 자세히 보기 ›</span></button>` }
   h += '</section><section>';
   // ── NEXT MATCH ──
@@ -910,7 +906,7 @@ function viewResults() {
       ${rows.map(r => { const t = team(s, r.k); return `<div class="rc-row ${mt === r.k ? 'mine' : ''}"><em class="rk rk${r.rank}">${r.rank}</em>${bib(t.color)}<b>${esc(t.name)}</b>${mt === r.k ? '<small class="metag">내 팀</small>' : ''}<span class="wdl"><i class="w">${r.w}승</i><i class="d">${r.d}무</i><i class="l">${r.l}패</i></span><span class="pt">${r.pts}점</span></div>` }).join('')}</button>` }
   return h + '</div>';
 }
-const RANKS = [['g', '득점'], ['a', '도움'], ['pts', '공격포인트'], ['days', '참가'], ['mom', 'MOM'], ['wr', '승률']];
+const RANKS = [['g', '득점'], ['days', '참가']];
 function viewMStats() {
   const rows = playerStats(); const me = myPid(); const r = rows.find(x => x.id === me); const key = S.rankKey || 'g';
   let h = '';
@@ -918,11 +914,10 @@ function viewMStats() {
   else if (!r) h += `<div class="notice">${esc(S.me)} 님의 경기 기록이 아직 없어요. 이름이 팀 명단과 다르면 설정에서 바꿔 주세요.</div>`;
   else { const wr = r.gp ? Math.round(r.w / r.gp * 100) : null;
     h += `<div class="me-hero"><div class="me-name">${esc(pname(me))}</div><div class="me-grid">
-      ${[['참가', r.days, '회', rankOf(rows, 'days', me)], ['경기', r.gp, '경기', null], ['득점', r.g, '골', rankOf(rows, 'g', me)], ['도움', r.a, '개', rankOf(rows, 'a', me)], ['MOM', r.mom, '회', r.mom ? rankOf(rows, 'mom', me) : null], ['승률', wr ?? '-', wr === null ? '' : '%', null]].map(([l, v, u, rk]) => `<div><span>${l}</span><b>${v}<small>${u}</small></b>${rk ? `<em>${rk}위</em>` : ''}</div>`).join('')}</div>
-      <div class="me-wdl">${r.w}승 ${r.d}무 ${r.l}패${r.wins ? `, 우승 ${r.wins}회` : ''}</div></div>` }
+      ${[['참가', r.days, '회', rankOf(rows, 'days', me)], ['경기', r.gp, '경기', null], ['득점', r.g, '골', r.g ? rankOf(rows, 'g', me) : null]].map(([l, v, u, rk]) => `<div><span>${l}</span><b>${v}<small>${u}</small></b>${rk ? `<em>${rk}위</em>` : ''}</div>`).join('')}</div></div>` }
   h = '<div class="dgrid"><section>' + h + '</section><section>';
   h += `<h2>순위</h2><div class="seg" role="tablist">${RANKS.map(([k, n]) => `<button role="tab" data-act="rank" data-k="${k}" aria-selected="${key === k}">${n}</button>`).join('')}</div>`;
-  const val = x => key === 'pts' ? x.g + x.a : key === 'wr' ? (x.gp >= 5 ? x.w / x.gp : -1) : x[key];
+  const val = x => x[key];
   const list = rows.filter(x => val(x) > 0).sort((a, b) => val(b) - val(a) || a.days - b.days);
   if (!list.length) return h + `<div class="panel"><p class="empty">아직 기록이 없어요.</p></div></section></div>`;
   let rank = 0; const shown = list.slice(0, 30);
@@ -1031,7 +1026,7 @@ function viewRecs() {
   const ids = pastSids();
   let h = ib + `<h2>경기 결과 수정<small>눌러서 골과 도움을 고칠 수 있어요</small></h2><div class="panel">${ids.length ? ids.map(id => { const s = S.sessions[id]; const top = standings(id)[0];
     return `<button class="card" data-act="gorun" data-id="${id}" data-step="match"><span><span class="d">${fmtDate(id)}</span><br><span class="s">${sessMatches(id).filter(m => m.status === 'done').length}/9경기, ${Object.values(S.events).filter(e => e.session === id).length}골</span></span><span class="r">${bib(team(s, top.k).color)} ${esc(team(s, top.k).name)} 1위</span></button>` }).join('') : '<p class="empty">아직 끝난 경기가 없어요.</p>'}</div>`;
-  return h + viewStats();
+  return h;
 }
 
 /* ───────── sample data ───────── */
@@ -1111,7 +1106,7 @@ function classify(s) {
   const apps = appsOf(s); const prev = prevSessionId(s); const played = prev ? new Set(KEYS.flatMap(k => teamPlayers(S.sessions[prev], k))) : null; const staff = staffSet(s); const late = lateSet(s);
   const applied = new Set(apps.map(a => a.pid).filter(Boolean));
   const autos = autoIds(s).filter(id => !applied.has(id)).map(id => ({ k: 'auto-' + id, pid: id, auto: true, n: 0, tier: 0 }));
-  const rows = [...autos, ...apps.map((a, i) => ({ ...a, n: i + 1, tier: !a.pid ? 2 : staff.has(a.pid) ? 0 : late.has(a.pid) ? 3 : (played && !played.has(a.pid)) ? 1 : 2 }))];
+  const rows = [...autos, ...apps.map((a, i) => ({ ...a, n: i + 1, tier: a.tier != null ? a.tier : !a.pid ? 2 : staff.has(a.pid) ? 0 : late.has(a.pid) ? 3 : (played && !played.has(a.pid)) ? 1 : 2 }))];
   const cap = s.capacity || Infinity; const sel = new Set();
   for (const t of [0, 1, 2, 3]) for (const r of rows) if (r.tier === t && (t === 0 || sel.size < cap)) sel.add(r.k);
   rows.forEach(r => r.sel = sel.has(r.k)); const wait = rows.filter(r => !r.sel); wait.forEach((r, i) => r.wn = i + 1);
@@ -1213,8 +1208,9 @@ function parkSheet(sid) {
   const spin = S.parkSpin && S.parkSpin.sid === sid;
   let h = `<h4>${fmtDate(sid)} 주차 추첨</h4><p>주차 신청자 ${list.length}명 중 대상 ${elig.length}명에서 ${PARK_SLOTS}명을 뽑아요. 미선발 신청자와 지난 경기 당첨자는 제외돼요.</p>`;
   h += `<div class="panel plist ${spin ? 'spin' : ''}">${list.length ? list.map(a => { const ok = ps.has(a.pid) && !parkBanned(s, a.pid); const w0 = win.includes(a.pid);
-    return `<div class="prow ${ok ? '' : 'x'} ${w0 ? 'won' : ''} ${spin && S.parkSpin.hl === a.pid ? 'hl' : ''}"><b>${esc(pname(a.pid))}</b><span class="car">${esc(a.car)}</span><small>${w0 ? '🎉 당첨' : !ps.has(a.pid) ? '미선발 제외' : parkBanned(s, a.pid) ? '지난 경기 당첨 제외' : '추첨 대상'}</small></div>` }).join('') : '<p class="empty">아직 주차 신청자가 없어요.</p>'}</div>`;
-  if (!applyClosed(s)) h += `<p class="note">신청이 마감된 뒤에 추첨할 수 있어요.</p>`;
+    return `<div class="prow ${ok ? '' : 'x'} ${w0 ? 'won' : ''} ${spin && S.parkSpin.hl === a.pid ? 'hl' : ''}"><b>${esc(pname(a.pid))}</b><span class="car">${esc(a.car)}</span><small>${w0 ? '🎉 당첨' : !ps.has(a.pid) ? '미선발 제외' : parkBanned(s, a.pid) ? '지난 경기 당첨 제외' : '추첨 대상'}</small><button class="btn sm" data-act="parkwin" data-id="${a.pid}">${w0 ? '당첨 취소' : '당첨'}</button><button class="btn sm danger" data-act="parkdel" data-id="${a.pid}" aria-label="삭제">×</button></div>` }).join('') : '<p class="empty">아직 주차 신청자가 없어요.</p>'}</div>`;
+  h += `<div class="panel pad" style="margin-top:10px"><b class="dk">직접 추가</b><div style="display:flex;gap:6px;flex-wrap:wrap"><input id="pk-nm" class="inp" style="flex:1;min-width:110px" type="text" list="pk-list" placeholder="이름"><datalist id="pk-list">${participants(s).map(id => `<option value="${esc(pname(id))}">`).join('')}</datalist><input id="pk-cr" class="inp" style="flex:1;min-width:110px" type="text" placeholder="차량번호"><button class="btn" data-act="parkadd" data-id="${sid}">추가</button></div></div>`;
+  if (!applyClosed(s)) h += `<p class="note">신청이 마감된 뒤에 추첨할 수 있어요. 당첨자는 목록의 "당첨" 버튼으로 직접 정할 수도 있어요.</p>`;
   else h += `<div class="row" style="margin-top:12px"><button class="btn primary" data-act="parkdraw" data-id="${sid}" ${elig.length && !spin ? '' : 'disabled'}>${win.length ? '🎲 다시 추첨' : `🎲 ${Math.min(PARK_SLOTS, elig.length)}명 추첨하기`}</button></div>`;
   return h;
 }
@@ -1251,15 +1247,16 @@ function vApplyTable(s) {
   let rows = [...c.sel, ...c.wait];
   if (frozen) { const A = s.applicants || [], W = s.waitlist || []; rows = [...A.map(pid => ({ ...(c.rows.find(r => r.pid === pid) || { k: 'f' + pid, pid, tier: 2, n: '-' }), sel: true })), ...W.map((pid, i) => ({ ...(c.rows.find(r => r.pid === pid) || { k: 'w' + pid, pid, tier: 2, n: '-' }), sel: false, wn: i + 1 }))] }
   const tb = t => `<b class="t${t}">${TIER[t]}</b>`;
-  const h = `<div class="panel sheetwrap"><table class="grid atbl"><thead><tr><th>신청순</th><th class="stick">이름</th><th>순위</th><th>구분</th><th>신청 시각</th><th>주차</th><th>상태</th>${ad ? '<th>관리</th>' : ''}</tr></thead><tbody>
+  const h = `<div class="panel sheetwrap"><table class="grid atbl"><thead><tr><th>신청순</th><th class="stick">이름</th><th>순위</th><th>구분</th><th>신청 시각</th><th>주차</th><th>상태</th><th>마감 후 취소</th>${ad ? '<th>관리</th>' : ''}</tr></thead><tbody>
   ${rows.length ? rows.map(r => { const pk = r.pid && s.park?.[r.pid]?.car;
     return `<tr class="${r.sel ? '' : 'wrow'}"><td class="num">${r.auto ? '자동' : r.n}</td><td class="stick"><b>${r.pid ? esc(pname(r.pid)) : '<i class="nn">이름 입력 대기</i>'}</b></td><td>${tb(r.tier)}</td>
       <td class="muted">${r.auto ? roleOf(s, r.pid) + ' (자동)' : r.pid ? (roleOf(s, r.pid) || (late.has(r.pid) ? '지난 경기 마감 후 취소' : '')) : ''}</td>
       <td class="num muted">${r.at ? fmtTS(r.at) : '-'}</td>
       <td class="muted">${pk ? `🚗 ${esc(pk)}` : ''}</td><td>${r.sel ? '<b class="ok">선발</b>' : `<b class="tw">대기 ${r.wn}</b>`}</td>
-      ${ad ? `<td class="acts">${r.pid && !r.auto ? `<button class="btn sm" data-act="p0toggle" data-id="${r.pid}">${(s.p0 || []).includes(r.pid) ? '예약자 해제' : '예약자'}</button>` : ''}${r.auto ? `<button class="btn sm" data-act="staffedit" data-id="${s.date}">변경</button>` : ''}${!r.pid ? `<button class="btn sm" data-act="appnameadmin" data-id="${r.k}">이름</button>` : ''}${closed && r.pid && !r.auto ? `<button class="btn sm danger" data-act="latecancel" data-id="${r.pid}">${r.sel ? '마감 후 취소' : '대기 취소'}</button>` : ''}${!closed && !frozen && !r.auto ? `<button class="btn sm danger" data-act="apprm" data-id="${r.k}" aria-label="삭제">×</button>` : ''}</td>` : ''}</tr>` }).join('') : `<tr><td colspan="8" class="empty">아직 신청자가 없어요.</td></tr>`}</tbody></table></div>`;
+      <td class="num"><input type="checkbox" class="staffck" ${ad && closed && r.pid && !r.auto ? `data-in="latetoggle" data-id="${r.pid}"` : 'disabled'} aria-label="마감 후 취소"></td>
+      ${ad ? `<td class="acts">${r.pid && !r.auto ? `<button class="btn sm" data-act="p0toggle" data-id="${r.pid}">${(s.p0 || []).includes(r.pid) ? '예약자 해제' : '예약자'}</button>` : ''}${r.auto ? `<button class="btn sm" data-act="staffedit" data-id="${s.date}">변경</button>` : ''}${!r.pid ? `<button class="btn sm" data-act="appnameadmin" data-id="${r.k}">이름</button>` : ''}${closed && r.pid && !r.auto ? `<button class="btn sm danger" data-act="latecancel" data-id="${r.pid}">${r.sel ? '마감 후 취소' : '대기 취소'}</button>` : ''}${!closed && !frozen && !r.auto ? `<button class="btn sm danger" data-act="apprm" data-id="${r.k}" aria-label="삭제">×</button>` : ''}</td>` : ''}</tr>` }).join('') : `<tr><td colspan="9" class="empty">아직 신청자가 없어요.</td></tr>`}${Object.entries(s.late || {}).filter(([, v]) => v).map(([pid, t]) => `<tr class="lrow"><td class="num">-</td><td class="stick"><b>${esc(pname(pid))}</b></td><td></td><td class="muted">신청 마감 후 취소</td><td class="num muted">${fmtTS(t)}</td><td></td><td><b class="t3">취소</b></td><td class="num"><input type="checkbox" class="staffck" checked ${ad ? `data-in="lateuntoggle" data-id="${pid}"` : 'disabled'} aria-label="마감 후 취소 해제"></td>${ad ? '<td></td>' : ''}</tr>`).join('')}</tbody></table></div>`;
   const lc = Object.entries(s.late || {}).filter(([, v]) => v);
-  return h + (lc.length ? `<div class="notice" style="margin-top:10px">마감 후 취소 ${lc.length}명: ${lc.map(([pid, t]) => `${esc(pname(pid))}(${fmtTS(t)})`).join(', ')}. 다음 경기에서 3순위가 돼요.</div>` : '')
+  return h
     + `<p class="note">선발 ${c.sel.length}${s.capacity ? ' / ' + s.capacity : ''}명, 대기 ${c.wait.length}명. 순위: 0순위 구장 예약자·경기 운영자(정원 무관) → 1순위 직전 경기 미참여 → 2순위 선착순 → 3순위 직전 경기(${prevAny ? fmtDate(prevAny) : '없음'}) 신청 마감 후 취소자. 같은 순위 안에서는 신청 순서대로예요.</p>`;
 }
 
@@ -1374,7 +1371,8 @@ async function importRecord(f) {
   const K = {}; const teams = {}; const captains = {};
   for (let i = 0; i < 3; i++) { const k = KEYS[i]; K[r.teams[i].color] = k; const ps = await ids(r.teams[i].players); teams[k] = { players: ps, colorName: r.teams[i].color }; captains[k] = ps[0] || null }
   const applicants = [...new Set([...res, ...ops, ...t1, ...t2, ...t3])]; const at0 = new Date(sid + 'T12:00').getTime();
-  const apps = applicants.filter(p => !res.includes(p) && !ops.includes(p)).concat(wait).map((p, i) => ({ k: 'imp' + i, pid: p, uid: 'import', at: at0 + i * 1000 }));
+  const tierOf = p => t1.includes(p) ? 1 : t3.includes(p) ? 3 : 2;
+  const apps = applicants.filter(p => !res.includes(p) && !ops.includes(p)).concat(wait).map((p, i) => ({ k: 'imp' + i, pid: p, uid: 'import', at: at0 + i * 1000, tier: tierOf(p) }));
   const doc = { date: sid, time: f.time || DEFAULTS.time, venue: f.venue || DEFAULTS.venue, evpw: '', notice: DEFAULTS.notice || '', capacity: +f.capacity || DEFAULTS.capacity || 18,
     applyOpen: shiftDate(sid, DEFAULTS.openDays, DEFAULTS.openTime), applyClose: shiftDate(sid, DEFAULTS.closeDays, DEFAULTS.closeTime),
     stage: 'match', draftStatus: 'done', applicants, waitlist: wait, apps, p0: res, ops, late: Object.fromEntries(late.map(p => [p, at0])),
@@ -1487,6 +1485,8 @@ document.addEventListener('input', e => { const el = e.target; const k = el.data
   if (k === 'sfield' && S.admin) { const f = el.dataset.f; clearTimeout(saveT[f]); saveT[f] = setTimeout(async () => { await w(() => S.store.update(sp(S.sid), { [f]: el.value })); if (f === 'evpw' || f === 'notice') refreshPoster() }, 600) } });
 document.addEventListener('change', e => { const el = e.target;
   if (el.dataset.in === 'schedym') { S.schedYm = el.value; render(); return }
+  if (el.dataset.in === 'latetoggle' && S.admin) { el.checked = false; cancelApp(S.sid, el.dataset.id, null, true); return }
+  if (el.dataset.in === 'lateuntoggle' && S.admin) { if (!confirm(`${pname(el.dataset.id)} 님의 마감 후 취소 표시를 지울까요? (다음 경기 3순위가 해제돼요. 참가 명단에는 다시 들어가지 않아요)`)) { el.checked = true; return } w(() => S.store.update(sp(S.sid), { [`late.${el.dataset.id}`]: null }), '해제했어요.'); return }
   if (el.dataset.in === 'staff' && S.admin) { w(() => S.store.update('players/' + el.dataset.id, { staff: el.checked }), el.checked ? '운영진(0순위)으로 표시했어요.' : '운영진 표시를 해제했어요.'); return }
   if (el.dataset.in === 'msort') { S.msort = el.value; render(); return }
   if (el.dataset.in === 'mcell' && S.admin) { const id = el.dataset.id, f = el.dataset.f, v = el.value.trim();
@@ -1523,6 +1523,11 @@ document.addEventListener('click', async e => {
     case 'pick': await setPending(id); break;
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
+    case 'parkadd': { if (!needAdmin()) break; const sid = id; const nm = document.getElementById('pk-nm').value.trim(), car = document.getElementById('pk-cr').value.replace(/\s+/g, ''); if (!nm || !car) { toast('이름과 차량번호를 입력하세요.'); break }
+      const pid = await ensurePlayer(nm); if (!pid) break; if (parkBanned(S.sessions[sid], pid) && !confirm(`${nm} 님은 지난 경기 주차 당첨자예요. 그래도 추가할까요?`)) break;
+      await w(() => S.store.update(sp(sid), { [`park.${pid}`]: { car: car.slice(0, 12), at: Date.now(), manual: true } }), '주차 신청을 추가했어요.'); break }
+    case 'parkdel': { if (!needAdmin()) break; const sid = S.sheet?.sid; if (!confirm(`${pname(id)} 님의 주차 신청을 지울까요?`)) break; const ss = S.sessions[sid]; await w(() => S.store.update(sp(sid), { [`park.${id}`]: null, parkWin: (ss.parkWin || []).filter(x => x !== id) })); break }
+    case 'parkwin': { if (!needAdmin()) break; const sid = S.sheet?.sid; const ss = S.sessions[sid]; const wn = new Set(ss.parkWin || []); wn.has(id) ? wn.delete(id) : wn.add(id); await w(() => S.store.update(sp(sid), { parkWin: [...wn], parkDrawAt: ss.parkDrawAt || Date.now() })); break }
     case 'impopen': if (!needAdmin()) break; S.sheet = { type: 'import' }; render(); break;
     case 'impgo': { if (!needAdmin()) break; el.disabled = true; const ok = await importRecord(S.imp); el.disabled = false; if (ok) { S.sheet = null; S.imp = null; render() } break }
     case 'latecancel': if (!needAdmin()) break; await cancelApp(S.sid, id, null, true); break;
