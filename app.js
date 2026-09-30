@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '1.6.2';
+const APP_VERSION = '1.7';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -766,7 +766,8 @@ function viewMatch() {
 }
 function viewSheet() {
   const sh = S.sheet; let h = `<div class="scrim" data-act="closesheet"><div class="sheet" role="dialog" aria-modal="true" data-stop><div class="grab"></div>`;
-  if (sh.type === 'cappop') { const s = S.sessions[sh.sid]; const k = myTeam(s);
+  if (sh.type === 'adminpin') h += `<h4>운영모드</h4><p>운영진 비밀번호를 입력하세요.</p><div class="panel"><div class="field"><label for="ap-pin">비밀번호</label><input id="ap-pin" class="inp pin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="••••"></div></div><div class="row" style="margin-top:12px"><button class="btn primary cta" data-act="adminpinok">운영모드 들어가기</button></div>`;
+  else if (sh.type === 'cappop') { const s = S.sessions[sh.sid]; const k = myTeam(s);
     h += `<div class="cappop"><div class="cp-crown">👑</div><h4>${esc(pname(myPid()))} 님, 주장으로 지정됐어요!</h4><p>${fmtDate(sh.sid)} ${esc(s.time || '')} 경기의 <b>${esc(team(s, k).name)}</b> 주장이에요.<br>${s.room?.open ? '드래프트 방이 열렸어요. 지금 입장해 주세요.' : '운영진이 드래프트 방을 열면 팀원을 선정해요.'}</p><button class="btn primary block cta" data-act="gocap" data-id="${sh.sid}">팀 선정 화면으로 가기</button></div>` }
   else if (sh.type === 'import') h += importSheet();
   else if (sh.type === 'duty') h += dutySheet(sh.sid);
@@ -1430,7 +1431,7 @@ function loadAuth() { try { const s = sessionStorage.getItem('wf:auth'); if (s) 
 function saveAuth(a, remember) { try { sessionStorage.removeItem('wf:auth') } catch { } save('auth', null); if (!a) return; if (remember) save('auth', a); else try { sessionStorage.setItem('wf:auth', JSON.stringify(a)) } catch { } }
 function loginFields(prefix, name) { const names = Object.values(S.players).map(p => p.name).sort((a, b) => a.localeCompare(b, 'ko'));
   return `<div class="field"><label for="${prefix}-name">이름</label><input id="${prefix}-name" class="inp" type="text" list="${prefix}-list" maxlength="20" value="${esc(name || '')}" autocomplete="username"><datalist id="${prefix}-list">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
-  <div class="field"><label for="${prefix}-pin">비밀번호 (숫자 4자리)</label><input id="${prefix}-pin" class="inp pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="current-password" placeholder="••••"><span class="note" style="margin:0">처음이면 지금 입력한 번호가 내 비밀번호로 등록돼요.</span></div>
+  <div class="field"><label for="${prefix}-pin">비밀번호 (숫자 4자리)</label><input id="${prefix}-pin" class="inp pin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="••••"><span class="note" style="margin:0">처음이면 지금 입력한 번호가 내 비밀번호로 등록돼요.</span></div>
   <label class="ck autock"><input type="checkbox" id="${prefix}-auto" checked> 자동 로그인 (이 기기에서 다음에도 로그인 유지)</label>` }
 async function loginFlow(name, pin, remember) {
   name = (name || '').replace(/\(\s*게\s*\)/g, '').trim().slice(0, 20); pin = (pin || '').trim();
@@ -1551,20 +1552,20 @@ function mmTimeView(s) {
     <div class="row"><button class="btn" data-act="mmstage" data-v="pair">← 대진 다시 정하기</button><button class="btn primary mm-go cta" data-act="mmtimesave">설정 완료 → 경기 화면</button></div></div>`;
 }
 function mmPlayView(s) {
-  const ms = sessMatches(s.date); const m = ms.find(x => x.status === 'live') || ms.find(x => x.status === 'pending') || ms[ms.length - 1];
+  const ms = sessMatches(s.date); const curM = ms.find(x => x.status === 'live') || ms.find(x => x.status === 'pending') || ms[ms.length - 1]; const m = (S.mmSel && ms.find(x => x.id === S.mmSel)) || curM; const editing = m.status === 'done' && m.id !== curM.id || (m.status === 'done' && S.mmSel === m.id);
   const H = team(s, m.home), A = team(s, m.away); const [hs, as] = score(m); const ci = clockInfo(m); const run = !!m.timer?.running; const T = timing(s);
   const evs = Object.entries(S.events).filter(([, e]) => e.match === m.id).sort((a, b) => a[1].at - b[1].at);
   const allDone = ms.every(x => x.status === 'done');
-  let h = `<div class="mm-play"><div class="mm-meta"><span>${m.round}라운드 · ${m.n}경기 <small>/ 9</small></span><button class="linkbtn" data-act="mmstage" data-v="time">⏱ 시간 ${T.h1 / 60}+${T.gk}″+${T.h2 / 60}</button></div>
-    <div class="mm-board"><div class="mm-team" style="--tc:${H.color};--ti:${inkOn(H.color)}"><b>${esc(H.name)}</b><em>${hs}</em>${m.status === 'live' ? `<button class="mm-goal" data-act="mmgoal" data-k="${m.home}">+ 골</button><button class="mm-ungoal" data-act="mmungoal" data-k="${m.home}" ${hs ? '' : 'disabled'}>− 골 취소</button>` : ''}</div>
+  let h = `<div class="mm-play">${editing ? `<div class="mm-edit">✏️ <b>${m.n}경기(종료) 점수 수정 중</b><button class="btn sm" data-act="mmsel" data-id="">현재 경기로 ›</button></div>` : ''}<div class="mm-meta"><span>${m.round}라운드 · ${m.n}경기 <small>/ 9</small></span><button class="linkbtn" data-act="mmstage" data-v="time">⏱ 시간 ${T.h1 / 60}+${T.gk}″+${T.h2 / 60}</button></div>
+    <div class="mm-board"><div class="mm-team" style="--tc:${H.color};--ti:${inkOn(H.color)}"><b>${esc(H.name)}</b><em>${hs}</em>${m.status === 'live' || editing ? `<button class="mm-goal" data-act="mmgoal" data-id="${m.id}" data-k="${m.home}">+ 골</button><button class="mm-ungoal" data-act="mmungoal" data-id="${m.id}" data-k="${m.home}" ${hs ? '' : 'disabled'}>− 골 취소</button>` : ''}</div>
       <div class="mm-mid"><div class="mm-clock ${ci.phase}" data-bigclock="${m.id}">${ci.time}</div><div class="mm-ph" data-phase="${m.id}">${ci.label}</div>
         <div class="mm-bar">${[0, 1, 2].map(i => `<i class="${i === 1 ? 'gk' : ''}"><b data-seg="${m.id}:${i}"></b></i>`).join('')}</div>${m.status === 'pending' ? `<button class="mm-side" data-act="mmsidesw" data-id="${m.id}" aria-label="양 팀 좌우 위치 바꾸기">⇄ 진영 변경</button>` : ''}</div>
-      <div class="mm-team" style="--tc:${A.color};--ti:${inkOn(A.color)}"><b>${esc(A.name)}</b><em>${as}</em>${m.status === 'live' ? `<button class="mm-goal" data-act="mmgoal" data-k="${m.away}">+ 골</button><button class="mm-ungoal" data-act="mmungoal" data-k="${m.away}" ${as ? '' : 'disabled'}>− 골 취소</button>` : ''}</div></div>
-    <div class="mm-ctl">${m.status === 'pending' ? `<button class="btn primary mm-big cta" data-act="mmstart" data-id="${m.id}">▶ 경기 시작</button>`
+      <div class="mm-team" style="--tc:${A.color};--ti:${inkOn(A.color)}"><b>${esc(A.name)}</b><em>${as}</em>${m.status === 'live' || editing ? `<button class="mm-goal" data-act="mmgoal" data-id="${m.id}" data-k="${m.away}">+ 골</button><button class="mm-ungoal" data-act="mmungoal" data-id="${m.id}" data-k="${m.away}" ${as ? '' : 'disabled'}>− 골 취소</button>` : ''}</div></div>
+    <div class="mm-ctl">${editing ? '' : m.status === 'pending' ? `<button class="btn primary mm-big cta" data-act="mmstart" data-id="${m.id}">▶ 경기 시작</button>`
       : m.status === 'live' ? `${run ? `<button class="btn mm-big" data-act="mmpause" data-id="${m.id}">⏸ 일시정지</button>` : `<button class="btn primary mm-big" data-act="mmresume" data-id="${m.id}">▶ 재개</button>`}<button class="btn ${ci.phase === 'full' ? 'primary' : ''} mm-big" data-act="mmend" data-id="${m.id}">경기 종료</button>`
       : allDone ? `<div class="mm-done">🎉 오늘 9경기가 모두 끝났어요!</div>` : ''}</div>
-    <div class="mm-list">${ms.map(x => { const [a, b] = score(x); const X = team(s, x.home), Y = team(s, x.away); return `<div class="mm-li ${x.id === m.id ? 'cur' : ''} st-${x.status}"><em>${x.n}</em><i style="background:${X.color}"></i><span>${x.status === 'pending' ? 'vs' : a + ':' + b}</span><i style="background:${Y.color}"></i></div>` }).join('')}</div>
-    <p class="mm-note">경기 중에는 화면이 꺼지지 않게 유지해요. 다른 메뉴로 가도 시간과 휘슬은 계속 이어져요.</p></div>`;
+    <div class="mm-list">${ms.map(x => { const [a, b] = score(x); const X = team(s, x.home), Y = team(s, x.away); return `<button class="mm-li ${x.id === m.id ? 'cur' : ''} st-${x.status}" data-act="mmsel" data-id="${x.status === 'done' ? x.id : ''}" ${x.status === 'done' || x.id === curM.id ? '' : 'disabled'} aria-label="${x.n}경기${x.status === 'done' ? ' 점수 수정' : ''}"><em>${x.n}</em><i style="background:${X.color}"></i><span>${x.status === 'pending' ? 'vs' : a + ':' + b}</span><i style="background:${Y.color}"></i></button>` }).join('')}</div>
+    <p class="mm-note">끝난 경기는 아래 목록에서 눌러 점수를 고칠 수 있어요. 경기 중에는 화면이 꺼지지 않게 유지해요. 다른 메뉴로 가도 시간과 휘슬은 계속 이어져요.</p></div>`;
   return h;
 }
 async function mmSavePairs() {
@@ -1577,10 +1578,12 @@ async function mmSavePairs() {
     await S.store.update(sp(s.date), { mm: { pairs: pairs.map(p => p.join('')), swap: Object.fromEntries(Object.entries(sw).filter(([, v]) => v)), timed: !!s.mm?.timed }, stage: 'match' }) }, '대진을 정했어요.');
   if (ok) { S.mmStage = null; S.mmDraft = null; if (!s.mm?.timed) S.mmStage = 'time'; render() }
 }
-async function beep(freq, dur) { const ctx = audio(); if (!ctx) return; if (ctx.state === 'suspended') ctx.resume(); const t = ctx.currentTime + .01; const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = freq; const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.9, t + .01); g.gain.setValueAtTime(.9, t + dur - .03); g.gain.linearRampToValueAtTime(0, t + dur); o.connect(g); g.connect(MASTER); o.start(t); o.stop(t + dur + .02) }
+function beepAt(t, freq, dur) { const ctx = AC; const nodes = []; const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = freq; const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.9, t + .01); g.gain.setValueAtTime(.9, t + dur - .03); g.gain.linearRampToValueAtTime(0, t + dur); o.connect(g); g.connect(MASTER); o.start(t); o.stop(t + dur + .02); nodes.push(o); return nodes }
+function beep(freq, dur) { const ctx = audio(); if (!ctx) return; if (ctx.state === 'suspended') ctx.resume(); const t = ctx.currentTime + .01; const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = freq; const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.9, t + .01); g.gain.setValueAtTime(.9, t + dur - .03); g.gain.linearRampToValueAtTime(0, t + dur); o.connect(g); g.connect(MASTER); o.start(t); o.stop(t + dur + .02) }
 function mmCountdown(m) {
-  audio(); keepAwake(true); let n = 3; const ov = document.createElement('div'); ov.className = 'mm-cd'; document.body.appendChild(ov);
-  const step = () => { if (n > 0) { ov.innerHTML = `<b>${n}</b>`; if (S.whistle) beep(1320, .18); try { navigator.vibrate?.(80) } catch { } n--; setTimeout(step, 1000) } else { ov.innerHTML = '<b>START</b>'; setTimeout(() => ov.remove(), 600); S.startBlown[m.id] = Date.now(); whistle([.9]); startClock(m) } };
+  const ctx = audio(); keepAwake(true); if (ctx && ctx.state === 'suspended') ctx.resume();
+  if (ctx && S.whistle) { const t0 = ctx.currentTime + .05; beepAt(t0, 1320, .18); beepAt(t0 + 1, 1320, .18); beepAt(t0 + 2, 1320, .18); let t = t0 + 3; blowN(t, .9) } let n = 3; const ov = document.createElement('div'); ov.className = 'mm-cd'; document.body.appendChild(ov);
+  const step = () => { if (n > 0) { ov.innerHTML = `<b>${n}</b>`; try { navigator.vibrate?.(80) } catch { } n--; setTimeout(step, 1000) } else { ov.innerHTML = '<b>START</b>'; setTimeout(() => ov.remove(), 600); S.startBlown[m.id] = Date.now(); if (!ctx || !S.whistle) whistle([.9]); startClock(m) } };
   step();
 }
 /* background-safe whistles: schedule on the audio clock so they still sound when the screen is off */
@@ -1596,6 +1599,7 @@ function scheduleWhistles() {
     (SCHED[m.id] || []).forEach(n => { try { n.stop() } catch { } }); SCHED[m.id] = []; S.schedSig[m.id] = sig;
     if (!run || !S.whistle) continue; const ctx = audio(); if (!ctx) continue; if (ctx.state === 'suspended') ctx.resume();
     const T = timing(S.sessions[sid]); const e = elapsed(m); const a = T.h1, b = a + T.gk, c = b + T.h2;
+    for (const k of [3, 2, 1]) { const at = b - k; const dt = at - e; if (at >= a + .9 && dt > .25) SCHED[m.id].push(...beepAt(ctx.currentTime + dt, 1320, .18)) }
     for (const [at, pat] of [[a, [.3, .3]], [b, [.9]], [c, [.3, .3, 1.3]]]) { const dt = at - e; if (dt > .25) { let t = ctx.currentTime + dt; for (const d of pat) { SCHED[m.id].push(...blowN(t, d)); t += d + .14 } } } }
   const ctx = AC; if (anyRun && ctx && !KEEP) { try { KEEP = ctx.createOscillator(); const g = ctx.createGain(); g.gain.value = .0008; KEEP.frequency.value = 40; KEEP.connect(g); g.connect(ctx.destination); KEEP.start() } catch { KEEP = null } }
   if (!anyRun && KEEP) { try { KEEP.stop() } catch { } KEEP = null }
@@ -1668,8 +1672,9 @@ async function sendChat() {
   try { await w(() => S.store.add(sp(S.sid) + '/chat', { name, uid: myUid(), team: mk || null, admin: !mk && S.admin, text: text.slice(0, 300), at: Date.now() })) } finally { S.sending = false }
   document.getElementById('chatin')?.focus();
 }
-document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset?.act === 'gohome') { e.target.click(); return } if (e.key === 'Enter' && (e.target.id === 'lg-pin' || e.target.id === 'lg-name')) { e.preventDefault(); document.querySelector('[data-act=login]')?.click(); return } if (e.target.id !== 'chatin' || e.key !== 'Enter' || e.shiftKey) return; e.preventDefault();
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'ap-pin') { e.preventDefault(); document.querySelector('[data-act=adminpinok]')?.click(); return } if (e.key === 'Enter' && e.target.dataset?.act === 'gohome') { e.target.click(); return } if (e.key === 'Enter' && (e.target.id === 'lg-pin' || e.target.id === 'lg-name')) { e.preventDefault(); document.querySelector('[data-act=login]')?.click(); return } if (e.target.id !== 'chatin' || e.key !== 'Enter' || e.shiftKey) return; e.preventDefault();
   if (e.isComposing) { S.sendAfterCompose = true; return } sendChat() }, true);
+document.addEventListener('input', e => { if (e.target.classList?.contains('pin')) { const v = e.target.value.replace(/\D/g, ''); if (v !== e.target.value) e.target.value = v } }, true);
 document.addEventListener('compositionstart', e => { if (e.target.id === 'chatin') S.composing = true });
 document.addEventListener('compositionend', e => { if (e.target.id !== 'chatin') return; S.composing = false;
   if (S.sendAfterCompose) { S.sendAfterCompose = false; setTimeout(sendChat, 0) } else if (S.pending) setTimeout(() => { if (!S.composing) render() }, 0) });
@@ -1752,9 +1757,10 @@ document.addEventListener('click', async e => {
     case 'mmresume': { const m = M(id); audio(); await w(() => S.store.update(mp(id), { timer: { running: true, acc: m.timer?.acc || 0, startedAt: Date.now() } })); break }
     case 'mmend': { const m = M(id); if (clockInfo(m).phase !== 'full' && !confirm('아직 시간이 남았어요. 경기를 종료할까요?')) break; const e = elapsed(m); await w(() => S.store.update(mp(id), { status: 'done', timer: { running: false, acc: e, startedAt: 0 }, endedAt: Date.now() }), `${m.n}경기를 종료했어요.`); break }
     case 'mmsidesw': { const m = M(id); if (!m || m.status !== 'pending') break; await w(() => S.store.update(mp(id), { home: m.away, away: m.home }), '진영을 바꿨어요.'); break }
-    case 'mmungoal': { const s = S.sessions[S.mmSid]; const m = sessMatches(s.date).find(x => x.status === 'live'); if (!m) break; const k = el.dataset.k; const evs = Object.entries(S.events).filter(([, e]) => e.match === m.id && e.team === k).sort((a, b) => b[1].at - a[1].at); if (!evs.length) break;
+    case 'mmsel': S.mmSel = id || null; render(); break;
+    case 'mmungoal': { const s = S.sessions[S.mmSid]; const m = (el.dataset.id && M(el.dataset.id)) || sessMatches(s.date).find(x => x.status === 'live'); if (!m) break; const k = el.dataset.k; const evs = Object.entries(S.events).filter(([, e]) => e.match === m.id && e.team === k).sort((a, b) => b[1].at - a[1].at); if (!evs.length) break;
       if (!confirm(`${team(s, k).name}의 마지막 골을 취소할까요?`)) break; await w(() => S.store.del('events/' + evs[0][0]), '골을 취소했어요.'); break }
-    case 'mmgoal': { const s = S.sessions[S.mmSid]; const m = sessMatches(s.date).find(x => x.status === 'live'); if (!m) break; await addGoal(m, el.dataset.k, null, null, false); try { navigator.vibrate?.(60) } catch { } break }
+    case 'mmgoal': { const s = S.sessions[S.mmSid]; const m = (el.dataset.id && M(el.dataset.id)) || sessMatches(s.date).find(x => x.status === 'live'); if (!m) break; await addGoal(m, el.dataset.k, null, null, false); try { navigator.vibrate?.(60) } catch { } break }
     case 'mselclear': S.msel = {}; render(); break;
     case 'mbulkdel': { if (!needAdmin()) break; const ids = Object.keys(S.msel || {}).filter(k => S.msel[k]); if (!ids.length) break;
       if (!confirm(`선택한 ${ids.length}명을 회원 명단에서 삭제할까요?\n${ids.slice(0, 8).map(pname).join(', ')}${ids.length > 8 ? ' …' : ''}\n지난 경기 기록의 이름은 "?"로 보일 수 있어요. 되돌릴 수 없어요.`)) break;
@@ -1904,8 +1910,9 @@ document.addEventListener('click', async e => {
     case 'sort': S.statsSort = el.dataset.k; render(); break;
     case 'editp': { const p = S.players[id]; const nv = prompt('선수 이름 (게스트는 뒤에 (게))', pname(id)); if (nv === null || !nv.trim()) break; const guest = /\(\s*게\s*\)/.test(nv); const name = nv.replace(/\(\s*게\s*\)/g, '').trim().slice(0, 20); if (name !== p.name || guest !== !!p.guest) await w(() => S.store.update('players/' + id, { name, guest }), '수정했어요.'); break }
     case 'opmode': if (S.admin) { if (!confirm('운영모드를 끌까요?')) break; S.adminOn = false; save('admin', false); S.tab = 'mhome'; S.sid = null; S.step = null; S.openMatch = null; render(); window.scrollTo(0, 0); break }
-      { const pin = prompt('운영진 비밀번호'); if (pin === null) break; if (pin !== String(CFG.adminPin ?? '0000')) { toast('비밀번호가 달라요.'); break }
-        S.adminOn = true; save('admin', true); S.tab = 'manage'; S.sid = null; S.step = null; S.openMatch = null; toast('운영모드로 전환했어요.'); render(); window.scrollTo(0, 0) } break;
+      { S.sheet = { type: 'adminpin' }; render(); setTimeout(() => document.getElementById('ap-pin')?.focus(), 60) } break;
+    case 'adminpinok': { const pin = (document.getElementById('ap-pin')?.value || '').trim(); if (pin !== String(CFG.adminPin ?? '0000')) { toast('비밀번호가 달라요.'); const x = document.getElementById('ap-pin'); if (x) { x.value = ''; x.focus() } break }
+        document.activeElement?.blur(); S.sheet = null; S.adminOn = true; save('admin', true); S.tab = 'manage'; S.sid = null; S.step = null; S.openMatch = null; toast('운영모드로 전환했어요.'); render(); window.scrollTo(0, 0) } break;
     case 'caplink': { const k = el.dataset.k; let t = s.captainTokens?.[k]; if (!t) { t = rand(); if (!await w(() => S.store.update(sp(S.sid), { [`captainTokens.${k}`]: t }))) break }
       const url = IS_ARTIFACT ? (window.WF_APP_URL || '') : capLink(S.sid, k, t); const msg = `[${CFG.club?.short || 'WF'}] ${fmtDate(S.sid)} 드래프트 ${team(s, k).name} 주장 ${pname(s.captains[k])}님\n앱 링크: ${url}\n주장 코드: ${t}\n${IS_ARTIFACT ? '앱을 열고 오른쪽 위 ⚙ 설정에서 \'주장 코드 입력\'을 눌러 주세요.' : '링크를 누르면 바로 드래프트에 참여해요.'}`;
       if (el.dataset.how === 'share' && navigator.share) { try { await navigator.share({ text: msg }); break } catch (e) { if (e.name === 'AbortError') break } }
