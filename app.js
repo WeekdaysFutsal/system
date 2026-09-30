@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '1.8.1';
+const APP_VERSION = '1.9.1';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -814,7 +814,9 @@ function viewSheet() {
 function viewSettings() {
   return `<p class="note" style="text-align:right;margin:10px 0 0">앱 버전 ${APP_VERSION}</p><h2>내 정보<small>이름 + 비밀번호 4자리로 로그인해요</small></h2>${loginCard()}
   <h2>휘슬</h2><div class="panel pad"><button class="btn block" data-act="whistle">${S.whistle ? '🔊 이 폰에서 휘슬 켜짐' : '🔇 이 폰에서 휘슬 꺼짐'}</button><p class="note">웹에서는 휘슬이 울리려면 경기 화면을 켜 두어야 해요.</p></div>
-  ${S.admin ? `<h2>경기모드 연습</h2><div class="panel pad"><p class="muted" style="margin:0 0 10px">팀 구성까지 끝난 연습용 경기를 만들어 경기모드(대진 → 시간 → 타이머·휘슬·골 기록)를 미리 해 볼 수 있어요.</p><div class="row"><button class="btn primary" data-act="mkpractice">연습 경기 만들기</button><button class="btn danger" data-act="clrpractice">연습 경기 지우기</button></div></div>` : ''}
+  ${S.admin ? `<h2>시뮬레이션(연습 데이터)<small>가상 경기를 만들어 미리 해 보고 지워요</small></h2><div class="panel pad"><p class="muted" style="margin:0 0 10px">실제 회원 명단으로 원하는 단계의 가상 경기를 만들어요. 만든 뒤 바로 그 단계 화면으로 이동해요. 실제 경기와 회원 정보는 건드리지 않아요.</p>
+    <div class="simgrid">${Object.entries(SIM).map(([k, [n]]) => `<button class="btn" data-act="mksim" data-k="${k}"><b>${n}</b><small>${{ apply: '신청 중인 경기, 신청자 12명', captain: '신청 마감, 18명 확정', draft: '주장 3명 입장한 드래프트 방', trade: '팀 구성이 끝난 상태' }[k]}</small></button>`).join('')}<button class="btn" data-act="mkpractice"><b>경기모드</b><small>팀 구성 완료, 오늘 날짜</small></button></div>
+    <button class="btn danger block" style="margin-top:10px" data-act="clrpractice">연습 데이터 모두 지우기${Object.values(S.sessions).filter(x => x.practice).length ? ` (${Object.values(S.sessions).filter(x => x.practice).length}개)` : ''}</button></div>` : ''}
   ${S.admin ? `<h2>샘플 데이터</h2><div class="panel pad"><p class="muted" style="margin:0 0 10px">화면 확인용 가상 회원, 지난 경기 2개, 다음 경기 1개를 넣거나 지워요. 직접 입력한 데이터는 건드리지 않아요.</p><div class="row"><button class="btn" data-act="addsample">샘플 데이터 넣기</button><button class="btn danger" data-act="clearsample">샘플 데이터 모두 지우기</button></div></div>` : ''}`;
 }
 /* ───────── member views ───────── */
@@ -1113,11 +1115,37 @@ async function makePractice() {
     practice: true, sample: true, createdAt: Date.now() }), `${fmtDate(d)} 연습 경기를 만들었어요. 하단 ⚽ 경기모드에서 시작해 보세요.`);
   if (ok) { S.mmPick = d; render() }
 }
+function listCol(path) { return new Promise(res => { let un = null, done = false; const t = setTimeout(() => { if (!done) { done = true; try { un && un() } catch { } res([]) } }, 4000);
+  un = S.store.watchCol(path, docs => { if (done) return; done = true; clearTimeout(t); setTimeout(() => { try { un && un() } catch { } }, 0); res(docs) }, null, () => { if (!done) { done = true; res([]) } }) }) }
+function freeDate(from) { let d = from || today(); const x0 = () => { const x = new Date(d + 'T00:00'); x.setDate(x.getDate() + 1); d = `${x.getFullYear()}-${p2(x.getMonth() + 1)}-${p2(x.getDate())}` }; while (S.sessions[d]) x0(); return d }
+const SIM = { apply: ['신청접수', 'apply'], captain: ['주장지정', 'captain'], draft: ['드래프트', 'draft'], trade: ['팀원조정', 'trade'] };
+async function makeSim(kind) {
+  const pool = Object.entries(S.players).filter(([, p]) => mstatus(p) !== 'dormant').map(([id]) => id);
+  if (pool.length < 12) { toast('회원이 12명 이상 있어야 연습 데이터를 만들 수 있어요.'); return }
+  const tmr = new Date(); tmr.setDate(tmr.getDate() + 1); const d = freeDate(`${tmr.getFullYear()}-${p2(tmr.getMonth() + 1)}-${p2(tmr.getDate())}`);
+  if (!confirm(`${fmtDate(d)}에 "${SIM[kind][0]}" 연습용 가상 경기를 만들까요?\n설정 → "연습 데이터 모두 지우기"로 언제든 지울 수 있어요.`)) return;
+  const mix = [...pool].sort(() => Math.random() - .5); const n = Math.min(18, mix.length - mix.length % 3); const pick = mix.slice(0, n);
+  const now = Date.now(); const base = { date: d, time: '21:00', venue: '용산 아이파크몰 The Base 7구장', evpw: '', notice: DEFAULTS.notice || '', capacity: 18, no: 0,
+    captainTokens: { A: null, B: null, C: null }, order: [...KEYS], picks: [], pending: null, timing: { ...DEF_TIMING }, mom: {}, practice: true, sample: true, createdAt: now,
+    teams: Object.fromEntries(KEYS.map(k => [k, { players: [], colorName: null }])), captains: { A: null, B: null, C: null } };
+  let doc;
+  if (kind === 'apply') { const aps = mix.slice(0, 12);
+    doc = { ...base, applyOpen: today() + 'T00:00', applyClose: d + 'T18:00', stage: 'apply', draftStatus: 'ready', applicants: [], waitlist: [], p0: [mix[12]].filter(Boolean), ops: [],
+      apps: aps.map((pid, i) => ({ k: 'sim' + i, pid, uid: 'sim', at: now - (12 - i) * 60000 })) } }
+  else { const closed = { applyOpen: shiftDate(d, 6, '13:00'), applyClose: shiftDate(d, 2, '20:00') }; const per = n / 3;
+    if (kind === 'captain') doc = { ...base, ...closed, capacity: n, stage: 'captain', draftStatus: 'ready', applicants: pick, waitlist: [], apps: pick.map((pid, i) => ({ k: 'sim' + i, pid, uid: 'sim', at: now - (n - i) * 60000 })) };
+    else if (kind === 'draft') doc = { ...base, ...closed, capacity: n, stage: 'draft', draftStatus: 'ready', applicants: pick, waitlist: [], captains: { A: pick[0], B: pick[1], C: pick[2] },
+      room: { open: true, A: { in: true, at: now }, B: { in: true, at: now }, C: { in: true, at: now }, admin: { in: true, name: S.me || '운영진', at: now } } };
+    else { const teams = {}, captains = {}; ['RED', 'BLUE', 'WHITE'].forEach((c, i) => { const ps = pick.slice(i * per, (i + 1) * per); teams[KEYS[i]] = { players: ps, colorName: c }; captains[KEYS[i]] = ps[0] });
+      doc = { ...base, ...closed, capacity: n, stage: 'trade', draftStatus: 'done', applicants: pick, waitlist: [], teams, captains } } }
+  if (await w(() => S.store.set(sp(d), doc), `${fmtDate(d)} ${SIM[kind][0]} 연습 경기를 만들었어요.`)) { if (!S.sessions[d]) S.sessions[d] = doc; S.sid = d; S.tab = 'run'; S.step = SIM[kind][1]; S.planSel = d; render(); window.scrollTo(0, 0) }
+}
 async function clearPractice() {
   const sids = Object.entries(S.sessions).filter(([, s]) => s.practice).map(([id]) => id); if (!sids.length) { toast('연습 경기가 없어요.'); return }
-  if (!confirm(`연습 경기 ${sids.length}개와 그 경기 기록을 지울까요?`)) return;
-  const targets = [...Object.entries(S.events).filter(([, e]) => sids.includes(e.session)).map(([id]) => 'events/' + id), ...Object.entries(S.matches).filter(([, m]) => sids.includes(m.session)).map(([id]) => 'matches/' + id), ...sids.map(id => 'sessions/' + id)];
-  if (await w(async () => { for (const t of targets) await S.store.del(t) }, '연습 경기를 지웠어요.')) { S.mmPick = null; render() }
+  if (!confirm(`연습 경기 ${sids.length}개(${sids.map(fmtDate).join(', ')})와 그 경기의 신청, 드래프트, 채팅, 경기 기록을 모두 지울까요?`)) return;
+  const chats = []; for (const sid of sids) for (const c of await listCol(sp(sid) + '/chat')) chats.push(sp(sid) + '/chat/' + c.id);
+  const targets = [...chats, ...Object.entries(S.events).filter(([, e]) => sids.includes(e.session)).map(([id]) => 'events/' + id), ...Object.entries(S.matches).filter(([, m]) => sids.includes(m.session)).map(([id]) => 'matches/' + id), ...sids.map(id => 'sessions/' + id)];
+  if (await w(async () => { for (const t of targets) await S.store.del(t) }, '연습 데이터를 모두 지웠어요.')) { S.mmPick = null; if (sids.includes(S.sid)) S.sid = null; S.planSel = null; render() }
 }
 async function clearSample() {
   if (!confirm('샘플 데이터(가상 회원, 경기, 기록)를 모두 지울까요? 직접 입력한 데이터는 남아요.')) return;
@@ -1743,6 +1771,7 @@ document.addEventListener('click', async e => {
     case 'pick': await setPending(id); break;
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
+    case 'mksim': if (!needAdmin()) break; await makeSim(el.dataset.k); break;
     case 'mkpractice': if (!needAdmin()) break; await makePractice(); break;
     case 'clrpractice': if (!needAdmin()) break; await clearPractice(); break;
     case 'mmtoggle': audio(); S.tab = S.tab === 'mm' ? 'mhome' : 'mm'; S.sub = null; render(); window.scrollTo(0, 0); break;
