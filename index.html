@@ -1103,6 +1103,27 @@ table.atbl tr.lrow td:nth-child(n+7){text-decoration:none}
 .schfit .sched-ft{padding-top:6px;font-size:13px}
 .schfit .sched{overflow:hidden}
 @media (max-height:740px){.schfit .sched-ft{display:none}.schfit{--rowh:34px}.schfit .scd .ev{display:none}.schfit .tl li{padding:2px 0;font-size:12px}.schfit .cal-leg{display:none}}
+/* v1.0 admin IA */
+.pseg{flex:1;max-width:520px;margin:0}
+.planwrap .scd .no{font-size:10px;font-weight:700;opacity:.75;margin-left:4px}
+.planwrap .scd .ev small+small{font-size:10px;opacity:.85}
+.pside{display:flex;flex-direction:column;gap:12px}
+.pside .sched-hd span .st{margin-right:6px}
+.pgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.pf{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);font-weight:600;min-width:0}
+.pf .inp{min-height:40px;font-size:14px;padding:6px 10px}
+.plinks{display:grid;gap:6px}
+.plink{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);text-align:left;min-height:46px}
+.plink span{font-size:12px;color:var(--muted);font-weight:700;flex:none}
+.plink b{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.plink::after{content:"›";color:var(--muted);font-size:18px;margin-left:4px}
+.pad0{padding:0}
+.runbar{display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap}
+.runbar select{flex:1;min-width:200px;max-width:460px}
+.runbar .navb{width:44px;height:44px;font-size:22px}
+.runtools{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+@media (max-width:1023px){.runtools{margin-left:0;width:100%}.runtools .btn{flex:1}.mg-top{flex-wrap:wrap;gap:8px}.mg-top>.pseg{flex:1 1 100%;max-width:none;display:grid;grid-template-columns:repeat(3,1fr)}.mg-top>.row{flex:1 1 100%}.mg-top>.row .btn{flex:1}.planwrap .scgrid{height:calc(44px * 6)}.planwrap .scd .ev small{display:none}}
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){.planwrap{grid-template-columns:minmax(0,2.2fr) minmax(360px,1fr)}.pside{height:100%;overflow:auto}}
 </style>
 </head>
 <body>

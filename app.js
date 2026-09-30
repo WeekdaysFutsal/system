@@ -225,7 +225,7 @@ async function createSession(f) {
     teams: { A: { players: [] }, B: { players: [] }, C: { players: [] } }, timing: DEF_TIMING, mom: {}, createdAt: Date.now() };
   if (await w(() => S.store.set(sp(sid), doc), '경기일을 만들었어요.')) { S.sid = sid; S.step = 'apply'; S.sheet = null; render() }
 }
-async function setStage(st) { const s = cur(); if (stageIdx(st) > stageIdx(s.stage)) await w(() => S.store.update(sp(S.sid), { stage: st })); if (st === 'notice') { S.tab = 'notice'; S.noticeTab = 'team'; S.step = null; render(); window.scrollTo(0, 0); return } S.step = st; render(); window.scrollTo(0, 0) }
+async function setStage(st) { const s = cur(); if (stageIdx(st) > stageIdx(s.stage)) await w(() => S.store.update(sp(S.sid), { stage: st })); if (st === 'notice') { S.tab = 'run'; S.step = 'notice'; render(); window.scrollTo(0, 0); return } S.step = st; render(); window.scrollTo(0, 0) }
 async function addApplicants(names) {
   const s = cur(); const ids = []; for (const nm of names) { const id = await ensurePlayer(nm); if (id) ids.push(id) }
   if (s.stage === 'apply') { let n = 0; await w(() => S.store.txn(sp(S.sid), d => { const apps = appsOf(d); n = 0; for (const id of ids) if (!apps.some(a => a.pid === id)) { apps.push({ k: rand() + rand(), pid: id, uid: 'admin', at: Date.now() }); n++ } d.apps = apps; return d }), `${ids.length}명을 반영했어요.`); return }
@@ -233,25 +233,6 @@ async function addApplicants(names) {
   await w(() => S.store.update(sp(S.sid), { applicants: cur0 }), `${n}명을 추가했어요.`);
 }
 async function sysChat(text) { if (!S.sid) return; try { await S.store.add(sp(S.sid) + '/chat', { name: '', uid: 'sys', text, at: Date.now() }) } catch { } }
-async function startDraft() {
-  const s = cur(); if (KEYS.some(k => !s.captains?.[k])) { toast('주장 3명을 먼저 정하세요.'); return }
-  if (!pool({ ...s, picks: [] }).length) { toast('지명할 신청자가 없어요.'); return }
-  if (await w(() => S.store.update(sp(S.sid), { draftStatus: 'live', picks: [], stage: 'draft' }))) {
-    const o = s.order || KEYS; sysChat(`드래프트 시작! 순서: ${o.map(k => `${team(s, k).name}(${pname(s.captains[k])})`).join(' → ')}, 이후 역순`) }
-}
-async function doPick(pid) {
-  const s = cur(); const k = pickTeamAt(s, (s.picks || []).length);
-  if (!(S.admin || myTeam(s) === k)) { toast(`${team(s, k).name} 주장 또는 운영진만 지명할 수 있어요.`); return }
-  let done = false;
-  const ok = await w(() => S.store.txn(sp(S.sid), d => {
-    if (!d || d.draftStatus !== 'live') return null; const i = (d.picks || []).length; if (pickTeamAt(d, i) !== k) return null;
-    if (!pool(d).includes(pid)) return null; d.picks = [...(d.picks || []), { t: k, p: pid, at: Date.now() }];
-    if (!pool(d).length) { d.draftStatus = 'done'; d.stage = 'trade'; KEYS.forEach(t => { d.teams = d.teams || {}; d.teams[t] = { ...(d.teams[t] || {}), players: [d.captains[t], ...d.picks.filter(x => x.t === t).map(x => x.p)] } }); done = true }
-    return d }));
-  if (!ok) { toast('이미 지명됐거나 차례가 바뀌었어요.'); return }
-  sysChat(`${(s.picks || []).length + 1}순위 ${team(s, k).name}: ${pname(pid)}`);
-  if (done) { sysChat('드래프트 완료! 밸런스 조정 단계로 넘어가요.'); toast('드래프트가 끝났어요.') }
-}
 async function undoPick() {
   if (!needAdmin()) return; const s = cur(); if (!(s.picks || []).length) return;
   const last = s.picks[s.picks.length - 1];
@@ -375,10 +356,8 @@ function render() {
   let h = appbar() + '<div class="wrap">';
   if (S.err) h += `<div class="notice warn">${esc(S.err)}</div>`;
   if (S.ready < 3) h += '<p class="empty">불러오는 중…</p>';
-  else if (S.tab === 'manage') h += viewManage();
+  else if (S.tab === 'manage') h += viewPlan();
   else if (S.tab === 'run') h += viewRun();
-  else if (S.tab === 'recs') h += viewRecs();
-  else if (S.tab === 'notice') h += viewNoticeAdmin();
   else if (S.tab === 'members') h += viewMembers();
   else if (S.tab === 'home') h += viewManage();
   else if (S.tab === 'draft' && S.dm && cur() && myTeam(cur()) && cur().draftStatus !== 'done') h += `<div class="dmroot">${vDraft(cur())}</div>`;
@@ -386,8 +365,7 @@ function render() {
   else if (S.tab === 'mhome') h += S.sub === 'applist' && cur() ? viewApplicants() : viewMHome();
   else if (S.tab === 'sched') h += viewSchedule();
   else if (S.tab === 'results') h += viewResults();
-  else if (S.tab === 'mstats') h += viewMStats();
-  else if (S.tab === 'stats') h += viewStats(); else h += viewSettings();
+  else h += viewSettings();
   h += '</div>' + tabs();
   if (S.openMatch && S.matches[S.openMatch]) h += viewMatch();
   if (S.sheet) h += viewSheet();
@@ -406,11 +384,11 @@ function render() {
 function appbar() {
   const s = S.sid ? S.sessions[S.sid] : null; const back = false;
   return `<header class="appbar"><div class="in">${back ? '<button class="back" data-act="home" aria-label="경기일 목록">‹</button>' : `<img src="${EMBLEM_SRC}" alt="홈으로" data-act="gohome" style="cursor:pointer">`}
-  <div class="ttl" data-act="gohome" role="button" tabindex="0" aria-label="홈으로"><b>${esc(CFG.club?.name || 'WEEKDAYS FUTSAL CLUB')}</b><span>${s && S.admin && (S.tab === 'run' || S.tab === 'notice') ? `${fmtDate(s.date)} ${esc(s.time || '')} ${esc(s.venue || '')}` : ''}</span></div>
+  <div class="ttl" data-act="gohome" role="button" tabindex="0" aria-label="홈으로"><b>${esc(CFG.club?.name || 'WEEKDAYS FUTSAL CLUB')}</b><span>${s && S.admin && S.tab === 'run' ? `${fmtDate(s.date)} ${esc(s.time || '')} ${esc(s.venue || '')}` : ''}</span></div>
   <button class="gear" data-act="tab" data-v="settings" aria-label="설정">⚙</button><button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">${S.admin ? '운영 중' : '운영모드'}</button></div></header>`;
 }
 function tabs() {
-  const t = S.admin ? [['manage', '경기관리'], ['run', '경기진행'], ['recs', '기록관리'], ['notice', '공지관리'], ['members', '회원관리']] : [...(myTeam(cur()) ? [['draft', '드래프트']] : []), ['mhome', '홈'], ['sched', '일정'], ['results', '경기결과']];
+  const t = S.admin ? [['manage', '일정'], ['run', '경기'], ['members', '회원'], ['settings', '설정']] : [...(myTeam(cur()) ? [['draft', '드래프트']] : []), ['mhome', '홈'], ['sched', '일정'], ['results', '경기결과']];
   return `<div class="tabs"><nav style="grid-template-columns:repeat(${t.length},1fr)">${t.map(([k, n]) => `<button data-act="tab" data-v="${k}" ${S.tab === k ? 'aria-current="page"' : ''}>${n}</button>`).join('')}</nav></div>` }
 function sessionPicker() { const ids = Object.keys(S.sessions).sort().reverse(); if (ids.length < 2) return '';
   return `<label class="sr" for="sidpick">경기일 선택</label><select id="sidpick" class="inp" style="margin-top:12px" data-in="sidpick">${ids.map(id => `<option value="${id}" ${id === S.sid ? 'selected' : ''}>${fmtDate(id)} ${esc(S.sessions[id].time || '')}</option>`).join('')}</select>` }
@@ -477,7 +455,6 @@ function capLinksPanel(s) {
     return `<div class="slot">${tag(team(s, k))}<span class="who ${c ? '' : 'empty'}">${c ? esc(pname(c)) : '주장 미지정'}</span>${c ? `<button class="btn sm" data-act="caplink" data-k="${k}" data-how="share">보내기</button><button class="btn sm" data-act="caplink" data-k="${k}" data-how="copy">복사</button>` : ''}</div>` }).join('')}</div>
   <p class="note">주장을 바꾸면 이전 링크는 더 이상 쓸 수 없어요.</p>`;
 }
-function snakePreview(s, from, n) { const out = []; const tot = draftTotal(s); for (let i = from; i < Math.min(tot, from + n); i++) out.push(pickTeamAt(s, i)); return out }
 /* ───────── draft room (board game) ───────── */
 const LADDER_MS = 4200;
 const CARD_REVEAL_MS = 2600;
@@ -540,7 +517,6 @@ function recolorBtns(s, my) {
   if (S.admin) { const ks = KEYS.filter(k => team(s, k).picked); return ks.length ? `<div class="admsel"><small>색 다시 고르기</small>${ks.map(k => `<button class="btn sm" data-act="recolor" data-k="${k}">${esc(team(s, k).name)} 해제</button>`).join('')}</div>` : '' }
   return my && team(s, my).picked ? `<button class="btn sm" data-act="recolor" data-k="${my}">↺ 우리 팀 색 다시 고르기</button>` : '';
 }
-function colorChooser(s) { const o = s.order || []; return o.find(k => !team(s, k).picked) || null }
 function feltHTML(s, ph) {
   const my = myTeam(s);
   if (ph === 'closed') return `<div class="fx"><b>드래프트 방이 아직 열리지 않았어요</b><p>운영진이 방을 열면 입장할 수 있어요.</p></div>`;
@@ -791,19 +767,6 @@ function viewSheet() {
     h += `<h4>${esc(t.name)} MOM</h4><p>주장이 고른 선수를 눌러 주세요.</p><div class="pick">${teamPlayers(s, sh.k).map(id => `<button class="${c === id ? 'cur' : ''}" data-act="pickmom" data-id="${id}">${esc(pname(id))}</button>`).join('')}${c ? '<button class="alt" data-act="pickmom" data-id="">선택 취소</button>' : ''}</div>` }
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
-function viewStats() {
-  const sorts = [['pts', '공격포인트'], ['g', '골'], ['a', '도움'], ['mom', 'MOM'], ['wr', '승률'], ['wins', '1위'], ['cap', '주장'], ['days', '출전']];
-  const rows = playerStats(); const key = S.statsSort; const val = (r, k) => k === 'pts' ? r.g + r.a : k === 'wr' ? (r.gp ? r.w / r.gp : -1) : r[k];
-  rows.sort((x, y) => val(y, key) - val(x, key) || (y.g + y.a) - (x.g + x.a) || S.players[x.id].name.localeCompare(S.players[y.id].name, 'ko')); const c = k => key === k ? 'hl' : '';
-  const mine = rows.find(r => S.players[r.id]?.name === S.me);
-  let h = mine ? `<h2>내 기록<small>${esc(pname(mine.id))}</small></h2><div class="mystats">${[['골', mine.g], ['도움', mine.a], ['MOM', mine.mom], ['승률', mine.gp ? Math.round(mine.w / mine.gp * 100) + '%' : '-'], ['경기', mine.gp], ['출전', mine.days + '일']].map(([l, v]) => `<div><b>${v}</b><span>${l}</span></div>`).join('')}</div>` : '';
-  h += `<h2>누적 개인 기록<small>경기 일정이 만들어진 날만 집계</small></h2><div class="sorts">${sorts.map(([k, n]) => `<button data-act="sort" data-k="${k}" aria-pressed="${key === k}">${n}</button>`).join('')}</div>
-  <div class="panel tblwrap">${rows.length ? `<table class="stats"><thead><tr><th>선수</th><th>골</th><th>도움</th><th>공P</th><th>MOM</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>승률</th><th>1위</th><th>주장</th><th>출전</th></tr></thead><tbody>
-  ${rows.map(r => `<tr ${r === mine ? 'class="me"' : ''}><td>${esc(pname(r.id))}</td><td class="${c('g')}">${r.g}</td><td class="${c('a')}">${r.a}</td><td class="${c('pts')}">${r.g + r.a}</td><td class="${c('mom')}">${r.mom}</td><td>${r.gp}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td class="${c('wr')}">${r.gp ? Math.round(r.w / r.gp * 100) + '%' : '-'}</td><td class="${c('wins')}">${r.wins}</td><td class="${c('cap')}">${r.cap}</td><td class="${c('days')}">${r.days}</td></tr>`).join('')}</tbody></table>` : '<p class="empty">경기를 치르면 기록이 쌓여요.</p>'}</div>
-  <p class="note">표는 옆으로 밀어서 볼 수 있어요. 1위는 9경기를 모두 마친 날 팀 1위 횟수, 출전은 참가한 날 수예요.</p>`;
-
-  return h;
-}
 function viewSettings() {
   return `<h2>내 정보<small>이름 + 비밀번호 4자리로 로그인해요</small></h2>${loginCard()}
   <h2>휘슬</h2><div class="panel pad"><button class="btn block" data-act="whistle">${S.whistle ? '🔊 이 폰에서 휘슬 켜짐' : '🔇 이 폰에서 휘슬 꺼짐'}</button><p class="note">웹에서는 휘슬이 울리려면 경기 화면을 켜 두어야 해요.</p></div>
@@ -939,26 +902,6 @@ function viewResults() {
 }
 
 const RANKS = [['g', '득점'], ['days', '참가']];
-function viewMStats() {
-  const rows = playerStats(); const me = myPid(); const r = rows.find(x => x.id === me); const key = S.rankKey || 'g';
-  let h = '';
-  if (!S.me) h += `<div class="panel pad namebox"><b>내 기록을 보려면 이름을 알려 주세요</b><p class="muted">팀 명단에 적히는 이름 그대로 적어 주세요.</p><div style="display:flex;gap:8px"><input class="inp" type="text" id="nm" maxlength="12" placeholder="이름"><button class="btn primary" data-act="setname">확인</button></div></div>`;
-  else if (!r) h += `<div class="notice">${esc(S.me)} 님의 경기 기록이 아직 없어요. 이름이 팀 명단과 다르면 설정에서 바꿔 주세요.</div>`;
-  else { const wr = r.gp ? Math.round(r.w / r.gp * 100) : null;
-    h += `<div class="me-hero"><div class="me-name">${esc(pname(me))}</div><div class="me-grid">
-      ${[['참가', r.days, '회', rankOf(rows, 'days', me)], ['경기', r.gp, '경기', null], ['득점', r.g, '골', r.g ? rankOf(rows, 'g', me) : null]].map(([l, v, u, rk]) => `<div><span>${l}</span><b>${v}<small>${u}</small></b>${rk ? `<em>${rk}위</em>` : ''}</div>`).join('')}</div></div>` }
-  h = '<div class="dgrid"><section>' + h + '</section><section>';
-  h += `<h2>순위</h2><div class="seg" role="tablist">${RANKS.map(([k, n]) => `<button role="tab" data-act="rank" data-k="${k}" aria-selected="${key === k}">${n}</button>`).join('')}</div>`;
-  const val = x => x[key];
-  const list = rows.filter(x => val(x) > 0).sort((a, b) => val(b) - val(a) || a.days - b.days);
-  if (!list.length) return h + `<div class="panel"><p class="empty">아직 기록이 없어요.</p></div></section></div>`;
-  let rank = 0; const shown = list.slice(0, 30);
-  h += `<div class="panel lb">${shown.map((x, i) => { if (i === 0 || val(shown[i - 1]) !== val(x)) rank = i + 1; const v = key === 'wr' ? Math.round(val(x) * 100) + '%' : val(x) + (key === 'days' ? '회' : key === 'g' ? '골' : '');
-    return `<div class="lb-row ${x.id === me ? 'me' : ''}"><em class="rk rk${rank}">${rank}</em><b>${esc(pname(x.id))}</b><small>${key === 'g' ? `${x.days}회 참가` : key === 'days' ? `${x.gp}경기` : key === 'wr' ? `${x.w}승 ${x.d}무 ${x.l}패` : `${x.g}골 ${x.a}도움`}</small><span>${v}</span></div>` }).join('')}</div>`;
-  if (key === 'wr') h += `<p class="note">승률은 5경기 이상 뛴 선수만 표시해요.</p>`;
-  if (me && r && !shown.find(x => x.id === me) && val(r) > 0) h += `<p class="note">내 순위: ${rankOf(list, key === 'wr' ? 'g' : key, me)}위</p>`;
-  return h + '</section></div>';
-}
 function viewApplicants() { const s = cur(); const me = myPid();
   if (s.stage === 'apply') { const c = classify(s); const mine = myApp(s);
     const chip = r => `<span class="chip ${(mine && mine.k === r.k) ? 'sel' : ''}"><small class="muted">${r.auto ? '자동' : r.n}</small> ${r.pid ? esc(pname(r.pid)) : '이름 입력 대기'}${r.sel ? `<b class="tb t${r.tier}">${TIER[r.tier]}</b>` : ''}</span>`;
@@ -971,15 +914,15 @@ function viewApplicants() { const s = cur(); const me = myPid();
 async function deleteSessionBy(sid) { if (!confirm(fmtDate(sid) + ' 경기를 통째로 지울까요? 신청자, 경기 기록도 함께 지워지고 되돌릴 수 없어요.')) return;
   const ok = await w(async () => { for (const [eid, ev] of Object.entries(S.events)) if (ev.session === sid) await S.store.del('events/' + eid); for (const mm of sessMatches(sid)) await S.store.del(mp(mm.id)); await S.store.del(sp(sid)) }, '삭제했어요.');
   if (ok && S.sid === sid) S.sid = null; render() }
-const RUN_STEPS = STAGES.filter(([k]) => k !== 'notice');
+const RUN_STEPS = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스'], ['notice', '팀 공지'], ['match', '경기'], ['result', '결과']];
+function stepDone(s, k) { if (k === 'result' || k === 'match') { const ms = sessMatches(s.date); return ms.length > 0 && ms.every(m => m.status === 'done') } if (k === 'notice') return stageIdx(s.stage) > stageIdx('notice'); return stageIdx(k) < stageIdx(s.stage) }
 function shiftDate(sid, days, time) { const d = new Date(sid + 'T00:00'); d.setDate(d.getDate() - days); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${time || '12:00'}` }
 function adminSid() { if (S.sid && S.sessions[S.sid]) return S.sid; return defaultSid() }
-function viewManage() {
+function viewManageList() {
   const t = today(); const f = S.mfilter || 'up';
   let ids = Object.keys(S.sessions).sort(); if (f === 'up') ids = ids.filter(id => id >= t); else if (f === 'past') ids = ids.filter(id => id < t).reverse();
   const all = Object.keys(S.sessions); const up = all.filter(id => id >= t).length;
-  let h = `<div class="mg-top"><h2 style="margin:0">경기 목록</h2><div class="row" style="gap:6px"><button class="btn sm" data-act="fillnos">회차 자동 채우기</button><button class="btn primary sm" data-act="caladd">＋ 달력에서 경기 추가</button></div></div>
-  <div class="seg" role="tablist" style="margin-top:12px">${[['up', `예정 ${up}`], ['past', `지난 ${all.length - up}`], ['all', `전체 ${all.length}`]].map(([k, n]) => `<button role="tab" data-act="mfilter" data-k="${k}" aria-selected="${f === k}">${n}</button>`).join('')}</div>`;
+  let h = `<div class="seg" role="tablist" style="margin-top:12px">${[['up', `예정 ${up}`], ['past', `지난 ${all.length - up}`], ['all', `전체 ${all.length}`]].map(([k, n]) => `<button role="tab" data-act="mfilter" data-k="${k}" aria-selected="${f === k}">${n}</button>`).join('')}</div>`;
   if (!ids.length) return h + `<div class="panel"><p class="empty">${f === 'up' ? '예정된 경기가 없어요. 달력에서 경기를 추가해 보세요.' : '경기가 없어요.'}</p></div>`;
   h += `<div class="panel sheetwrap"><table class="grid"><thead><tr><th class="stick">날짜</th><th>회차</th><th>시간</th><th>장소</th><th>정원</th><th>예약자 · 운영자</th><th>신청</th><th>공당 · 물당</th><th>주차</th><th>신청 오픈</th><th>신청 마감</th><th>상태</th><th>관리</th></tr></thead><tbody>
   ${ids.map(id => { const s = S.sessions[id]; const st = sStatus(s); const movable = !sessMatches(id).length;
@@ -1047,39 +990,22 @@ async function moveSession() {
   if (ok) { if (S.sid === from) S.sid = to; S.sheet = null; S.cal = null; toast(`${fmtDate(to)}로 옮겼어요.`); render() }
 }
 function viewRun() {
-  const sid = adminSid(); if (!sid) return `<div class="panel" style="margin-top:14px"><p class="empty">경기가 없어요. 경기관리에서 먼저 추가하세요.</p></div>`;
-  S.sid = sid; const s = S.sessions[sid]; let step = S.step || s.stage; if (step === 'notice') step = 'trade'; const si = stageIdx(s.stage);
-  if (step === 'draft' && S.dm) return `<div class="dmroot"><nav class="steps dmsteps" aria-label="진행 단계">${RUN_STEPS.map(([k, n], i) => `<button data-act="step" data-v="${k}" class="${stageIdx(k) < si ? 'done' : ''}" ${k === step ? 'aria-current="step"' : ''}>${i + 1} ${n}</button>`).join('')}</nav>${vDraft(s)}</div>`;
-  let h = sessionPicker() + `<nav class="steps" aria-label="진행 단계">${RUN_STEPS.map(([k, n], i) => `<button data-act="step" data-v="${k}" class="${stageIdx(k) < si ? 'done' : ''}" ${k === step ? 'aria-current="step"' : ''}><i>${i + 1}</i>${n}</button>`).join('')}</nav>`;
-  h += ({ apply: vApply, captain: vCaptain, draft: vDraft, trade: vTrade, match: vMatchDay })[step](s);
+  const sid = adminSid(); if (!sid) return `<div class="panel" style="margin-top:14px"><p class="empty">경기가 없어요. 일정 메뉴에서 먼저 추가하세요.</p></div>`;
+  S.sid = sid; const s = S.sessions[sid]; const ms = sessMatches(sid);
+  let step = S.step || (s.stage === 'match' && ms.length && ms.every(m => m.status === 'done') ? 'result' : s.stage);
+  const nav = cls => `<nav class="steps ${cls}" aria-label="진행 단계">${RUN_STEPS.map(([k, n], i) => `<button data-act="step" data-v="${k}" class="${stepDone(s, k) ? 'done' : ''}" ${k === step ? 'aria-current="step"' : ''}><i>${i + 1}</i>${n}</button>`).join('')}</nav>`;
+  if (step === 'draft' && S.dm) return `<div class="dmroot">${nav('dmsteps')}${vDraft(s)}</div>`;
+  const ids = Object.keys(S.sessions).sort(); const i = ids.indexOf(sid);
+  let h = `<div class="runbar"><button class="navb" data-act="runpick" data-id="${ids[i - 1] || ''}" ${ids[i - 1] ? '' : 'disabled'} aria-label="이전 경기">‹</button>
+    <label class="sr" for="sidpick">경기 선택</label><select id="sidpick" class="inp" data-in="sidpick">${ids.slice().reverse().map(id => `<option value="${id}" ${id === sid ? 'selected' : ''}>${fmtDate(id)} ${esc(S.sessions[id].time || '')}${S.sessions[id].no ? ` · ${S.sessions[id].no}회` : ''} · ${esc(S.sessions[id].venue || '')}</option>`).join('')}</select>
+    <button class="navb" data-act="runpick" data-id="${ids[i + 1] || ''}" ${ids[i + 1] ? '' : 'disabled'} aria-label="다음 경기">›</button>
+    <div class="runtools"><button class="btn sm" data-act="dutyedit" data-id="${sid}">⚽🥤 당번</button><button class="btn sm" data-act="parkedit" data-id="${sid}">🚗 주차</button><button class="btn sm" data-act="impopen">📋 기록 붙여넣기</button></div></div>` + nav('');
+  if (step === 'notice') h += s.draftStatus === 'done' ? vNotice(s) : `<div class="panel pad" style="margin-top:14px"><p class="empty" style="padding:8px 0">드래프트와 밸런스 조정이 끝나면 팀 공지 이미지를 만들 수 있어요.</p></div>`;
+  else if (step === 'result') h += ms.length ? vResultDetail(s) + `<p class="note">골과 도움은 "경기" 단계에서 각 경기를 눌러 고쳐요.</p>` : `<div class="panel pad" style="margin-top:14px"><p class="empty" style="padding:8px 0">아직 경기 기록이 없어요. 팀 공지 단계에서 경기 일정을 만들거나, "기록 붙여넣기"로 지난 기록을 넣을 수 있어요.</p></div>`;
+  else h += ({ apply: vApply, captain: vCaptain, draft: vDraft, trade: vTrade, match: vMatchDay })[step](s);
   return h;
 }
 function recruitText(s) { return [`[${CFG.club?.short || 'WF'}] ${fmtDate(s.date)} ${s.time || ''} 경기 신청 받아요`, `장소: ${s.venue || '-'}`, `정원: ${s.capacity || '-'}명`, s.applyClose ? `마감: ${fmtDT(s.applyClose)}` : '', '카톡 투표로 참여해 주세요!'].filter(Boolean).join('\n') }
-function viewNoticeAdmin() {
-  const nt = S.noticeTab || 'month';
-  let h = `<div class="seg ntabs" role="tablist" style="margin-top:16px">${[['month', '📅 월간 공지 생성'], ['team', '👥 팀 공지 생성']].map(([k, n]) => `<button role="tab" data-act="ntab" data-k="${k}" aria-selected="${nt === k}">${n}</button>`).join('')}</div>`;
-  if (nt === 'month') {
-    if (!Object.keys(S.sessions).length) return h + `<div class="panel"><p class="empty">경기가 없어요. 경기관리에서 한 달 일정을 먼저 추가하세요.</p></div>`;
-    h += schedPanel();
-    const sid = adminSid(); const s = S.sessions[sid];
-    if (s) h += `<h2>경기별 신청 안내 글<small>카톡 투표와 함께 올릴 글</small></h2>` + sessionPicker() + `<div class="panel pad" style="margin-top:10px"><pre class="pre">${esc(recruitText(s))}</pre><button class="btn block" data-act="copyrecruit">신청 안내 글 복사</button></div>`;
-    return h;
-  }
-  const done = Object.keys(S.sessions).filter(id => S.sessions[id].draftStatus === 'done').sort().reverse();
-  if (!done.length) return h + `<div class="panel pad"><p class="empty" style="padding:10px 0">아직 팀 선정이 끝난 경기가 없어요. 경기진행에서 드래프트를 마치면 여기서 팀 공지 이미지를 만들 수 있어요.</p></div>`;
-  if (!done.includes(S.sid)) { const up = done.filter(id => id >= today()); S.sid = up.length ? up[up.length - 1] : done[0] }
-  const s = S.sessions[S.sid];
-  h += `<label class="sr" for="teamsid">경기 선택</label><select id="teamsid" class="inp" style="margin-top:12px;max-width:420px" data-in="sidpick">${done.map(id => `<option value="${id}" ${id === S.sid ? 'selected' : ''}>${fmtDate(id)} ${esc(S.sessions[id].time || '')} · ${esc(S.sessions[id].venue || '')}</option>`).join('')}</select>`;
-  h += vNotice(s);
-  return h;
-}
-function viewRecs() {
-  const ib = S.admin ? `<div class="row" style="margin-top:16px"><button class="btn primary" data-act="impopen">📋 경기 기록 붙여넣기</button></div>` : '';
-  const ids = pastSids();
-  let h = ib + `<h2>경기 결과 수정<small>눌러서 골과 도움을 고칠 수 있어요</small></h2><div class="panel">${ids.length ? ids.map(id => { const s = S.sessions[id]; const top = standings(id)[0];
-    return `<button class="card" data-act="gorun" data-id="${id}" data-step="match"><span><span class="d">${fmtDate(id)}</span><br><span class="s">${sessMatches(id).filter(m => m.status === 'done').length}/9경기, ${Object.values(S.events).filter(e => e.session === id).length}골</span></span><span class="r">${bib(team(s, top.k).color)} ${esc(team(s, top.k).name)} 1위</span></button>` }).join('') : '<p class="empty">아직 끝난 경기가 없어요.</p>'}</div>`;
-  return h;
-}
 
 /* ───────── sample data ───────── */
 function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296 } }
@@ -1208,17 +1134,6 @@ async function freezeApps(s) {
   if ((!Array.isArray(s.apps) && !autoIds(s).length) || s.stage !== 'apply') return true; const c = classify(s); const nn = c.rows.filter(r => !r.pid).length;
   if (nn && !confirm(`이름을 입력하지 않은 신청 ${nn}건은 드래프트 명단에서 빠져요. 계속할까요?`)) return false;
   return await w(() => S.store.update(sp(s.date), { applicants: c.sel.filter(r => r.pid).map(r => r.pid), waitlist: c.wait.filter(r => r.pid).map(r => r.pid) }));
-}
-function vApplyList(s) {
-  const ad = S.admin; const c = classify(s); const prev = c.prev;
-  const row = r => r.auto ? `<div class="arow"><em>자동</em><span class="an">${esc(pname(r.pid))}<small class="role"> ${roleOf(s, r.pid)}</small></span><b class="t0">0순위</b><small>자동 신청</small>${ad ? `<span class="aa"><button class="btn sm" data-act="staffedit" data-id="${s.date}">변경</button></span>` : ''}</div>`
-    : `<div class="arow ${r.sel ? '' : 'w'}"><em>${r.n}</em><span class="an">${r.pid ? esc(pname(r.pid)) + (roleOf(s, r.pid) ? `<small class="role"> ${roleOf(s, r.pid)}</small>` : '') : '<i>이름 입력 대기</i>'}</span>${r.tier === 0 ? '<b class="t0">0순위</b>' : r.tier === 1 ? '<b class="t1">1순위</b>' : r.sel ? '<b class="t2">2순위</b>' : `<b class="tw">대기 ${r.wn}</b>`}<small>${r.at ? new Date(r.at).toTimeString().slice(0, 8) : ''}</small>
-    ${ad ? `<span class="aa">${r.pid ? `<button class="btn sm" data-act="p0toggle" data-id="${r.pid}">${(s.p0 || []).includes(r.pid) ? '예약자 해제' : '예약자'}</button>` : `<button class="btn sm" data-act="appnameadmin" data-id="${r.k}">이름</button>`}<button class="btn sm danger" data-act="apprm" data-id="${r.k}" aria-label="삭제">×</button></span>` : ''}</div>`;
-  const sec = (title, list, note) => list.length ? `<div class="asec"><div class="ahd">${title}<small>${list.length}명${note ? ' · ' + note : ''}</small></div>${list.map(row).join('')}</div>` : '';
-  const sel = c.sel;
-  let h = `<div class="panel alist">${c.rows.length ? sec('0순위', sel.filter(r => r.tier === 0), '구장 예약자, 경기 운영자 (신청 안 해도 자동 참가)') + sec('1순위', sel.filter(r => r.tier === 1), prev ? `${fmtDate(prev)} 경기 미참여` : '직전 경기 없음') + sec('2순위', sel.filter(r => r.tier === 2), '선착순') + sec('대기', c.wait, '선착순') : '<p class="empty">아직 신청자가 없어요.</p>'}</div>`;
-  h += `<p class="note">선발 ${sel.length}${s.capacity ? ' / ' + s.capacity : ''}명, 대기 ${c.wait.length}명. 0순위(구장예약자, 경기운영자)는 정원과 상관없이 선발되고, 남은 자리는 1순위 → 2순위 순으로 신청 순서대로 채워져요. 운영진 회원은 회원관리에서 "운영진"으로 표시하면 자동으로 0순위가 돼요.</p>`;
-  return h;
 }
 
 /* ───────── duties & parking ───────── */
@@ -1477,6 +1392,44 @@ function loginCard() {
   return `<div class="panel">${loginFields('lg', S.me)}<div class="pad" style="padding-top:4px"><button class="btn primary block" data-act="login">로그인</button></div></div>`;
 }
 
+/* ───────── admin: 일정 (calendar + list + monthly notice) ───────── */
+function viewPlan() {
+  const mv = S.mview || 'cal';
+  let h = `<div class="mg-top"><div class="seg pseg" role="tablist">${[['cal', '📅 달력'], ['list', '📋 목록'], ['poster', '🖼 월간 일정표']].map(([k, n]) => `<button role="tab" data-act="mview" data-k="${k}" aria-selected="${mv === k}">${n}</button>`).join('')}</div>
+    <div class="row" style="gap:6px"><button class="btn sm" data-act="fillnos">회차 자동 채우기</button><button class="btn primary sm" data-act="caladd">＋ 경기 추가</button></div></div>`;
+  if (mv === 'list') return h + viewManageList();
+  if (mv === 'poster') { if (S.planM) S.schedYm = S.planM; return h + (Object.keys(S.sessions).length ? schedPanel() : `<div class="panel"><p class="empty">경기를 먼저 추가하세요.</p></div>`) }
+  const all = Object.keys(S.sessions).sort(); const nx = nextSid();
+  if (!S.planSel) S.planSel = nx || all[all.length - 1] || today();
+  const ym = S.planM || S.planSel.slice(0, 7); S.planM = ym; const [y, m] = ym.split('-').map(Number);
+  const first = new Date(y, m - 1, 1), days = new Date(y, m, 0).getDate(), pad = first.getDay(), t = today(); const rows = Math.ceil((pad + days) / 7);
+  let cells = ''; for (let i = 0; i < pad; i++) cells += '<span class="scd blank"></span>';
+  for (let d = 1; d <= days; d++) { const id = `${y}-${p2(m)}-${p2(d)}`; const s = S.sessions[id]; const wd = (pad + d - 1) % 7; const st = s ? sStatus(s) : null;
+    cells += `<button class="scd${s ? ' has st-' + st.k : ''}${id === t ? ' today' : ''}${id === S.planSel ? ' sel' : ''}${id < t ? ' past' : ''}${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}" data-act="planday" data-id="${id}"><span class="dn">${d}${s?.no ? `<small class="no">${s.no}회</small>` : ''}</span>${s ? `<em class="ev"><b>${esc((s.time || '').slice(0, 5))}</b><small>${esc(s.venue || '')}</small><small>${st.label} · ${appCounts(s).sel}/${s.capacity || '-'}</small></em>` : ''}</button>` }
+  for (let i = pad + days; i < rows * 7; i++) cells += '<span class="scd blank"></span>';
+  const cnt = all.filter(id => id.startsWith(ym)).length;
+  const cal = `<div class="scal panel"><div class="cal-hd"><button data-act="planm" data-d="-1" aria-label="이전 달">‹</button><b>${y}년 ${m}월<small>${cnt ? ` · 경기 ${cnt}회` : ''}</small></b><button data-act="planm" data-d="1" aria-label="다음 달">›</button></div>
+    <div class="scw">${'일월화수목금토'.split('').map((x, i) => `<span class="${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${x}</span>`).join('')}</div>
+    <div class="scgrid" style="grid-template-rows:repeat(${rows},minmax(0,1fr))">${cells}</div>
+    <div class="cal-leg"><span><i class="lg-open"></i>신청 중</span><span><i class="lg-game"></i>경기</span><span><i class="lg-done"></i>종료</span><span>빈 날짜를 누르면 경기를 추가할 수 있어요</span></div></div>`;
+  return h + `<div class="schwrap planwrap">${cal}<div class="schdetail">${planSide(S.planSel)}</div></div>`;
+}
+function planSide(id) {
+  const s = S.sessions[id];
+  if (!s) return `<div class="panel sched pside"><div class="sched-hd"><div><b>${fmtDate(id)}</b><span>경기가 없는 날이에요</span></div></div><div class="pad0"><button class="btn primary block" data-act="caladdon" data-id="${id}">＋ 이 날 경기 추가</button></div></div>`;
+  const st = sStatus(s); const movable = !sessMatches(id).length; const c = appCounts(s);
+  const f = (lab, fld, type, extra = '') => `<label class="pf"><span>${lab}</span><input class="inp" type="${type}" value="${esc(s[fld] ?? '')}" data-in="cell" data-sid="${id}" data-f="${fld}" ${extra}></label>`;
+  return `<div class="panel sched pside"><div class="sched-hd"><div><b>${fmtDate(id)}${s.no ? ` · ${s.no}회` : ''}</b><span><span class="st st-${st.k}">${st.label}</span> 선발 ${c.sel}${s.capacity ? '/' + s.capacity : ''}명${c.wait ? `, 대기 ${c.wait}` : ''}</span></div><span class="dday sm">${dday(id)}</span></div>
+    <button class="btn primary block" data-act="gorun" data-id="${id}">이 경기 진행 화면 열기 →</button>
+    <div class="pgrid">${f('회차', 'no', 'number', 'min="1"')}${f('시간', 'time', 'time')}${f('장소', 'venue', 'text')}${f('정원', 'capacity', 'number', 'min="3"')}${f('신청 오픈', 'applyOpen', 'datetime-local')}${f('신청 마감', 'applyClose', 'datetime-local')}</div>
+    <div class="plinks">
+      <button class="plink" data-act="staffedit" data-id="${id}"><span>구장 예약자 · 운영자</span><b>${esc(idsToNames(s.p0) || '-')} · ${esc(idsToNames(s.ops) || '-')}</b></button>
+      <button class="plink" data-act="dutyedit" data-id="${id}"><span>공당 · 물당</span><b>${(s.duty?.ball || []).length || (s.duty?.drink || []).length ? `${esc(idsToNames(s.duty?.ball) || '-')} · ${esc(idsToNames(s.duty?.drink) || '-')}` : applyClosed(s) ? '지정하기' : '신청 마감 후 지정'}</b></button>
+      <button class="plink" data-act="parkedit" data-id="${id}"><span>주차</span><b>신청 ${parkApps(s).length}명${(s.parkWin || []).length ? ' · 당첨 ' + esc(idsToNames(s.parkWin)) : ''}</b></button>
+    </div>
+    <div class="row" style="margin-top:auto">${movable ? `<button class="btn sm" data-act="calmove" data-id="${id}">날짜 옮기기</button>` : ''}<button class="btn sm danger" data-act="delrow" data-id="${id}">경기 삭제</button></div></div>`;
+}
+
 /* ───────── members (admin) ───────── */
 const MSTAT = { active: '정회원', guest: '게스트', dormant: '휴면' };
 function mstatus(p) { return p.status || (p.guest ? 'guest' : 'active') }
@@ -1601,10 +1554,14 @@ document.addEventListener('click', async e => {
     case 'ord': { const o = [...(s.order || KEYS)]; const i = +el.dataset.i, j = i + (+el.dataset.d); [o[i], o[j]] = [o[j], o[i]]; await w(() => S.store.update(sp(S.sid), { order: o })); break }
     case 'lottery': { const o = [...KEYS]; for (let i = 2; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [o[i], o[j]] = [o[j], o[i]] }
       if (await w(() => S.store.update(sp(S.sid), { order: o }), '순번을 추첨했어요.')) sysChat(`순번 추첨 결과: ${o.map((k, i) => `${i + 1}번 ${team(s, k).name}`).join(', ')}`); break }
-    case 'startdraft': if (!needAdmin()) break; if (!confirm('드래프트를 시작할까요? 시작하면 주장과 순번은 바꿀 수 없어요.')) break; await startDraft(); S.step = 'draft'; render(); break;
     case 'pick': await setPending(id); break;
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
+    case 'mview': S.mview = el.dataset.k; render(); break;
+    case 'planday': S.planSel = id; render(); break;
+    case 'planm': { const [yy, mm] = S.planM.split('-').map(Number); const d = new Date(yy, mm - 1 + (+el.dataset.d), 1); S.planM = `${d.getFullYear()}-${p2(d.getMonth() + 1)}`; S.schedYm = S.planM; render(); break }
+    case 'caladdon': { if (!needAdmin()) break; const d = new Date(id + 'T00:00'); S.cal = { mode: 'add', y: d.getFullYear(), m: d.getMonth(), sel: [id], f: { time: DEFAULTS.time, venue: DEFAULTS.venue, capacity: DEFAULTS.capacity || 18, openD: DEFAULTS.openDays, openT: DEFAULTS.openTime, closeD: DEFAULTS.closeDays, closeT: DEFAULTS.closeTime, no: nextNoFor(id) } }; S.sheet = { type: 'cal' }; render(); break }
+    case 'runpick': if (!id) break; S.sid = id; S.step = null; S.sel = null; render(); window.scrollTo(0, 0); break;
     case 'fillnos': if (!needAdmin()) break; await fillNos(); break;
     case 'login': { const pid = await loginFlow(document.getElementById('lg-name')?.value, document.getElementById('lg-pin')?.value, document.getElementById('lg-auto')?.checked); if (pid) { toast(`${pname(pid)} 님, 반가워요!`); render() } break }
     case 'logout': if (confirm('로그아웃할까요?')) logout(); break;
@@ -1684,7 +1641,7 @@ document.addEventListener('click', async e => {
       if (await w(async () => { for (const m of list) { await saveMember(m); n++ } })) { S.sheet = null; toast(`${n}명을 등록했어요.`); render() } break }
     case 'mfilter': S.mfilter = el.dataset.k; render(); break;
     case 'gorun': S.sid = id; S.tab = 'run'; S.step = el.dataset.step || null; S.sel = null; render(); window.scrollTo(0, 0); break;
-    case 'gonotice': S.sid = id; S.tab = 'notice'; S.noticeTab = S.sessions[id]?.draftStatus === 'done' ? 'team' : 'month'; if (S.noticeTab === 'month') S.schedYm = id.slice(0, 7); render(); window.scrollTo(0, 0); break;
+    case 'gonotice': S.sid = id; if (S.sessions[id]?.draftStatus === 'done') { S.tab = 'run'; S.step = 'notice' } else { S.tab = 'manage'; S.mview = 'poster'; S.planM = id.slice(0, 7); S.schedYm = S.planM } render(); window.scrollTo(0, 0); break;
     case 'delrow': S.sid = id; await deleteSessionBy(id); break;
     case 'caladd': { const d = new Date(); S.cal = { mode: 'add', y: d.getFullYear(), m: d.getMonth(), sel: [], f: { time: DEFAULTS.time, venue: DEFAULTS.venue, capacity: DEFAULTS.capacity || 18, openD: DEFAULTS.openDays, openT: DEFAULTS.openTime, closeD: DEFAULTS.closeDays, closeT: DEFAULTS.closeTime } }; S.sheet = { type: 'cal' }; render(); break }
     case 'calmove': { const [y, m] = id.split('-'); S.cal = { mode: 'move', from: id, y: +y, m: +m - 1, sel: [] }; S.sheet = { type: 'cal' }; render(); break }
@@ -1735,7 +1692,7 @@ document.addEventListener('click', async e => {
       if (!confirm(`${fmtDate(S.sid)} 경기 대진 ${ms.length}경기를 삭제할까요?${evs.length || played ? `\n진행된 경기 ${played}개와 골 기록 ${evs.length}건도 함께 지워져요.` : ''}\n신청자와 팀 구성은 그대로 남아요.`)) break;
       if (played && prompt('기록이 있는 경기가 있어요. 정말 지우려면 "삭제"라고 입력하세요.') !== '삭제') { toast('삭제를 취소했어요.'); break }
       const ok = await w(async () => { for (const [eid] of evs) await S.store.del('events/' + eid); for (const m of ms) await S.store.del(mp(m.id)); await S.store.update(sp(S.sid), { stage: 'notice' }) }, '경기 대진을 삭제했어요.');
-      if (ok) { S.openMatch = null; S.tab = 'notice'; render(); window.scrollTo(0, 0) } break }
+      if (ok) { S.openMatch = null; S.tab = 'run'; S.step = 'notice'; render(); window.scrollTo(0, 0) } break }
     case 'delsession_old': if (!confirm(fmtDate(S.sid) + ' 경기일을 통째로 지울까요? 되돌릴 수 없어요.')) break;
       await w(async () => { for (const [eid, ev] of Object.entries(S.events)) if (ev.session === S.sid) await S.store.del('events/' + eid); for (const mm of sessMatches(S.sid)) await S.store.del(mp(mm.id)); await S.store.del(sp(S.sid)) }, '삭제했어요.'); S.sid = null; render(); break;
     case 'sort': S.statsSort = el.dataset.k; render(); break;
@@ -1757,7 +1714,7 @@ function watchChat() {
   if (S.chatSid === S.sid) return; S.unsubChat && S.unsubChat(); S.chat = []; S.chatSid = S.sid;
   if (!S.sid || !S.store) return; S.unsubChat = S.store.watchCol(sp(S.sid) + '/chat', docs => { S.chat = docs; render() }, { order: 'at', limit: 150 });
 }
-const ADMIN_TABS = ['manage', 'run', 'recs', 'notice', 'members', 'settings'], MEMBER_TABS = ['draft', 'mhome', 'sched', 'results', 'mstats', 'settings'];
+const ADMIN_TABS = ['manage', 'run', 'members', 'settings'], MEMBER_TABS = ['draft', 'mhome', 'sched', 'results', 'mstats', 'settings'];
 function saveNav() { if (S.ready < 3) return; const n = { tab: S.tab, sid: S.sid, step: S.step, sub: S.sub, detail: S.detail, admin: S.admin };
   const k = JSON.stringify(n); if (k === S.lastNav) return; S.lastNav = k; try { sessionStorage.setItem('wf:nav', k) } catch { } save('nav', { ...n, at: Date.now() }) }
 function restoreNav() {
@@ -1796,11 +1753,11 @@ document.addEventListener('touchend', e => { if (swX == null) return; const dx =
   let posterT; const sub = (p, key) => { let first = true; S.store.watchCol(p, docs => { const o = {}; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); S[key] = o; if (first) { first = false; S.ready++; if (S.ready === 3) { setTimeout(maybeSeed, 300); verifyAuth() } }
     if (key === 'sessions' && !S.resumed) { S.resumed = true; if (!S.pendingLink) { if (S.sid && !S.sessions[S.sid]) S.sid = null; if (S.tab !== 'draft' || !myTeam(S.sessions[S.sid])) resumeCaptain() } }
     if (key === 'sessions' && S.pendingLink) { const sid = S.pendingLink; S.pendingLink = null; S.sid = S.sessions[sid] ? sid : null; if (!S.sessions[sid] || !myTeam(S.sessions[sid])) { toast('만료되었거나 잘못된 주장 링크예요. 운영진에게 새 링크를 받아 주세요.'); S.tab = 'mhome' } else toast(`${team(S.sessions[sid], myTeam(S.sessions[sid])).name} 주장으로 드래프트에 참여해요.`) }
-    if (key === 'sessions' && S.tab === 'notice' && S.admin) S.schedImg = {};
-    if (key === 'sessions' && S.sid && (S.tab === 'notice' || S.sub === 'poster')) { clearTimeout(posterT); posterT = setTimeout(refreshPoster, 300) }
+    if (key === 'sessions' && S.tab === 'manage' && S.mview === 'poster' && S.admin) S.schedImg = {};
+    if (key === 'sessions' && S.sid && ((S.tab === 'run' && S.step === 'notice') || S.sub === 'poster')) { clearTimeout(posterT); posterT = setTimeout(refreshPoster, 300) }
     render() }, null, onErr) };
   sub('players', 'players'); sub('sessions', 'sessions'); sub('matches', 'matches');
-  S.store.watchCol('meta', docs => { const o = {}; docs.forEach(d => { const { id, ...r } = d; o[id] = r }); S.meta = o; if (S.tab === 'notice' && S.admin) { S.schedImg = {}; refreshSchedule() } }, null, () => { });
+  S.store.watchCol('meta', docs => { const o = {}; docs.forEach(d => { const { id, ...r } = d; o[id] = r }); S.meta = o; if (S.tab === 'manage' && S.mview === 'poster' && S.admin) { S.schedImg = {}; refreshSchedule() } }, null, () => { });
   S.store.watchCol('events', docs => { const o = {}; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); S.events = o; render() }, null, onErr);
   if (!IS_ARTIFACT && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { });
 })();
