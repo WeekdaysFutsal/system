@@ -183,11 +183,11 @@ function playerStats() {
 
 /* ───────── whistle (web audio) ───────── */
 let AC = null, MASTER = null;
-function audio() { if (AC) return AC; try { const C = window.AudioContext || window.webkitAudioContext; AC = new C(); const comp = AC.createDynamicsCompressor(); comp.threshold.value = -10; comp.ratio.value = 4; MASTER = AC.createGain(); MASTER.gain.value = 1.4; MASTER.connect(comp); comp.connect(AC.destination) } catch { AC = null } return AC }
-function blow(t, d) { const ctx = AC; const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(); o1.type = 'sine'; o2.type = 'triangle'; o1.frequency.value = 3050; o2.frequency.value = 3120;
+function audio() { if (AC) return AC; try { const C = window.AudioContext || window.webkitAudioContext; AC = new C(); const comp = AC.createDynamicsCompressor(); comp.threshold.value = -6; comp.knee.value = 4; comp.ratio.value = 20; comp.attack.value = .002; comp.release.value = .08; MASTER = AC.createGain(); MASTER.gain.value = 3.2; MASTER.connect(comp); comp.connect(AC.destination) } catch { AC = null } return AC }
+function blow(t, d) { const ctx = AC; const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(); o1.type = 'square'; o2.type = 'sawtooth'; o1.frequency.value = 2900; o2.frequency.value = 2980;
   const lfo = ctx.createOscillator(); lfo.frequency.value = 34; const fm = ctx.createGain(); fm.gain.value = 180; lfo.connect(fm); fm.connect(o1.frequency); fm.connect(o2.frequency);
   const am = ctx.createGain(); am.gain.value = .25; lfo.connect(am);
-  const amp = ctx.createGain(); amp.gain.setValueAtTime(0, t); amp.gain.linearRampToValueAtTime(.55, t + .03); amp.gain.setValueAtTime(.55, t + d - .06); amp.gain.linearRampToValueAtTime(0, t + d);
+  const amp = ctx.createGain(); amp.gain.setValueAtTime(0, t); amp.gain.linearRampToValueAtTime(.95, t + .02); amp.gain.setValueAtTime(.95, t + d - .05); amp.gain.linearRampToValueAtTime(0, t + d);
   am.connect(amp.gain); o1.connect(amp); o2.connect(amp); amp.connect(MASTER); [o1, o2, lfo].forEach(o => { o.start(t); o.stop(t + d + .05) }) }
 function whistle(pattern) { if (!S.whistle) return; const ctx = audio(); if (!ctx) return; if (ctx.state === 'suspended') ctx.resume(); let t = ctx.currentTime + .03; for (const d of pattern) { blow(t, d); t += d + .14 }
   try { navigator.vibrate && navigator.vibrate(pattern.flatMap((d, i) => i ? [140, Math.round(d * 1000)] : [Math.round(d * 1000)])) } catch { } }
@@ -487,7 +487,7 @@ function vCaptain(s) {
     return `<button class="slot" data-act="capslot" data-k="${k}" ${ad ? '' : 'disabled'}><span class="teamtag" style="background:${NEUTRAL[k]};color:#fff">${k}팀</span><span class="who ${c ? '' : 'empty'}">${c ? '👑 ' + esc(pname(c)) : '눌러서 주장 선택'}</span>${ad ? '<span class="muted">변경</span>' : ''}</button>` }).join('')}</div>`;
   h += `<p class="note">주장으로 지정된 회원은 앱에 로그인하면 팝업과 화면 위 안내 띠로 팀 선정 화면에 바로 들어올 수 있어요. 따로 링크를 보낼 필요가 없어요.</p>`;
   h += `<p class="note">드래프트 방에서 주장들이 입장하면 ① 팀 색 선택 → ② 사다리 타기로 순번 선정 → ③ 팀원 선택 순서로 진행해요. 색이 정해지기 전까지 팀 이름은 A팀, B팀, C팀이에요.</p>`;
-  if (S.admin && s.draftStatus === 'ready') h += `<div style="height:12px"></div><button class="btn primary block" data-act="openroom" ${KEYS.some(k => !s.captains?.[k]) ? 'disabled' : ''}>드래프트 방 열기</button>`;
+  if (S.admin && s.draftStatus === 'ready') h += `<div style="height:12px"></div><button class="btn primary block cta" data-act="openroom" ${KEYS.some(k => !s.captains?.[k]) ? 'disabled' : ''}>드래프트 방 열기</button>`;
   return h;
 }
 function capLinksPanel(s) {
@@ -548,7 +548,7 @@ function seatHTML(s, k, ph) {
     <div class="sv2"><div class="snm">${orderDecided(s) && o >= 0 && ph !== 'ladder' && ph !== 'cards' ? `<em class="ord2">${o + 1}</em>` : ''}<b>${esc(pname(cap) || '미정')}</b><i class="dot ${inRoom ? 'on' : ''}" title="${inRoom ? '입장' : '대기'}"></i>${me ? '<span class="meb">나</span>' : ''}</div>
       <div class="sinfo"><span class="tok">${esc(t.name)}</span><b class="cnt2">${cap ? ps.length + 1 : 0}<small>명</small></b></div></div>
     ${ps.length ? `<div class="stk">${ps.map(id => `<span>${esc(pname(id))}</span>`).join('')}</div>` : ''}
-    ${me && !inRoom && ph !== 'done' ? `<button class="btn sm primary" data-act="joinroom" data-k="${k}">입장하기</button>` : ''}</div>`;
+    ${me && !inRoom && ph !== 'done' ? `<button class="btn sm primary cta" data-act="joinroom" data-k="${k}">입장하기</button>` : ''}</div>`;
 }
 const BUBBLE_MS = 9000;
 function bubbleFor(pred) { const now = Date.now(); for (let i = S.chat.length - 1; i >= 0; i--) { const m = S.chat[i]; if (now - (m.at || 0) > BUBBLE_MS) break; if (m.uid !== 'sys' && pred(m)) return `<div class="bubble" role="status">${esc(m.text)}</div>` } return '' }
@@ -590,7 +590,7 @@ function feltHTML(s, ph) {
     return `<div class="fx"><div class="rnd">STEP 3 · 팀원 선택 ${i + 1} / ${tot}</div>${flow}<b><span class="tok" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}</span> ${esc(pname(s.captains[k]))} 주장 차례${my === k ? ', 내 차례!' : ''}</b>
       <div class="card3 ${pd ? 'up' : ''}" style="--tc:${t.color};--ti:${inkOn(t.color)}"><i>${esc(t.name)}</i><span>${pd ? esc(pname(pd)) : '?'}</span></div>
       ${S.poolHTML || ''}<p>${pd ? (S.admin ? '확인되면 다음 턴으로 넘겨 주세요.' : '운영진이 다음 턴으로 넘기면 확정돼요.') : my === k ? '경기장 안 명단에서 선수를 눌러 고르세요.' : '선수를 고르는 중…'}</p>
-      ${S.admin ? `<div class="row" style="justify-content:center"><button class="btn primary" data-act="nextturn" ${pd ? '' : 'disabled'}>다음 턴 ▶</button>${i ? '<button class="btn sm" data-act="undo">↶ 되돌리기</button>' : ''}</div>` : ''}</div>` }
+      ${S.admin ? `<div class="row" style="justify-content:center"><button class="btn primary cta" data-act="nextturn" ${pd ? '' : 'disabled'}>다음 턴 ▶</button>${i ? '<button class="btn sm" data-act="undo">↶ 되돌리기</button>' : ''}</div>` : ''}</div>` }
   return `<div class="fx"><b>드래프트 완료! 🎉</b><p>팀원조정 단계에서 밸런스를 맞춰요.</p></div>`;
 }
 function vDraft(s) {
@@ -760,15 +760,13 @@ function viewMatch() {
     h += '</div>' } else h += `<p class="note">기록은 운영진 모드에서 할 수 있어요.</p>`;
   const evs = evsOf(m.id).reverse();
   h += `</section><section><h2>골 기록</h2><div class="panel">${evs.length ? evs.map(e => { const t = team(s, e.team); const second = e.half === 'h2' || e.half === 'full' || e.sec >= T.h1 + T.gk; const mn = second ? Math.floor((e.sec - T.h1 - T.gk) / 60) + 1 : Math.floor(e.sec / 60) + 1;
-    return `<div class="ev"><span class="min">${second ? '후' : '전'} ${Math.max(1, mn)}'</span>${bib(t.color)}<span class="who">${e.og ? '상대 자책골' : esc(pname(e.scorer))}${e.assist ? `<small>도움 ${esc(pname(e.assist))}</small>` : ''}</span>${can ? `<button class="x" data-act="delev" data-id="${e.id}" aria-label="골 기록 삭제">×</button>` : ''}</div>` }).join('') : '<p class="empty">골이 나면 위의 팀 버튼을 누르세요.</p>'}</div></section></div></div></div>`;
+    return `<div class="ev"><span class="min">${second ? '후' : '전'} ${Math.max(1, mn)}'</span>${bib(t.color)}<span class="who">${esc(t.name)} 골</span>${can ? `<button class="x" data-act="delev" data-id="${e.id}" aria-label="골 기록 삭제">×</button>` : ''}</div>` }).join('') : '<p class="empty">골이 나면 위의 팀 버튼을 누르세요.</p>'}</div></section></div></div></div>`;
   return h;
 }
 function viewSheet() {
   const sh = S.sheet; let h = `<div class="scrim" data-act="closesheet"><div class="sheet" role="dialog" aria-modal="true" data-stop><div class="grab"></div>`;
-  if (sh.type === 'mmscorer') { const e = S.events[sh.id]; const s = S.sessions[e.session];
-    h += `<h4>득점자 지정</h4><p>${esc(team(s, e.team).name)} · ${fmt(e.sec)}</p><div class="pick">${byName(teamPlayers(s, e.team)).map(id => `<button class="${e.scorer === id ? 'on' : ''}" data-act="mmsetscorer" data-id="${id}">${esc(pname(id))}</button>`).join('')}<button class="alt" data-act="mmsetscorer" data-id="">지정 안 함</button></div>` }
-  else if (sh.type === 'cappop') { const s = S.sessions[sh.sid]; const k = myTeam(s);
-    h += `<div class="cappop"><div class="cp-crown">👑</div><h4>${esc(pname(myPid()))} 님, 주장으로 지정됐어요!</h4><p>${fmtDate(sh.sid)} ${esc(s.time || '')} 경기의 <b>${esc(team(s, k).name)}</b> 주장이에요.<br>${s.room?.open ? '드래프트 방이 열렸어요. 지금 입장해 주세요.' : '운영진이 드래프트 방을 열면 팀원을 선정해요.'}</p><button class="btn primary block" data-act="gocap" data-id="${sh.sid}">팀 선정 화면으로 가기</button></div>` }
+  if (sh.type === 'cappop') { const s = S.sessions[sh.sid]; const k = myTeam(s);
+    h += `<div class="cappop"><div class="cp-crown">👑</div><h4>${esc(pname(myPid()))} 님, 주장으로 지정됐어요!</h4><p>${fmtDate(sh.sid)} ${esc(s.time || '')} 경기의 <b>${esc(team(s, k).name)}</b> 주장이에요.<br>${s.room?.open ? '드래프트 방이 열렸어요. 지금 입장해 주세요.' : '운영진이 드래프트 방을 열면 팀원을 선정해요.'}</p><button class="btn primary block cta" data-act="gocap" data-id="${sh.sid}">팀 선정 화면으로 가기</button></div>` }
   else if (sh.type === 'import') h += importSheet();
   else if (sh.type === 'duty') h += dutySheet(sh.sid);
   else if (sh.type === 'park') h += parkSheet(sh.sid);
@@ -1164,7 +1162,7 @@ function applyBox(s, compact) {
   if (a.k === 'wait') return `<div class="applied wait"><span>대기 ${a.n}번<small>${a.noname ? '이름을 입력해 주세요!' : st.k === 'open' ? '자리가 나면 자동으로 선발돼요' : '신청이 마감됐어요'}</small></span>${nameBtn}${st.k === 'open' ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">취소</button>` : ''}</div>`;
   if (st.k !== 'open') return '';
   const full = s.capacity && c.sel >= s.capacity;
-  return `<button class="btn primary block applybtn" data-act="apply" data-id="${s.date}">${full ? `대기 신청하기 (대기 ${c.wait}명)` : '신청하기'}</button>${compact ? '' : `<p class="note" style="margin:0">버튼을 누르는 순간 신청 순번이 확보되고, 이름은 그다음에 입력해요.</p>`}`;
+  return `<button class="btn primary block applybtn cta" data-act="apply" data-id="${s.date}">${full ? `대기 신청하기 (대기 ${c.wait}명)` : '신청하기'}</button>${compact ? '' : `<p class="note" style="margin:0">버튼을 누르는 순간 신청 순번이 확보되고, 이름은 그다음에 입력해요.</p>`}`;
 }
 async function doApply(sid, cancel) {
   const s = S.sessions[sid]; if (!s) return; const uid = myUid();
@@ -1446,7 +1444,7 @@ async function loginFlow(name, pin, remember) {
 }
 function loginScreen() {
   return `<div class="lgscreen"><div class="lgcard"><img src="${EMBLEM_SRC}" alt="" class="lgemb"><h1>${esc(CFG.club?.name || 'WEEKDAYS FUTSAL CLUB')}</h1><p class="lgsub">이름과 비밀번호 4자리로 로그인해요</p>
-    <div class="panel">${loginFields('lg', S.me)}<div class="pad" style="padding-top:4px"><button class="btn primary block lgbtn" data-act="login">로그인</button></div></div>
+    <div class="panel">${loginFields('lg', S.me)}<div class="pad" style="padding-top:4px"><button class="btn primary block lgbtn cta" data-act="login">로그인</button></div></div>
     <p class="note">처음이면 지금 입력한 비밀번호로 바로 등록돼요. 비밀번호를 잊었다면 운영진에게 초기화를 요청하세요.</p>
     <button class="linkbtn" data-act="opmode">운영진이신가요? 운영모드로 들어가기 ›</button></div></div>`;
 }
@@ -1540,7 +1538,7 @@ function mmPairView(s) {
   if (pairs) { const games = []; for (let r = 0; r < 3; r++) for (let j = 0; j < 3; j++) { const n = r * 3 + j + 1; const [a, b] = d.swap[n] ? [pairs[j][1], pairs[j][0]] : pairs[j]; games.push({ n, r: r + 1, a, b }) }
     h += `<div class="mm-card"><h3>전체 대진 <small>⇄ 로 좌우 위치를 바꿀 수 있어요</small></h3><div class="mm-games">${games.map(g => { const A = team(s, g.a), B = team(s, g.b);
       return `<div class="mm-g"><em>${g.r}R · ${g.n}경기</em><span class="gt" style="--tc:${A.color};--ti:${inkOn(A.color)}">${esc(A.name)}</span><button class="mm-sw" data-act="mmsw" data-n="${g.n}" aria-label="${g.n}경기 좌우 바꾸기">⇄</button><span class="gt" style="--tc:${B.color};--ti:${inkOn(B.color)}">${esc(B.name)}</span></div>` }).join('')}</div>
-      <button class="btn primary block mm-go" data-act="mmpairsave">대진 확정 → 시간 설정</button></div>`; S.mmPairs = pairs }
+      <button class="btn primary block mm-go cta" data-act="mmpairsave">대진 확정 → 시간 설정</button></div>`; S.mmPairs = pairs }
   return h;
 }
 function mmTimeView(s) {
@@ -1549,7 +1547,7 @@ function mmTimeView(s) {
   return `<div class="mm-card"><h3>② 경기 시간 설정</h3><p class="mm-note">한 경기는 전반 → GK 교체 → 후반으로 진행돼요. 시작, 전반 종료, 후반 시작, 경기 종료 때 휘슬이 울려요.</p>
     ${st('h1', '전반', '분', 0.5)}${st('gk', 'GK 교체', '초', 1)}${st('h2', '후반', '분', 0.5)}
     <p class="mm-sum">한 경기 ${Math.floor((f.h1 * 60 + f.gk + f.h2 * 60) / 60)}분 ${Math.round((f.h1 * 60 + f.gk + f.h2 * 60) % 60)}초</p>
-    <div class="row"><button class="btn" data-act="mmstage" data-v="pair">← 대진 다시 정하기</button><button class="btn primary mm-go" data-act="mmtimesave">설정 완료 → 경기 화면</button></div></div>`;
+    <div class="row"><button class="btn" data-act="mmstage" data-v="pair">← 대진 다시 정하기</button><button class="btn primary mm-go cta" data-act="mmtimesave">설정 완료 → 경기 화면</button></div></div>`;
 }
 function mmPlayView(s) {
   const ms = sessMatches(s.date); const m = ms.find(x => x.status === 'live') || ms.find(x => x.status === 'pending') || ms[ms.length - 1];
@@ -1557,14 +1555,13 @@ function mmPlayView(s) {
   const evs = Object.entries(S.events).filter(([, e]) => e.match === m.id).sort((a, b) => a[1].at - b[1].at);
   const allDone = ms.every(x => x.status === 'done');
   let h = `<div class="mm-play"><div class="mm-meta"><span>${m.round}라운드 · ${m.n}경기 <small>/ 9</small></span><button class="linkbtn" data-act="mmstage" data-v="time">⏱ 시간 ${T.h1 / 60}+${T.gk}″+${T.h2 / 60}</button></div>
-    <div class="mm-board"><div class="mm-team" style="--tc:${H.color};--ti:${inkOn(H.color)}"><b>${esc(H.name)}</b><em>${hs}</em>${m.status === 'live' ? `<button class="mm-goal" data-act="mmgoal" data-k="${m.home}">+ 골</button>` : ''}</div>
+    <div class="mm-board"><div class="mm-team" style="--tc:${H.color};--ti:${inkOn(H.color)}"><b>${esc(H.name)}</b><em>${hs}</em>${m.status === 'live' ? `<button class="mm-goal" data-act="mmgoal" data-k="${m.home}">+ 골</button><button class="mm-ungoal" data-act="mmungoal" data-k="${m.home}" ${hs ? '' : 'disabled'}>− 골 취소</button>` : ''}</div>
       <div class="mm-mid"><div class="mm-clock ${ci.phase}" data-bigclock="${m.id}">${ci.time}</div><div class="mm-ph" data-phase="${m.id}">${ci.label}</div>
-        <div class="mm-bar">${[0, 1, 2].map(i => `<i class="${i === 1 ? 'gk' : ''}"><b data-seg="${m.id}:${i}"></b></i>`).join('')}</div></div>
-      <div class="mm-team" style="--tc:${A.color};--ti:${inkOn(A.color)}"><b>${esc(A.name)}</b><em>${as}</em>${m.status === 'live' ? `<button class="mm-goal" data-act="mmgoal" data-k="${m.away}">+ 골</button>` : ''}</div></div>
-    <div class="mm-ctl">${m.status === 'pending' ? `<button class="btn primary mm-big" data-act="mmstart" data-id="${m.id}">▶ 경기 시작</button>`
+        <div class="mm-bar">${[0, 1, 2].map(i => `<i class="${i === 1 ? 'gk' : ''}"><b data-seg="${m.id}:${i}"></b></i>`).join('')}</div>${m.status === 'pending' ? `<button class="mm-side" data-act="mmsidesw" data-id="${m.id}" aria-label="양 팀 좌우 위치 바꾸기">⇄ 진영 변경</button>` : ''}</div>
+      <div class="mm-team" style="--tc:${A.color};--ti:${inkOn(A.color)}"><b>${esc(A.name)}</b><em>${as}</em>${m.status === 'live' ? `<button class="mm-goal" data-act="mmgoal" data-k="${m.away}">+ 골</button><button class="mm-ungoal" data-act="mmungoal" data-k="${m.away}" ${as ? '' : 'disabled'}>− 골 취소</button>` : ''}</div></div>
+    <div class="mm-ctl">${m.status === 'pending' ? `<button class="btn primary mm-big cta" data-act="mmstart" data-id="${m.id}">▶ 경기 시작</button>`
       : m.status === 'live' ? `${run ? `<button class="btn mm-big" data-act="mmpause" data-id="${m.id}">⏸ 일시정지</button>` : `<button class="btn primary mm-big" data-act="mmresume" data-id="${m.id}">▶ 재개</button>`}<button class="btn ${ci.phase === 'full' ? 'primary' : ''} mm-big" data-act="mmend" data-id="${m.id}">경기 종료</button>`
       : allDone ? `<div class="mm-done">🎉 오늘 9경기가 모두 끝났어요!</div>` : ''}</div>
-    ${evs.length ? `<div class="mm-evs">${evs.map(([id, e]) => `<button class="mm-ev" data-act="mmscorer" data-id="${id}"><i style="background:${team(s, e.team).color}"></i>${fmt(e.sec)} ${esc(team(s, e.team).name)} ${e.scorer ? esc(pname(e.scorer)) : '<u>득점자 지정</u>'}</button>`).join('')}${m.status === 'live' ? `<button class="mm-ev undo" data-act="mmundo" data-id="${m.id}">↶ 마지막 골 취소</button>` : ''}</div>` : ''}
     <div class="mm-list">${ms.map(x => { const [a, b] = score(x); const X = team(s, x.home), Y = team(s, x.away); return `<div class="mm-li ${x.id === m.id ? 'cur' : ''} st-${x.status}"><em>${x.n}</em><i style="background:${X.color}"></i><span>${x.status === 'pending' ? 'vs' : a + ':' + b}</span><i style="background:${Y.color}"></i></div>` }).join('')}</div>
     <p class="mm-note">경기 중에는 화면이 꺼지지 않게 유지해요. 다른 메뉴로 가도 시간과 휘슬은 계속 이어져요.</p></div>`;
   return h;
@@ -1579,16 +1576,17 @@ async function mmSavePairs() {
     await S.store.update(sp(s.date), { mm: { pairs: pairs.map(p => p.join('')), swap: Object.fromEntries(Object.entries(sw).filter(([, v]) => v)), timed: !!s.mm?.timed }, stage: 'match' }) }, '대진을 정했어요.');
   if (ok) { S.mmStage = null; S.mmDraft = null; if (!s.mm?.timed) S.mmStage = 'time'; render() }
 }
-async function mmCountdown(m) {
+async function beep(freq, dur) { const ctx = audio(); if (!ctx) return; if (ctx.state === 'suspended') ctx.resume(); const t = ctx.currentTime + .01; const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = freq; const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.9, t + .01); g.gain.setValueAtTime(.9, t + dur - .03); g.gain.linearRampToValueAtTime(0, t + dur); o.connect(g); g.connect(MASTER); o.start(t); o.stop(t + dur + .02) }
+function mmCountdown(m) {
   audio(); keepAwake(true); let n = 3; const ov = document.createElement('div'); ov.className = 'mm-cd'; document.body.appendChild(ov);
-  const step = () => { if (n > 0) { ov.innerHTML = `<b>${n}</b>`; try { navigator.vibrate?.(80) } catch { } n--; setTimeout(step, 1000) } else { ov.innerHTML = '<b>START</b>'; setTimeout(() => ov.remove(), 600); S.startBlown[m.id] = Date.now(); whistle([.9]); startClock(m) } };
+  const step = () => { if (n > 0) { ov.innerHTML = `<b>${n}</b>`; if (S.whistle) beep(1320, .18); try { navigator.vibrate?.(80) } catch { } n--; setTimeout(step, 1000) } else { ov.innerHTML = '<b>START</b>'; setTimeout(() => ov.remove(), 600); S.startBlown[m.id] = Date.now(); whistle([.9]); startClock(m) } };
   step();
 }
 /* background-safe whistles: schedule on the audio clock so they still sound when the screen is off */
 const SCHED = {}; let KEEP = null;
-function blowN(t, d) { const ctx = AC; const nodes = []; const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(); o1.type = 'sine'; o2.type = 'triangle'; o1.frequency.value = 3050; o2.frequency.value = 3120;
+function blowN(t, d) { const ctx = AC; const nodes = []; const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(); o1.type = 'square'; o2.type = 'sawtooth'; o1.frequency.value = 2900; o2.frequency.value = 2980;
   const lfo = ctx.createOscillator(); lfo.frequency.value = 34; const fm = ctx.createGain(); fm.gain.value = 180; lfo.connect(fm); fm.connect(o1.frequency); fm.connect(o2.frequency);
-  const amp = ctx.createGain(); amp.gain.setValueAtTime(0, t); amp.gain.linearRampToValueAtTime(.55, t + .03); amp.gain.setValueAtTime(.55, t + d - .06); amp.gain.linearRampToValueAtTime(0, t + d);
+  const amp = ctx.createGain(); amp.gain.setValueAtTime(0, t); amp.gain.linearRampToValueAtTime(.95, t + .02); amp.gain.setValueAtTime(.95, t + d - .05); amp.gain.linearRampToValueAtTime(0, t + d);
   o1.connect(amp); o2.connect(amp); amp.connect(MASTER); [o1, o2, lfo].forEach(o => { o.start(t); o.stop(t + d + .05); nodes.push(o) }); return nodes }
 function scheduleWhistles() {
   const sid = S.mmSid || S.sid; if (!sid || !S.sessions[sid]) return; let anyRun = false;
@@ -1752,10 +1750,10 @@ document.addEventListener('click', async e => {
     case 'mmpause': { const m = M(id); await w(() => S.store.update(mp(id), { timer: { running: false, acc: elapsed(m), startedAt: 0 } })); break }
     case 'mmresume': { const m = M(id); audio(); await w(() => S.store.update(mp(id), { timer: { running: true, acc: m.timer?.acc || 0, startedAt: Date.now() } })); break }
     case 'mmend': { const m = M(id); if (clockInfo(m).phase !== 'full' && !confirm('아직 시간이 남았어요. 경기를 종료할까요?')) break; const e = elapsed(m); await w(() => S.store.update(mp(id), { status: 'done', timer: { running: false, acc: e, startedAt: 0 }, endedAt: Date.now() }), `${m.n}경기를 종료했어요.`); break }
+    case 'mmsidesw': { const m = M(id); if (!m || m.status !== 'pending') break; await w(() => S.store.update(mp(id), { home: m.away, away: m.home }), '진영을 바꿨어요.'); break }
+    case 'mmungoal': { const s = S.sessions[S.mmSid]; const m = sessMatches(s.date).find(x => x.status === 'live'); if (!m) break; const k = el.dataset.k; const evs = Object.entries(S.events).filter(([, e]) => e.match === m.id && e.team === k).sort((a, b) => b[1].at - a[1].at); if (!evs.length) break;
+      if (!confirm(`${team(s, k).name}의 마지막 골을 취소할까요?`)) break; await w(() => S.store.del('events/' + evs[0][0]), '골을 취소했어요.'); break }
     case 'mmgoal': { const s = S.sessions[S.mmSid]; const m = sessMatches(s.date).find(x => x.status === 'live'); if (!m) break; await addGoal(m, el.dataset.k, null, null, false); try { navigator.vibrate?.(60) } catch { } break }
-    case 'mmundo': { const evs = Object.entries(S.events).filter(([, e]) => e.match === id).sort((a, b) => b[1].at - a[1].at); if (!evs.length || !confirm('마지막 골 기록을 지울까요?')) break; await w(() => S.store.del('events/' + evs[0][0]), '마지막 골을 지웠어요.'); break }
-    case 'mmscorer': { if (!S.events[id]) break; S.sheet = { type: 'mmscorer', id }; render(); break }
-    case 'mmsetscorer': { await w(() => S.store.update('events/' + S.sheet.id, { scorer: id || null }), '득점자를 저장했어요.'); S.sheet = null; render(); break }
     case 'mselclear': S.msel = {}; render(); break;
     case 'mbulkdel': { if (!needAdmin()) break; const ids = Object.keys(S.msel || {}).filter(k => S.msel[k]); if (!ids.length) break;
       if (!confirm(`선택한 ${ids.length}명을 회원 명단에서 삭제할까요?\n${ids.slice(0, 8).map(pname).join(', ')}${ids.length > 8 ? ' …' : ''}\n지난 경기 기록의 이름은 "?"로 보일 수 있어요. 되돌릴 수 없어요.`)) break;
@@ -1885,7 +1883,7 @@ document.addEventListener('click', async e => {
     case 'reset': await resetClock(m); break;
     case 'end': if (confirm('경기를 종료하고 순위에 반영할까요?')) await endMatch(M(m.id)); break;
     case 'reopen': await w(() => S.store.update(mp(m.id), { status: 'live' })); break;
-    case 'goal': S.sheet = { type: 'goal', match: m.id, team: el.dataset.team, step: 'scorer' }; render(); break;
+    case 'goal': await addGoal(m, el.dataset.team, null, null, false); try { navigator.vibrate?.(60) } catch { } break;
     case 'pickscorer': { const sh = S.sheet; if (id) { sh.scorer = id; sh.step = 'assist'; render(); break } S.sheet = null; render(); await addGoal(M(sh.match), sh.team, null, null, false); break }
     case 'pickog': { const sh = S.sheet; S.sheet = null; render(); await addGoal(M(sh.match), sh.team, null, null, true); break }
     case 'pickassist': { const sh = S.sheet; S.sheet = null; render(); await addGoal(M(sh.match), sh.team, sh.scorer, id || null, false); break }

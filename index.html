@@ -1316,6 +1316,21 @@ table.grid tr.msel td{background:rgba(30,70,200,.07)}
 @media (max-width:420px){.mm-team em{font-size:52px}.mm-clock{font-size:44px}.mm-team b{font-size:16px}.mm-list{grid-template-columns:repeat(9,minmax(0,1fr))}}
 @media (min-width:1024px) and (hover:hover) and (pointer:fine){.mm{max-width:980px}.mm-clock{font-size:96px}.mm-team em{font-size:96px}}
 .prac{font-size:12px;vertical-align:3px;padding:2px 8px;border-radius:99px;background:#FEF3C7;color:#92400E;font-weight:800}
+/* v1.6 CTA + goal cancel */
+.btn.cta,.btn.primary.cta{background:linear-gradient(135deg,#FFD21F 0%,#FFB300 100%)!important;color:#1A1400!important;border:0!important;font-weight:800!important;letter-spacing:-.2px;box-shadow:0 6px 18px rgba(255,179,0,.45),inset 0 -2px 0 rgba(0,0,0,.12)!important}
+.btn.cta:not(:disabled):hover{filter:brightness(1.05);transform:translateY(-1px)}
+.btn.cta:not(:disabled):active{transform:translateY(1px);box-shadow:0 3px 8px rgba(255,179,0,.4)!important}
+.btn.cta:disabled{background:var(--bg)!important;color:var(--muted)!important;box-shadow:none!important}
+.applybtn.cta{animation:ctaGlow 2.2s ease-in-out infinite}
+@keyframes ctaGlow{0%,100%{box-shadow:0 6px 18px rgba(255,179,0,.45)}50%{box-shadow:0 6px 26px rgba(255,179,0,.8),0 0 0 4px rgba(255,210,31,.25)}}
+.fx .btn.cta{background:linear-gradient(135deg,#FFD21F 0%,#FFB300 100%)!important;color:#1A1400!important}
+.mm-ungoal{min-height:40px;width:100%;border-radius:12px;border:2px solid #FF4D4F;background:rgba(255,77,79,.12);color:#FF4D4F;font-weight:800;font-size:14px}
+.mm-team[style*="--ti:#131C2B"] .mm-ungoal{background:#fff;color:#D92D20;border-color:#D92D20}
+.mm-team:not([style*="--ti:#131C2B"]) .mm-ungoal{background:rgba(255,255,255,.95);color:#D92D20;border-color:#fff}
+.mm-ungoal:disabled{opacity:.35}
+@media (prefers-reduced-motion:reduce){.applybtn.cta{animation:none}}
+.mm-side{margin-top:6px;min-height:40px;padding:0 14px;border-radius:99px;border:2px solid #fff;background:rgba(0,0,0,.35);color:#fff;font-weight:800;font-size:14px;white-space:nowrap}
+.mm-side:active{transform:scale(.97)}
 </style>
 </head>
 <body>
