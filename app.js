@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '1.9.5';
+const APP_VERSION = '1.10';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -190,11 +190,13 @@ function blow(t, d) { const ctx = AC; const o1 = ctx.createOscillator(), o2 = ct
   const am = ctx.createGain(); am.gain.value = .25; lfo.connect(am);
   const amp = ctx.createGain(); amp.gain.setValueAtTime(0, t); amp.gain.linearRampToValueAtTime(.95, t + .02); amp.gain.setValueAtTime(.95, t + d - .05); amp.gain.linearRampToValueAtTime(0, t + d);
   am.connect(amp.gain); o1.connect(amp); o2.connect(amp); amp.connect(MASTER); [o1, o2, lfo].forEach(o => { o.start(t); o.stop(t + d + .05) }) }
-function whistle(pattern) { if (!S.whistle) return; const ctx = audio(); if (!ctx) return; if (ctx.state === 'suspended') ctx.resume(); let t = ctx.currentTime + .03; for (const d of pattern) { blow(t, d); t += d + .14 }
+function whistle(pattern) { if (!S.whistle) return; if (!(mmIsCtl() || S.admin)) return; const ctx = audio(); if (!ctx) return; if (ctx.state === 'suspended') ctx.resume(); let t = ctx.currentTime + .03; for (const d of pattern) { blow(t, d); t += d + .14 }
   try { navigator.vibrate && navigator.vibrate(pattern.flatMap((d, i) => i ? [140, Math.round(d * 1000)] : [Math.round(d * 1000)])) } catch { } }
 document.addEventListener('pointerdown', () => { const c = audio(); if (c && c.state === 'suspended') c.resume() }, { capture: true });
 let wake = null, wakeBusy = false; async function keepAwake(on) { try { if (on && !wake && !wakeBusy && navigator.wakeLock && !document.hidden) { wakeBusy = true; try { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null }) } finally { wakeBusy = false } } else if (!on && wake) { const w0 = wake; wake = null; await w0.release() } } catch { } }
+function mmHeartbeat() { const s = S.sessions[S.mmSid]; if (!s || document.hidden || !mmCtl(s).mine) return; if (Date.now() - (S.mmBeat || 0) < 20000) return; S.mmBeat = Date.now(); S.store.update(sp(S.mmSid), { 'mmCtl.beat': Date.now() }).catch(() => { }) }
 function awakeCheck() {
+  mmHeartbeat();
   const want = (S.tab === 'mm' && !document.hidden) || (liveAny() && !!S.openMatch);
   keepAwake(want);
   const KA = CAP()?.KeepAwake; if (KA && want !== S.nativeAwake) { S.nativeAwake = want; try { want ? KA.keepAwake() : KA.allowSleep() } catch { } }
@@ -1553,14 +1555,29 @@ function mmSid() {
 }
 function pairsOf(s) { return (s.mm?.pairs || []).map(p => Array.isArray(p) ? p : String(p).split('')) }
 function mmReady(s) { return !!s.mm?.pairs && sessMatches(s.date).length === 9 }
+const CTL_STALE = 60000;
+function mmCtl(s) { const c = s?.mmCtl; const me = myUid(); if (!c || !c.uid) return { free: true }; return { mine: c.uid === me, stale: Date.now() - (c.beat || 0) > CTL_STALE, name: c.name || '회원' } }
+function mmIsCtl() { const s = S.sessions[S.mmSid]; return !!(s && mmCtl(s).mine) }
+async function mmTake(sid, force) { const me = myUid(); let ok = false;
+  await w(() => S.store.txn(sp(sid), d => { if (!d) return null; const c = d.mmCtl; if (c && c.uid && c.uid !== me && Date.now() - (c.beat || 0) <= CTL_STALE && !force) return null; d.mmCtl = { uid: me, pid: myPid() || null, name: S.me || '회원', at: Date.now(), beat: Date.now() }; ok = true; return d }));
+  if (ok) S.mmBeat = Date.now(); return ok }
+async function mmRelease(sid) { const me = myUid(); await w(() => S.store.txn(sp(sid), d => { if (!d || d.mmCtl?.uid !== me) return null; d.mmCtl = null; return d }), '진행을 내려놓았어요. 다른 사람이 진행할 수 있어요.') }
+function mmCtlBar(s) { const c = mmCtl(s);
+  if (c.mine) return `<div class="mm-cbar me"><span><b>🎛 내가 경기를 진행 중</b><small>다른 회원은 보기만 할 수 있어요</small></span><button class="btn sm" data-act="mmrelease">진행 넘기기</button></div>`;
+  if (c.free) return `<div class="mm-cbar free"><span><b>👀 보기 전용</b><small>아직 진행하는 사람이 없어요</small></span><button class="btn sm primary cta" data-act="mmtake">내가 진행하기</button></div>`;
+  if (c.stale) return `<div class="mm-cbar warn"><span><b>⚠️ ${esc(c.name)} 님과 연결이 끊긴 것 같아요</b><small>1분 넘게 응답이 없어요</small></span><button class="btn sm primary cta" data-act="mmtake">진행 가져오기</button></div>`;
+  return `<div class="mm-cbar view"><span><b>👀 ${esc(c.name)} 님이 진행 중</b><small>보기 전용 · 점수와 시간은 실시간으로 바뀌어요</small></span></div>` }
 function viewMatchMode() {
   const sid = mmSid(); if (!sid) return `<div class="mm"><div class="mm-empty">⚽<b>경기모드</b><p>팀 구성이 끝난 경기가 아직 없어요.<br>드래프트가 끝나면 여기서 경기를 진행해요.</p></div></div>`;
   S.mmSid = sid; const s = S.sessions[sid]; const ids = Object.keys(S.sessions).filter(id => KEYS.every(k => teamPlayers(S.sessions[id], k).length)).sort();
   const head = `<div class="mm-hd"><div><b>⚽ 경기모드${s.practice ? ' <span class="prac">연습</span>' : ''}</b><small>${fmtDate(sid)} ${esc(s.time || '')} · ${esc(s.venue || '')}</small></div>${ids.length > 1 ? `<select class="inp mm-pick" data-in="mmpick" aria-label="경기일 선택">${ids.slice().reverse().map(id => `<option value="${id}" ${id === sid ? 'selected' : ''}>${fmtDate(id)}</option>`).join('')}</select>` : ''}</div>`;
-  const stage = S.mmStage || (!mmReady(s) ? 'pair' : !s.mm?.timed ? 'time' : 'play');
-  if (stage === 'pair') return `<div class="mm">${head}${mmPairView(s)}</div>`;
-  if (stage === 'time') return `<div class="mm">${head}${mmTimeView(s)}</div>`;
-  return `<div class="mm">${head}${mmPlayView(s)}</div>`;
+  const ctl = mmCtl(s).mine; const cb = mmCtlBar(s);
+  if (!ctl && S.tab === 'mm' && mmCtl(s).free && !(S.mmTry ??= {})[sid]) { S.mmTry[sid] = 1; setTimeout(() => mmTake(sid), 50) }
+  let stage = S.mmStage || (!mmReady(s) ? 'pair' : !s.mm?.timed ? 'time' : 'play'); if (!ctl && stage !== 'play') stage = mmReady(s) ? 'play' : 'wait';
+  if (stage === 'wait') return `<div class="mm">${head}${cb}<div class="mm-card"><h3>대진 준비 중</h3><p class="mm-note">진행자가 대진과 경기 시간을 정하면 여기에 경기 화면이 나와요.</p></div></div>`;
+  if (stage === 'pair') return `<div class="mm">${head}${cb}${mmPairView(s)}</div>`;
+  if (stage === 'time') return `<div class="mm">${head}${cb}${mmTimeView(s)}</div>`;
+  return `<div class="mm${ctl ? '' : ' ro'}">${head}${cb}${mmPlayView(s, ctl)}</div>`;
 }
 function teamBtn(s, k, act, sel, dis) { const t = team(s, k); return `<button class="mm-tb ${sel ? 'on' : ''}" style="--tc:${t.color};--ti:${inkOn(t.color)}" data-act="${act}" data-k="${k}" ${dis ? 'disabled' : ''}>${esc(t.name)}</button>` }
 function mmPairView(s) {
@@ -1586,21 +1603,21 @@ function mmTimeView(s) {
     <p class="mm-sum">한 경기 ${Math.floor((f.h1 * 60 + f.gk + f.h2 * 60) / 60)}분 ${Math.round((f.h1 * 60 + f.gk + f.h2 * 60) % 60)}초</p>
     <button class="btn primary block mm-go cta" data-act="mmtimesave">설정 완료</button><button class="btn block mm-back" data-act="mmstage" data-v="pair">← 이전 화면</button></div>`;
 }
-function mmPlayView(s) {
-  const ms = sessMatches(s.date); const curM = ms.find(x => x.status === 'live') || ms.find(x => x.status === 'pending') || ms[ms.length - 1]; const m = (S.mmSel && ms.find(x => x.id === S.mmSel)) || curM; const editing = m.status === 'done' && m.id !== curM.id || (m.status === 'done' && S.mmSel === m.id);
+function mmPlayView(s, ctl) {
+  const ms = sessMatches(s.date); const curM = ms.find(x => x.status === 'live') || ms.find(x => x.status === 'pending') || ms[ms.length - 1]; const m = (ctl && S.mmSel && ms.find(x => x.id === S.mmSel)) || curM; const editing = m.status === 'done' && m.id !== curM.id || (m.status === 'done' && S.mmSel === m.id);
   const H = team(s, m.home), A = team(s, m.away); const [hs, as] = score(m); const ci = clockInfo(m); const run = !!m.timer?.running; const T = timing(s);
   const evs = Object.entries(S.events).filter(([, e]) => e.match === m.id).sort((a, b) => a[1].at - b[1].at);
   const allDone = ms.every(x => x.status === 'done');
-  let h = `<div class="mm-play">${editing ? `<div class="mm-edit">✏️ <b>${m.n}경기(종료) 점수 수정 중</b><button class="btn sm" data-act="mmsel" data-id="">현재 경기로 ›</button></div>` : ''}<div class="mm-meta"><span>${m.round}라운드 · ${m.n}경기 <small>/ 9</small></span><button class="linkbtn" data-act="mmstage" data-v="time">⏱ 시간 ${T.h1 / 60}+${T.gk}″+${T.h2 / 60}</button></div>
-    <div class="mm-board"><div class="mm-team" style="--tc:${H.color};--ti:${inkOn(H.color)}"><b>${esc(H.name)}</b><em>${hs}</em>${m.status === 'live' || editing ? `<button class="mm-goal" data-act="mmgoal" data-id="${m.id}" data-k="${m.home}">+ 골</button><button class="mm-ungoal" data-act="mmungoal" data-id="${m.id}" data-k="${m.home}" ${hs ? '' : 'disabled'}>− 골 취소</button>` : ''}</div>
+  let h = `<div class="mm-play">${editing ? `<div class="mm-edit">✏️ <b>${m.n}경기(종료) 점수 수정 중</b><button class="btn sm" data-act="mmsel" data-id="">현재 경기로 ›</button></div>` : ''}<div class="mm-meta"><span>${m.round}라운드 · ${m.n}경기 <small>/ 9</small></span>${ctl ? `<button class="linkbtn" data-act="mmstage" data-v="time">⏱ 시간 ${T.h1 / 60}+${T.gk}″+${T.h2 / 60}</button>` : `<span class="muted">⏱ ${T.h1 / 60}+${T.gk}″+${T.h2 / 60}</span>`}</div>
+    <div class="mm-board"><div class="mm-team" style="--tc:${H.color};--ti:${inkOn(H.color)}"><b>${esc(H.name)}</b><em>${hs}</em>${ctl && (m.status === 'live' || editing) ? `<button class="mm-goal" data-act="mmgoal" data-id="${m.id}" data-k="${m.home}">+ 골</button><button class="mm-ungoal" data-act="mmungoal" data-id="${m.id}" data-k="${m.home}" ${hs ? '' : 'disabled'}>− 골 취소</button>` : ''}</div>
       <div class="mm-mid"><div class="mm-clock ${ci.phase}" data-bigclock="${m.id}">${ci.time}</div><div class="mm-ph" data-phase="${m.id}">${ci.label}</div>
-        <div class="mm-bar">${[0, 1, 2].map(i => `<i class="${i === 1 ? 'gk' : ''}"><b data-seg="${m.id}:${i}"></b></i>`).join('')}</div>${m.status === 'pending' ? `<button class="mm-side" data-act="mmsidesw" data-id="${m.id}" aria-label="양 팀 좌우 위치 바꾸기">⇄ 진영 변경</button>` : ''}</div>
-      <div class="mm-team" style="--tc:${A.color};--ti:${inkOn(A.color)}"><b>${esc(A.name)}</b><em>${as}</em>${m.status === 'live' || editing ? `<button class="mm-goal" data-act="mmgoal" data-id="${m.id}" data-k="${m.away}">+ 골</button><button class="mm-ungoal" data-act="mmungoal" data-id="${m.id}" data-k="${m.away}" ${as ? '' : 'disabled'}>− 골 취소</button>` : ''}</div></div>
-    <div class="mm-ctl">${editing ? '' : m.status === 'pending' ? `<button class="btn primary mm-big cta" data-act="mmstart" data-id="${m.id}">▶ 경기 시작</button>`
+        <div class="mm-bar">${[0, 1, 2].map(i => `<i class="${i === 1 ? 'gk' : ''}"><b data-seg="${m.id}:${i}"></b></i>`).join('')}</div>${ctl && m.status === 'pending' ? `<button class="mm-side" data-act="mmsidesw" data-id="${m.id}" aria-label="양 팀 좌우 위치 바꾸기">⇄ 진영 변경</button>` : ''}</div>
+      <div class="mm-team" style="--tc:${A.color};--ti:${inkOn(A.color)}"><b>${esc(A.name)}</b><em>${as}</em>${ctl && (m.status === 'live' || editing) ? `<button class="mm-goal" data-act="mmgoal" data-id="${m.id}" data-k="${m.away}">+ 골</button><button class="mm-ungoal" data-act="mmungoal" data-id="${m.id}" data-k="${m.away}" ${as ? '' : 'disabled'}>− 골 취소</button>` : ''}</div></div>
+    <div class="mm-ctl">${!ctl ? (allDone ? `<div class="mm-done">🎉 오늘 9경기가 모두 끝났어요!</div>` : '') : editing ? '' : m.status === 'pending' ? `<button class="btn primary mm-big cta" data-act="mmstart" data-id="${m.id}">▶ 경기 시작</button>`
       : m.status === 'live' ? `${run ? `<button class="btn mm-big" data-act="mmpause" data-id="${m.id}">⏸ 일시정지</button>` : `<button class="btn primary mm-big" data-act="mmresume" data-id="${m.id}">▶ 재개</button>`}<button class="btn ${ci.phase === 'full' ? 'primary' : ''} mm-big" data-act="mmend" data-id="${m.id}">경기 종료</button>`
       : allDone ? `<div class="mm-done">🎉 오늘 9경기가 모두 끝났어요!</div>` : ''}</div>
-    <div class="mm-list">${ms.map(x => { const [a, b] = score(x); const X = team(s, x.home), Y = team(s, x.away); return `<button class="mm-li ${x.id === m.id ? 'cur' : ''} st-${x.status}" data-act="mmsel" data-id="${x.status === 'done' ? x.id : ''}" ${x.status === 'done' || x.id === curM.id ? '' : 'disabled'} aria-label="${x.n}경기${x.status === 'done' ? ' 점수 수정' : ''}"><em>${x.n}</em><i style="background:${X.color}"></i><span>${x.status === 'pending' ? 'vs' : a + ':' + b}</span><i style="background:${Y.color}"></i></button>` }).join('')}</div>
-    <p class="mm-note">끝난 경기는 아래 목록에서 눌러 점수를 고칠 수 있어요. 경기모드 화면에 있는 동안은 화면이 꺼지지 않아요. 다른 메뉴로 가도 시간과 휘슬은 계속 이어져요.</p></div>`;
+    <div class="mm-list">${ms.map(x => { const [a, b] = score(x); const X = team(s, x.home), Y = team(s, x.away); return `<button class="mm-li ${x.id === m.id ? 'cur' : ''} st-${x.status}" data-act="mmsel" data-id="${x.status === 'done' ? x.id : ''}" ${ctl && (x.status === 'done' || x.id === curM.id) ? '' : 'disabled'} aria-label="${x.n}경기${x.status === 'done' ? ' 점수 수정' : ''}"><em>${x.n}</em><i style="background:${X.color}"></i><span>${x.status === 'pending' ? 'vs' : a + ':' + b}</span><i style="background:${Y.color}"></i></button>` }).join('')}</div>
+    <p class="mm-note">${ctl ? '끝난 경기는 아래 목록에서 눌러 점수를 고칠 수 있어요. ' : ''}경기모드 화면에 있는 동안은 화면이 꺼지지 않아요. ${ctl ? '다른 메뉴로 가도 시간과 휘슬은 계속 이어져요.' : '휘슬은 진행자 폰에서 울려요.'}</p></div>`;
   return h;
 }
 async function mmSavePairs() {
@@ -1642,7 +1659,8 @@ function blowN(t, d) { const ctx = AC; const nodes = []; const o1 = ctx.createOs
   o1.connect(amp); o2.connect(amp); amp.connect(MASTER); [o1, o2, lfo].forEach(o => { o.start(t); o.stop(t + d + .05); nodes.push(o) }); return nodes }
 function scheduleWhistles() {
   const sid = S.mmSid || S.sid; if (!sid || !S.sessions[sid]) return; let anyRun = false;
-  for (const m of sessMatches(sid)) { const run = m.status === 'live' && m.timer?.running; const sig = run ? m.timer.startedAt + ':' + (m.timer.acc || 0) : '';
+  const canBlow = mmIsCtl() || (S.admin && !!S.openMatch);
+  for (const m of sessMatches(sid)) { const run = canBlow && m.status === 'live' && m.timer?.running; const sig = run ? m.timer.startedAt + ':' + (m.timer.acc || 0) : '';
     if (run) anyRun = true; if ((S.schedSig[m.id] || '') === sig) continue;
     (SCHED[m.id] || []).forEach(n => { try { n.stop() } catch { } }); SCHED[m.id] = []; S.schedSig[m.id] = sig;
     if (CAP()?.LocalNotifications) { nativeSchedule(m, timing(S.sessions[sid]), run); continue }
@@ -1773,6 +1791,7 @@ document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]'); if (!el) return;
   if (el.classList.contains('scrim') && e.target.closest('[data-stop]')) return;
   if (el.disabled) return; const act = el.dataset.act, id = el.dataset.id; const s = cur(); const m = S.openMatch ? M(S.openMatch) : null;
+  if (act && act.startsWith('mm') && !['mmtoggle', 'mmtake', 'mmrelease'].includes(act) && S.tab === 'mm' && !mmIsCtl()) { toast('보기 전용이에요. 진행자만 조작할 수 있어요.'); return }
   switch (act) {
     case 'tab': S.tab = el.dataset.v; S.openMatch = null; S.sheet = null; S.sel = null; S.sub = null; S.detail = null; render(); window.scrollTo(0, 0); break;
     case 'home': S.sid = null; S.step = null; watchChat(); render(); break;
@@ -1791,6 +1810,8 @@ document.addEventListener('click', async e => {
     case 'pick': await setPending(id); break;
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
+    case 'mmtake': { const s = S.sessions[S.mmSid]; const c = mmCtl(s); if (!c.free && !c.stale && !c.mine) break; if (!c.free && !confirm(`${c.name} 님 대신 경기 진행을 맡을까요?`)) break; if (await mmTake(S.mmSid, !c.free)) toast('이제 내가 경기를 진행해요.'); else toast('다른 사람이 먼저 진행을 맡았어요.'); break }
+    case 'mmrelease': { const s = S.sessions[S.mmSid]; if (s && liveAny() && !confirm('경기가 진행 중이에요. 진행을 넘기면 휘슬은 새 진행자 폰에서 울려요. 넘길까요?')) break; await mmRelease(S.mmSid); if (S.mmTry) S.mmTry[S.mmSid] = 1; break }
     case 'mksim': if (!needAdmin()) break; await makeSim(el.dataset.k); break;
     case 'mkpractice': if (!needAdmin()) break; await makePractice(); break;
     case 'clrpractice': if (!needAdmin()) break; await clearPractice(); break;

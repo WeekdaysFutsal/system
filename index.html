@@ -1381,11 +1381,19 @@ pre,.pre{white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere}
 }
 .tabs .mmtab::before,.tabs .mmtab[aria-current=page]::before{display:none!important;content:none!important}
 .tabs .mmtab[aria-current=page]{background:transparent}
+/* v1.10 match-mode controller */
+.mm-cbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:14px;margin-bottom:10px;border:1px solid var(--line);background:var(--surface)}
+.mm-cbar span{display:flex;flex-direction:column;min-width:0}.mm-cbar b{font-size:14px}.mm-cbar small{font-size:12px;color:var(--muted)}
+.mm-cbar.me{background:#DCFCE7;border-color:#86EFAC;color:#14532D}.mm-cbar.me small{color:#166534}
+.mm-cbar.view{background:#E0E7FF;border-color:#A5B4FC;color:#1E1B4B}.mm-cbar.view small{color:#3730A3}
+.mm-cbar.warn{background:#FEF3C7;border-color:#FCD34D;color:#78350F}.mm-cbar.warn small{color:#92400E}
+.mm-cbar .btn{flex:none}
+.mm.ro .mm-board{box-shadow:inset 0 0 0 2px rgba(255,255,255,.15)}
 </style>
 </head>
 <body>
 <div id="app"><p class="empty">불러오는 중…</p></div>
-<script src="config.js?v=1.9.5"></script>
-<script type="module" src="app.js?v=1.9.5"></script>
+<script src="config.js?v=1.10"></script>
+<script type="module" src="app.js?v=1.10"></script>
 </body>
 </html>
