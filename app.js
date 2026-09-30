@@ -796,10 +796,15 @@ function watchChat() {
   const q = new URLSearchParams(location.search);
   if (q.get('d') && q.get('c') && q.get('t')) { S.capLinks[q.get('d')] = { k: q.get('c'), t: q.get('t') }; save('caplinks', S.capLinks); S.sid = q.get('d'); S.tab = 'draft'; S.adminOn = S.adminOn && false; S.pendingLink = q.get('d'); history.replaceState(null, '', location.pathname) }
   render();
-  try { S.store = (window.claude && await artifactStore()) || (CFG.firebase?.apiKey ? await firebaseStore(CFG.firebase) : null) }
-  catch (e) { console.error(e) }
-  if (!S.store) { S.err = '데이터 서버에 연결하지 못했어요. config.js의 Firebase 설정과 인터넷 연결을 확인하세요.'; S.ready = 3; render(); return }
-  const onErr = () => { S.err = '데이터를 불러오지 못했어요. Firebase 규칙과 익명 로그인 설정을 확인하세요.'; render() };
+  let why = '';
+  try { S.store = (window.claude && await artifactStore()) || (CFG.firebase?.apiKey ? await firebaseStore(CFG.firebase) : null); if (!S.store) why = 'config.js에 Firebase 설정값(apiKey 등)이 비어 있어요.' }
+  catch (e) { console.error(e); const c = e?.code || '';
+    why = c === 'auth/operation-not-allowed' || c === 'auth/admin-restricted-operation' ? 'Firebase Authentication에서 익명 로그인이 꺼져 있어요.'
+      : c === 'auth/invalid-api-key' || c === 'auth/api-key-not-valid.-please-pass-a-valid-api-key.' ? 'config.js의 apiKey 값이 올바르지 않아요.'
+      : c === 'auth/unauthorized-domain' ? `Firebase 승인된 도메인에 ${location.hostname}을 추가해 주세요.`
+      : `오류 코드: ${c || e?.message || '알 수 없음'}` }
+  if (!S.store) { S.err = '데이터 서버에 연결하지 못했어요. ' + why; S.ready = 3; render(); return }
+  const onErr = e => { const c = e?.code || ''; S.err = '데이터를 불러오지 못했어요. ' + (c === 'permission-denied' ? 'Firestore 규칙이 게시되지 않았거나 익명 로그인이 꺼져 있어요.' : c === 'not-found' || /does not exist/i.test(e?.message || '') ? 'Firestore Database가 아직 만들어지지 않았어요.' : `오류 코드: ${c || e?.message || '알 수 없음'}`); S.ready = 3; render() };
   let posterT; const sub = (p, key) => { let first = true; S.store.watchCol(p, docs => { const o = {}; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); S[key] = o; if (first) { first = false; S.ready++ }
     if (key === 'sessions' && S.pendingLink) { const sid = S.pendingLink; S.pendingLink = null; S.sid = S.sessions[sid] ? sid : null; if (!S.sessions[sid] || !myTeam(S.sessions[sid])) { toast('만료되었거나 잘못된 주장 링크예요. 운영진에게 새 링크를 받아 주세요.'); S.tab = 'mhome' } else toast(`${team(S.sessions[sid], myTeam(S.sessions[sid])).name} 주장으로 드래프트에 참여해요.`) }
     if (key === 'sessions' && S.sid && S.tab === 'home' && (S.step || S.sessions[S.sid]?.stage) === 'notice') { clearTimeout(posterT); posterT = setTimeout(refreshPoster, 300) }

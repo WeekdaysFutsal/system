@@ -1,4 +1,4 @@
-# WD_FUTSAL (웹 버전 Ver.0.7)
+# WD_FUTSAL (웹 버전 Ver.0.7.1)
 
 신청 → 주장·순번 → 드래프트와 채팅 → 교환 → 공지 이미지 → 경기 기록까지 한 앱에서 진행해요.
 GitHub Pages로 올릴 때는 config.js에 Firebase 설정이 있어야 동작해요. (체험 모드는 없앴어요)
