@@ -1124,6 +1124,16 @@ table.atbl tr.lrow td:nth-child(n+7){text-decoration:none}
 .runtools{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
 @media (max-width:1023px){.runtools{margin-left:0;width:100%}.runtools .btn{flex:1}.mg-top{flex-wrap:wrap;gap:8px}.mg-top>.pseg{flex:1 1 100%;max-width:none;display:grid;grid-template-columns:repeat(3,1fr)}.mg-top>.row{flex:1 1 100%}.mg-top>.row .btn{flex:1}.planwrap .scgrid{height:calc(44px * 6)}.planwrap .scd .ev small{display:none}}
 @media (min-width:1024px) and (hover:hover) and (pointer:fine){.planwrap{grid-template-columns:minmax(0,2.2fr) minmax(360px,1fr)}.pside{height:100%;overflow:auto}}
+/* v1.1 login screen */
+.lgscreen{min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px 16px calc(24px + env(safe-area-inset-bottom,0px));background:radial-gradient(circle at 50% 0%,#1E46C8 0%,#0E1C38 55%,#0A1428 100%)}
+.lgcard{width:100%;max-width:400px;display:flex;flex-direction:column;align-items:center;gap:12px;color:#fff;text-align:center}
+.lgemb{width:96px;height:96px;border-radius:50%;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.lgcard h1{margin:6px 0 0;font-family:var(--latin);font-weight:400;font-size:28px;letter-spacing:1px}
+.lgsub{margin:0 0 6px;opacity:.8;font-size:14px}
+.lgcard .panel{width:100%;text-align:left;color:var(--ink)}
+.lgcard .note{color:rgba(255,255,255,.7);margin:0}
+.lgcard .linkbtn{color:#FFD21F}
+.lgbtn{min-height:52px;font-size:17px}
 </style>
 </head>
 <body>

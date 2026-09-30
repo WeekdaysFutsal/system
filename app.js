@@ -266,10 +266,31 @@ function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w
 function fitFont(g, text, font, size, maxW) { let s = size; g.font = font.replace('{s}', s); while (g.measureText(text).width > maxW && s > 10) { s -= 2; g.font = font.replace('{s}', s) } return s }
 function crown(g, x, y, s) { g.save(); g.fillStyle = '#FFC61A'; g.strokeStyle = '#8A5A00'; g.lineWidth = 2; g.beginPath(); g.moveTo(x, y + s * .78); g.lineTo(x, y + s * .22); g.lineTo(x + s * .27, y + s * .5); g.lineTo(x + s * .5, y); g.lineTo(x + s * .73, y + s * .5); g.lineTo(x + s, y + s * .22); g.lineTo(x + s, y + s * .78); g.closePath(); g.fill(); g.stroke(); g.fillRect(x, y + s * .84, s, s * .16); g.strokeRect(x, y + s * .84, s, s * .16); g.restore() }
 function badge(g, img, cx, cy, r) { g.save(); g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fillStyle = '#fff'; g.fill(); g.lineWidth = Math.max(2, r * .08); g.strokeStyle = '#000'; g.stroke(); if (img) { g.clip(); g.drawImage(img, cx - r * .92, cy - r * .92, r * 1.84, r * 1.84) } g.restore() }
+/* ───────── poster fonts (full Korean glyph sets) ───────── */
+const FONT_FILES = [
+  ['PaperlogyH', '100 900', 'https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-8ExtraBold.woff2'],
+  ['Pretendard', '400', 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-Regular.woff2'],
+  ['Pretendard', '600', 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-SemiBold.woff2'],
+  ['Pretendard', '800', 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-ExtraBold.woff2'],
+  ['PretendardH', '100 900', 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-ExtraBold.woff2']];
+function loadWebFonts() {
+  if (S.wfonts) return S.wfonts;
+  S.wfonts = (async () => { const ok = {};
+    await Promise.all(FONT_FILES.map(async ([fam, wt, url]) => { try { const f = new FontFace(fam, `url(${url}) format('woff2')`, { weight: wt, display: 'block' }); await Promise.race([f.load(), new Promise((_, rej) => setTimeout(() => rej('timeout'), 6000))]); document.fonts.add(f); ok[fam] = true } catch { } }));
+    return ok })();
+  return S.wfonts;
+}
+async function posterFonts(texts) {
+  const ok = await loadWebFonts(); const fb = '"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif';
+  const H = ok.PaperlogyH ? '"PaperlogyH"' : ok.PretendardH ? '"PretendardH"' : '"Black Han Sans"', B = ok.Pretendard ? '"Pretendard"' : '"IBM Plex Sans KR"';
+  const all = [...new Set((texts || []).join(' ') + ' 0123456789월화수목금토일요일회차일시장소신청예약자구장비밀번호공지')].join('');
+  try { await Promise.all([`900 80px ${H}`, `800 60px ${H}`, `400 40px ${B}`, `700 40px ${B}`, `80px "Anton"`].map(f => document.fonts.load(f, all))) } catch { }
+  return { LAT: `"Anton",${H},Impact,sans-serif`, KR: `${H},${fb}`, BD: `${B},${fb}`, H, B };
+}
 async function drawPoster(s) {
   const W = 1086, H = 1448; const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
-  try { await Promise.all([document.fonts.load('80px "Anton"'), document.fonts.load('60px "Black Han Sans"')]) } catch { }
-  const img = await emblem(); const LAT = '"Anton","Black Han Sans",Impact,sans-serif', KR = '"Black Han Sans","Apple SD Gothic Neo","Malgun Gothic",sans-serif';
+  const PF = await posterFonts([s.venue || '', s.notice || '', s.evpw || '', ...KEYS.flatMap(k => teamPlayers(s, k).map(pname)), ...KEYS.map(k => team(s, k).name)]);
+  const img = await emblem(); const LAT = PF.LAT, KR = PF.KR;
   // sky + stadium
   let gr = g.createLinearGradient(0, 0, 0, 560); gr.addColorStop(0, '#081A55'); gr.addColorStop(.7, '#123A96'); gr.addColorStop(1, '#1B4AA8'); g.fillStyle = gr; g.fillRect(0, 0, W, 560);
   for (const [lx, ly] of [[70, 60], [W - 70, 60]]) { const rg = g.createRadialGradient(lx, ly, 4, lx, ly, 260); rg.addColorStop(0, 'rgba(255,255,255,.95)'); rg.addColorStop(.12, 'rgba(190,215,255,.6)'); rg.addColorStop(1, 'rgba(120,160,255,0)'); g.fillStyle = rg; g.fillRect(0, 0, W, 400);
@@ -347,6 +368,7 @@ window.addEventListener('unhandledrejection', e => { try { console.error(e.reaso
 function render() {
   if (isTyping()) { S.pending = true; return } S.pending = false;
   S.dm = !isDesk();
+  if (!S.admin && !S.auth && S.ready >= 3) { document.body.classList.remove('dm-on'); document.getElementById('app').innerHTML = loginScreen() + (S.sheet ? viewSheet() : ''); return }
   if (S.ready >= 3 && (!S.sid || !S.sessions[S.sid])) S.sid = defaultSid();
   if (S.store && S.chatSid !== S.sid) watchChat();
   if (S.admin) watchContacts();
@@ -1235,8 +1257,9 @@ function md(id) { const [, m, d] = id.split('-'); return `${+m}/${+d}(${dow(id)}
 async function drawSchedule(ym) {
   const ss0 = Object.keys(S.sessions).filter(id => id.startsWith(ym)); const fl = schedCfg().footer.split('\n').filter((l, i, a) => i < 8).length;
   const W = 1080, H = Math.max(1515, 895 + 124 + 66 * Math.max(6, ss0.length) + 80 + fl * 50 + 50); const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
-  try { await Promise.all([document.fonts.load('80px "Anton"'), document.fonts.load('40px "Black Han Sans"'), document.fonts.load('30px "IBM Plex Sans KR"')]) } catch { }
-  const img = await emblem(); const LAT = '"Anton","Black Han Sans",Impact,sans-serif', KR = '"Black Han Sans","Apple SD Gothic Neo","Malgun Gothic",sans-serif', BD = '"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif';
+  const ssT = Object.keys(S.sessions).filter(id => id.startsWith(ym)).map(id => S.sessions[id]);
+  const PF = await posterFonts([schedCfg().footer, schedCfg().tag, ...ssT.map(x => (x.venue || '') + idsToNames(x.p0))]);
+  const img = await emblem(); const LAT = PF.LAT, KR = PF.KR, BD = PF.BD;
   let gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#2A7A3B'); gr.addColorStop(1, '#2E8744'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
   g.fillStyle = '#23693A'; g.beginPath(); g.moveTo(0, 0); g.lineTo(W, 0); g.lineTo(W, 520); g.lineTo(0, 150); g.closePath(); g.fill();
   g.strokeStyle = 'rgba(255,255,255,.92)'; g.lineWidth = 34; g.beginPath(); g.moveTo(-20, 160); g.lineTo(W + 20, 520); g.stroke(); g.lineWidth = 22; g.beginPath(); g.moveTo(640, 360); g.lineTo(W + 20, 230); g.stroke();
@@ -1383,6 +1406,12 @@ async function loginFlow(name, pin, remember) {
   else if (a.h !== h) { toast('비밀번호가 달라요. 잊었다면 운영진에게 초기화를 요청하세요.'); return null }
   S.auth = { pid, h }; saveAuth(S.auth, remember); S.me = name; save('me', name); return pid;
 }
+function loginScreen() {
+  return `<div class="lgscreen"><div class="lgcard"><img src="${EMBLEM_SRC}" alt="" class="lgemb"><h1>${esc(CFG.club?.name || 'WEEKDAYS FUTSAL CLUB')}</h1><p class="lgsub">이름과 비밀번호 4자리로 로그인해요</p>
+    <div class="panel">${loginFields('lg', S.me)}<div class="pad" style="padding-top:4px"><button class="btn primary block lgbtn" data-act="login">로그인</button></div></div>
+    <p class="note">처음이면 지금 입력한 비밀번호로 바로 등록돼요. 비밀번호를 잊었다면 운영진에게 초기화를 요청하세요.</p>
+    <button class="linkbtn" data-act="opmode">운영진이신가요? 운영모드로 들어가기 ›</button></div></div>`;
+}
 function logout() { S.auth = null; saveAuth(null); S.me = ''; save('me', ''); toast('로그아웃했어요.'); render() }
 async function verifyAuth() { if (!S.auth) return; try { const a = await S.store.get('auth/' + S.auth.pid); if (!a || a.h !== S.auth.h || !S.players[S.auth.pid]) { S.auth = null; saveAuth(null); toast('다시 로그인해 주세요.'); render() } else { S.me = S.players[S.auth.pid].name; render() } } catch { } }
 function loginCard() {
@@ -1491,7 +1520,7 @@ async function sendChat() {
   try { await w(() => S.store.add(sp(S.sid) + '/chat', { name, uid: myUid(), team: mk || null, admin: !mk && S.admin, text: text.slice(0, 300), at: Date.now() })) } finally { S.sending = false }
   document.getElementById('chatin')?.focus();
 }
-document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset?.act === 'gohome') { e.target.click(); return } if (e.target.id !== 'chatin' || e.key !== 'Enter' || e.shiftKey) return; e.preventDefault();
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset?.act === 'gohome') { e.target.click(); return } if (e.key === 'Enter' && (e.target.id === 'lg-pin' || e.target.id === 'lg-name')) { e.preventDefault(); document.querySelector('[data-act=login]')?.click(); return } if (e.target.id !== 'chatin' || e.key !== 'Enter' || e.shiftKey) return; e.preventDefault();
   if (e.isComposing) { S.sendAfterCompose = true; return } sendChat() }, true);
 document.addEventListener('compositionstart', e => { if (e.target.id === 'chatin') S.composing = true });
 document.addEventListener('compositionend', e => { if (e.target.id !== 'chatin') return; S.composing = false;
@@ -1563,7 +1592,7 @@ document.addEventListener('click', async e => {
     case 'caladdon': { if (!needAdmin()) break; const d = new Date(id + 'T00:00'); S.cal = { mode: 'add', y: d.getFullYear(), m: d.getMonth(), sel: [id], f: { time: DEFAULTS.time, venue: DEFAULTS.venue, capacity: DEFAULTS.capacity || 18, openD: DEFAULTS.openDays, openT: DEFAULTS.openTime, closeD: DEFAULTS.closeDays, closeT: DEFAULTS.closeTime, no: nextNoFor(id) } }; S.sheet = { type: 'cal' }; render(); break }
     case 'runpick': if (!id) break; S.sid = id; S.step = null; S.sel = null; render(); window.scrollTo(0, 0); break;
     case 'fillnos': if (!needAdmin()) break; await fillNos(); break;
-    case 'login': { const pid = await loginFlow(document.getElementById('lg-name')?.value, document.getElementById('lg-pin')?.value, document.getElementById('lg-auto')?.checked); if (pid) { toast(`${pname(pid)} 님, 반가워요!`); render() } break }
+    case 'login': { S.tab = S.tab && !ADMIN_TABS.includes(S.tab) ? S.tab : 'mhome'; const pid = await loginFlow(document.getElementById('lg-name')?.value, document.getElementById('lg-pin')?.value, document.getElementById('lg-auto')?.checked); if (pid) { document.activeElement?.blur(); toast(`${pname(pid)} 님, 반가워요!`); render(); window.scrollTo(0, 0) } break }
     case 'logout': if (confirm('로그아웃할까요?')) logout(); break;
     case 'pinchange': { const pid = myPid(); if (!pid) break; const p1 = prompt('새 비밀번호 (숫자 4자리)'); if (p1 === null) break; if (!/^\d{4}$/.test(p1)) { toast('숫자 4자리로 입력해 주세요.'); break } const p2x = prompt('새 비밀번호를 한 번 더 입력하세요'); if (p2x !== p1) { toast('두 번 입력한 번호가 달라요.'); break }
       const h = await pinHash(pid, p1); if (await w(() => S.store.set('auth/' + pid, { h, at: Date.now() }), '비밀번호를 바꿨어요.')) { S.auth = { pid, h }; saveAuth(S.auth, !!load('auth', null)); render() } break }
