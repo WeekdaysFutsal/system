@@ -241,18 +241,11 @@ td.pts{font-weight:700}
 .toast{position:fixed;left:50%;bottom:calc(80px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;background:var(--ink);color:var(--bg);padding:11px 16px;border-radius:12px;font-size:14px;max-width:90vw;text-align:center}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 
-/* onboarding */
-.onboard{max-width:520px;margin:0 auto;padding:calc(36px + env(safe-area-inset-top,0px)) 20px calc(28px + env(safe-area-inset-bottom,0px));min-height:100vh;background:linear-gradient(180deg,var(--navy) 0 210px,var(--bg) 210px)}
-.obem{display:block;width:96px;height:96px;margin:0 auto;border-radius:50%;background:#fff;box-shadow:0 6px 20px rgba(0,0,0,.35)}
-.obclub{text-align:center;color:#fff;font-family:var(--latin);font-size:22px;letter-spacing:1px;margin-top:12px}
-.onboard h1{font-family:var(--display);font-weight:400;font-size:24px;text-align:center;margin:60px 0 18px}
-.oblab{display:block;font-size:13px;color:var(--muted);margin:0 2px 6px}
-.roles{display:grid;gap:10px;margin-top:16px}
-.rolecard{display:flex;align-items:center;gap:14px;width:100%;padding:16px;border-radius:16px;background:var(--surface);border:1px solid var(--line);text-align:left;min-height:84px}
-.rolecard .ic{font-size:30px;width:48px;height:48px;border-radius:12px;background:var(--bg);display:flex;align-items:center;justify-content:center;flex:none}
-.rolecard b{display:block;font-family:var(--display);font-weight:400;font-size:20px}
-.rolecard small{display:block;font-size:13px;color:var(--muted);line-height:1.4;margin-top:2px}
-.rolecard:active{transform:scale(.99)}
+/* op mode + captain */
+.opbtn{flex:none;min-height:36px;padding:0 12px;border-radius:99px;border:1px solid rgba(255,255,255,.45);color:#fff;font-size:13px;font-weight:700}
+.opbtn.on{background:var(--amber);border-color:var(--amber);color:#1A1400}
+.capbanner{display:flex;align-items:center;gap:10px;margin-top:12px;padding:12px 14px;border-radius:14px;background:var(--surface);border:2px solid var(--line)}
+.capbanner b{font-weight:700}
 .mystats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .mystats div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center}
 .mystats b{display:block;font-family:var(--display);font-weight:400;font-size:26px;line-height:1.1}
