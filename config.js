@@ -14,6 +14,9 @@ window.WF_CONFIG = {
   },
 
   // 운영진 모드 비밀번호 (운영진, 기록 담당자에게만 알려 주세요)
+  // 주차 추첨 인원
+  parkingSlots: 2,
+
   adminPin: "0000",
 
   club: { name: "WEEKDAYS FUTSAL CLUB", short: "WF" },
