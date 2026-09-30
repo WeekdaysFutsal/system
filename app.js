@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '1.10.3';
+const APP_VERSION = '1.11';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -248,11 +248,11 @@ async function addApplicants(names) {
   await w(() => S.store.update(sp(S.sid), { applicants: cur0 }), `${n}명을 추가했어요.`);
 }
 async function sysChat(text) { if (!S.sid) return; try { await S.store.add(sp(S.sid) + '/chat', { name: '', uid: 'sys', text, at: Date.now() }) } catch { } }
-async function undoPick() {
-  if (!needAdmin()) return; const s = cur(); if (!(s.picks || []).length) return;
+async function undoPick(byCap) {
+  if (!byCap && !needAdmin()) return; const s = cur(); if (!(s.picks || []).length) return;
   const last = s.picks[s.picks.length - 1];
-  if (await w(() => S.store.txn(sp(S.sid), d => { d.picks = (d.picks || []).slice(0, -1); d.draftStatus = 'live'; d.pending = null; if (d.stage === 'trade') d.stage = 'draft'; KEYS.forEach(t => { if (d.teams?.[t]) d.teams[t].players = [] }); return d })))
-    sysChat(`운영진이 ${pname(last.p)} 지명을 되돌렸어요.`);
+  if (await w(() => S.store.txn(sp(S.sid), d => { const lp = (d.picks || []).slice(-1)[0]; if (!lp || lp.p !== last.p) return null; d.picks = (d.picks || []).slice(0, -1); d.draftStatus = 'live'; d.pending = null; if (d.stage === 'trade') d.stage = 'draft'; KEYS.forEach(t => { if (d.teams?.[t]) d.teams[t].players = [] }); return d })))
+    { if (!byCap) sysChat(`운영진이 ${pname(last.p)} 지명을 되돌렸어요.`) }
 }
 async function swapPlayers(a, b) {
   const s = cur(); const ta = KEYS.find(k => teamPlayers(s, k).includes(a)), tb = KEYS.find(k => teamPlayers(s, k).includes(b));
@@ -410,7 +410,9 @@ function render() {
   if (S.openMatch && S.matches[S.openMatch]) h += viewMatch();
   if (S.sheet) h += viewSheet();
   document.getElementById('app').innerHTML = h + (S.admin ? venueList() : '');
-  document.querySelectorAll('.msgs').forEach((nb, i) => { if (atB[i] ?? true) nb.scrollTop = nb.scrollHeight });
+  const nNow = S.chat.length; const grew = nNow !== S.lastChatN; S.lastChatN = nNow; if (grew) S.chatUp = false;
+  const toBottom = () => document.querySelectorAll('.msgs').forEach(nb => { if (!S.chatUp) nb.scrollTop = nb.scrollHeight });
+  toBottom(); requestAnimationFrame(toBottom);
   const dock = document.querySelector('.chatdock'); if (dock) document.documentElement.style.setProperty('--dockh', dock.offsetHeight + 'px');
   const ad = document.querySelector('.applydock'); document.documentElement.style.setProperty('--adock', (ad ? ad.offsetHeight : 0) + 'px');
   if (ov) document.querySelector('.overlay')?.scrollTo(0, ov);
@@ -557,11 +559,15 @@ function seatHTML(s, k, ph) {
     ${bubbleFor(m => m.team === k)}${turn ? '<span class="turnb">차례</span>' : ''}
     <div class="sv2"><div class="snm">${orderDecided(s) && o >= 0 && ph !== 'ladder' && ph !== 'cards' ? `<em class="ord2">${o + 1}</em>` : ''}<b>${esc(pname(cap) || '미정')}</b><i class="dot ${inRoom ? 'on' : ''}" title="${inRoom ? '입장' : '대기'}"></i>${me ? '<span class="meb">나</span>' : ''}</div>
       <div class="sinfo"><span class="tok">${esc(t.name)}</span><b class="cnt2">${cap ? ps.length + 1 : 0}<small>명</small></b></div></div>
-    ${ps.length ? `<div class="stk">${ps.map(id => `<span>${esc(pname(id))}</span>`).join('')}</div>` : ''}
+    ${(() => { const mine = me || S.admin; const pend = s.pending && s.pending.t === k ? s.pending.p : null; const last = (s.picks || []).slice(-1)[0]; const seen = (S.seenStk ??= new Set());
+      const items = ps.map(id => { const key = s.date + ':' + id; const nw = !seen.has(key); seen.add(key); const can = mine && last && last.p === id && last.t === k;
+        return mine ? `<button class="stkb ${nw ? 'new' : ''} ${can ? 'undo' : ''}" data-act="unpick" data-id="${id}" title="${can ? '눌러서 선택 취소' : ''}">${esc(pname(id))}${can ? ' ✕' : ''}</button>` : `<span class="${nw ? 'new' : ''}">${esc(pname(id))}</span>` });
+      if (pend) items.push(mine ? `<button class="stkb pendstk" data-act="unpick" data-id="${pend}">${esc(pname(pend))} ✕</button>` : `<span class="pendstk">${esc(pname(pend))}</span>`);
+      return items.length ? `<div class="stk">${items.join('')}</div>` : '' })()}
     ${me && !inRoom && ph !== 'done' ? `<button class="btn sm primary cta" data-act="joinroom" data-k="${k}">입장하기</button>` : ''}</div>`;
 }
 const BUBBLE_MS = 9000;
-function bubbleFor(pred) { const now = Date.now(); for (let i = S.chat.length - 1; i >= 0; i--) { const m = S.chat[i]; if (now - (m.at || 0) > BUBBLE_MS) break; if (m.uid !== 'sys' && pred(m)) return `<div class="bubble" role="status">${esc(m.text)}</div>` } return '' }
+function bubbleFor(pred) { const now = Date.now(); for (let i = S.chat.length - 1; i >= 0; i--) { const m = S.chat[i]; if (now - (m.at || 0) > BUBBLE_MS) break; if (m.uid !== 'sys' && pred(m)) { const bk = m.id || (m.at + m.text); const nw = !(S.seenBub ??= new Set()).has(bk); S.seenBub.add(bk); return `<div class="bubble ${nw ? 'new' : ''}" role="status">${esc(m.text)}</div>` } } return '' }
 function scheduleBubbles() { if (S.bubT) return; const now = Date.now(); const live = S.chat.filter(m => m.uid !== 'sys' && (m.team || m.admin) && now - (m.at || 0) < BUBBLE_MS); if (!live.length) return;
   const next = Math.min(...live.map(m => m.at + BUBBLE_MS - now)) + 50; S.bubT = setTimeout(() => { S.bubT = null; render() }, Math.max(100, next)) }
 function recolorBtns(s, my) {
@@ -587,7 +593,7 @@ function feltHTML(s, ph) {
     const canDraw = my2 && g.picks?.[my2] == null && (S.admin || s.room?.[my2]?.in);
     return `<div class="fx"><div class="rnd">STEP 2 · 순번 카드 뽑기 ${drawn}/3</div><b>${my && g.picks?.[my] != null ? `${g.deck[g.picks[my]]}번 카드! 다른 주장을 기다리는 중` : my ? '카드를 한 장 골라 뒤집어 주세요!' : '주장들이 카드를 뽑는 중이에요'}</b>
       <div class="ocards">${[0, 1, 2].map(i => { const by = KEYS.find(k => g.picks?.[k] === i);
-        if (by) { const t = team(s, by); return `<div class="ocard up" style="--tc:${t.color};--ti:${inkOn(t.color)}"><em>${g.deck[i]}</em><small>${esc(t.name)}</small></div>` }
+        if (by) { const t = team(s, by); const rk = s.date + ':oc' + i; const nw = !(S.seenStk ??= new Set()).has(rk); S.seenStk.add(rk); return `<div class="ocard up ${nw ? 'new' : ''}" style="--tc:${t.color};--ti:${inkOn(t.color)}"><em>${g.deck[i]}</em><small>${esc(t.name)}</small></div>` }
         return `<button class="ocard back" data-act="drawcard" data-i="${i}" ${canDraw ? '' : 'disabled'} aria-label="${i + 1}번째 카드 뽑기"><span>WF</span></button>` }).join('')}</div>
       ${S.admin ? `<div class="admsel"><small>대신 뽑기</small>${KEYS.filter(k => g.picks?.[k] == null).map(k => `<button class="btn sm${S.adminTeam === k ? ' primary' : ''}" data-act="adminteam" data-k="${k}">${esc(team(s, k).name)}</button>`).join('')}</div>` : ''}</div>` }
   if (ph === 'cardsrev') { if (!S.revT) S.revT = setTimeout(() => { S.revT = null; render() }, Math.max(50, s.cardgame.doneAt + CARD_REVEAL_MS - Date.now() + 60)); const g = s.cardgame;
@@ -598,9 +604,9 @@ function feltHTML(s, ph) {
     const flow = `<div class="flow" aria-label="지명 순서">${Array.from({ length: to - from }, (_, x) => { const j = from + x; const kk = pickTeamAt(s, j); const tt = team(s, kk);
       return `<span class="${j < i ? 'past' : j === i ? 'cur' : ''}" style="--tc:${tt.color};--ti:${inkOn(tt.color)}" title="${j + 1}순위 ${esc(tt.name)}">${ord.indexOf(kk) + 1}</span>` }).join('')}${to < tot ? '<em>…</em>' : ''}</div>`;
     return `<div class="fx"><div class="rnd">STEP 3 · 팀원 선택 ${i + 1} / ${tot}</div>${flow}<b><span class="tok" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}</span> ${esc(pname(s.captains[k]))} 주장 차례${my === k ? ', 내 차례!' : ''}</b>
-      <div class="card3 ${pd ? 'up' : ''}" style="--tc:${t.color};--ti:${inkOn(t.color)}"><i>${esc(t.name)}</i><span>${pd ? esc(pname(pd)) : '?'}</span></div>
-      ${S.poolHTML || ''}<p>${pd ? (S.admin ? '확인되면 다음 턴으로 넘겨 주세요.' : '운영진이 다음 턴으로 넘기면 확정돼요.') : my === k ? '경기장 안 명단에서 선수를 눌러 고르세요.' : '선수를 고르는 중…'}</p>
-      ${S.admin ? `<div class="row" style="justify-content:center"><button class="btn primary cta" data-act="nextturn" ${pd ? '' : 'disabled'}>다음 턴 ▶</button>${i ? '<button class="btn sm" data-act="undo">↶ 되돌리기</button>' : ''}</div>` : ''}</div>` }
+      ${i ? (() => { const lp = s.picks[i - 1]; const lt = team(s, lp.t); return `<div class="lastpick">직전 지명 <span class="tok" style="background:${lt.color};color:${inkOn(lt.color)}">${esc(lt.name)}</span> <b>${esc(pname(lp.p))}</b></div>` })() : ''}
+      ${S.poolHTML || ''}<p>${pd ? `<b>${esc(pname(pd))}</b> 선택 · ${my === k || S.admin ? '선택 완료를 누르면 다음 주장에게 넘어가요.' : '주장이 선택 완료를 누르면 확정돼요.'}` : my === k ? '명단에서 선수를 눌러 고른 뒤 선택 완료를 누르세요.' : '선수를 고르는 중…'}</p>
+      ${my === k || S.admin ? `<div class="row" style="justify-content:center"><button class="btn primary cta done-btn" data-act="nextturn" ${pd ? '' : 'disabled'}>선택 완료 ▶</button>${S.admin && i ? '<button class="btn sm" data-act="undo">↶ 되돌리기</button>' : ''}</div>` : ''}</div>` }
   return `<div class="fx"><b>드래프트 완료! 🎉</b><p>팀원조정 단계에서 밸런스를 맞춰요.</p></div>`;
 }
 function vDraft(s) {
@@ -673,6 +679,20 @@ async function runLadder() {
   const L = makeLadder(); const order = ladderOrder(L);
   if (await w(() => S.store.update(sp(S.sid), { ladder: L, order, cardgame: null, draftStatus: 'live', picks: [], pending: null }))) {
     setTimeout(() => sysChat(`사다리 결과: ${order.map((k, i) => `${i + 1}번 ${team(s, k).name}(${pname(s.captains[k])})`).join(', ')}. 1순위부터 팀원을 골라요!`), LADDER_MS) }
+}
+async function commitPick(pid) {
+  const s = cur(); const i0 = (s.picks || []).length; const k = pickTeamAt(s, i0);
+  if (!(S.admin || (myTeam(s) === k && s.room?.[k]?.in))) { toast('내 차례에만 고를 수 있어요.'); return }
+  if (S.picking) return; S.picking = true; let info = null, done = false;
+  try {
+    const ok = await w(() => S.store.txn(sp(S.sid), d => { if (!d || d.draftStatus !== 'live') return null; const i = (d.picks || []).length; const kk = pickTeamAt(d, i);
+      if (kk !== k || !pool(d).includes(pid)) return null; info = { t: kk, p: pid, n: i + 1 };
+      d.picks = [...(d.picks || []), { t: kk, p: pid, at: Date.now() }]; d.pending = null;
+      if (!pool(d).length) { d.draftStatus = 'done'; d.stage = 'trade'; KEYS.forEach(t => { d.teams[t] = { ...(d.teams[t] || {}), players: [d.captains[t], ...d.picks.filter(x => x.t === t).map(x => x.p)] } }); done = true }
+      return d }));
+    if (ok && info) { try { navigator.vibrate?.(40) } catch { } sysChat(`${info.n}순위 ${team(s, info.t).name}: ${pname(info.p)}`); if (done) sysChat('드래프트 완료! 🎉') }
+    else if (!ok) toast('이미 다른 선택이 반영됐어요. 화면을 확인해 주세요.');
+  } finally { S.picking = false }
 }
 async function setPending(pid) {
   const s = cur(); const k = pickTeamAt(s, (s.picks || []).length);
@@ -1740,6 +1760,7 @@ async function sendChat() {
 }
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'ap-pin') { e.preventDefault(); document.querySelector('[data-act=adminpinok]')?.click(); return } if (e.key === 'Enter' && e.target.dataset?.act === 'gohome') { e.target.click(); return } if (e.key === 'Enter' && (e.target.id === 'lg-pin' || e.target.id === 'lg-name')) { e.preventDefault(); document.querySelector('[data-act=login]')?.click(); return } if (e.target.id !== 'chatin' || e.key !== 'Enter' || e.shiftKey) return; e.preventDefault();
   if (e.isComposing) { S.sendAfterCompose = true; return } sendChat() }, true);
+document.addEventListener('scroll', e => { const t = e.target; if (t && t.classList && t.classList.contains('msgs') && !S.autoScrolling) S.chatUp = t.scrollHeight - t.scrollTop - t.clientHeight > 40 }, true);
 document.addEventListener('input', e => { if (/-name$/.test(e.target.id || '')) document.querySelectorAll('.lgerr').forEach(x => x.hidden = true); if (e.target.classList?.contains('pin')) { const v = e.target.value.replace(/\D/g, ''); if (v !== e.target.value) e.target.value = v } }, true);
 document.addEventListener('compositionstart', e => { if (e.target.id === 'chatin') S.composing = true });
 document.addEventListener('compositionend', e => { if (e.target.id !== 'chatin') return; S.composing = false;
@@ -1807,7 +1828,13 @@ document.addEventListener('click', async e => {
     case 'ord': { const o = [...(s.order || KEYS)]; const i = +el.dataset.i, j = i + (+el.dataset.d); [o[i], o[j]] = [o[j], o[i]]; await w(() => S.store.update(sp(S.sid), { order: o })); break }
     case 'lottery': { const o = [...KEYS]; for (let i = 2; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [o[i], o[j]] = [o[j], o[i]] }
       if (await w(() => S.store.update(sp(S.sid), { order: o }), '순번을 추첨했어요.')) sysChat(`순번 추첨 결과: ${o.map((k, i) => `${i + 1}번 ${team(s, k).name}`).join(', ')}`); break }
-    case 'pick': await setPending(id); break;
+    case 'pick': { const s0 = cur(); if (s0?.pending?.p === id) { await w(() => S.store.update(sp(S.sid), { pending: null })); break } await setPending(id); break }
+    case 'unpick': { const s0 = cur(); const k = myTeam(s0); const sid0 = S.sid;
+      if (s0.pending?.p === id && (S.admin || s0.pending.t === k)) { await w(() => S.store.update(sp(sid0), { pending: null }), '선택을 취소했어요.'); break }
+      const last = (s0.picks || []).slice(-1)[0];
+      if (!last || last.p !== id) { toast('이미 다음 순번이 진행돼서 취소할 수 없어요. 운영진에게 요청해 주세요.'); break }
+      if (!(S.admin || last.t === k)) break;
+      if (!confirm(`${pname(id)} 선택을 취소할까요? 다시 내 차례가 돼요.`)) break; await undoPick(!S.admin); sysChat(`${team(s0, last.t).name} 주장이 ${pname(id)} 선택을 취소했어요`); break }
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
     case 'mmtake': { const s = S.sessions[S.mmSid]; const c = mmCtl(s); if (!c.free && !c.stale && !c.mine) break; if (!c.free && !confirm(`${c.name} 님 대신 경기 진행을 맡을까요?`)) break; if (await mmTake(S.mmSid, !c.free)) toast('이제 내가 경기를 진행해요.'); else toast('다른 사람이 먼저 진행을 맡았어요.'); break }
@@ -1901,7 +1928,7 @@ document.addEventListener('click', async e => {
     case 'leaveroom': if (confirm('드래프트 채팅방에서 나갈까요?')) await leaveRoom(); break;
     case 'ladder': if (!needAdmin()) break; await runLadder(); break;
     case 'relader': S.sheet = null; if (!needAdmin() || !confirm('사다리를 다시 탈까요?')) break; await runLadder(); break;
-    case 'nextturn': if (!needAdmin()) break; await nextTurn(); break;
+    case 'nextturn': { const s0 = cur(); const k = pickTeamAt(s0, (s0.picks || []).length); if (!(S.admin || (myTeam(s0) === k && s0.room?.[k]?.in))) { toast('내 차례에만 선택 완료를 누를 수 있어요.'); break } await nextTurn(); break }
     case 'resetroom': S.sheet = null; if (!needAdmin() || !confirm('드래프트를 처음(주장 입장)부터 다시 할까요? 지명 내역이 모두 지워져요.')) break; await openRoom(); break;
     case 'rmwait': if (!needAdmin()) break; await w(() => S.store.update(sp(S.sid), { waitlist: (s.waitlist || []).filter(x => x !== id) })); break;
     case 'promote': if (!needAdmin() || !(s.waitlist || []).length) break; await w(() => S.store.update(sp(S.sid), { applicants: [...(s.applicants || []), s.waitlist[0]], waitlist: s.waitlist.slice(1) }), '신청자로 올렸어요.'); break;

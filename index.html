@@ -1417,11 +1417,47 @@ pre,.pre{white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere}
 /* v1.10.2 login error */
 .appbar>.in{position:relative}
 .lgerr{margin:6px 0 0;color:#DC2626;font-size:13px;font-weight:700}
+/* v1.10.4 pitch text readability */
+.felt>.fx{background:rgba(4,22,12,.62);border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.25);backdrop-filter:blur(1.5px);-webkit-backdrop-filter:blur(1.5px);max-width:92%;margin:0 auto;padding:14px 16px!important}
+.felt .fx,.felt .fx b,.felt .fx p,.felt .fx .rnd,.felt .fx .big{color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+.felt .fx b{font-size:16px;font-weight:800}
+.felt .fx p{opacity:.95!important;font-size:13px;font-weight:500}
+.felt .fx .rnd{color:#FFE14D!important;font-weight:800;letter-spacing:1.5px}
+.felt .pool{background:rgba(0,0,0,.35)}
+.felt .pool-hd{color:#fff;opacity:1;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.felt .tok{text-shadow:none}
+.felt .cswatch.sm .csw,.felt .nb,.felt .btn{text-shadow:none}
+.felt .admsel small{color:#fff;opacity:1;font-weight:700}
+.dmroot .felt>.fx{padding:10px 10px!important;max-width:96%}
+.dmroot .felt .fx b{font-size:14px}
+.cd-log,.msgs{scroll-behavior:auto!important;overscroll-behavior:contain}
+.lastpick{font-size:13px;color:#fff;display:flex;align-items:center;gap:6px;justify-content:center;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.lastpick b{font-weight:800}
+/* v1.11 draft turn completion + calmer animations */
+.stk span,.stk .stkb{animation:none!important}
+.stk span.new,.stk .stkb.new{animation:stickin .28s ease-out!important}
+.stk .stkb{display:inline-block;padding:4px 9px;border-radius:8px;font-size:13px;font-weight:700;background:rgba(255,255,255,.92);color:#131C2B;border:0;box-shadow:0 1px 3px rgba(0,0,0,.18),inset 0 0 0 1px rgba(0,0,0,.06);cursor:pointer;font-family:inherit;line-height:1.3}
+.seat.picked[style*="--ti:#131C2B"] .stk .stkb{background:#131C2B;color:#fff}
+.stk .stkb.undo{box-shadow:0 0 0 2px #FF4D4F;color:#D92D20}
+.stk .pendstk{border:2px dashed currentColor!important;background:rgba(255,255,255,.35)!important;color:inherit!important;opacity:.95}
+.dmroot .stk .stkb{padding:1px 5px;font-size:10px;border-radius:5px}
+.bubble:not(.new){animation:none!important}
+.card3.up{animation:none!important}
+.nb.pend{animation:none!important;transform:none!important}
+.done-btn{min-width:170px;min-height:46px!important;font-size:16px!important}
+.dmroot .done-btn{min-width:140px;min-height:38px!important;font-size:14px!important}
+@keyframes stickin{from{transform:scale(.85);opacity:0}to{transform:none;opacity:1}}
+.ocard.up{animation:none!important}
+.ocard.up.new{animation:ocflip .45s ease-out!important}
+@keyframes ocflip{0%{transform:rotateY(90deg) scale(.9);opacity:.3}100%{transform:none;opacity:1}}
+.dmroot .ocard.back:not(:disabled){animation:none!important}
+.dmroot .ocard.back:not(:disabled):active{transform:scale(.96)}
+.ocard.back:not(:disabled){box-shadow:0 0 0 3px rgba(255,210,31,.6),0 8px 18px rgba(0,0,0,.35)}
 </style>
 </head>
 <body>
 <div id="app"><p class="empty">불러오는 중…</p></div>
-<script src="config.js?v=1.10.3"></script>
-<script type="module" src="app.js?v=1.10.3"></script>
+<script src="config.js?v=1.11"></script>
+<script type="module" src="app.js?v=1.11"></script>
 </body>
 </html>
