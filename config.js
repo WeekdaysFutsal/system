@@ -6,12 +6,13 @@
 window.WF_CONFIG = {
   // Firebase 콘솔 > 프로젝트 설정 > 내 앱 > SDK 설정 및 구성 에서 복사한 값을 붙여넣으세요.
   firebase: {
-    apiKey: "",
-    authDomain: "",
-    projectId: "",
-    storageBucket: "",
-    messagingSenderId: "",
-    appId: ""
+  apiKey: "AIzaSyCvO0DUvGG0i8gRJ74Ppn1aqUZ3QiG5pFs",
+  authDomain: "wd-futsal.firebaseapp.com",
+  projectId: "wd-futsal",
+  storageBucket: "wd-futsal.firebasestorage.app",
+  messagingSenderId: "663428055388",
+  appId: "1:663428055388:web:92aaceb1b0c5088176c199",
+  measurementId: "G-3XENNFF6KL"
   },
 
   // 운영진 모드 비밀번호 (운영진, 기록 담당자에게만 알려 주세요)
