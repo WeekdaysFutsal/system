@@ -1355,7 +1355,9 @@ table.grid tr.msel td{background:rgba(30,70,200,.07)}
 @media (min-width:1024px) and (hover:hover) and (pointer:fine){.simgrid{grid-template-columns:repeat(5,minmax(0,1fr))}}
 /* v1.9.1 overflow guards (iOS Safari) */
 .wrap{overflow-x:clip}
-.appbar,.tabs,.chatdock,.applydock{max-width:100%;overflow-x:clip}
+.appbar,.chatdock,.applydock{max-width:100%;overflow-x:clip}
+.tabs,.tabs nav,.tabs .mmtab{overflow:visible!important}
+.tabs{max-width:100%}
 .abar{max-width:none!important;overflow:hidden}
 .abar{box-sizing:border-box}
 select{max-width:100%;min-width:0}
@@ -1419,7 +1421,7 @@ pre,.pre{white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere}
 </head>
 <body>
 <div id="app"><p class="empty">불러오는 중…</p></div>
-<script src="config.js?v=1.10.2"></script>
-<script type="module" src="app.js?v=1.10.2"></script>
+<script src="config.js?v=1.10.3"></script>
+<script type="module" src="app.js?v=1.10.3"></script>
 </body>
 </html>
