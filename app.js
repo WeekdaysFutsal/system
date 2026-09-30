@@ -1495,6 +1495,7 @@ function mmSid() {
   if (S.mmPick && ids.includes(S.mmPick)) return S.mmPick;
   return ids.find(id => id === t) || ids.find(id => id > t) || ids[ids.length - 1];
 }
+function pairsOf(s) { return (s.mm?.pairs || []).map(p => Array.isArray(p) ? p : String(p).split('')) }
 function mmReady(s) { return !!s.mm?.pairs && sessMatches(s.date).length === 9 }
 function viewMatchMode() {
   const sid = mmSid(); if (!sid) return `<div class="mm"><div class="mm-empty">⚽<b>경기모드</b><p>팀 구성이 끝난 경기가 아직 없어요.<br>드래프트가 끝나면 여기서 경기를 진행해요.</p></div></div>`;
@@ -1507,7 +1508,7 @@ function viewMatchMode() {
 }
 function teamBtn(s, k, act, sel, dis) { const t = team(s, k); return `<button class="mm-tb ${sel ? 'on' : ''}" style="--tc:${t.color};--ti:${inkOn(t.color)}" data-act="${act}" data-k="${k}" ${dis ? 'disabled' : ''}>${esc(t.name)}</button>` }
 function mmPairView(s) {
-  const d = S.mmDraft || (S.mmDraft = { p1: [...(s.mm?.pairs?.[0] || [])], p2: [...(s.mm?.pairs?.[1] || [])], swap: { ...(s.mm?.swap || {}) } });
+  const pp = pairsOf(s); const d = S.mmDraft || (S.mmDraft = { p1: [...(pp[0] || [])], p2: [...(pp[1] || [])], swap: { ...(s.mm?.swap || {}) } });
   const p1 = d.p1, p2 = d.p2; const ok1 = p1.length === 2, ok2 = p2.length === 2 && (p2[0] + p2[1]) !== (p1[0] + p1[1]) && (p2[1] + p2[0]) !== (p1[0] + p1[1]);
   let p3 = null; if (ok1 && ok2) { const all = [[p1[0], p1[1]], [p2[0], p2[1]]]; const cnt = {}; all.flat().forEach(k => cnt[k] = (cnt[k] || 0) + 1); const lone = KEYS.filter(k => cnt[k] === 1); const miss = KEYS.find(k => !cnt[k]);
     p3 = miss ? null : lone.length === 2 ? [p2.find(k => lone.includes(k)), p1.find(k => lone.includes(k))] : null }
@@ -1552,8 +1553,9 @@ async function mmSavePairs() {
   const ms = sessMatches(s.date); if (ms.some(m => m.status !== 'pending') && !confirm('이미 진행된 경기가 있어요. 진행 전인 경기의 대진만 바꿀까요?')) return;
   const ok = await w(async () => { for (let r = 0; r < 3; r++) for (let j = 0; j < 3; j++) { const n = r * 3 + j + 1; const id = `${s.date}_${n}`; const ex = S.matches[id]; if (ex && ex.status !== 'pending') continue;
       const [a, b] = sw[n] ? [pairs[j][1], pairs[j][0]] : pairs[j];
-      await S.store.set(mp(id), { ...(ex || {}), session: s.date, n, round: r + 1, slot: j + 1, home: a, away: b, status: 'pending', timer: { running: false, acc: 0, startedAt: 0 }, endedAt: 0 }) }
-    await S.store.update(sp(s.date), { mm: { pairs, swap: sw, timed: !!s.mm?.timed }, stage: 'match' }) }, '대진을 정했어요.');
+      const { id: _i, home: _h, away: _a, ...rest } = ex || {};
+      await S.store.set(mp(id), { ...JSON.parse(JSON.stringify(rest)), session: s.date, n, round: r + 1, slot: j + 1, home: a, away: b, status: 'pending', timer: { running: false, acc: 0, startedAt: 0 }, endedAt: 0 }) }
+    await S.store.update(sp(s.date), { mm: { pairs: pairs.map(p => p.join('')), swap: Object.fromEntries(Object.entries(sw).filter(([, v]) => v)), timed: !!s.mm?.timed }, stage: 'match' }) }, '대진을 정했어요.');
   if (ok) { S.mmStage = null; S.mmDraft = null; if (!s.mm?.timed) S.mmStage = 'time'; render() }
 }
 async function mmCountdown(m) {
