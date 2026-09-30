@@ -1,4 +1,4 @@
-# WD_FUTSAL (웹 버전 Ver.0.22)
+# WD_FUTSAL (웹 버전 Ver.0.22.1)
 
 신청 → 주장·순번 → 드래프트와 채팅 → 교환 → 공지 이미지 → 경기 기록까지 한 앱에서 진행해요.
 config.js에는 wd-futsal Firebase 설정이 이미 들어 있어요. 운영진 비밀번호(adminPin)만 바꿔서 쓰면 돼요.

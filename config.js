@@ -33,6 +33,9 @@ window.WF_CONFIG = {
     time: "21:00",
     venue: "용산 7구장",
     capacity: 18,
+    // 신청 오픈: 경기 6일 전 13:00, 신청 마감: 경기 2일 전 20:00
+    openDays: 6, openTime: "13:00",
+    closeDays: 2, closeTime: "20:00",
     notice: "팀 구별에 혼동을 줄 수 있는 색상의 운동복은 {금지!!}"
   },
 

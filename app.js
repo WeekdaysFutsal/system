@@ -6,7 +6,7 @@ const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프
 const DEF_TIMING = { h1: 300, gk: 5, h2: 300, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
-const DEFAULTS = { time: '21:00', venue: '용산 7구장', notice: '', ...(CFG.defaults || {}) };
+const DEFAULTS = { time: '21:00', venue: '용산 7구장', notice: '', openDays: 6, openTime: '13:00', closeDays: 2, closeTime: '20:00', ...(CFG.defaults || {}) };
 
 /* ───────── storage backends ───────── */
 function clone(o) { return o == null ? o : JSON.parse(JSON.stringify(o)) }
@@ -218,9 +218,9 @@ function parseNames(txt) {
 }
 async function createSession(f) {
   const sid = f.date; if (S.sessions[sid]) { toast('그 날짜의 경기일이 이미 있어요.'); S.sid = sid; S.step = null; S.tab = 'home'; render(); return }
-  const prev = new Date(sid + 'T00:00'); prev.setDate(prev.getDate() - 1); const defClose = `${prev.getFullYear()}-${p2(prev.getMonth() + 1)}-${p2(prev.getDate())}T22:00`;
+  const defOpen = shiftDate(sid, DEFAULTS.openDays, DEFAULTS.openTime), defClose = shiftDate(sid, DEFAULTS.closeDays, DEFAULTS.closeTime);
   const doc = { date: sid, time: f.time || DEFAULTS.time, venue: f.venue || DEFAULTS.venue, evpw: f.evpw || '', notice: f.notice ?? DEFAULTS.notice,
-    capacity: +f.capacity || DEFAULTS.capacity || 18, applyOpen: f.applyOpen || nowLocal(), applyClose: f.applyClose || defClose,
+    capacity: +f.capacity || DEFAULTS.capacity || 18, applyOpen: f.applyOpen || defOpen, applyClose: f.applyClose || defClose,
     stage: 'apply', applicants: [], captains: { A: null, B: null, C: null }, order: [...KEYS], picks: [], draftStatus: 'ready',
     teams: { A: { players: [] }, B: { players: [] }, C: { players: [] } }, timing: DEF_TIMING, mom: {}, createdAt: Date.now() };
   if (await w(() => S.store.set(sp(sid), doc), '경기일을 만들었어요.')) { S.sid = sid; S.step = 'apply'; S.sheet = null; render() }
@@ -774,8 +774,8 @@ function viewSheet() {
     <div class="field"><label for="n-time">시간</label><input id="n-time" class="inp" type="time" name="time" value="${esc(DEFAULTS.time)}"></div>
     <div class="field"><label for="n-venue">장소</label><input id="n-venue" class="inp" type="text" name="venue" value="${esc(DEFAULTS.venue)}"></div>
     <div class="field"><label for="n-cap">신청 인원 (정원)</label><input id="n-cap" class="inp" type="number" name="capacity" min="3" max="60" value="${DEFAULTS.capacity || 18}"></div>
-    <div class="field"><label for="n-open">신청 오픈</label><input id="n-open" class="inp" type="datetime-local" name="applyOpen" value="${nowLocal()}"></div>
-    <div class="field"><label for="n-close">신청 마감</label><input id="n-close" class="inp" type="datetime-local" name="applyClose" value=""><span class="note" style="margin:0">비워 두면 경기 전날 22:00로 정해져요.</span></div>
+    <div class="field"><label for="n-open">신청 오픈</label><input id="n-open" class="inp" type="datetime-local" name="applyOpen" value=""><span class="note" style="margin:0">비워 두면 경기 ${DEFAULTS.openDays}일 전 ${DEFAULTS.openTime}</span></div>
+    <div class="field"><label for="n-close">신청 마감</label><input id="n-close" class="inp" type="datetime-local" name="applyClose" value=""><span class="note" style="margin:0">비워 두면 경기 ${DEFAULTS.closeDays}일 전 ${DEFAULTS.closeTime}로 정해져요.</span></div>
     <div class="field"><label for="n-ev">E/V 비밀번호</label><input id="n-ev" class="inp" type="text" name="evpw" value=""></div></div>
     <div class="row" style="margin-top:12px"><button type="button" class="btn" data-act="closesheet">취소</button><button class="btn primary" type="submit">만들기</button></div></form>`;
   else if (sh.type === 'capslot') { const s = cur(); const taken = KEYS.filter(k => k !== sh.k).map(k => s.captains?.[k]);
@@ -1033,7 +1033,7 @@ function genSample(existing = {}) {
   const d1 = new Date(t); d1.setDate(t.getDate() - back); const d0 = new Date(d1); d0.setDate(d1.getDate() - 7); const dn = new Date(d1); dn.setDate(d1.getDate() + 7);
   const T = { ...DEF_TIMING }; const pairs = [['A', 'B'], ['B', 'C'], ['C', 'A']];
   const base = (sid, extra) => ({ date: sid, time: '21:00', venue: '용산 7구장', evpw: '3310*', notice: DEFAULTS.notice || '', capacity: 18, timing: T, mom: {}, order: [...KEYS], picks: [],
-    captainTokens: { A: null, B: null, C: null }, applyOpen: shiftDate(sid, 7, '12:00'), applyClose: shiftDate(sid, 1, '22:00'), createdAt: Date.now(), sample: true, ...extra });
+    captainTokens: { A: null, B: null, C: null }, applyOpen: shiftDate(sid, DEFAULTS.openDays, DEFAULTS.openTime), applyClose: shiftDate(sid, DEFAULTS.closeDays, DEFAULTS.closeTime), createdAt: Date.now(), sample: true, ...extra });
   const past = (sid, teams, colors, mom, scores) => {
     docs.push(['sessions/' + sid, base(sid, { stage: 'match', draftStatus: 'done', applicants: teams.flat().map(n => pid[n]),
       captains: { A: pid[teams[0][0]], B: pid[teams[1][0]], C: pid[teams[2][0]] }, teams: Object.fromEntries(KEYS.map((k, i) => [k, { players: teams[i].map(n => pid[n]), colorName: colors[i] }])),
@@ -1323,7 +1323,7 @@ document.addEventListener('click', async e => {
     case 'gorun': S.sid = id; S.tab = 'run'; S.step = el.dataset.step || null; S.sel = null; render(); window.scrollTo(0, 0); break;
     case 'gonotice': S.sid = id; S.tab = 'notice'; render(); window.scrollTo(0, 0); break;
     case 'delrow': S.sid = id; await deleteSessionBy(id); break;
-    case 'caladd': { const d = new Date(); S.cal = { mode: 'add', y: d.getFullYear(), m: d.getMonth(), sel: [], f: { time: DEFAULTS.time, venue: DEFAULTS.venue, capacity: DEFAULTS.capacity || 18, openD: 7, openT: '12:00', closeD: 1, closeT: '22:00' } }; S.sheet = { type: 'cal' }; render(); break }
+    case 'caladd': { const d = new Date(); S.cal = { mode: 'add', y: d.getFullYear(), m: d.getMonth(), sel: [], f: { time: DEFAULTS.time, venue: DEFAULTS.venue, capacity: DEFAULTS.capacity || 18, openD: DEFAULTS.openDays, openT: DEFAULTS.openTime, closeD: DEFAULTS.closeDays, closeT: DEFAULTS.closeTime } }; S.sheet = { type: 'cal' }; render(); break }
     case 'calmove': { const [y, m] = id.split('-'); S.cal = { mode: 'move', from: id, y: +y, m: +m - 1, sel: [] }; S.sheet = { type: 'cal' }; render(); break }
     case 'calnav': { const c = S.cal; c.m += +el.dataset.d; if (c.m < 0) { c.m = 11; c.y-- } if (c.m > 11) { c.m = 0; c.y++ } render(); break }
     case 'calday': { const c = S.cal; if (c.mode === 'move') c.sel = [id]; else c.sel = c.sel.includes(id) ? c.sel.filter(x => x !== id) : [...c.sel, id]; render(); break }
