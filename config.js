@@ -34,7 +34,7 @@ window.WF_CONFIG = {
   // 새 경기일 기본값
   defaults: {
     time: "21:00",
-    venue: "용산 7구장",
+    venue: "용산 아이파크몰 The Base 7구장",
     capacity: 18,
     // 신청 오픈: 경기 6일 전 13:00, 신청 마감: 경기 2일 전 20:00
     openDays: 6, openTime: "13:00",

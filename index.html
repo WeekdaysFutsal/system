@@ -1176,12 +1176,72 @@ table.atbl tr.lrow td:nth-child(n+7){text-decoration:none}
 .runtools .btn{flex:none!important}
 @media (max-width:1023px){.runtools .btn{flex:1 1 auto!important}}
 @media (min-width:1024px) and (hover:hover) and (pointer:fine){
-  .abar{margin:12px -28px -12px 182px;padding:10px 28px 12px;border-left:1px solid var(--line)}
   .actx{max-width:760px;margin:0 auto}
   .aflow{max-width:900px;margin:10px auto 0}
   .aflow span{font-size:13px}
   .tabs{padding-top:calc(var(--abh,70px) + 14px)!important}
 }
+/* v1.4 */
+.abar{position:sticky;top:var(--abh,60px);z-index:4;margin:0 -14px 10px!important;border-radius:0}
+.dmroot .abar{position:static;margin:0 -10px 4px!important;padding:6px 10px 8px}
+.aflow{grid-template-columns:repeat(6,minmax(0,1fr))!important}
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){.abar{margin:0 -36px 14px!important;padding:10px 36px 12px}}
+@media (min-width:1400px) and (hover:hover) and (pointer:fine){.abar{margin:0 -56px 14px!important;padding:10px 56px 12px}}
+/* pitch */
+.felt{position:relative;border:0!important;border-radius:14px!important;background:
+  radial-gradient(circle at 50% 50%,transparent 0 54px,rgba(255,255,255,.6) 55px 57px,transparent 58px),
+  radial-gradient(circle at 50% 50%,rgba(255,255,255,.7) 0 4px,transparent 5px),
+  linear-gradient(90deg,transparent calc(50% - 1px),rgba(255,255,255,.6) calc(50% - 1px) calc(50% + 1px),transparent calc(50% + 1px)),
+  repeating-linear-gradient(90deg,#2E8B45 0 10%,#29803F 10% 20%)!important;
+  box-shadow:inset 0 0 0 10px #2E8B45,inset 0 0 0 13px rgba(255,255,255,.65),0 10px 26px rgba(10,40,20,.3)!important}
+.felt::before,.felt::after{content:"";position:absolute;top:28%;bottom:28%;width:11%;border:3px solid rgba(255,255,255,.6);pointer-events:none}
+.felt::before{left:10px;border-left:0}
+.felt::after{right:10px;border-right:0}
+.felt>.fx{position:relative;z-index:1;padding:14px 12%}
+.fx .rnd{color:rgba(255,255,255,.85)!important}
+.pool{width:100%;background:rgba(10,30,15,.35);border-radius:12px;padding:8px;backdrop-filter:blur(2px)}
+.pool-hd{font-size:12px;font-weight:700;color:#fff;opacity:.9;margin-bottom:6px}
+.pool .namegrid{justify-content:center;gap:5px}
+.pool .nb{background:#fff;color:#131C2B;border-color:transparent;min-height:34px;padding:0 11px;font-size:14px}
+.pool .nb:disabled{opacity:.75}
+.pool .nb.pend{background:color-mix(in srgb,var(--tc) 30%,#fff)}
+.dmroot .pool{padding:5px}.dmroot .pool .nb{min-height:28px;font-size:12px;padding:0 8px}.dmroot .felt>.fx{padding:8px 9%}
+/* seat card: name left, color + count right */
+.sv2{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%}
+.snm{display:flex;align-items:center;gap:5px;min-width:0}
+.snm b{font-size:17px;font-weight:800;letter-spacing:-.4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.snm .dot{width:9px;height:9px;border-radius:50%;background:#9AA3AF;flex:none}.snm .dot.on{background:#22C55E}
+.ord2{font-style:normal;flex:none;width:20px;height:20px;border-radius:50%;background:#0E1C38;color:#FFD21F;font-family:var(--latin);font-size:12px;display:flex;align-items:center;justify-content:center}
+.sinfo{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex:none}
+.cnt2{font-family:var(--latin);font-weight:400;font-size:30px;line-height:1}
+.cnt2 small{font-family:var(--body);font-size:12px;font-weight:700;margin-left:1px}
+.seat .sv2{padding:2px 4px}
+.pos-l .seat,.pos-r .seat,.pos-b .seat{justify-content:flex-start!important;align-items:stretch!important}
+.dmroot .snm b{font-size:12px}.dmroot .cnt2{font-size:18px}.dmroot .cnt2 small{font-size:9px}.dmroot .sv2{gap:3px}.dmroot .sinfo .tok{font-size:9px;padding:0 4px}.dmroot .ord2{width:15px;height:15px;font-size:9px}
+/* members bulk */
+.bulkbar{position:sticky;top:calc(var(--abh,60px) + 6px);z-index:3;display:flex;align-items:center;gap:8px;padding:10px 14px;margin:10px 0;border-radius:12px;background:#0E1C38;color:#fff}
+.bulkbar b{flex:1}
+table.grid td.ck,table.grid th.ck{width:36px;text-align:center}
+table.grid tr.msel td{background:rgba(30,70,200,.07)}
+/* plan calendar fits viewport */
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){.planwrap{height:calc(100vh - var(--abh,70px) - 120px)!important;min-height:480px}}
+.bulkbar .btn:not(.danger){color:var(--ink);background:#fff}
+.dmroot .card3,.dmroot .felt .fx>p{display:none}
+.dmroot .abar .actx-t small{display:none}
+.dmroot .abar .actx .navb.sm{width:34px;height:34px}
+.dmroot .abar .aflow{margin-top:4px}
+.dmroot .abar .aflow span{font-size:9.5px}
+.dmroot .abar .aflow i{width:20px;height:20px;font-size:10px}
+.dmroot .abar .aflow li:not(:last-child)::after{top:9px}
+.dmroot .felt .flow span{width:15px;height:15px;font-size:9px}
+.dmroot .felt .fx{gap:4px}
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){.board-table{grid-template-columns:minmax(0,230px) minmax(0,1fr) minmax(0,230px)!important;max-width:1200px!important}.felt{min-height:420px!important}}
+.dmroot .felt .flow,.dmroot .felt .rnd{display:none}
+.dmroot .felt>.fx{height:100%;display:flex!important;flex-direction:column;justify-content:flex-start;align-items:center;padding-top:10px!important;padding-bottom:10px!important}
+.dmroot .felt .pool{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
+.dmroot .sv2{flex-direction:column;align-items:stretch;gap:2px}
+.dmroot .sinfo{flex-direction:row;justify-content:space-between;align-items:center}
+.dmroot .snm{justify-content:flex-start}
 </style>
 </head>
 <body>
