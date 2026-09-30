@@ -30,6 +30,7 @@ window.WF_CONFIG = {
   defaults: {
     time: "21:00",
     venue: "용산 7구장",
+    capacity: 18,
     notice: "팀 구별에 혼동을 줄 수 있는 색상의 운동복은 {금지!!}"
   },
 
