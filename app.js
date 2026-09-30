@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '1.9.2';
+const APP_VERSION = '1.9.5';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -193,8 +193,15 @@ function blow(t, d) { const ctx = AC; const o1 = ctx.createOscillator(), o2 = ct
 function whistle(pattern) { if (!S.whistle) return; const ctx = audio(); if (!ctx) return; if (ctx.state === 'suspended') ctx.resume(); let t = ctx.currentTime + .03; for (const d of pattern) { blow(t, d); t += d + .14 }
   try { navigator.vibrate && navigator.vibrate(pattern.flatMap((d, i) => i ? [140, Math.round(d * 1000)] : [Math.round(d * 1000)])) } catch { } }
 document.addEventListener('pointerdown', () => { const c = audio(); if (c && c.state === 'suspended') c.resume() }, { capture: true });
-let wake = null; async function keepAwake(on) { try { if (on && !wake && navigator.wakeLock) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => wake = null) } else if (!on && wake) { await wake.release(); wake = null } } catch { } }
+let wake = null, wakeBusy = false; async function keepAwake(on) { try { if (on && !wake && !wakeBusy && navigator.wakeLock && !document.hidden) { wakeBusy = true; try { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null }) } finally { wakeBusy = false } } else if (!on && wake) { const w0 = wake; wake = null; await w0.release() } } catch { } }
+function awakeCheck() {
+  const want = (S.tab === 'mm' && !document.hidden) || (liveAny() && !!S.openMatch);
+  keepAwake(want);
+  const KA = CAP()?.KeepAwake; if (KA && want !== S.nativeAwake) { S.nativeAwake = want; try { want ? KA.keepAwake() : KA.allowSleep() } catch { } }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) awakeCheck() });
 function watchPhases() {
+  awakeCheck();
   scheduleWhistles(); const sid = S.mmSid || S.sid; if (!sid || !S.sessions[sid]) return; let run = false;
   for (const m of sessMatches(sid)) { const ci = clockInfo(m); const prev = S.prev[m.id]; S.prev[m.id] = ci.phase; if (m.timer?.running) run = true;
     if (prev === undefined || prev === ci.phase) continue; const e = ci.e;
@@ -1593,7 +1600,7 @@ function mmPlayView(s) {
       : m.status === 'live' ? `${run ? `<button class="btn mm-big" data-act="mmpause" data-id="${m.id}">⏸ 일시정지</button>` : `<button class="btn primary mm-big" data-act="mmresume" data-id="${m.id}">▶ 재개</button>`}<button class="btn ${ci.phase === 'full' ? 'primary' : ''} mm-big" data-act="mmend" data-id="${m.id}">경기 종료</button>`
       : allDone ? `<div class="mm-done">🎉 오늘 9경기가 모두 끝났어요!</div>` : ''}</div>
     <div class="mm-list">${ms.map(x => { const [a, b] = score(x); const X = team(s, x.home), Y = team(s, x.away); return `<button class="mm-li ${x.id === m.id ? 'cur' : ''} st-${x.status}" data-act="mmsel" data-id="${x.status === 'done' ? x.id : ''}" ${x.status === 'done' || x.id === curM.id ? '' : 'disabled'} aria-label="${x.n}경기${x.status === 'done' ? ' 점수 수정' : ''}"><em>${x.n}</em><i style="background:${X.color}"></i><span>${x.status === 'pending' ? 'vs' : a + ':' + b}</span><i style="background:${Y.color}"></i></button>` }).join('')}</div>
-    <p class="mm-note">끝난 경기는 아래 목록에서 눌러 점수를 고칠 수 있어요. 경기 중에는 화면이 꺼지지 않게 유지해요. 다른 메뉴로 가도 시간과 휘슬은 계속 이어져요.</p></div>`;
+    <p class="mm-note">끝난 경기는 아래 목록에서 눌러 점수를 고칠 수 있어요. 경기모드 화면에 있는 동안은 화면이 꺼지지 않아요. 다른 메뉴로 가도 시간과 휘슬은 계속 이어져요.</p></div>`;
   return h;
 }
 async function mmSavePairs() {
@@ -1614,6 +1621,19 @@ function mmCountdown(m) {
   const step = () => { if (n > 0) { ov.innerHTML = `<b>${n}</b>`; try { navigator.vibrate?.(80) } catch { } n--; setTimeout(step, 1000) } else { ov.innerHTML = '<b class="go">START</b>'; setTimeout(() => ov.remove(), 600); S.startBlown[m.id] = Date.now(); if (!ctx || !S.whistle) whistle([.9]); startClock(m) } };
   step();
 }
+/* native app (Capacitor) hooks: system alarms play the whistle even when the screen is off or the app sleeps */
+const CAP = () => (window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins) || null;
+async function nativeSetup() { const P = CAP(); if (!P?.LocalNotifications) return; try { await P.LocalNotifications.requestPermissions();
+  await P.LocalNotifications.createChannel({ id: 'whistle', name: '경기 휘슬', description: '전반 종료, 후반 시작, 경기 종료 알림', importance: 5, sound: 'whistle.wav', vibration: true, visibility: 1 }) } catch (e) { console.warn(e) } }
+async function nativeSchedule(m, T, run) {
+  const P = CAP(); if (!P?.LocalNotifications) return false; const base = 5000 + (m.n || 0) * 10; const ids = [0, 1, 2, 3, 4].map(i => ({ id: base + i }));
+  try { await P.LocalNotifications.cancel({ notifications: ids }) } catch { }
+  if (!run || !S.whistle) return true; const e = elapsed(m); const a = T.h1, b = a + T.gk, c = b + T.h2; const now = Date.now(); const list = [];
+  const add = (i, at, title, body) => { const dt = at - e; if (dt > .5) list.push({ id: base + i, title, body, channelId: 'whistle', sound: 'whistle.wav', schedule: { at: new Date(now + dt * 1000), allowWhileIdle: true } }) };
+  add(0, a, `⚽ ${m.n}경기 전반 종료`, 'GK 교체 시간이에요'); add(1, b, `⚽ ${m.n}경기 후반 시작`, '후반전이 시작됐어요'); add(2, c, `⚽ ${m.n}경기 종료`, '경기가 끝났어요. 점수를 확인하세요');
+  try { if (list.length) await P.LocalNotifications.schedule({ notifications: list }) } catch (err) { console.warn(err); return false }
+  return true;
+}
 /* background-safe whistles: schedule on the audio clock so they still sound when the screen is off */
 const SCHED = {}; let KEEP = null;
 function blowN(t, d) { const ctx = AC; const nodes = []; const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(); o1.type = 'square'; o2.type = 'sawtooth'; o1.frequency.value = 2900; o2.frequency.value = 2980;
@@ -1625,13 +1645,13 @@ function scheduleWhistles() {
   for (const m of sessMatches(sid)) { const run = m.status === 'live' && m.timer?.running; const sig = run ? m.timer.startedAt + ':' + (m.timer.acc || 0) : '';
     if (run) anyRun = true; if ((S.schedSig[m.id] || '') === sig) continue;
     (SCHED[m.id] || []).forEach(n => { try { n.stop() } catch { } }); SCHED[m.id] = []; S.schedSig[m.id] = sig;
+    if (CAP()?.LocalNotifications) { nativeSchedule(m, timing(S.sessions[sid]), run); continue }
     if (!run || !S.whistle) continue; const ctx = audio(); if (!ctx) continue; if (ctx.state === 'suspended') ctx.resume();
     const T = timing(S.sessions[sid]); const e = elapsed(m); const a = T.h1, b = a + T.gk, c = b + T.h2;
     for (const k of [3, 2, 1]) { const at = b - k; const dt = at - e; if (at >= a + .9 && dt > .25) SCHED[m.id].push(...beepAt(ctx.currentTime + dt, 1320, .18)) }
     for (const [at, pat] of [[a, [.3, .3]], [b, [.9]], [c, [.3, .3, 1.3]]]) { const dt = at - e; if (dt > .25) { let t = ctx.currentTime + dt; for (const d of pat) { SCHED[m.id].push(...blowN(t, d)); t += d + .14 } } } }
   const ctx = AC; if (anyRun && ctx && !KEEP) { try { KEEP = ctx.createOscillator(); const g = ctx.createGain(); g.gain.value = .0008; KEEP.frequency.value = 40; KEEP.connect(g); g.connect(ctx.destination); KEEP.start() } catch { KEEP = null } }
   if (!anyRun && KEEP) { try { KEEP.stop() } catch { } KEEP = null }
-  keepAwake(anyRun && (S.tab === 'mm' || !!S.openMatch));
 }
 
 /* ───────── members (admin) ───────── */
@@ -1774,7 +1794,7 @@ document.addEventListener('click', async e => {
     case 'mksim': if (!needAdmin()) break; await makeSim(el.dataset.k); break;
     case 'mkpractice': if (!needAdmin()) break; await makePractice(); break;
     case 'clrpractice': if (!needAdmin()) break; await clearPractice(); break;
-    case 'mmtoggle': audio(); S.tab = S.tab === 'mm' ? 'mhome' : 'mm'; S.sub = null; render(); window.scrollTo(0, 0); break;
+    case 'mmtoggle': audio(); S.tab = S.tab === 'mm' ? 'mhome' : 'mm'; keepAwake(S.tab === 'mm'); S.sub = null; render(); window.scrollTo(0, 0); break;
     case 'mmpk': { const d = S.mmDraft; const key = el.dataset.w === '1' ? 'p1' : 'p2'; const arr = d[key]; const k = el.dataset.k; if (arr.includes(k)) d[key] = arr.filter(x => x !== k); else if (arr.length < 2) arr.push(k); else d[key] = [arr[1], k]; if (key === 'p1') d.p2 = []; render(); break }
     case 'mmsw': { const n = +el.dataset.n; const d = S.mmDraft; d.swap[n] = !d.swap[n]; render(); break }
     case 'mmpairsave': await mmSavePairs(); break;
@@ -1978,6 +1998,7 @@ document.addEventListener('touchend', e => { if (swX == null) return; const dx =
   if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return; const ids = pastSids(); const i = ids.indexOf(S.detail);
   if (dx < 0 && ids[i - 1]) goResult(ids[i - 1], 'fromR'); else if (dx > 0 && ids[i + 1]) goResult(ids[i + 1], 'fromL') }, { passive: true });
 (async function boot() {
+  setTimeout(nativeSetup, 1500);
   S.auth = loadAuth();
   restoreNav();
   const q = new URLSearchParams(location.search);
