@@ -427,6 +427,48 @@ table.grid td.acts .btn{min-height:34px;padding:0 10px;font-size:13px}
 .lb-row.me{background:rgba(30,70,200,.08);box-shadow:inset 3px 0 0 var(--accent)}
 .namebox{display:grid;gap:8px;margin-top:14px}
 .namebox p{margin:-4px 0 0;font-size:13px}
+
+/* ───────── desktop (PC, mouse) ───────── */
+.dgrid>section{min-width:0}
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){
+  body{font-size:15px}
+  .appbar{padding:12px 28px}
+  .appbar .in{max-width:none}
+  .appbar .ttl b{font-size:20px}
+  .tabs{top:0;bottom:0;left:0;right:auto;width:210px;border-top:0;border-right:1px solid var(--line);padding:84px 12px 20px;z-index:4}
+  .tabs nav{display:flex!important;flex-direction:column;gap:4px;max-width:none}
+  .tabs button{min-height:46px;text-align:left;padding:0 16px;border-radius:10px;font-size:15px}
+  .tabs button:hover{background:var(--bg)}
+  .tabs button[aria-current=page]{background:var(--bg);color:var(--ink);font-weight:700}
+  .tabs button[aria-current=page]::before{top:10px;bottom:10px;left:0;right:auto;width:3px;height:auto;border-radius:0 3px 3px 0}
+  .wrap{max-width:none;margin:0 0 0 210px;padding:4px 36px 56px}
+  .dgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:start}
+  .dgrid>section>h2:first-child,.dgrid>section>.sec-lab:first-child{margin-top:22px}
+  .split{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:28px;align-items:start}
+  .split .side{position:sticky;top:84px}
+  .split .side .chat{height:calc(100vh - 200px)}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px;align-items:start}
+  .cards>.panel{margin:0!important}
+  #sidpick{max-width:420px}
+  .steps{max-width:760px}
+  .steps button{min-height:48px}
+  .hero-date{font-size:78px}
+  .poster{max-width:560px}
+  .me-grid{grid-template-columns:repeat(3,1fr)}
+  .overlay .wrap{margin:0 auto;max-width:1180px;padding:8px 36px 40px}
+  .ovgrid{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+  .scrim{align-items:center}
+  .sheet{border-radius:20px;max-width:640px;max-height:88vh}
+  .toast{bottom:28px;left:calc(50% + 105px)}
+  table.grid{min-width:100%}
+  .notice{max-width:900px}
+  .cols{grid-template-columns:repeat(3,minmax(0,280px))}
+  .rosters{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (min-width:1500px) and (hover:hover) and (pointer:fine){
+  .wrap{padding:4px 56px 56px}
+  .dgrid{gap:44px}
+}
 @media (prefers-reduced-motion:reduce){.dot{animation:none}}
 </style>
 </head>

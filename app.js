@@ -478,8 +478,7 @@ function vDraft(s) {
     return `<div class="col"><div class="hd" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}<small>${ps.length}명</small></div><ol>${ps.map((id, j) => { const pk = picks.findIndex(x => x.p === id);
       return `<li><em>${j === 0 ? '👑' : pk + 1}</em><span>${esc(pname(id))}</span></li>` }).join('')}</ol></div>` }).join('')}</div>`;
   if (S.admin && (s.draftStatus === 'live' || s.draftStatus === 'done') && picks.length) h += `<div class="row" style="margin-top:10px"><button class="btn sm" data-act="undo">↶ 마지막 지명 되돌리기</button></div>`;
-  h += chatPanel();
-  return h;
+  return `<div class="split"><div class="main">${h}</div><aside class="side">${chatPanel()}</aside></div>`;
 }
 function chatPanel() {
   const me = S.me; const uid = load('uid', null) || (() => { const u = Math.random().toString(36).slice(2, 10); save('uid', u); return u })();
@@ -496,21 +495,21 @@ function vTrade(s) {
     return `<div class="col"><div class="hd" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}<small>${ps.length}명</small></div><ol>${ps.map((id, j) =>
       `<li class="${S.sel === id ? 'swap' : ''}">${j === 0 ? `<em>👑</em><span>${esc(pname(id))}</span>` : `<button data-act="selswap" data-id="${id}" ${ad ? '' : 'disabled'}><em>·</em><span>${esc(pname(id))}</span></button>`}</li>`).join('')}</ol></div>` }).join('')}</div>`;
   if (ad) h += `<div style="height:14px"></div><button class="btn primary block" data-act="gostage" data-v="notice" ${allPicked(s) ? '' : 'disabled'}>팀 확정, 공지 이미지 만들기</button>${allPicked(s) ? '' : '<p class="note">세 팀 모두 색을 골라야 공지 이미지를 만들 수 있어요. 필요하면 운영진이 대신 골라도 돼요.</p>'}`;
-  h += chatPanel();
-  return h;
+  return `<div class="split"><div class="main">${h}</div><aside class="side">${chatPanel()}</aside></div>`;
 }
 function vNotice(s) {
   const ad = S.admin; const img = S.poster[S.sid];
   if (!allPicked(s)) return `<div class="notice warn">아직 팀 색을 고르지 않은 팀이 있어요. 교환 단계에서 팀 색을 먼저 정해 주세요.</div>`;
   if (!img) queueMicrotask(refreshPoster);
-  let h = `<h2>공지 이미지</h2><img class="poster" alt="매치데이 공지 이미지 미리보기" src="${img || ''}" width="1086" height="1448">
+  let h = `<div class="dgrid"><section><h2>공지 이미지</h2><img class="poster" alt="매치데이 공지 이미지 미리보기" src="${img || ''}" width="1086" height="1448">
   <div class="row" style="margin-top:10px"><button class="btn primary" data-act="share">카톡 등으로 공유</button><button class="btn" data-act="download">이미지 저장</button></div>
   <button class="btn block" style="margin-top:8px" data-act="copytext">공지 텍스트 복사</button>`;
+  h += '</section><section>';
   if (ad) h += `<h2>공지 내용</h2><div class="panel">
     <div class="field"><label for="f-ev">E/V 비밀번호</label><input id="f-ev" class="inp" type="text" value="${esc(s.evpw || '')}" data-in="sfield" data-f="evpw" ${ad ? '' : 'disabled'}></div>
     <div class="field"><label for="f-nt">NOTICE 문구</label><input id="f-nt" class="inp" type="text" value="${esc(s.notice || '')}" data-in="sfield" data-f="notice" ${ad ? '' : 'disabled'}><span class="note" style="margin:0">{ } 로 감싼 글자는 노란색으로 강조돼요.</span></div></div>`;
   if (ad) h += `<div style="height:14px"></div><button class="btn primary block" data-act="mkmatches">경기 일정 만들기 (9경기)</button>`;
-  return h;
+  return h + '</section></div>';
 }
 function vMatchDay(s) {
   const ms = sessMatches(S.sid); if (!ms.length) return `<div class="notice">아직 경기 일정이 없어요. ${S.admin ? '<button class="btn sm primary" data-act="mkmatches">9경기 일정 만들기</button>' : ''}</div>`;
@@ -522,8 +521,8 @@ function vMatchDay(s) {
   h += `<h2>순위${done === 9 ? '<span class="final">최종</span>' : `<small>${done}/9경기 반영</small>`}</h2><div class="panel tblwrap"><table><thead><tr><th>순위</th><th class="l">팀</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득</th><th>실</th><th>득실</th><th>승점</th></tr></thead><tbody>
   ${standings(S.sid).map(r => { const t = team(s, r.k); return `<tr><td class="rank">${r.p ? r.rank : '-'}</td><td class="l"><span class="teamcell">${bib(t.color)}${esc(t.name)}</span></td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf}</td><td>${r.ga}</td><td>${r.gf - r.ga > 0 ? '+' : ''}${r.gf - r.ga}</td><td class="pts">${r.pts}</td></tr>` }).join('')}</tbody></table></div>
   <p class="note">승 3점, 무 1점. 승점이 같으면 골득실, 다득점, 승자승 순.</p>`;
-  h += `<h2>경기 일정</h2>`;
-  for (let r = 1; r <= 3; r++) h += `<div class="round"><h3>${r}라운드</h3><div class="panel">${ms.filter(m => m.round === r).map(m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); const win = m.status === 'done' ? (a > b ? 'win-h' : a < b ? 'win-a' : '') : '';
+  let sch = `<h2>경기 일정</h2>`;
+  for (let r = 1; r <= 3; r++) sch += `<div class="round"><h3>${r}라운드</h3><div class="panel">${ms.filter(m => m.round === r).map(m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); const win = m.status === 'done' ? (a > b ? 'win-h' : a < b ? 'win-a' : '') : '';
     return `<button class="mrow ${m.status === 'live' ? 'is-live' : ''} ${win}" data-act="open" data-id="${m.id}"><span class="side">${bib(H.color)}<span>${esc(H.name)}</span></span><span class="mid"><span class="sc">${m.status === 'pending' ? 'vs' : a + ' : ' + b}</span><span class="st">${m.status === 'done' ? '종료' : `<span data-phase="${m.id}"></span>${m.status === 'live' ? ` <span data-clock="${m.id}"></span>` : ''}`}</span></span><span class="side r"><span>${esc(A.name)}</span>${bib(A.color)}</span></button>` }).join('')}</div></div>`;
   const tally = {}; for (const e of Object.values(S.events)) { if (e.session !== S.sid || e.og) continue; if (e.scorer) (tally[e.scorer] ??= { g: 0, a: 0 }).g++; if (e.assist) (tally[e.assist] ??= { g: 0, a: 0 }).a++ }
   const top = Object.entries(tally).sort((x, y) => (y[1].g + y[1].a) - (x[1].g + x[1].a) || y[1].g - x[1].g).slice(0, 10);
@@ -531,15 +530,15 @@ function vMatchDay(s) {
   h += `<h2>MOM<small>팀별 한 명, ${S.admin ? '운영진' : '각 팀 주장'}이 선택</small></h2><div class="panel">${KEYS.map(k => { const t = team(s, k); const pid = s.mom?.[k];
     return `<button class="momrow" data-act="mom" data-k="${k}" ${canMom(s, k) ? '' : 'disabled'}>${bib(t.color)}<span class="t">${esc(t.name)}${myTeam(s) === k ? ' (내 팀)' : ''}</span><span class="v ${pid ? 'set' : ''}">${pid ? '🏅 ' + esc(pname(pid)) : canMom(s, k) ? '선택하기' : '미정'}</span></button>` }).join('')}</div>`;
   if (S.admin) { const st = (key, lab, val, unit) => `<div class="stepper"><button data-act="tstep" data-key="${key}" data-d="-1" aria-label="${lab} 줄이기">−</button><span><small>${lab}</small>${val}${unit}</span><button data-act="tstep" data-key="${key}" data-d="1" aria-label="${lab} 늘리기">+</button></div>`;
-    h += `<h2>경기 시간 설정</h2><div class="grid2">${st('h1', '전반', T.h1 / 60, '분')}${st('gk', 'GK 교체', T.gk, '초')}${st('h2', '후반', T.h2 / 60, '분')}${st('rest', '쉬는 시간', T.rest / 60, '분')}</div>
+    sch += `<h2>경기 시간 설정</h2><div class="grid2">${st('h1', '전반', T.h1 / 60, '분')}${st('gk', 'GK 교체', T.gk, '초')}${st('h2', '후반', T.h2 / 60, '분')}${st('rest', '쉬는 시간', T.rest / 60, '분')}</div>
     <h2>관리</h2><button class="btn danger block" data-act="delsession">이 경기일 전체 삭제</button>` }
-  return h;
+  return `<div class="dgrid"><section>${h}</section><section>${sch}</section></div>`;
 }
 function viewMatch() {
   const m = M(S.openMatch); const s = S.sessions[m.session]; if (!s) return ''; const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); const run = !!m.timer?.running; const T = timing(s);
   const next = sessMatches(m.session).find(x => x.n > m.n && x.status !== 'done'); const can = S.admin;
   let h = `<div class="overlay" role="dialog" aria-label="${m.round}라운드 ${m.slot}경기"><div class="wrap"><div class="obar"><button class="btn sm" data-act="close">← 목록</button><span class="muted">${m.round}라운드 ${m.slot}경기</span></div>
-  <div class="board"><div class="teams"><div class="t"><div class="bar" style="background:${H.color}"></div><div class="num">${a}</div><div class="nm">${esc(H.name)}</div></div><div class="colon">:</div><div class="t"><div class="bar" style="background:${A.color}"></div><div class="num">${b}</div><div class="nm">${esc(A.name)}</div></div></div>
+  <div class="dgrid ovgrid"><section><div class="board"><div class="teams"><div class="t"><div class="bar" style="background:${H.color}"></div><div class="num">${a}</div><div class="nm">${esc(H.name)}</div></div><div class="colon">:</div><div class="t"><div class="bar" style="background:${A.color}"></div><div class="num">${b}</div><div class="nm">${esc(A.name)}</div></div></div>
   <div class="phase" data-phase="${m.id}"></div><div class="clock" data-bigclock="${m.id}"></div>
   <div class="prog" style="grid-template-columns:${T.h1}fr ${Math.max(T.gk, T.h1 / 20)}fr ${T.h2}fr" aria-hidden="true"><span class="seg"><i data-seg="${m.id}:0"></i></span><span class="seg"><i data-seg="${m.id}:1"></i></span><span class="seg"><i data-seg="${m.id}:2"></i></span></div></div>`;
   if (can) {
@@ -550,8 +549,8 @@ function viewMatch() {
     else { h += `<button class="btn" data-act="reopen">종료 취소</button>`; if (next) h += `<button class="btn primary" data-act="open" data-id="${next.id}">다음 경기</button>` }
     h += '</div>' } else h += `<p class="note">기록은 운영진 모드에서 할 수 있어요.</p>`;
   const evs = evsOf(m.id).reverse();
-  h += `<h2>골 기록</h2><div class="panel">${evs.length ? evs.map(e => { const t = team(s, e.team); const second = e.half === 'h2' || e.half === 'full' || e.sec >= T.h1 + T.gk; const mn = second ? Math.floor((e.sec - T.h1 - T.gk) / 60) + 1 : Math.floor(e.sec / 60) + 1;
-    return `<div class="ev"><span class="min">${second ? '후' : '전'} ${Math.max(1, mn)}'</span>${bib(t.color)}<span class="who">${e.og ? '상대 자책골' : esc(pname(e.scorer))}${e.assist ? `<small>도움 ${esc(pname(e.assist))}</small>` : ''}</span>${can ? `<button class="x" data-act="delev" data-id="${e.id}" aria-label="골 기록 삭제">×</button>` : ''}</div>` }).join('') : '<p class="empty">골이 나면 위의 팀 버튼을 누르세요.</p>'}</div></div></div>`;
+  h += `</section><section><h2>골 기록</h2><div class="panel">${evs.length ? evs.map(e => { const t = team(s, e.team); const second = e.half === 'h2' || e.half === 'full' || e.sec >= T.h1 + T.gk; const mn = second ? Math.floor((e.sec - T.h1 - T.gk) / 60) + 1 : Math.floor(e.sec / 60) + 1;
+    return `<div class="ev"><span class="min">${second ? '후' : '전'} ${Math.max(1, mn)}'</span>${bib(t.color)}<span class="who">${e.og ? '상대 자책골' : esc(pname(e.scorer))}${e.assist ? `<small>도움 ${esc(pname(e.assist))}</small>` : ''}</span>${can ? `<button class="x" data-act="delev" data-id="${e.id}" aria-label="골 기록 삭제">×</button>` : ''}</div>` }).join('') : '<p class="empty">골이 나면 위의 팀 버튼을 누르세요.</p>'}</div></section></div></div></div>`;
   return h;
 }
 function viewSheet() {
@@ -623,6 +622,7 @@ function viewMHome() {
     const body = S.sub === 'draft' ? (s.draftStatus === 'done' ? vTrade(s) : vDraft(s)) : S.sub === 'poster' ? vNotice(s) : vMatchDay(s);
     return backbar('홈으로') + body } }
   const sid = nextSid(); let h = '';
+  h += '<div class="dgrid"><section>';
   // ── MATCH REVIEW ──
   const last = pastSids().find(id => id !== sid);
   h += `<div class="sec-lab"><span>MATCH REVIEW</span>${last ? `<small>${fmtDate(last)}</small>` : ''}</div>`;
@@ -636,6 +636,7 @@ function viewMHome() {
       <div class="rv-rows">${rows.map(r => { const t = team(s, r.k); return `<div class="rc-row ${mt === r.k ? 'mine' : ''}"><em class="rk rk${r.rank}">${r.rank}</em>${bib(t.color)}<b>${esc(t.name)}</b>${mt === r.k ? '<small class="metag">내 팀</small>' : ''}<span class="wdl"><i class="w">${r.w}승</i><i class="d">${r.d}무</i><i class="l">${r.l}패</i></span><span class="pt">${r.pts}점</span></div>` }).join('')}</div>
       ${scorers.length || moms.length ? `<div class="rv-meta">${scorers.length ? `<span><em>득점왕</em>${scorers.map(x => esc(pname(x))).join(', ')} ${best}골</span>` : ''}${moms.length ? `<span><em>MOM</em>${moms.map(x => esc(pname(x))).join(', ')}</span>` : ''}</div>` : ''}
       <span class="more">경기 결과 자세히 보기 ›</span></button>` }
+  h += '</section><section>';
   // ── NEXT MATCH ──
   h += `<div class="sec-lab"><span>NEXT MATCH</span>${sid ? `<small>${fmtDate(sid)}</small>` : ''}</div>`;
   if (!sid) h += `<div class="hero"><div class="hero-empty">예정된 경기가 없어요</div><p>새 경기일이 열리면 여기에 보여요.</p></div>`;
@@ -647,7 +648,7 @@ function viewMHome() {
       <div class="cap"><div class="cap-row"><span>신청 인원</span><b>${n}<small> / ${cap || '-'}명</small></b></div>${cap ? `<div class="bar"><i style="width:${Math.min(100, n / cap * 100)}%"></i></div>` : ''}</div></div>`;
     h += homeAction(s, st);
   }
-  return h;
+  return h + '</section></div>';
 }
 function homeAction(s, st) {
   const mt = myTeamIn(s);
@@ -667,23 +668,25 @@ function viewSchedule() {
   const t = today(); const ids = Object.keys(S.sessions).filter(id => id >= t).sort();
   let h = `<h2>일정</h2>`;
   if (!ids.length) return h + `<div class="panel"><p class="empty">예정된 경기가 없어요.</p></div>`;
+  h += '<div class="cards">';
   for (const id of ids) { const s = S.sessions[id]; const st = sStatus(s); const now = Date.now();
     const steps = [['신청 오픈', s.applyOpen, s.applyOpen && dt(s.applyOpen) <= now], ['신청 마감', s.applyClose, s.applyClose && dt(s.applyClose) <= now], ['팀 발표', null, stageIdx(s.stage) >= stageIdx('notice')], ['경기', `${id}T${s.time || '00:00'}`, st.k === 'live' || st.k === 'done']];
     const curI = steps.findIndex(x => !x[2]);
     h += `<div class="panel sched"><div class="sched-hd"><div><b>${fmtDate(id)} ${esc(s.time || '')}</b><span>📍 ${esc(s.venue || '')}</span></div><span class="dday sm">${dday(id)}</span></div>
       <ol class="tl">${steps.map(([l, v, done], i) => `<li class="${done ? 'done' : i === curI ? 'now' : ''}"><i></i><span>${l}</span><em>${v ? fmtDT(v) : done ? '완료' : i === 2 ? '신청 마감 후' : '-'}</em></li>`).join('')}</ol>
       <div class="sched-ft"><span class="st st-${st.k}">${st.label}</span><span>신청 ${(s.applicants || []).length}${s.capacity ? ' / ' + s.capacity : ''}명</span></div></div>` }
-  return h;
+  return h + '</div>';
 }
 function viewResults() {
   if (S.detail && S.sessions[S.detail]) { S.sid = S.detail; const s = S.sessions[S.detail];
     return backbar('결과 목록') + `<h2>${fmtDate(S.detail)}<small>${esc(s.venue || '')}</small></h2>` + vMatchDay(s) + `<h2>팀 명단</h2>` + rostersMini(s) }
   const ids = pastSids(); let h = `<h2>이전 경기 결과</h2>`;
   if (!ids.length) return h + `<div class="panel"><p class="empty">아직 끝난 경기가 없어요.</p></div>`;
+  h += '<div class="cards">';
   for (const id of ids) { const s = S.sessions[id]; const rows = standings(id); const mt = myTeamIn(s); const done = sessMatches(id).filter(m => m.status === 'done').length;
     h += `<button class="panel rescard" data-act="result" data-id="${id}"><div class="rc-hd"><b>${fmtDate(id)}</b><span>${done < 9 ? `${done}/9경기` : '최종'}</span></div>
       ${rows.map(r => { const t = team(s, r.k); return `<div class="rc-row ${mt === r.k ? 'mine' : ''}"><em class="rk rk${r.rank}">${r.rank}</em>${bib(t.color)}<b>${esc(t.name)}</b>${mt === r.k ? '<small class="metag">내 팀</small>' : ''}<span class="wdl"><i class="w">${r.w}승</i><i class="d">${r.d}무</i><i class="l">${r.l}패</i></span><span class="pt">${r.pts}점</span></div>` }).join('')}</button>` }
-  return h;
+  return h + '</div>';
 }
 const RANKS = [['g', '득점'], ['a', '도움'], ['pts', '공격포인트'], ['days', '참가'], ['mom', 'MOM'], ['wr', '승률']];
 function viewMStats() {
@@ -695,16 +698,17 @@ function viewMStats() {
     h += `<div class="me-hero"><div class="me-name">${esc(pname(me))}</div><div class="me-grid">
       ${[['참가', r.days, '회', rankOf(rows, 'days', me)], ['경기', r.gp, '경기', null], ['득점', r.g, '골', rankOf(rows, 'g', me)], ['도움', r.a, '개', rankOf(rows, 'a', me)], ['MOM', r.mom, '회', r.mom ? rankOf(rows, 'mom', me) : null], ['승률', wr ?? '-', wr === null ? '' : '%', null]].map(([l, v, u, rk]) => `<div><span>${l}</span><b>${v}<small>${u}</small></b>${rk ? `<em>${rk}위</em>` : ''}</div>`).join('')}</div>
       <div class="me-wdl">${r.w}승 ${r.d}무 ${r.l}패${r.wins ? `, 우승 ${r.wins}회` : ''}</div></div>` }
+  h = '<div class="dgrid"><section>' + h + '</section><section>';
   h += `<h2>순위</h2><div class="seg" role="tablist">${RANKS.map(([k, n]) => `<button role="tab" data-act="rank" data-k="${k}" aria-selected="${key === k}">${n}</button>`).join('')}</div>`;
   const val = x => key === 'pts' ? x.g + x.a : key === 'wr' ? (x.gp >= 5 ? x.w / x.gp : -1) : x[key];
   const list = rows.filter(x => val(x) > 0).sort((a, b) => val(b) - val(a) || a.days - b.days);
-  if (!list.length) return h + `<div class="panel"><p class="empty">아직 기록이 없어요.</p></div>`;
+  if (!list.length) return h + `<div class="panel"><p class="empty">아직 기록이 없어요.</p></div></section></div>`;
   let rank = 0; const shown = list.slice(0, 30);
   h += `<div class="panel lb">${shown.map((x, i) => { if (i === 0 || val(shown[i - 1]) !== val(x)) rank = i + 1; const v = key === 'wr' ? Math.round(val(x) * 100) + '%' : val(x) + (key === 'days' ? '회' : key === 'g' ? '골' : '');
     return `<div class="lb-row ${x.id === me ? 'me' : ''}"><em class="rk rk${rank}">${rank}</em><b>${esc(pname(x.id))}</b><small>${key === 'g' ? `${x.days}회 참가` : key === 'days' ? `${x.gp}경기` : key === 'wr' ? `${x.w}승 ${x.d}무 ${x.l}패` : `${x.g}골 ${x.a}도움`}</small><span>${v}</span></div>` }).join('')}</div>`;
   if (key === 'wr') h += `<p class="note">승률은 5경기 이상 뛴 선수만 표시해요.</p>`;
   if (me && r && !shown.find(x => x.id === me) && val(r) > 0) h += `<p class="note">내 순위: ${rankOf(list, key === 'wr' ? 'g' : key, me)}위</p>`;
-  return h;
+  return h + '</section></div>';
 }
 function viewApplicants() { const s = cur(); return backbar('홈으로') + `<h2>신청자<small>${(s.applicants || []).length}명</small></h2><div class="panel"><div class="chips">${(s.applicants || []).map(id => `<span class="chip ${id === myPid() ? 'sel' : ''}">${esc(pname(id))}</span>`).join('')}</div></div>` }
 
