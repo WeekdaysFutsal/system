@@ -1134,6 +1134,54 @@ table.atbl tr.lrow td:nth-child(n+7){text-decoration:none}
 .lgcard .note{color:rgba(255,255,255,.7);margin:0}
 .lgcard .linkbtn{color:#FFD21F}
 .lgbtn{min-height:52px;font-size:17px}
+/* v1.2 captain strip, popup, ranking rows */
+.capstrip{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:8px 14px;background:#FFD21F;color:#1A1400;font-size:13px;font-weight:600;border:0;text-align:center;flex-wrap:wrap}
+.capstrip b{font-weight:800}
+.capstrip span{margin-left:6px;padding:3px 10px;border-radius:99px;background:#1A1400;color:#FFD21F;font-weight:800;font-size:12px}
+.cappop{text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px 4px}
+.cp-crown{font-size:52px;line-height:1;animation:bubblepop .5s cubic-bezier(.2,1.6,.4,1) both}
+.cappop h4{margin:4px 0 0!important}
+.cappop p{margin:0 0 8px;color:var(--muted);line-height:1.6}
+.rc-row{display:grid!important;grid-template-columns:28px 14px minmax(0,1fr) auto 54px;align-items:center;column-gap:8px}
+.rc-row .rcn{display:flex;align-items:center;gap:6px;min-width:0}
+.rc-row .rcn b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rc-row .wdl{display:inline-grid;grid-template-columns:repeat(3,auto);gap:6px;font-variant-numeric:tabular-nums;justify-self:end}
+.rc-row .pt{text-align:right;font-variant-numeric:tabular-nums}
+.rc-row .rk{justify-self:center}
+.rv-rows .rc-row.mine,.rc-row.mine{margin:0 -8px!important;padding-left:8px!important;padding-right:8px!important;border-radius:8px}
+/* v1.3 admin context bar + flow */
+.abar{margin:10px -14px -10px;padding:8px 12px 10px;background:var(--surface);color:var(--ink);border-bottom:1px solid var(--line);box-shadow:0 4px 12px rgba(15,25,50,.06)}
+.actx{display:flex;align-items:center;gap:8px}
+.actx-t{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;min-width:0;padding:2px 22px;cursor:pointer;text-align:center}
+.actx-t b{font-size:16px;font-weight:800;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.actx-t small{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.actx-t small .st{font-size:10px;padding:1px 6px;margin:0 2px}
+.actx-t select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:16px}
+.actx-dd{position:absolute;right:2px;top:50%;transform:translateY(-50%);font-style:normal;color:var(--muted);font-size:12px}
+.navb.sm{width:40px;height:40px;font-size:20px;flex:none;border-radius:12px}
+.aflow{list-style:none;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));margin:8px 0 0;padding:0}
+.aflow li{position:relative}
+.aflow li:not(:last-child)::after{content:"";position:absolute;top:12px;left:calc(50% + 14px);right:calc(-50% + 14px);height:2px;background:var(--line);border-radius:2px}
+.aflow li.done:not(:last-child)::after{background:var(--accent)}
+.aflow button{display:flex;flex-direction:column;align-items:center;gap:3px;width:100%;background:none;border:0;padding:0;color:var(--muted);min-height:0}
+.aflow i{font-style:normal;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;background:var(--bg);border:1.5px solid var(--line)}
+.aflow span{font-size:11px;font-weight:600;white-space:nowrap;letter-spacing:-.4px}
+.aflow li.done button{color:var(--ink)}
+.aflow li.done i{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.aflow li.now button{color:var(--ink)}
+.aflow li.now i{background:#FFD21F;border-color:#FFD21F;color:#1A1400;box-shadow:0 0 0 4px rgba(255,210,31,.3)}
+.aflow li.now span{font-weight:800}
+.runtools{display:flex!important;align-items:center;gap:8px;flex-wrap:wrap;margin:28px 0 8px!important;padding:14px;border-radius:14px;background:var(--surface);border:1px dashed var(--line);width:auto!important}
+.runtools>span{font-size:13px;font-weight:800;color:var(--muted);margin-right:4px}
+.runtools .btn{flex:none!important}
+@media (max-width:1023px){.runtools .btn{flex:1 1 auto!important}}
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){
+  .abar{margin:12px -28px -12px 182px;padding:10px 28px 12px;border-left:1px solid var(--line)}
+  .actx{max-width:760px;margin:0 auto}
+  .aflow{max-width:900px;margin:10px auto 0}
+  .aflow span{font-size:13px}
+  .tabs{padding-top:calc(var(--abh,70px) + 14px)!important}
+}
 </style>
 </head>
 <body>
