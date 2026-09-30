@@ -814,6 +814,7 @@ function viewSheet() {
 function viewSettings() {
   return `<h2>내 정보<small>이름 + 비밀번호 4자리로 로그인해요</small></h2>${loginCard()}
   <h2>휘슬</h2><div class="panel pad"><button class="btn block" data-act="whistle">${S.whistle ? '🔊 이 폰에서 휘슬 켜짐' : '🔇 이 폰에서 휘슬 꺼짐'}</button><p class="note">웹에서는 휘슬이 울리려면 경기 화면을 켜 두어야 해요.</p></div>
+  ${S.admin ? `<h2>경기모드 연습</h2><div class="panel pad"><p class="muted" style="margin:0 0 10px">팀 구성까지 끝난 연습용 경기를 만들어 경기모드(대진 → 시간 → 타이머·휘슬·골 기록)를 미리 해 볼 수 있어요.</p><div class="row"><button class="btn primary" data-act="mkpractice">연습 경기 만들기</button><button class="btn danger" data-act="clrpractice">연습 경기 지우기</button></div></div>` : ''}
   ${S.admin ? `<h2>샘플 데이터</h2><div class="panel pad"><p class="muted" style="margin:0 0 10px">화면 확인용 가상 회원, 지난 경기 2개, 다음 경기 1개를 넣거나 지워요. 직접 입력한 데이터는 건드리지 않아요.</p><div class="row"><button class="btn" data-act="addsample">샘플 데이터 넣기</button><button class="btn danger" data-act="clearsample">샘플 데이터 모두 지우기</button></div></div>` : ''}`;
 }
 /* ───────── member views ───────── */
@@ -1097,6 +1098,26 @@ async function addSampleManual() {
   const docs = all.filter(([p, d]) => !(p.startsWith('sessions/') && skipSid.has(p.slice(9))) && !(d.session && skipSid.has(d.session)));
   const ok = await w(async () => { for (let i = 0; i < docs.length; i += 12) await Promise.all(docs.slice(i, i + 12).map(([p, d]) => S.store.set(p, d))) });
   if (ok) toast(skipSid.size ? `샘플을 넣었어요. ${[...skipSid].map(fmtDate).join(', ')}은 이미 경기가 있어서 건너뛰었어요.` : '샘플 데이터를 넣었어요.');
+}
+async function makePractice() {
+  const pool = Object.entries(S.players).filter(([, p]) => mstatus(p) !== 'dormant').map(([id]) => id);
+  if (pool.length < 9) { toast('회원이 9명 이상 있어야 연습 경기를 만들 수 있어요.'); return }
+  let d = today(); while (S.sessions[d]) { const x = new Date(d + 'T00:00'); x.setDate(x.getDate() + 1); d = `${x.getFullYear()}-${p2(x.getMonth() + 1)}-${p2(x.getDate())}` }
+  if (!confirm(`${fmtDate(d)}에 경기모드 연습용 경기(팀 구성까지 끝난 상태)를 만들까요?\n회원 중 ${Math.min(18, pool.length)}명을 무작위로 세 팀에 나눠요. 설정 → "연습 경기 지우기"로 언제든 지울 수 있어요.`)) return;
+  const pick = [...pool].sort(() => Math.random() - .5).slice(0, Math.min(18, pool.length - pool.length % 3)); const per = pick.length / 3;
+  const cols = ['RED', 'BLUE', 'WHITE']; const teams = {}, captains = {};
+  KEYS.forEach((k, i) => { const ps = pick.slice(i * per, (i + 1) * per); teams[k] = { players: ps, colorName: cols[i] }; captains[k] = ps[0] });
+  const ok = await w(() => S.store.set(sp(d), { date: d, time: '21:00', venue: '용산 아이파크몰 The Base 7구장', evpw: '', notice: DEFAULTS.notice || '', capacity: pick.length,
+    applyOpen: shiftDate(d, DEFAULTS.openDays, DEFAULTS.openTime), applyClose: shiftDate(d, DEFAULTS.closeDays, DEFAULTS.closeTime), stage: 'trade', draftStatus: 'done',
+    applicants: pick, waitlist: [], captains, captainTokens: { A: null, B: null, C: null }, order: [...KEYS], picks: [], pending: null, teams, timing: { ...DEF_TIMING }, mom: {}, no: 0,
+    practice: true, sample: true, createdAt: Date.now() }), `${fmtDate(d)} 연습 경기를 만들었어요. 하단 ⚽ 경기모드에서 시작해 보세요.`);
+  if (ok) { S.mmPick = d; render() }
+}
+async function clearPractice() {
+  const sids = Object.entries(S.sessions).filter(([, s]) => s.practice).map(([id]) => id); if (!sids.length) { toast('연습 경기가 없어요.'); return }
+  if (!confirm(`연습 경기 ${sids.length}개와 그 경기 기록을 지울까요?`)) return;
+  const targets = [...Object.entries(S.events).filter(([, e]) => sids.includes(e.session)).map(([id]) => 'events/' + id), ...Object.entries(S.matches).filter(([, m]) => sids.includes(m.session)).map(([id]) => 'matches/' + id), ...sids.map(id => 'sessions/' + id)];
+  if (await w(async () => { for (const t of targets) await S.store.del(t) }, '연습 경기를 지웠어요.')) { S.mmPick = null; render() }
 }
 async function clearSample() {
   if (!confirm('샘플 데이터(가상 회원, 경기, 기록)를 모두 지울까요? 직접 입력한 데이터는 남아요.')) return;
@@ -1500,7 +1521,7 @@ function mmReady(s) { return !!s.mm?.pairs && sessMatches(s.date).length === 9 }
 function viewMatchMode() {
   const sid = mmSid(); if (!sid) return `<div class="mm"><div class="mm-empty">⚽<b>경기모드</b><p>팀 구성이 끝난 경기가 아직 없어요.<br>드래프트가 끝나면 여기서 경기를 진행해요.</p></div></div>`;
   S.mmSid = sid; const s = S.sessions[sid]; const ids = Object.keys(S.sessions).filter(id => KEYS.every(k => teamPlayers(S.sessions[id], k).length)).sort();
-  const head = `<div class="mm-hd"><div><b>⚽ 경기모드</b><small>${fmtDate(sid)} ${esc(s.time || '')} · ${esc(s.venue || '')}</small></div>${ids.length > 1 ? `<select class="inp mm-pick" data-in="mmpick" aria-label="경기일 선택">${ids.slice().reverse().map(id => `<option value="${id}" ${id === sid ? 'selected' : ''}>${fmtDate(id)}</option>`).join('')}</select>` : ''}</div>`;
+  const head = `<div class="mm-hd"><div><b>⚽ 경기모드${s.practice ? ' <span class="prac">연습</span>' : ''}</b><small>${fmtDate(sid)} ${esc(s.time || '')} · ${esc(s.venue || '')}</small></div>${ids.length > 1 ? `<select class="inp mm-pick" data-in="mmpick" aria-label="경기일 선택">${ids.slice().reverse().map(id => `<option value="${id}" ${id === sid ? 'selected' : ''}>${fmtDate(id)}</option>`).join('')}</select>` : ''}</div>`;
   const stage = S.mmStage || (!mmReady(s) ? 'pair' : !s.mm?.timed ? 'time' : 'play');
   if (stage === 'pair') return `<div class="mm">${head}${mmPairView(s)}</div>`;
   if (stage === 'time') return `<div class="mm">${head}${mmTimeView(s)}</div>`;
@@ -1718,6 +1739,8 @@ document.addEventListener('click', async e => {
     case 'pick': await setPending(id); break;
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
+    case 'mkpractice': if (!needAdmin()) break; await makePractice(); break;
+    case 'clrpractice': if (!needAdmin()) break; await clearPractice(); break;
     case 'mmtoggle': audio(); S.tab = S.tab === 'mm' ? 'mhome' : 'mm'; S.sub = null; render(); window.scrollTo(0, 0); break;
     case 'mmpk': { const d = S.mmDraft; const key = el.dataset.w === '1' ? 'p1' : 'p2'; const arr = d[key]; const k = el.dataset.k; if (arr.includes(k)) d[key] = arr.filter(x => x !== k); else if (arr.length < 2) arr.push(k); else d[key] = [arr[1], k]; if (key === 'p1') d.p2 = []; render(); break }
     case 'mmsw': { const n = +el.dataset.n; const d = S.mmDraft; d.swap[n] = !d.swap[n]; render(); break }
