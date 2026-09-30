@@ -955,6 +955,30 @@ table.atbl tr.lrow td:nth-child(n+7){text-decoration:none}
 .homegrid .rv-rows .rc-row{padding:10px 0}
 .homegrid .rv-top{padding:18px 16px}
 @media (min-width:1024px) and (hover:hover) and (pointer:fine){.homegrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 32px}}
+/* v0.30 result detail */
+.rdgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:4px 28px;grid-template-areas:"st" "tm" "ms"}
+.rd-st{grid-area:st;min-width:0}.rd-tm{grid-area:tm;min-width:0}.rd-ms{grid-area:ms;min-width:0}
+.rdst tr.champ td{background:rgba(255,210,31,.12)}
+.rdst .rank .rk{width:26px;height:26px}
+.rdst .rk0{background:var(--bg)}
+.rdteams{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.rdt{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.rdt-hd{background:var(--tc);color:var(--ti);padding:9px 10px;display:flex;align-items:baseline;justify-content:space-between;box-shadow:inset 0 -1px 0 rgba(0,0,0,.08)}
+.rdt-hd b{font-family:var(--latin);font-weight:400;font-size:18px;letter-spacing:.5px}
+.rdt-hd small{font-size:12px;font-weight:700;opacity:.85}
+.rdt[style*="--ti:#131C2B"] .rdt-hd{box-shadow:inset 0 0 0 2px #131C2B22}
+.rdt ul{list-style:none;margin:0;padding:6px 10px 8px;font-size:14px;line-height:1.9}
+.rdt li{display:flex;align-items:center;gap:5px;font-weight:600}
+.rdt li.me{color:var(--accent)}
+.rdt li em{font-style:normal;width:16px;height:16px;border-radius:4px;background:var(--tc);color:var(--ti);font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px rgba(127,127,127,.35)}
+.rounds3{display:grid;grid-template-columns:minmax(0,1fr);gap:4px 16px}
+.rdround h3{font-size:13px;font-weight:700;color:var(--muted);margin:10px 2px 6px}
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){
+  .rdgrid{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);grid-template-areas:"st tm" "ms ms";align-items:start}
+  .rounds3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .rdt ul{font-size:15px}
+}
+@media (max-width:420px){.rdt ul{font-size:13px;padding:5px 8px}.rdt-hd b{font-size:15px}}
 </style>
 </head>
 <body>
