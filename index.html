@@ -1734,11 +1734,32 @@ body.dm-on{position:fixed;inset:0;width:100%;overflow:hidden}
 .applydock .xpill b{font-size:13px}.applydock .xpill small{font-size:11px;max-width:55%;text-align:right}
 @media (max-height:740px){.applydock{--dockh:116px;padding:6px 12px 30px!important}.applydock .xpill b{font-size:12px}.applydock .applied{padding:8px 10px!important}.applydock .applied small{display:block}}
 @media (max-width:360px){.applydock .xpill small{display:none}}
+/* v0.13 calmer, de-duplicated mobile UI */
+.rv-note{font-size:12px;color:var(--muted);padding:10px 16px 0}
+.rc-row.first .rk{background:var(--amber)!important;color:#1A1400!important;font-size:13px}
+.rc-row.first b{font-weight:800}
+.homefit .homegrid>section:first-child .rv-rows .rc-row{min-height:40px!important;padding:4px 0!important}
+.homefit .homegrid>section:first-child .rv-rows{padding:4px 16px!important}
+.sec-lab{margin:14px 2px 8px}
+.sec-lab span{font-size:14px;letter-spacing:1.2px;color:var(--muted)}
+.sec-lab small{font-weight:600}
+.hero-top .st{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.25)}
+.hero-top .st.st-open{background:#16A34A;border-color:#16A34A}
+.hero .dday{font-family:var(--latin);font-weight:400;letter-spacing:.5px}
+.caplink{font-weight:700}
+.applydock .applied>span>span:first-child{font-size:15px}
+.xpill{box-shadow:none}
+.mm-hd small{display:block;margin-top:2px}
+.mm-meta{font-size:14px}
+.mm-note{font-size:12.5px}
+.apinfo .field{padding:10px 12px}
+.apinfo .field span{font-size:11.5px}
+@media (max-height:740px){.homefit .homegrid>section:first-child .rv-rows .rc-row{min-height:30px!important;padding:2px 0!important}.homefit .homegrid>section:first-child .rv-rows{padding:2px 14px!important}.rv-note{padding:6px 14px 0}}
 </style>
 </head>
 <body>
 <div id="app"><p class="empty">불러오는 중…</p></div>
-<script src="config.js?v=0.12"></script>
-<script type="module" src="app.js?v=0.12"></script>
+<script src="config.js?v=0.13"></script>
+<script type="module" src="app.js?v=0.13"></script>
 </body>
 </html>
