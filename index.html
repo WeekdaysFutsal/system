@@ -1651,11 +1651,40 @@ body.dm-on{position:fixed;inset:0;width:100%;overflow:hidden}
 .verbox>div{display:flex;align-items:baseline;gap:10px}
 .verbox span{font-size:13px;font-weight:600;color:var(--muted)}
 .verbox b{font-family:var(--latin);font-weight:400;font-size:26px;letter-spacing:.5px;color:var(--ink)}
+/* v1.18.2 home hero breathing room; schedule detail uses full space */
+.homefit .homegrid{grid-template-rows:auto minmax(0,1fr)!important;grid-auto-rows:auto!important}
+.homefit .homegrid>section:first-child .review{flex:none}
+.homefit .homegrid>section:first-child .rv-rows{flex:none!important}
+.homefit .homegrid>section:first-child .rv-rows .rc-row{min-height:34px!important;padding:2px 0!important}
+.homefit .nextwrap .hero{padding:14px 16px 16px!important;min-height:0}
+.homefit .nextwrap .hero .cap{margin-top:auto;padding-top:10px}
+.homefit .nextwrap .hero .bar,.homefit .nextwrap .hero .prog{margin-top:8px}
+@media (min-width:900px) and (pointer:coarse){.homefit .homegrid{grid-template-rows:minmax(0,1fr)!important}}
+.schfit .schdetail{flex:1;min-height:0;overflow:auto!important;-webkit-overflow-scrolling:touch;border-radius:var(--r-lg)}
+.schfit .schdetail .sched{height:auto!important;min-height:100%}
+.schfit .sched-ft{display:flex!important}
+@media (max-height:740px){
+  .homefit .review .rv-top{display:none!important}
+  .homefit .homegrid>section:first-child .rv-rows .rc-row{min-height:30px!important}
+  .homefit .review .more{padding:5px 12px!important}
+  .homefit .nextwrap .hero{padding:10px 14px 12px!important}
+  .homefit .hero-date{font-size:30px!important}
+  .homefit .hero-time{font-size:15px!important;display:inline-block}
+  .homefit .hero-venue{font-size:12.5px!important}
+  .homefit .hero .cap{padding-top:6px!important}
+  .homefit .hero .cap-row b{font-size:20px!important}
+  .applydock{padding:6px 12px 30px!important}
+  .applydock .applied{padding:6px 10px!important}
+  .applydock .applied small{display:none}
+  .applydock .xpill{min-height:40px!important;padding:4px!important}
+  .applydock .xpill b{font-size:13px}.applydock .xpill small{font-size:10.5px}
+  .applydock .extras{margin-top:6px!important;gap:6px!important}
+}
 </style>
 </head>
 <body>
 <div id="app"><p class="empty">불러오는 중…</p></div>
-<script src="config.js?v=1.18.1"></script>
-<script type="module" src="app.js?v=1.18.1"></script>
+<script src="config.js?v=1.18.2"></script>
+<script type="module" src="app.js?v=1.18.2"></script>
 </body>
 </html>

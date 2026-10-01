@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '1.18.1';
+const APP_VERSION = '1.18.2';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -978,7 +978,7 @@ function viewSchedule() {
     <div class="cal-leg"><span><i class="lg-open"></i>신청 중</span><span><i class="lg-game"></i>경기</span><span><i class="lg-done"></i>종료</span><span><i class="lg-sel"></i>선택한 날</span></div></div>`;
   const sel = S.sessions[S.schSel];
   const det = sel ? schedCard(S.schSel, fit) : `<div class="panel sched"><p class="empty">${fmtDate(S.schSel)}에는 경기가 없어요.<br>색칠된 날짜를 눌러 보세요.</p></div>`;
-  let dock = ''; if (fit && sel) { const st = sStatus(sel); const a = applyState(sel); if (st.k === 'open' || st.k === 'soon' || (st.k === 'closed' && a.k !== 'none' && sel.stage !== 'match')) { const ab = applyBox(sel, true); if (ab) dock = `<div class="applydock">${ab}</div>` } }
+  const dock = '';
   return `<div class="schwrap${fit ? ' schfit' : ''}">${cal}<div class="schdetail">${det}</div></div>${dock}`;
 }
 
