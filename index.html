@@ -1755,11 +1755,74 @@ body.dm-on{position:fixed;inset:0;width:100%;overflow:hidden}
 .apinfo .field{padding:10px 12px}
 .apinfo .field span{font-size:11.5px}
 @media (max-height:740px){.homefit .homegrid>section:first-child .rv-rows .rc-row{min-height:30px!important;padding:2px 0!important}.homefit .homegrid>section:first-child .rv-rows{padding:2px 14px!important}.rv-note{padding:6px 14px 0}}
+/* v0.14 home: apply button lives under the NEXT MATCH card; everything scales to the screen, nothing is covered */
+.homefit{bottom:calc(80px + env(safe-area-inset-bottom,0px))!important;padding:4px 12px 6px!important;display:flex;flex-direction:column}
+.homefit .homegrid{display:flex!important;flex-direction:column;gap:0;min-height:0;flex:1}
+.homefit .homegrid>section{display:flex;flex-direction:column;min-height:0}
+.homefit .homegrid>section:first-child{flex:none}
+.homefit .homegrid>section:last-child{flex:1;min-height:0}
+.homefit .sec-lab{margin:clamp(4px,.8vh,10px) 2px clamp(3px,.6vh,6px)}
+.homefit .sec-lab span{font-size:clamp(12px,1.7vh,14px)}
+.homefit .homegrid>section:first-child .rv-rows .rc-row{min-height:clamp(26px,4.4vh,40px)!important;padding:2px 0!important}
+.homefit .review .rc-row b{font-size:clamp(13px,1.9vh,15px)}
+.homefit .review .wdl{font-size:clamp(11px,1.6vh,13px)}
+.homefit .review .more{padding:clamp(4px,.8vh,7px) 12px;font-size:clamp(12px,1.6vh,13px)}
+.homefit .nextwrap{flex:1 1 auto!important;min-height:0;display:flex;flex-direction:column;gap:clamp(6px,1vh,10px)}
+.homefit .nextwrap .hero{flex:1 1 auto!important;min-height:0;padding:clamp(10px,1.6vh,14px) 14px clamp(10px,1.6vh,14px)!important;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden!important}
+.homefit .hero-date{font-size:clamp(26px,5.2vh,44px)!important}
+.homefit .hero-date small{font-size:clamp(13px,2vh,17px)}
+.homefit .hero-time{font-size:clamp(15px,2.4vh,20px)!important}
+.homefit .hero-venue{font-size:clamp(12px,1.7vh,13px)!important}
+.homefit .hero-status{font-size:clamp(11px,1.6vh,12.5px)}
+.homefit .hero .cap{margin-top:auto!important;padding-top:clamp(4px,.9vh,8px)!important}
+.homefit .hero .cap-row b{font-size:clamp(18px,2.8vh,24px)!important}
+.inline-apply{flex:none;display:flex;flex-direction:column;gap:clamp(6px,.9vh,8px)}
+.inline-apply .applybtn{min-height:clamp(46px,7vh,62px)!important;font-size:clamp(16px,2.4vh,19px)!important;border-radius:14px}
+.inline-apply>.btn:not(.applybtn){min-height:clamp(42px,6vh,52px)}
+.inline-apply .applied{margin:0!important;padding:clamp(8px,1.2vh,11px) 12px!important;display:flex!important;align-items:center;justify-content:space-between;gap:10px}
+.inline-apply .applied>span{display:flex;flex-direction:column;gap:1px}
+.inline-apply .applied small{display:block;font-size:clamp(11px,1.5vh,12px)}
+.inline-apply .extras{margin:0!important;display:grid!important;grid-template-columns:repeat(3,1fr);gap:6px}
+.inline-apply .xpill{min-height:clamp(40px,6vh,50px)!important;padding:3px 6px!important;gap:0}
+.inline-apply .xpill b{font-size:clamp(12px,1.8vh,14px)}
+.inline-apply .xpill small{font-size:clamp(10px,1.4vh,11.5px)}
+.homefit .act{padding:clamp(8px,1.2vh,10px) 12px}
+/* very short screens: review collapses to the winner line only */
+@media (max-height:600px){
+  .homefit .homegrid>section:first-child .rv-rows .rc-row:not(.first){display:none!important}
+  .homefit .hero-status,.homefit .hero-venue{display:none}
+  .homefit .hero-time{display:inline-block;margin-left:8px}
+}
+.applydock{display:none!important}
+body.hasmm .homefit{bottom:calc(80px + env(safe-area-inset-bottom,0px))!important}
+.homefit .nextwrap .hero{max-height:46vh}
+.inline-apply{margin-top:auto}
+/* v0.15 NEXT MATCH card = futsal pitch */
+.hero{position:relative;overflow:hidden!important;background:
+  linear-gradient(180deg,rgba(6,38,20,.45) 0%,rgba(6,38,20,.15) 40%,rgba(6,38,20,.55) 100%),
+  radial-gradient(circle at 50% 50%,transparent 0 44px,rgba(255,255,255,.42) 45px 47px,transparent 48px),
+  radial-gradient(circle at 50% 50%,rgba(255,255,255,.5) 0 3px,transparent 4px),
+  linear-gradient(90deg,transparent calc(50% - 1px),rgba(255,255,255,.42) calc(50% - 1px) calc(50% + 1px),transparent calc(50% + 1px)),
+  repeating-linear-gradient(90deg,#2B8A44 0 12.5%,#277F3E 12.5% 25%)!important;
+  box-shadow:inset 0 0 0 8px #2B8A44,inset 0 0 0 10px rgba(255,255,255,.45),0 18px 40px -18px rgba(6,40,20,.7)!important}
+.hero::before,.hero::after{content:"";position:absolute;top:30%;bottom:30%;width:12%;border:2px solid rgba(255,255,255,.42);pointer-events:none;z-index:0}
+.hero::before{left:8px;border-left:0}
+.hero::after{right:8px;border-right:0}
+.hero>*{position:relative;z-index:1}
+.hero .hero-date,.hero .hero-time,.hero .hero-venue,.hero .hero-status,.hero .cap{text-shadow:0 1px 4px rgba(0,0,0,.55)}
+.hero .cap{border-top-color:rgba(255,255,255,.35)!important}
+.hero .bar,.hero .prog{background:rgba(0,0,0,.35)!important}
+.hero .hero-top .st{background:rgba(0,0,0,.35);border-color:rgba(255,255,255,.3)}
+.hero .hero-top .st.st-open{background:#FFCF1F;color:#1A1400;border-color:#FFCF1F}
+.hero .dday{background:#FFCF1F;color:#1A1400}
+.hero .caplink{color:#FFE14D!important}
+.hero-empty{text-shadow:0 1px 4px rgba(0,0,0,.55)}
+@media (prefers-color-scheme:dark){.hero{box-shadow:inset 0 0 0 8px #2B8A44,inset 0 0 0 10px rgba(255,255,255,.4),0 18px 40px -18px rgba(0,0,0,.8)!important}}
 </style>
 </head>
 <body>
 <div id="app"><p class="empty">불러오는 중…</p></div>
-<script src="config.js?v=0.13"></script>
-<script type="module" src="app.js?v=0.13"></script>
+<script src="config.js?v=0.15"></script>
+<script type="module" src="app.js?v=0.15"></script>
 </body>
 </html>
