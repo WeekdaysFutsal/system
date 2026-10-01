@@ -1680,11 +1680,48 @@ body.dm-on{position:fixed;inset:0;width:100%;overflow:hidden}
   .applydock .xpill b{font-size:13px}.applydock .xpill small{font-size:10.5px}
   .applydock .extras{margin-top:6px!important;gap:6px!important}
 }
+/* v1.19 review card, home gauge safety, appbar, PC schedule stacked */
+.rv-top{display:flex!important;align-items:center;gap:10px;padding:12px 16px!important}
+.rv-top .rv-trophy{font-size:22px}
+.rv-top .rv-name{font-family:var(--latin);font-weight:400;font-size:28px;letter-spacing:1px;line-height:1;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rv-top .rv-part{font-size:12px;opacity:.8;font-weight:600}
+.rv-top .rv-pts{display:inline-flex!important;align-items:baseline;gap:2px;font-size:14px!important;font-weight:700;flex-direction:row!important}
+.rv-top .rv-pts b{font-family:var(--latin);font-weight:400;font-size:30px;line-height:1}
+.homefit .rv-top{padding:9px 14px!important}
+.homefit .rv-top .rv-name{font-size:24px}.homefit .rv-top .rv-pts b{font-size:24px}
+.rv-rows .rc-row.mine,.rc-row.mine{margin:0!important;padding-left:0!important;padding-right:0!important;border-radius:0;background:none!important;box-shadow:inset 4px 0 0 var(--accent),inset 0 0 0 999px rgba(36,72,216,.06)!important}
+.rv-rows .rc-row.mine .rk{margin-left:8px}
+.rv-rows .rc-row{grid-template-columns:28px 14px minmax(0,1fr) auto 54px!important}
+/* keep the gauge: never clip the next-match card; allow a small scroll instead */
+.homefit{overflow-y:auto!important;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.homefit .homegrid{min-height:100%}
+.homefit .nextwrap .hero{overflow:visible!important;flex:none!important;min-height:0}
+.homefit .nextwrap{flex:none!important}
+.homefit .homegrid>section{min-height:0}
+.appbar .in{gap:10px}
+/* PC schedule: calendar on top with square day cells, details below, moderate width */
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){
+  .schwrap:not(.planwrap){display:block!important;height:auto!important;max-width:720px;margin:18px auto 0}
+  .schwrap:not(.planwrap) .scal{height:auto!important;padding:16px 18px}
+  .schwrap:not(.planwrap) .scgrid{grid-template-rows:none!important;gap:6px;flex:none!important}
+  .schwrap:not(.planwrap) .scd{aspect-ratio:1/1!important;max-height:none!important;height:auto!important;align-items:center!important;justify-content:center!important;padding:4px}
+  .schwrap:not(.planwrap) .scd .ev{display:flex!important;margin:2px 0 0;padding:0;background:none;width:auto;align-items:center}
+  .schwrap:not(.planwrap) .scd .ev b{font-size:11px;font-weight:700}
+  .schwrap:not(.planwrap) .scd .ev small{display:none!important}
+  .schwrap:not(.planwrap) .scd .dn{font-size:18px}
+  .schwrap:not(.planwrap) .schdetail{height:auto!important;overflow:visible!important;margin-top:16px}
+}
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){
+  .homegrid .review .rv-rows{justify-content:flex-start!important;padding:6px 16px!important}
+  .homegrid .review .rv-rows .rc-row{flex:none!important;min-height:52px!important;padding:6px 0!important}
+  .homegrid .review .rc-row.mine{box-shadow:inset 0 0 0 999px rgba(36,72,216,.06)!important;border-radius:10px}
+  .homegrid .review .rc-row.mine .rk{margin-left:0}
+}
 </style>
 </head>
 <body>
 <div id="app"><p class="empty">불러오는 중…</p></div>
-<script src="config.js?v=1.18.2"></script>
-<script type="module" src="app.js?v=1.18.2"></script>
+<script src="config.js?v=1.19"></script>
+<script type="module" src="app.js?v=1.19"></script>
 </body>
 </html>

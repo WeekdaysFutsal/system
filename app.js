@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '1.18.2';
+const APP_VERSION = '1.19';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -469,7 +469,7 @@ function appbar() {
   const s = S.sid ? S.sessions[S.sid] : null; const back = false;
   return `<header class="appbar"><div class="in">${back ? '<button class="back" data-act="home" aria-label="경기일 목록">‹</button>' : `<img src="${EMBLEM_SRC}" alt="홈으로" data-act="gohome" style="cursor:pointer">`}
   <div class="ttl" data-act="gohome" role="button" tabindex="0" aria-label="홈으로"><b>${esc(CFG.club?.name || 'WEEKDAYS FUTSAL CLUB')}</b><span></span></div>
-  ${!S.dm && !S.admin && S.auth ? `<button class="mmtop ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" aria-label="${S.tab === 'mm' ? '일반모드로 돌아가기' : '경기모드 열기'}"><span class="mmball">⚽</span><b>${S.tab === 'mm' ? '일반모드' : '경기모드'}</b>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : ''}<button class="gear" data-act="tab" data-v="settings" aria-label="설정">⚙</button><button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">${S.admin ? '운영 중' : '운영모드'}</button></div>${capStrip()}</header>`;
+  ${!S.dm && !S.admin && S.auth ? `<button class="mmtop ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" aria-label="${S.tab === 'mm' ? '일반모드로 돌아가기' : '경기모드 열기'}"><span class="mmball">⚽</span><b>${S.tab === 'mm' ? '일반모드' : '경기모드'}</b>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : ''}<button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">운영모드</button></div>${capStrip()}</header>`;
 }
 function tabs() {
   const t = S.admin ? [['manage', '일정'], ['run', '경기'], ['notice', '공지'], ['members', '회원'], ['settings', '설정']] : [['mhome', '홈'], ['sched', '일정'], ...(isDesk() ? [] : [['mm', '경기모드']]), ['results', '경기결과'], capSid() ? ['draft', '팀 선정'] : ['settings', '내 정보']];
@@ -829,7 +829,7 @@ function viewSheet() {
   else if (sh.type === 'import') h += importSheet();
   else if (sh.type === 'duty') h += dutySheet(sh.sid);
   else if (sh.type === 'park') h += parkSheet(sh.sid);
-  else if (sh.type === 'parkapply') { const ss = S.sessions[sh.sid]; h += `<h4>🚗 주차 신청</h4><p>${fmtDate(sh.sid)} 경기 주차를 신청해요. 신청자 중 ${PARK_SLOTS}명을 추첨해요.</p><div class="panel"><div class="field"><label for="pk-car2">차량번호</label><input id="pk-car2" class="inp" type="text" maxlength="12" placeholder="예: 12가3456"></div></div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="parksave">신청</button></div>` }
+  else if (sh.type === 'parkapply') { const ss = S.sessions[sh.sid]; h += `<h4>🚗 주차 신청</h4><p>${fmtDate(sh.sid)} 경기 주차를 신청해요. 신청자 중 ${PARK_SLOTS}명을 추첨해요.</p><div class="panel"><div class="field"><label for="pk-car2">차량번호</label><input id="pk-car2" class="inp" type="text" maxlength="12" placeholder="예: 12가3456" value="${esc(myCar())}"></div><p class="note" style="margin:6px 0 0">내 정보에 차량번호를 저장해 두면 자동으로 채워져요.</p></div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="parksave">신청</button></div>` }
   else if (sh.type === 'staffedit') { const ss = S.sessions[sh.sid];
     h += `<h4>${fmtDate(sh.sid)} 예약자 · 운영자</h4><p>여기 적힌 사람은 따로 신청하지 않아도 0순위로 자동 신청돼요. 여러 명은 쉼표로 구분해요.</p><div class="panel">
       <div class="field"><label>구장 예약자<input id="se-res" class="inp" type="text" list="mem-list2" value="${esc(idsToNames(ss.p0))}"></label></div>
@@ -918,7 +918,7 @@ function viewMHome() {
     const best = Math.max(0, ...Object.values(tally)); const scorers = Object.keys(tally).filter(k => tally[k] === best && best > 0);
     const moms = KEYS.map(k => s.mom?.[k]).filter(Boolean);
     h += `<button class="review" data-act="result" data-id="${last}">
-      <div class="rv-top" style="--tc:${tt.color};--ti:${inkOn(tt.color)}"><span class="rv-trophy">🏆</span><span><small>${done < 9 ? `${done}/9경기 기준 1위` : '우승'}</small><b>${esc(tt.name)}</b></span><span class="rv-pts">${top.pts}<small>점</small></span></div>
+      <div class="rv-top" style="--tc:${tt.color};--ti:${inkOn(tt.color)}"><span class="rv-trophy">🏆</span><b class="rv-name">${esc(tt.name)}</b>${done < 9 ? `<small class="rv-part">${done}/9경기</small>` : ''}<span class="rv-pts"><b>${top.pts}</b>점</span></div>
       <div class="rv-rows">${rows.map(r => { const t = team(s, r.k); return `<div class="rc-row ${mt === r.k ? 'mine' : ''}"><em class="rk rk${r.rank}">${r.rank}</em>${bib(t.color)}<span class="rcn"><b>${esc(t.name)}</b>${mt === r.k ? '<small class="metag">내 팀</small>' : ''}</span><span class="wdl"><i class="w">${r.w}승</i><i class="d">${r.d}무</i><i class="l">${r.l}패</i></span><span class="pt">${r.pts}점</span></div>` }).join('')}</div>
       <span class="more">경기 결과 자세히 보기 ›</span></button>` }
   h += '</section><section>';
@@ -1323,8 +1323,9 @@ function parkBox(s) {
   return pill('', '신청하기', `data-act="parkapply" data-id="${s.date}"`);
 }
 function parkFields(s, pid) { const banned = pid && parkBanned(s, pid);
-  return `<div class="field parkf"><label class="ck"><input type="checkbox" id="pk-on" ${banned ? 'disabled' : ''}> 🚗 주차 신청 (선택사항)</label>${banned ? '<span class="note" style="margin:0">지난 경기 주차 당첨자는 이번 경기 주차를 신청할 수 없어요.</span>' : `<input id="pk-car" class="inp" type="text" maxlength="12" placeholder="차량번호 (예: 12가3456)"><span class="note" style="margin:0">신청자 중 ${PARK_SLOTS}명을 추첨해요. 차량번호는 운영진만 볼 수 있어요.</span>`}</div>` }
+  return `<div class="field parkf"><label class="ck"><input type="checkbox" id="pk-on" ${banned ? 'disabled' : ''}> 🚗 주차 신청 (선택사항)</label>${banned ? '<span class="note" style="margin:0">지난 경기 주차 당첨자는 이번 경기 주차를 신청할 수 없어요.</span>' : `<input id="pk-car" class="inp" type="text" maxlength="12" placeholder="차량번호 (예: 12가3456)" value="${esc(myCar())}"><span class="note" style="margin:0">신청자 중 ${PARK_SLOTS}명을 추첨해요. 차량번호는 운영진만 볼 수 있어요.</span>`}</div>` }
 async function saveParking(sid, pid, car) {
+  if (car) save('car', (car || '').replace(/\s+/g, '').slice(0, 12));
   const s = S.sessions[sid]; car = (car || '').replace(/\s+/g, '').slice(0, 12); if (!car) { toast('차량번호를 입력해 주세요.'); return false }
   if (parkBanned(s, pid)) { toast('지난 경기 주차 당첨자는 신청할 수 없어요.'); return false }
   return await w(() => S.store.update(sp(sid), { [`park.${pid}`]: { car, at: Date.now() } }), '주차 신청을 받았어요.');
@@ -1571,10 +1572,12 @@ function loginScreen() {
 }
 function logout() { S.auth = null; saveAuth(null); S.me = ''; save('me', ''); toast('로그아웃했어요.'); render() }
 async function verifyAuth() { if (!S.auth) return; try { const a = await S.store.get('auth/' + S.auth.pid); if (!a || a.h !== S.auth.h || !S.players[S.auth.pid]) { S.auth = null; saveAuth(null); toast('다시 로그인해 주세요.'); render() } else { S.me = S.players[S.auth.pid].name; render() } } catch { } }
+function myCar() { const pid = myPid(); return (pid && S.contacts?.[pid]?.car) || load('car', '') || '' }
 function loginCard() {
   if (S.auth && S.players[S.auth.pid]) { const auto = !!load('auth', null);
     return `<div class="panel pad logged"><div class="lg-me"><span class="av on">${esc(pname(S.auth.pid).slice(-2))}</span><div><b>${esc(pname(S.auth.pid))}</b><small>${auto ? '자동 로그인 켜짐' : '이번 접속에만 로그인'}</small></div></div>
-      <div class="row"><button class="btn" data-act="pinchange">비밀번호 변경</button><button class="btn" data-act="logout">로그아웃</button></div></div>` }
+      <div class="row"><button class="btn" data-act="pinchange">비밀번호 변경</button><button class="btn" data-act="logout">로그아웃</button></div>
+      <div class="field" style="margin:4px 0 0"><label for="me-car">🚗 내 차량번호 <small class="muted">주차 신청할 때 자동으로 채워져요</small></label><div style="display:flex;gap:8px"><input id="me-car" class="inp" type="text" maxlength="12" placeholder="예: 12가3456" value="${esc(myCar())}" autocomplete="off"><button class="btn" data-act="carsave">저장</button></div></div></div>` }
   return `<div class="panel">${loginFields('lg', S.me)}<div class="pad" style="padding-top:4px"><button class="btn primary block" data-act="login">로그인</button></div></div>`;
 }
 
@@ -1899,6 +1902,7 @@ document.addEventListener('click', async e => {
       if (!confirm(`${pname(id)} 선택을 취소할까요? 다시 내 차례가 돼요.`)) break; await undoPick(!S.admin); sysChat(`${team(s0, last.t).name} 주장이 ${pname(id)} 선택을 취소했어요`); break }
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
+    case 'carsave': { const v = (document.getElementById('me-car')?.value || '').replace(/\s+/g, '').slice(0, 12); save('car', v); const pid = myPid(); if (pid) { try { await S.store.set('contacts/' + pid, { ...(S.contacts?.[pid] || {}), car: v }) } catch { } } toast(v ? '차량번호를 저장했어요.' : '차량번호를 지웠어요.'); break }
     case 'appreload': toast('최신 버전을 불러오는 중이에요…'); setTimeout(() => location.reload(), 300); break;
     case 'dutyreq': { const me = myPid(); if (!me) { toast('로그인 후 신청할 수 있어요.'); break } const ss = S.sessions[id]; const k = el.dataset.k; const on = !!ss?.dutyReq?.[k]?.[me];
       await w(() => S.store.update(sp(id), { [`dutyReq.${k}.${me}`]: on ? null : Date.now() }), on ? `${k === 'ball' ? '공당' : '물당'} 신청을 취소했어요.` : `${k === 'ball' ? '공당' : '물당'}을 신청했어요. 운영진이 확정해요.`); break }
