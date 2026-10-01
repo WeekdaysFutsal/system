@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '1.15';
+const APP_VERSION = '1.15.2';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -57,7 +57,8 @@ async function firebaseStore(cfg) {
     update: (p, d) => F.updateDoc(ref(p), d),
     add: async (p, d) => (await F.addDoc(F.collection(db, p), d)).id,
     del: p => F.deleteDoc(ref(p)),
-    txn: (p, fn) => F.runTransaction(db, async t => { const r = ref(p); const s = await t.get(r); const nd = fn(s.exists() ? s.data() : null); if (nd == null) throw new Error('aborted'); t.set(r, nd) })
+    txn: async (p, fn) => { for (let i = 0; ; i++) { try { return await F.runTransaction(db, async t => { const r = ref(p); const s = await t.get(r); const nd = fn(s.exists() ? s.data() : null); if (nd == null) throw new Error('aborted'); t.set(r, nd) }, { maxAttempts: 8 }) }
+      catch (e) { const c = String(e?.code || ''); if (e?.message === 'aborted' || i >= 2 || !/aborted|unavailable|deadline|failed-precondition/.test(c)) throw e; await new Promise(r => setTimeout(r, 400 * (i + 1))) } } }
   };
 }
 
@@ -111,7 +112,13 @@ function capSid() { const me = myPid(); if (!me) return null; const t = today();
 function capLink(sid, k, t) { return `${location.origin}${location.pathname}?d=${sid}&c=${k}&t=${t}` }
 function canMom(s, k) { return S.admin || myTeam(s) === k }
 function defaultSid() { const ids = Object.keys(S.sessions).sort(); const t = today(); return ids.find(id => id >= t) || ids[ids.length - 1] || null }
-async function w(fn, ok) { try { await fn(); if (ok) toast(ok); return true } catch (e) { console.error(e); if (String(e?.message).includes('aborted')) return false; toast('저장하지 못했어요. 연결을 확인하고 다시 시도하세요.'); return false } }
+function errMsg(e) { const c = String(e?.code || ''), m = String(e?.message || '');
+  if (c.includes('permission-denied') || /permission/i.test(m)) return '저장 권한이 없어요. 운영진에게 알려 주세요 (Firebase 보안 규칙 확인 필요).';
+  if (c.includes('unavailable') || /offline|network/i.test(m)) return '인터넷 연결이 불안정해요. 연결을 확인하고 다시 눌러 주세요.';
+  if (c.includes('aborted') || c.includes('failed-precondition') || /contention|busy/i.test(m)) return '동시에 여러 명이 저장하고 있어요. 잠시 후 다시 눌러 주세요.';
+  if (c.includes('invalid-argument')) return '저장할 수 없는 값이 있어요. 운영진에게 알려 주세요.';
+  return '저장하지 못했어요. 잠시 후 다시 시도해 주세요.' }
+async function w(fn, ok) { S.lastErr = null; try { await fn(); if (ok) toast(ok); return true } catch (e) { console.error(e); S.lastErr = e; if (String(e?.message) === 'aborted') return false; toast(errMsg(e)); return false } }
 const sp = sid => 'sessions/' + sid;
 
 /* ───────── draft logic ───────── */
@@ -1210,7 +1217,7 @@ function classify(s) {
   return { rows, sel: rows.filter(r => r.sel).sort((a, b) => a.tier - b.tier || a.n - b.n), wait, prev, base };
 }
 function appCounts(s) { if ((!Array.isArray(s.apps) && !autoIds(s).length) || s.stage !== 'apply') return { sel: (s.applicants || []).length, wait: (s.waitlist || []).length }; const c = classify(s); return { sel: c.sel.length, wait: c.wait.length } }
-function myApp(s) { const uid = myUid(), me = myPid(); return appsOf(s).find(a => (me && a.pid === me) || (a.uid && a.uid === uid)) || (me && autoIds(s).includes(me) ? { k: 'auto-' + me, pid: me, auto: true } : null) }
+function myApp(s) { const uid = myUid(), me = myPid(); return appsOf(s).find(a => me ? a.pid === me : (!a.pid && a.uid && a.uid === uid)) || (me && autoIds(s).includes(me) ? { k: 'auto-' + me, pid: me, auto: true } : null) }
 function applyState(s) { const a = myApp(s); if (!a) return { k: 'none' }; if (s.stage !== 'apply') { if ((s.applicants || []).includes(a.pid)) return { k: 'in', tier: null }; return { k: 'wait', n: (s.waitlist || []).indexOf(a.pid) + 1 } }
   const r = classify(s).rows.find(x => x.k === a.k); if (!r) return { k: 'none' }; return r.sel ? { k: 'in', tier: r.tier, n: r.n, noname: !a.pid, key: a.k, auto: !!r.auto, role: roleOf(s, a.pid) } : { k: 'wait', n: r.wn, order: r.n, noname: !a.pid, key: a.k } }
 function applyBox(s, compact) {
@@ -1233,10 +1240,11 @@ async function doApply(sid, cancel) {
     if (!d) return null; const now = Date.now();
     if (d.stage !== 'apply' || d.draftStatus !== 'ready' || (d.applyClose && now >= new Date(d.applyClose).getTime())) { res = 'closed'; return null }
     if (d.applyOpen && now < new Date(d.applyOpen).getTime()) { res = 'soon'; return null }
-    const apps = appsOf(d); if (apps.some(a => (pid && a.pid === pid) || a.uid === uid)) { res = 'dup'; return null }
+    const apps = appsOf(d); if (apps.some(a => pid ? a.pid === pid : (!a.pid && a.uid === uid))) { res = 'dup'; return null }
     key = rand() + rand(); apps.push({ k: key, pid: pid || null, uid, at: now }); d.apps = apps; pos = apps.length; res = 'ok'; return d }));
   if (res === 'ok') { toast(`${pos}번째 신청 순번을 확보했어요!`); if (!pid) { S.sheet = { type: 'appname', sid, key }; render() } }
-  else toast({ dup: '이미 신청했어요.', closed: '신청이 마감됐어요.', soon: '아직 신청 기간이 아니에요.' }[res] || '다시 시도해 주세요.');
+  else if (res) toast({ dup: '이미 신청했어요.', closed: '신청이 마감됐어요.', soon: '아직 신청 기간이 아니에요.' }[res]);
+  else if (!S.lastErr) toast('경기 정보를 찾지 못했어요. 화면을 새로고침한 뒤 다시 눌러 주세요.');
 }
 async function setAppName(sid, key, name) {
   name = name.replace(/\(\s*게\s*\)/g, '').trim().slice(0, 20); if (!name) return false; const guest = false;

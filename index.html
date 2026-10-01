@@ -1614,11 +1614,29 @@ button.xpill:active{transform:translateY(1px)}
 .xpill.off{opacity:.6;background:var(--surface2)}
 @media (prefers-color-scheme:dark){.xpill.fixed{background:#0F2E1C;border-color:#1F6B3E}.xpill.fixed b,.xpill.fixed small{color:#7EE2A8}}
 .applydock .xpill{min-height:46px}
+/* v1.15.1 draft pool fits on small phones */
+.dmroot .pool .namegrid{display:flex;flex-wrap:wrap;justify-content:center;gap:4px}
+.dmroot .pool .nb{min-height:27px!important;padding:0 7px!important;font-size:12.5px!important;border-radius:8px}
+.dmroot .pool-hd{font-size:11.5px;margin-bottom:4px}
+.dmroot .snm b{overflow:visible!important;text-overflow:clip!important;font-size:12px;letter-spacing:-.5px}
+.dmroot .snm .meb{display:none}
+.dmroot .seat.me{outline:2px solid var(--amber);outline-offset:-2px}
+@media (max-height:760px){
+  .dmroot .seat.host{display:none!important}
+  .dmroot .chatdock .cd-log,.dmroot ~ .chatdock .cd-log{max-height:40px!important}
+  .dmroot .felt>.fx{padding-top:6px!important;padding-bottom:6px!important;gap:3px}
+  .dmroot .done-btn{min-height:34px!important}
+  .dmroot .felt .fx>div:first-child{font-size:13px}
+}
+.cd-log{max-height:96px}
+@media (max-height:760px){.cd-log{max-height:42px!important}}
+@media (max-height:620px){.dmroot .dmsteps,.dmroot .capbar .steps{display:none!important}.cd-log{display:none!important}.dmroot .pool .nb{min-height:24px!important;font-size:12px!important}}
+.dmroot .pool .namegrid{max-height:none!important;overflow:visible!important;flex:none}
 </style>
 </head>
 <body>
 <div id="app"><p class="empty">불러오는 중…</p></div>
-<script src="config.js?v=1.15"></script>
-<script type="module" src="app.js?v=1.15"></script>
+<script src="config.js?v=1.15.2"></script>
+<script type="module" src="app.js?v=1.15.2"></script>
 </body>
 </html>
