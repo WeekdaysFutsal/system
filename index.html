@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet" media="print" onload="this.media='all'">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
 :root{
   --bg:#EEF1F5; --surface:#FFFFFF; --ink:#131C2B; --muted:#5D6878; --line:#D6DCE4;
@@ -1640,11 +1640,18 @@ body.dm-on{position:fixed;inset:0;width:100%;overflow:hidden}
 #ptr.ready i{transform:rotate(180deg);background:var(--accent);color:var(--accent-ink)}
 #ptr.loading i{animation:ptrspin .8s linear infinite}
 @keyframes ptrspin{to{transform:rotate(360deg)}}
+/* v1.17 performance: no live blur on phones/tablets (GPU-heavy on iPhone) */
+@media not all and (min-width:1024px) and (hover:hover) and (pointer:fine){
+  .tabs,.abar,.scrim,.toast,.toc,#ptr,.mm-cd,.pool,.felt>.fx{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+  .tabs{background:var(--surface)!important}
+  .abar{background:var(--surface)!important}
+  .applybtn.cta{animation:none!important}
+}
 </style>
 </head>
 <body>
 <div id="app"><p class="empty">불러오는 중…</p></div>
-<script src="config.js?v=1.16.1"></script>
-<script type="module" src="app.js?v=1.16.1"></script>
+<script src="config.js?v=1.17"></script>
+<script type="module" src="app.js?v=1.17"></script>
 </body>
 </html>

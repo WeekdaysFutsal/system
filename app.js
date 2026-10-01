@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '1.16.1';
+const APP_VERSION = '1.17';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -30,7 +30,8 @@ async function artifactStore() {
     update: (p, d) => db.doc(p).update(nest(d)),
     add: async (p, d) => (await db.collection(p).add(d)).id,
     del: p => db.doc(p).delete(),
-    async txn(p, fn) { const ref = db.doc(p);
+    async txn(p, fn) { return withTimeout(this._txn(p, fn), 8000) },
+    async _txn(p, fn) { const ref = db.doc(p);
       for (let i = 0; i < 8; i++) { const r = await ref.acquire({ holder, ttlMs: 4000 });
         if (r.acquired) { const sn = await ref.get(); const nd = fn(sn.exists ? sn.data() : null); if (nd == null) throw new Error('aborted'); await ref.set(nd); return }
         await new Promise(res => setTimeout(res, 350)) }
@@ -38,12 +39,13 @@ async function artifactStore() {
   };
 }
 
+function withTimeout(pr, ms) { let t; return Promise.race([pr, new Promise((_, rej) => { t = setTimeout(() => rej(Object.assign(new Error('timeout'), { code: 'deadline-exceeded' })), ms) })]).finally(() => clearTimeout(t)) }
 async function firebaseStore(cfg) {
   const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
   const [{ initializeApp }, F, A] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-firestore.js'), import(base + 'firebase-auth.js')]);
   const app = initializeApp(cfg);
   await A.signInAnonymously(A.getAuth(app));
-  const db = F.getFirestore(app);
+  let db; try { db = F.initializeFirestore(app, { experimentalAutoDetectLongPolling: true, ignoreUndefinedProperties: true }) } catch { db = F.getFirestore(app) }
   const ref = p => F.doc(db, p);
   return {
     kind: 'live',
@@ -58,7 +60,7 @@ async function firebaseStore(cfg) {
     update: (p, d) => F.updateDoc(ref(p), d),
     add: async (p, d) => (await F.addDoc(F.collection(db, p), d)).id,
     del: p => F.deleteDoc(ref(p)),
-    txn: async (p, fn) => { for (let i = 0; ; i++) { try { return await F.runTransaction(db, async t => { const r = ref(p); const s = await t.get(r); const nd = fn(s.exists() ? s.data() : null); if (nd == null) throw new Error('aborted'); t.set(r, nd) }, { maxAttempts: 8 }) }
+    txn: async (p, fn) => { for (let i = 0; ; i++) { try { return await withTimeout(F.runTransaction(db, async t => { const r = ref(p); const s = await t.get(r); const nd = fn(s.exists() ? s.data() : null); if (nd == null) throw new Error('aborted'); t.set(r, nd) }, { maxAttempts: 8 }), 8000) }
       catch (e) { const c = String(e?.code || ''); if (e?.message === 'aborted' || i >= 2 || !/aborted|unavailable|deadline|failed-precondition/.test(c)) throw e; await new Promise(r => setTimeout(r, 400 * (i + 1))) } } }
   };
 }
@@ -115,6 +117,7 @@ function canMom(s, k) { return S.admin || myTeam(s) === k }
 function defaultSid() { const ids = Object.keys(S.sessions).sort(); const t = today(); return ids.find(id => id >= t) || ids[ids.length - 1] || null }
 function errMsg(e) { const c = String(e?.code || ''), m = String(e?.message || '');
   if (c.includes('permission-denied') || /permission/i.test(m)) return '저장 권한이 없어요. 운영진에게 알려 주세요 (Firebase 보안 규칙 확인 필요).';
+  if (c.includes('deadline') || /timeout/i.test(m)) return '서버 응답이 늦어요. 인터넷 연결을 확인해 주세요.';
   if (c.includes('unavailable') || /offline|network/i.test(m)) return '인터넷 연결이 불안정해요. 연결을 확인하고 다시 눌러 주세요.';
   if (c.includes('aborted') || c.includes('failed-precondition') || /contention|busy/i.test(m)) return '동시에 여러 명이 저장하고 있어요. 잠시 후 다시 눌러 주세요.';
   if (c.includes('invalid-argument')) return '저장할 수 없는 값이 있어요. 운영진에게 알려 주세요.';
@@ -207,7 +210,7 @@ function whistle(pattern) { if (!S.whistle) return; if (!(mmIsCtl() || S.admin))
 document.addEventListener('pointerdown', () => { const c = audio(); if (c && c.state === 'suspended') c.resume() }, { capture: true });
 let wake = null, wakeBusy = false; async function keepAwake(on) { try { if (on && !wake && !wakeBusy && navigator.wakeLock && !document.hidden) { wakeBusy = true; try { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null }) } finally { wakeBusy = false } } else if (!on && wake) { const w0 = wake; wake = null; await w0.release() } } catch { } }
 function mmHeartbeat() { const s = S.sessions[S.mmSid]; if (!s || document.hidden || !mmCtl(s).mine) return; if (Date.now() - (S.mmBeat || 0) < 20000) return; S.mmBeat = Date.now(); S.store.update(sp(S.mmSid), { 'mmCtl.beat': Date.now() }).catch(() => { }) }
-function statusWatch() { if (S.inStatusWatch) return; const sig = Object.keys(S.sessions).map(id => id + ':' + sStatus(S.sessions[id]).k).join('|'); const prev = S.stSig; S.stSig = sig; if (prev && sig !== prev && !isTyping()) { S.inStatusWatch = true; try { render() } finally { S.inStatusWatch = false } } }
+function statusWatch() { if (S.inStatusWatch || Date.now() - (S.stAt || 0) < 1000) return; S.stAt = Date.now(); const sig = Object.keys(S.sessions).map(id => id + ':' + sStatus(S.sessions[id]).k).join('|'); const prev = S.stSig; S.stSig = sig; if (prev && sig !== prev && !isTyping()) { S.inStatusWatch = true; try { render() } finally { S.inStatusWatch = false } } }
 function awakeCheck() {
   statusWatch();
   mmHeartbeat();
@@ -1227,13 +1230,13 @@ function classify(s) {
 }
 function appCounts(s) { if ((!Array.isArray(s.apps) && !autoIds(s).length) || s.stage !== 'apply') return { sel: (s.applicants || []).length, wait: (s.waitlist || []).length }; const c = classify(s); return { sel: c.sel.length, wait: c.wait.length } }
 function myApp(s) { const uid = myUid(), me = myPid(); return appsOf(s).find(a => me ? a.pid === me : (!a.pid && a.uid && a.uid === uid)) || (me && autoIds(s).includes(me) ? { k: 'auto-' + me, pid: me, auto: true } : null) }
-function applyState(s) { const a = myApp(s); if (!a) return { k: 'none' }; if (s.stage !== 'apply') { if ((s.applicants || []).includes(a.pid)) return { k: 'in', tier: null }; return { k: 'wait', n: (s.waitlist || []).indexOf(a.pid) + 1 } }
+function applyState(s) { const me0 = myPid(); if (me0 && s.stage === 'apply' && isBase(s) && autoIds(s).includes(me0)) return { k: 'in', auto: true, tier: 0, role: roleOf(s, me0) }; const a = myApp(s); if (!a) return { k: 'none' }; if (s.stage !== 'apply') { if ((s.applicants || []).includes(a.pid)) return { k: 'in', tier: null }; return { k: 'wait', n: (s.waitlist || []).indexOf(a.pid) + 1 } }
   const r = classify(s).rows.find(x => x.k === a.k); if (!r) return { k: 'none' }; return r.sel ? { k: 'in', tier: r.tier, n: r.n, noname: !a.pid, key: a.k, auto: !!r.auto, role: roleOf(s, a.pid) } : { k: 'wait', n: r.wn, order: r.n, noname: !a.pid, key: a.k } }
 function applyBox(s, compact) {
   const st = sStatus(s); const a = applyState(s); const c = appCounts(s);
   const nameBtn = a.noname ? `<button class="btn sm primary" data-act="appname" data-id="${s.date}">이름 입력하기</button>` : '';
   if (st.k === 'soon') return `<button class="btn block" disabled>${fmtDT(s.applyOpen)}에 신청이 열려요</button>`;
-  if (a.k === 'in' && a.auto) return `<div class="applied"><span>✓ 자동 신청 · 0순위<small>${a.role}(으)로 이번 경기에 자동으로 참가 신청됐어요</small></span></div>${parkBox(s)}`;
+  if (a.k === 'in' && a.auto) return `<div class="applied"><span>✓ 자동 신청 · 0순위<small>${a.role}(으)로 자동 참가 신청돼 있어요. 빠지려면 운영진에게 ${a.role} 해제를 요청해 주세요.</small></span></div>${(() => { const x = parkBox(s) + dutyBox(s); return x ? `<div class="extras">${x}</div>` : '' })()}`;
   const canLate = !a.auto && st.k !== 'open' && s.draftStatus === 'ready' && ['apply', 'captain'].includes(s.stage);
   if (a.k === 'in') return `<div class="applied"><span>✓ 신청 완료${a.tier != null && isBase(s) ? ` · ${TIER[a.tier]}` : ''}<small>${a.noname ? `${a.n}번째 신청 순번을 확보했어요. 이름을 입력해 주세요!` : a.n ? `${a.n}번째로 신청했어요` : '이번 경기 참가자예요'}</small></span>${nameBtn}${st.k === 'open' ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">취소</button>` : canLate ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">참가 취소</button>` : ''}</div>${a.noname ? '' : (() => { const x = parkBox(s) + dutyBox(s); return x ? `<div class="extras">${x}</div>` : '' })()}`;
   if (a.k === 'wait') return `<div class="applied wait"><span>대기 ${a.n}번<small>${a.noname ? '이름을 입력해 주세요!' : st.k === 'open' ? '자리가 나면 자동으로 선발돼요' : '신청이 마감됐어요'}</small></span>${nameBtn}${st.k === 'open' ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">취소</button>` : ''}</div>`;
@@ -1242,37 +1245,42 @@ function applyBox(s, compact) {
   return `<button class="btn primary block applybtn cta" data-act="apply" data-id="${s.date}" ${S.applyBusy === s.date ? 'disabled aria-busy="true"' : ''}>${S.applyBusy === s.date ? '신청 저장 중…' : full ? `대기 신청하기 (대기 ${c.wait}명)` : '신청하기'}</button>${compact ? '' : `<p class="note" style="margin:0">버튼을 누르는 순간 신청 순번이 확보되고, 이름은 그다음에 입력해요.</p>`}`;
 }
 async function doApply(sid, cancel) {
-  const s = S.sessions[sid]; if (!s) { toast('경기 정보를 찾지 못했어요. 화면을 새로고침해 주세요.'); return } const uid = myUid();
+  const s = S.sessions[sid]; if (!s) { toast('경기 정보를 찾지 못했어요. 화면을 새로고침해 주세요.'); return }
   if (cancel) { const mine = myApp(s); if (!mine) return; if (mine.auto) { toast('자동 신청은 운영진에게 말해 주세요.'); return } await cancelApp(sid, mine.pid, mine.k, false); return }
-  if (S.applyBusy) return; S.applyBusy = sid; render();
-  const pid = myPid(); const tapAt = nowS(); let res = null, key = null, pos = 0;
+  if (S.applyBusy && Date.now() - S.applyBusyAt < 30000) return;
+  S.applyBusy = sid; S.applyBusyAt = Date.now();
+  let res = null, key = null, pos = 0, lastErr = null;
   try {
-    for (let attempt = 0; attempt < 6; attempt++) {
-      res = null; S.lastErr = null;
-      await w(() => S.store.txn(sp(sid), d => {
-        if (!d) { res = 'gone'; return null } const now = nowS();
-        if (d.stage !== 'apply' || d.draftStatus !== 'ready' || (d.applyClose && tapAt >= new Date(d.applyClose).getTime())) { res = 'closed'; return null }
-        if (d.applyOpen && tapAt < new Date(d.applyOpen).getTime()) { res = 'soon'; return null }
-        const raw = Array.isArray(d.apps) ? d.apps : appsOf(d); const mine = raw.find(a => pid ? a.pid === pid : (!a.pid && a.uid === uid));
-        if (mine) { res = attempt ? 'ok' : 'dup'; key = mine.k; pos = appsOf({ apps: raw }).findIndex(a => a.k === key) + 1; return null }
-        key = rand() + rand(); d.apps = [...raw, { k: key, pid: pid || null, uid, at: tapAt, w: now }]; pos = appsOf(d).findIndex(a => a.k === key) + 1; res = 'ok'; return d }));
+    render();
+    const uid = myUid(), pid = myPid(), tapAt = nowS();
+    for (let attempt = 0; attempt < 5; attempt++) {
+      res = null; lastErr = null;
+      try {
+        await S.store.txn(sp(sid), d => {
+          if (!d) { res = 'gone'; return null } const now = nowS();
+          if (d.stage !== 'apply' || d.draftStatus !== 'ready' || (d.applyClose && tapAt >= new Date(d.applyClose).getTime())) { res = 'closed'; return null }
+          if (d.applyOpen && tapAt < new Date(d.applyOpen).getTime()) { res = 'soon'; return null }
+          const raw = Array.isArray(d.apps) ? d.apps : appsOf(d); const mine = raw.find(a => pid ? a.pid === pid : (!a.pid && a.uid === uid));
+          if (mine) { res = attempt ? 'ok' : 'dup'; key = mine.k; pos = appsOf({ apps: raw }).findIndex(a => a.k === key) + 1; return null }
+          key = rand() + rand(); d.apps = [...raw, { k: key, pid: pid || null, uid, at: tapAt, w: now }]; pos = appsOf(d).findIndex(a => a.k === key) + 1; res = 'ok'; return d });
+      } catch (e) { if (String(e?.message) !== 'aborted') { lastErr = e; console.error(e) } }
       if (res) break;
-      const e = S.lastErr; const c = String(e?.code || '') + ' ' + String(e?.message || '');
-      if (!e || !/unavailable|deadline|aborted|contention|busy|network|offline|failed-precondition|internal|resource-exhausted/i.test(c) || attempt === 5) break;
-      if (attempt === 0) toast('연결이 불안정해서 다시 저장하고 있어요… 순번은 누른 시각 기준이에요.');
-      await new Promise(r => setTimeout(r, 300 + attempt * 500 + Math.random() * 300));
+      const c = String(lastErr?.code || '') + ' ' + String(lastErr?.message || '');
+      if (!lastErr || !/unavailable|deadline|timeout|aborted|contention|busy|network|offline|failed-precondition|internal|resource-exhausted/i.test(c) || Date.now() - S.applyBusyAt > 22000) break;
+      if (attempt === 0) toast('연결이 느려서 다시 저장하고 있어요… 순번은 누른 시각 기준이에요.');
+      await new Promise(r => setTimeout(r, 400 + attempt * 600));
     }
-  } finally { S.applyBusy = null }
+  } catch (e) { lastErr = e; console.error(e) }
+  finally { S.applyBusy = null }
   render();
-  if (res === 'ok') { toast(`${pos}번째 신청 순번을 확보했어요!`); if (!pid) { S.sheet = { type: 'appname', sid, key }; render() } return }
+  if (res === 'ok') { toast(`${pos}번째 신청 순번을 확보했어요!`); if (!myPid()) { S.sheet = { type: 'appname', sid, key }; render() } return }
   if (res === 'dup') toast('이미 신청돼 있어요.');
   else if (res === 'closed') toast('신청이 마감됐어요.');
   else if (res === 'soon') toast(`아직 신청 시간이 아니에요. ${fmtDT(s.applyOpen)}에 열려요.`);
   else if (res === 'gone') toast('이 경기는 삭제됐어요. 화면을 새로고침해 주세요.');
-  else if (S.lastErr) toast(errMsg(S.lastErr) + ' 신청이 저장되지 않았으니 다시 눌러 주세요.');
+  else if (lastErr) toast(errMsg(lastErr).replace(/\.$/, '') + '. 신청이 저장되지 않았으니 다시 눌러 주세요.');
   else toast('신청이 저장되지 않았어요. 다시 눌러 주세요.');
 }
-
 async function setAppName(sid, key, name) {
   name = name.replace(/\(\s*게\s*\)/g, '').trim().slice(0, 20); if (!name) return false; const guest = false;
   let pid = findPlayer(name); if (!pid && !S.admin) { toast('회원 명단에 없는 이름이에요.'); return false } if (!pid) { if (!confirm(`"${name}" 이름이 회원 명단에 없어요. 새 회원으로 등록할까요?`)) return false; pid = await S.store.add('players', { name, guest, status: 'active', createdAt: Date.now() }); S.players[pid] = { name } }
@@ -1374,7 +1382,7 @@ async function cancelApp(sid, pid, key, byAdmin) {
     if (pid && d.duty) ['ball', 'drink'].forEach(k => { if (d.duty[k]) d.duty[k] = d.duty[k].filter(x => x !== pid) });
     if (penal) d.late = { ...(d.late || {}), [pid]: Date.now() };
     return d }));
-  if (ok) toast(penal ? '취소했어요. 마감 후 취소로 기록됐어요.' : '취소했어요.');
+  if (ok) { const s2 = S.sessions[sid]; if (!byAdmin && pid && isBase(s) && autoIds(s2 || s).includes(pid)) toast(`신청은 취소했지만 ${roleOf(s2 || s, pid)}(이)라 자동 참가로 남아 있어요. 운영진에게 해제를 요청해 주세요.`); else toast(penal ? '취소했어요. 마감 후 취소로 기록됐어요.' : '취소했어요.') }
 }
 function vApplyTable(s) {
   const ad = S.admin; const c = classify(s); const frozen = s.stage !== 'apply'; const closed = applyClosed(s); const late = lateSet(s); const prevAny = prevAnyId(s);
