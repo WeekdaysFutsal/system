@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '1.17';
+const APP_VERSION = '1.18';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -31,6 +31,12 @@ async function artifactStore() {
     add: async (p, d) => (await db.collection(p).add(d)).id,
     del: p => db.doc(p).delete(),
     async txn(p, fn) { return withTimeout(this._txn(p, fn), 8000) },
+    async patch(p, ops) { const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b); return this.txn(p, d => { if (!d) return null;
+      const at = (path, mk) => { const ks = path.split('.'); let o = d; for (let i = 0; i < ks.length - 1; i++) { if (o[ks[i]] == null || typeof o[ks[i]] !== 'object') o[ks[i]] = {}; o = o[ks[i]] } return [o, ks[ks.length - 1]] };
+      Object.entries(ops.set || {}).forEach(([k, v]) => { const [o, key] = at(k); o[key] = v });
+      Object.entries(ops.union || {}).forEach(([k, v]) => { const [o, key] = at(k); const arr = Array.isArray(o[key]) ? o[key] : []; v.forEach(x => { if (!arr.some(y => eq(x, y))) arr.push(x) }); o[key] = arr });
+      Object.entries(ops.remove || {}).forEach(([k, v]) => { const [o, key] = at(k); if (Array.isArray(o[key])) o[key] = o[key].filter(y => !v.some(x => eq(x, y))) });
+      return d }) },
     async _txn(p, fn) { const ref = db.doc(p);
       for (let i = 0; i < 8; i++) { const r = await ref.acquire({ holder, ttlMs: 4000 });
         if (r.acquired) { const sn = await ref.get(); const nd = fn(sn.exists ? sn.data() : null); if (nd == null) throw new Error('aborted'); await ref.set(nd); return }
@@ -60,6 +66,7 @@ async function firebaseStore(cfg) {
     update: (p, d) => F.updateDoc(ref(p), d),
     add: async (p, d) => (await F.addDoc(F.collection(db, p), d)).id,
     del: p => F.deleteDoc(ref(p)),
+    patch: (p, ops) => { const u = {}; Object.entries(ops.set || {}).forEach(([k, v]) => u[k] = v); Object.entries(ops.union || {}).forEach(([k, v]) => u[k] = F.arrayUnion(...v)); Object.entries(ops.remove || {}).forEach(([k, v]) => { if (v.length) u[k] = F.arrayRemove(...v) }); return F.updateDoc(ref(p), u) },
     txn: async (p, fn) => { for (let i = 0; ; i++) { try { return await withTimeout(F.runTransaction(db, async t => { const r = ref(p); const s = await t.get(r); const nd = fn(s.exists() ? s.data() : null); if (nd == null) throw new Error('aborted'); t.set(r, nd) }, { maxAttempts: 8 }), 8000) }
       catch (e) { const c = String(e?.code || ''); if (e?.message === 'aborted' || i >= 2 || !/aborted|unavailable|deadline|failed-precondition/.test(c)) throw e; await new Promise(r => setTimeout(r, 400 * (i + 1))) } } }
   };
@@ -121,7 +128,7 @@ function errMsg(e) { const c = String(e?.code || ''), m = String(e?.message || '
   if (c.includes('unavailable') || /offline|network/i.test(m)) return '인터넷 연결이 불안정해요. 연결을 확인하고 다시 눌러 주세요.';
   if (c.includes('aborted') || c.includes('failed-precondition') || /contention|busy/i.test(m)) return '동시에 여러 명이 저장하고 있어요. 잠시 후 다시 눌러 주세요.';
   if (c.includes('invalid-argument')) return '저장할 수 없는 값이 있어요. 운영진에게 알려 주세요.';
-  return '저장하지 못했어요. 잠시 후 다시 시도해 주세요.' }
+  return `저장하지 못했어요 (오류: ${c || m.slice(0, 40) || '알 수 없음'}). 잠시 후 다시 시도해 주세요.` }
 async function w(fn, ok) { S.lastErr = null; try { await fn(); if (ok) toast(ok); return true } catch (e) { console.error(e); S.lastErr = e; if (String(e?.message) === 'aborted') return false; toast(errMsg(e)); return false } }
 const sp = sid => 'sessions/' + sid;
 /* server-corrected clock: every open/close check and every application timestamp uses this, never the raw phone clock */
@@ -1211,7 +1218,7 @@ async function clearSample() {
 /* ───────── member application ───────── */
 /* ───────── applications (reserve first, name later; priority tiers) ───────── */
 const TIER = ['0순위', '1순위', '2순위', '3순위'];
-function appsOf(s) { if (Array.isArray(s.apps)) return s.apps.map((a, i) => ({ a, i })).sort((x, y) => ((x.a.at || 0) - (y.a.at || 0)) || (x.i - y.i)).map(x => x.a); return [...(s.applicants || []), ...(s.waitlist || [])].map((pid, i) => ({ k: 'L' + i, pid, at: 0 })) }
+function appsOf(s) { if (Array.isArray(s.apps)) { const seen = new Set(); return s.apps.filter(a => a && typeof a === 'object').map((a, i) => ({ a, i })).sort((x, y) => ((x.a.at || 0) - (y.a.at || 0)) || (x.i - y.i)).map(x => x.a).filter(a => { if (!a.pid) return true; if (seen.has(a.pid)) return false; seen.add(a.pid); return true }) } return [...(s.applicants || []), ...(s.waitlist || [])].map((pid, i) => ({ k: 'L' + i, pid, at: 0 })) }
 function prevSessionId(s) { const ids = Object.keys(S.sessions).filter(id => id < s.date).sort().reverse(); return ids.find(id => KEYS.some(k => teamPlayers(S.sessions[id], k).length)) || null }
 function staffSet(s) { return new Set([...(s.p0 || []), ...(s.ops || []), ...Object.entries(S.players).filter(([, p]) => p.staff).map(([id]) => id)]) }
 function autoIds(s) { return [...new Set([...(s.p0 || []), ...(s.ops || [])])].filter(id => S.players[id]) }
@@ -1247,39 +1254,27 @@ function applyBox(s, compact) {
 async function doApply(sid, cancel) {
   const s = S.sessions[sid]; if (!s) { toast('경기 정보를 찾지 못했어요. 화면을 새로고침해 주세요.'); return }
   if (cancel) { const mine = myApp(s); if (!mine) return; if (mine.auto) { toast('자동 신청은 운영진에게 말해 주세요.'); return } await cancelApp(sid, mine.pid, mine.k, false); return }
-  if (S.applyBusy && Date.now() - S.applyBusyAt < 30000) return;
-  S.applyBusy = sid; S.applyBusyAt = Date.now();
-  let res = null, key = null, pos = 0, lastErr = null;
+  if (S.applyBusy && Date.now() - S.applyBusyAt < 20000) return;
+  const st = sStatus(s); if (st.k === 'soon') { toast(`아직 신청 시간이 아니에요. ${fmtDT(s.applyOpen)}에 열려요.`); return } if (st.k !== 'open' || s.stage !== 'apply') { toast('신청이 마감됐어요.'); return }
+  if (myApp(s) && !myApp(s).auto) { toast('이미 신청돼 있어요.'); return }
+  const uid = myUid(), pid = myPid(); const entry = { k: rand() + rand(), pid: pid || null, uid, at: nowS() };
+  S.applyBusy = sid; S.applyBusyAt = Date.now(); render();
+  let ok = false, err = null, slow = false;
   try {
-    render();
-    const uid = myUid(), pid = myPid(), tapAt = nowS();
-    for (let attempt = 0; attempt < 5; attempt++) {
-      res = null; lastErr = null;
-      try {
-        await S.store.txn(sp(sid), d => {
-          if (!d) { res = 'gone'; return null } const now = nowS();
-          if (d.stage !== 'apply' || d.draftStatus !== 'ready' || (d.applyClose && tapAt >= new Date(d.applyClose).getTime())) { res = 'closed'; return null }
-          if (d.applyOpen && tapAt < new Date(d.applyOpen).getTime()) { res = 'soon'; return null }
-          const raw = Array.isArray(d.apps) ? d.apps : appsOf(d); const mine = raw.find(a => pid ? a.pid === pid : (!a.pid && a.uid === uid));
-          if (mine) { res = attempt ? 'ok' : 'dup'; key = mine.k; pos = appsOf({ apps: raw }).findIndex(a => a.k === key) + 1; return null }
-          key = rand() + rand(); d.apps = [...raw, { k: key, pid: pid || null, uid, at: tapAt, w: now }]; pos = appsOf(d).findIndex(a => a.k === key) + 1; res = 'ok'; return d });
-      } catch (e) { if (String(e?.message) !== 'aborted') { lastErr = e; console.error(e) } }
-      if (res) break;
-      const c = String(lastErr?.code || '') + ' ' + String(lastErr?.message || '');
-      if (!lastErr || !/unavailable|deadline|timeout|aborted|contention|busy|network|offline|failed-precondition|internal|resource-exhausted/i.test(c) || Date.now() - S.applyBusyAt > 22000) break;
-      if (attempt === 0) toast('연결이 느려서 다시 저장하고 있어요… 순번은 누른 시각 기준이에요.');
-      await new Promise(r => setTimeout(r, 400 + attempt * 600));
+    if (Array.isArray(s.apps)) {
+      // one atomic append (no read, no lock, no contention) — order is decided by the tap time in `at`
+      const pr = S.store.patch(sp(sid), { union: { apps: [entry] } });
+      try { await withTimeout(pr, 9000); ok = true } catch (e) { if (String(e?.code).includes('deadline')) { slow = true; pr.then(() => { toast('신청이 저장됐어요!'); render() }).catch(e2 => toast(errMsg(e2).replace(/\.$/, '') + '. 신청이 저장되지 않았어요. 다시 눌러 주세요.')) } else err = e }
+    } else {
+      await S.store.txn(sp(sid), d => { if (!d) return null; const apps = appsOf(d); if (apps.some(a => pid ? a.pid === pid : (!a.pid && a.uid === uid))) return null; d.apps = [...apps, entry]; return d }); ok = true
     }
-  } catch (e) { lastErr = e; console.error(e) }
+  } catch (e) { if (String(e?.message) !== 'aborted') err = e; else ok = true }
   finally { S.applyBusy = null }
   render();
-  if (res === 'ok') { toast(`${pos}번째 신청 순번을 확보했어요!`); if (!myPid()) { S.sheet = { type: 'appname', sid, key }; render() } return }
-  if (res === 'dup') toast('이미 신청돼 있어요.');
-  else if (res === 'closed') toast('신청이 마감됐어요.');
-  else if (res === 'soon') toast(`아직 신청 시간이 아니에요. ${fmtDT(s.applyOpen)}에 열려요.`);
-  else if (res === 'gone') toast('이 경기는 삭제됐어요. 화면을 새로고침해 주세요.');
-  else if (lastErr) toast(errMsg(lastErr).replace(/\.$/, '') + '. 신청이 저장되지 않았으니 다시 눌러 주세요.');
-  else toast('신청이 저장되지 않았어요. 다시 눌러 주세요.');
+  if (ok) { const s2 = S.sessions[sid] || s; const cur = appsOf(s2); const pos = (cur.some(a => a.k === entry.k) ? cur : appsOf({ apps: [...cur, entry] })).findIndex(a => a.k === entry.k) + 1;
+    toast(pos > 0 ? `${pos}번째 신청 순번을 확보했어요!` : '신청했어요!'); if (!pid) { S.sheet = { type: 'appname', sid, key: entry.k }; render() } return }
+  if (slow) { toast('연결이 느려서 저장을 기다리고 있어요. 앱을 닫지 말고 잠시만 기다려 주세요. 순번은 누른 시각 기준이에요.'); return }
+  console.error(err); toast(errMsg(err).replace(/\.$/, '') + '. 신청이 저장되지 않았어요. 다시 눌러 주세요.');
 }
 async function setAppName(sid, key, name) {
   name = name.replace(/\(\s*게\s*\)/g, '').trim().slice(0, 20); if (!name) return false; const guest = false;
@@ -1375,6 +1370,13 @@ async function cancelApp(sid, pid, key, byAdmin) {
   const wasSel = s.stage === 'apply' ? classify(s).sel.some(r => (key && r.k === key) || (pid && r.pid === pid)) : (s.applicants || []).includes(pid);
   const penal = closed && wasSel && pid;
   if (!confirm(penal ? `${byAdmin ? pname(pid) + ' 님의 ' : ''}신청 마감 후 취소예요. 취소하면 다음 경기 신청 때 3순위가 돼요. 그래도 취소할까요?` : '신청을 취소할까요?')) return;
+  if (s.stage === 'apply' && Array.isArray(s.apps)) {
+    const vals = s.apps.filter(a => a && ((key && a.k === key) || (pid && a.pid === pid))); const set = {};
+    if (pid && s.park?.[pid]) set[`park.${pid}`] = null; if (penal) set[`late.${pid}`] = Date.now();
+    const remove = { apps: vals }; if (pid && (s.duty?.ball || []).includes(pid)) remove['duty.ball'] = [pid]; if (pid && (s.duty?.drink || []).includes(pid)) remove['duty.drink'] = [pid];
+    if (pid && s.dutyReq?.ball?.[pid]) set[`dutyReq.ball.${pid}`] = null; if (pid && s.dutyReq?.drink?.[pid]) set[`dutyReq.drink.${pid}`] = null;
+    const ok2 = await w(() => withTimeout(S.store.patch(sp(sid), { set, remove }), 10000));
+    if (ok2) toast(penal ? '취소했어요. 마감 후 취소로 기록됐어요.' : '취소했어요.'); render(); return }
   const ok = await w(() => S.store.txn(sp(sid), d => { if (!d || d.draftStatus !== 'ready' || !['apply', 'captain'].includes(d.stage)) return null;
     d.apps = appsOf(d).filter(a => !((key && a.k === key) || (pid && a.pid === pid)));
     if (d.stage !== 'apply') { const was = (d.applicants || []).includes(pid); d.applicants = (d.applicants || []).filter(x => x !== pid); d.waitlist = (d.waitlist || []).filter(x => x !== pid); if (was && d.waitlist.length) d.applicants.push(d.waitlist.shift()); KEYS.forEach(k => { if (d.captains?.[k] === pid) d.captains[k] = null }) }
