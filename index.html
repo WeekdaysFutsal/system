@@ -1632,11 +1632,19 @@ button.xpill:active{transform:translateY(1px)}
 @media (max-height:760px){.cd-log{max-height:42px!important}}
 @media (max-height:620px){.dmroot .dmsteps,.dmroot .capbar .steps{display:none!important}.cd-log{display:none!important}.dmroot .pool .nb{min-height:24px!important;font-size:12px!important}}
 .dmroot .pool .namegrid{max-height:none!important;overflow:visible!important;flex:none}
+/* v1.16.1 no rubber-band; pull-to-refresh */
+html,body{overscroll-behavior-y:none}
+body.dm-on{position:fixed;inset:0;width:100%;overflow:hidden}
+#ptr{position:fixed;left:50%;top:calc(var(--abh,60px) - 44px);z-index:80;transform:translate(-50%,0);opacity:0;display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:999px;background:var(--surface);color:var(--ink);box-shadow:var(--sh-3);font-size:13px;font-weight:700;pointer-events:none;transition:transform .2s ease,opacity .2s ease;will-change:transform}
+#ptr i{font-style:normal;display:inline-flex;width:22px;height:22px;border-radius:50%;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);transition:transform .2s}
+#ptr.ready i{transform:rotate(180deg);background:var(--accent);color:var(--accent-ink)}
+#ptr.loading i{animation:ptrspin .8s linear infinite}
+@keyframes ptrspin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 <div id="app"><p class="empty">불러오는 중…</p></div>
-<script src="config.js?v=1.16"></script>
-<script type="module" src="app.js?v=1.16"></script>
+<script src="config.js?v=1.16.1"></script>
+<script type="module" src="app.js?v=1.16.1"></script>
 </body>
 </html>

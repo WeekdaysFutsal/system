@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '1.16';
+const APP_VERSION = '1.16.1';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -2094,6 +2094,19 @@ function resumeCaptain() {
 let lastDesk = null; window.addEventListener('resize', () => { const d = isDesk(); if (d !== lastDesk) { lastDesk = d; render() } else if (document.querySelector('.dmroot')) { const ab = document.querySelector('.appbar'); if (ab) document.documentElement.style.setProperty('--abh', ab.offsetHeight + 'px') } });
 document.addEventListener('gesturestart', e => e.preventDefault()); document.addEventListener('dblclick', e => { if (!isDesk()) e.preventDefault() }, { passive: false });
 function goResult(id, dir) { const ids = pastSids(); const o = ids.indexOf(S.detail), n = ids.indexOf(id); S.rdAnim = dir || (n < o ? 'fromR' : 'fromL'); S.detail = id; render(); window.scrollTo(0, 0); setTimeout(() => { S.rdAnim = '' }, 350) }
+/* pull-to-refresh (home-screen apps have no browser refresh) */
+let ptr = null; const PTR_GO = 72;
+function ptrEl() { let e = document.getElementById('ptr'); if (!e) { e = document.createElement('div'); e.id = 'ptr'; e.innerHTML = '<i>↓</i><span>당겨서 새로고침</span>'; document.body.appendChild(e) } return e }
+function scrolledParent(t) { for (let el = t; el && el !== document.body; el = el.parentElement) { if (el.scrollTop > 0 && /(auto|scroll)/.test(getComputedStyle(el).overflowY)) return true } return false }
+document.addEventListener('touchstart', e => { ptr = null; if (e.touches.length !== 1 || S.sheet || window.scrollY > 0) return; const t = e.target; if (t.closest('.scrim,input,textarea,select,.mm-cd') || scrolledParent(t)) return;
+  ptr = { y: e.touches[0].clientY, x: e.touches[0].clientX, d: 0 } }, { passive: true });
+document.addEventListener('touchmove', e => { if (!ptr) return; const dy = e.touches[0].clientY - ptr.y, dx = e.touches[0].clientX - ptr.x;
+  if (ptr.d === 0 && (Math.abs(dx) > Math.abs(dy) || dy < 0)) { ptr = null; return } if (window.scrollY > 0) { ptr = null; return }
+  ptr.d = Math.max(0, dy); const el = ptrEl(); const pull = Math.min(110, ptr.d * .55); el.style.transform = `translate(-50%, ${pull}px)`; el.style.opacity = Math.min(1, ptr.d / 40);
+  el.classList.toggle('ready', ptr.d * .55 >= PTR_GO); el.querySelector('span').textContent = ptr.d * .55 >= PTR_GO ? '놓으면 새로고침' : '당겨서 새로고침' }, { passive: true });
+document.addEventListener('touchend', () => { if (!ptr) return; const go = ptr.d * .55 >= PTR_GO; ptr = null; const el = document.getElementById('ptr'); if (!el) return;
+  if (go) { el.classList.add('loading'); el.querySelector('span').textContent = '새로고침 중…'; el.style.transform = 'translate(-50%, 70px)'; setTimeout(() => location.reload(), 250) }
+  else { el.style.transform = 'translate(-50%, 0)'; el.style.opacity = 0; el.classList.remove('ready') } }, { passive: true });
 let swX = null, swY = null, swT = 0, swMode = null;
 const NOSWIPE = '.sheetwrap,.tblwrap,.pool,.namegrid,.mm-list,.cd-log,.msgs,.scrim,input,textarea,select,.cswatch,.ocards,.board-table,.aflow,.planwrap .scgrid';
 document.addEventListener('touchstart', e => { swX = null; if (e.touches.length !== 1) return; const t = e.target;
