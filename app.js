@@ -3,11 +3,13 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '1.19';
+const APP_VERSION = '0.12';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
 const VENUES = CFG.venues || ['용산 아이파크몰 The Base 1구장', '용산 아이파크몰 The Base 2구장', '용산 아이파크몰 The Base 3구장', '용산 아이파크몰 The Base 4구장', '용산 아이파크몰 The Base 5구장', '용산 아이파크몰 The Base 6구장', '용산 아이파크몰 The Base 7구장', '서울 월드컵경기장 풋살장 A면', '서울 월드컵경기장 풋살장 B면', '서울 월드컵경기장 풋살장 C면', '마루공원 풋살장 1면', '마루공원 풋살장 2면', '일원 에코파크 풋살장'];
+function venuePicker(value, attrs, customAttrs) { const custom = value && !VENUES.includes(value); const sel = custom ? '__custom' : (value || '');
+  return `<select class="inp" ${attrs}>${!value ? '<option value="">장소를 고르세요</option>' : ''}${VENUES.map(v => `<option value="${esc(v)}" ${sel === v ? 'selected' : ''}>${esc(v)}</option>`).join('')}<option value="__custom" ${sel === '__custom' ? 'selected' : ''}>✏️ 직접 입력…</option></select>${sel === '__custom' ? `<input class="inp" type="text" style="margin-top:6px" placeholder="구장 이름을 입력하세요" value="${esc(value === '__custom' ? '' : (value || ''))}" ${customAttrs}>` : ''}` }
 const venueList = () => `<datalist id="venue-list">${VENUES.map(v => `<option value="${esc(v)}">`).join('')}</datalist>`;
 const isBase = s => /the\s*base/i.test(s?.venue || '');
 const DEFAULTS = { time: '21:00', venue: '용산 7구장', notice: '', openDays: 6, openTime: '13:00', closeDays: 2, closeTime: '20:00', ...(CFG.defaults || {}) };
@@ -919,7 +921,7 @@ function viewMHome() {
     const moms = KEYS.map(k => s.mom?.[k]).filter(Boolean);
     h += `<button class="review" data-act="result" data-id="${last}">
       <div class="rv-top" style="--tc:${tt.color};--ti:${inkOn(tt.color)}"><span class="rv-trophy">🏆</span><b class="rv-name">${esc(tt.name)}</b>${done < 9 ? `<small class="rv-part">${done}/9경기</small>` : ''}<span class="rv-pts"><b>${top.pts}</b>점</span></div>
-      <div class="rv-rows">${rows.map(r => { const t = team(s, r.k); return `<div class="rc-row ${mt === r.k ? 'mine' : ''}"><em class="rk rk${r.rank}">${r.rank}</em>${bib(t.color)}<span class="rcn"><b>${esc(t.name)}</b>${mt === r.k ? '<small class="metag">내 팀</small>' : ''}</span><span class="wdl"><i class="w">${r.w}승</i><i class="d">${r.d}무</i><i class="l">${r.l}패</i></span><span class="pt">${r.pts}점</span></div>` }).join('')}</div>
+      <div class="rv-rows">${rows.map(r => { const t = team(s, r.k); return `<div class="rc-row ${mt === r.k ? 'mine' : ''}"><em class="rk rk${r.rank}">${r.rank}</em>${bib(t.color)}<span class="rcn"><b>${esc(t.name)}</b>${mt === r.k ? '<i class="mytag" title="내 팀">MY</i>' : ''}</span><span class="wdl"><i class="w">${r.w}승</i><i class="d">${r.d}무</i><i class="l">${r.l}패</i></span><span class="pt">${r.pts}점</span></div>` }).join('')}</div>
       <span class="more">경기 결과 자세히 보기 ›</span></button>` }
   h += '</section><section>';
   // ── NEXT MATCH ──
@@ -1061,7 +1063,7 @@ function calSheet() {
   if (c.mode === 'move') return `<h4>${fmtDate(c.from)} 경기 날짜 변경</h4><p>새 날짜를 누르세요.</p>${calendarHTML()}<div class="row" style="margin-top:12px"><button class="btn primary" data-act="calmovego" ${c.sel.length ? '' : 'disabled'}>${c.sel.length ? fmtDate(c.sel[0]) + '로 변경' : '날짜를 고르세요'}</button></div>`;
   return `<h4>경기 추가</h4><p>날짜를 여러 개 눌러서 한 번에 추가할 수 있어요.</p>${calendarHTML()}
   <div class="panel" style="margin-top:12px"><div class="field grid2c"><label>시간<input class="inp" type="time" value="${esc(f.time)}" data-in="calf" data-f="time"></label><label>정원<input class="inp" type="number" min="3" max="60" value="${f.capacity}" data-in="calf" data-f="capacity"></label></div>
-  <div class="field"><label>장소<input class="inp" type="text" value="${esc(f.venue)}" list="venue-list" data-in="calf" data-f="venue"></label></div>
+  <div class="field"><label>장소</label>${venuePicker(f.venueCustom ? (f.venue || '__custom') : f.venue, 'data-in="calfvenue"', 'data-in="calf" data-f="venue" id="calf-venue"')}</div>
   <div class="field"><label>회차 ${c.sel.length > 1 ? '(첫 경기, 이후 날짜 순으로 +1)' : ''}<input class="inp w-num" type="number" min="1" placeholder="${c.sel.length ? '이전 회차가 없어요' : '날짜를 먼저 고르세요'}" value="${f.no || ''}" data-in="calf" data-f="no" data-noauto="1"></label><span class="note" style="margin:0">${f.noAuto !== false && f.no ? '이전 회차에 이어서 자동으로 넣었어요. 고칠 수 있어요.' : ''}</span></div>
   <div class="field"><label>구장 예약자 (0순위, 자동 신청)<input class="inp" type="text" list="mem-list" placeholder="이름 (여러 명은 쉼표로)" value="${esc(f.res || '')}" data-in="calf" data-f="res"></label></div>
   <div class="field"><label>경기 운영자 (0순위, 자동 신청)<input class="inp" type="text" list="mem-list" placeholder="이름 (여러 명은 쉼표로)" value="${esc(f.ops || '')}" data-in="calf" data-f="ops"></label></div>
@@ -1622,7 +1624,7 @@ function planSide(id) {
   const f = (lab, fld, type, extra = '') => `<label class="pf"><span>${lab}</span><input class="inp" type="${type}" value="${esc(s[fld] ?? '')}" data-in="cell" data-sid="${id}" data-f="${fld}" ${extra}></label>`;
   return `<div class="panel sched pside"><div class="sched-hd"><div><b>${fmtDate(id)}${s.no ? ` · ${s.no}회` : ''}</b><span><span class="st st-${st.k}">${st.label}</span> 선발 ${c.sel}${s.capacity ? '/' + s.capacity : ''}명${c.wait ? `, 대기 ${c.wait}` : ''}</span></div><span class="dday sm">${dday(id)}</span></div>
     <button class="btn primary block" data-act="gorun" data-id="${id}">이 경기 진행 화면 열기 →</button>
-    <div class="pgrid">${f('회차', 'no', 'number', 'min="1"')}${f('시간', 'time', 'time')}${f('장소', 'venue', 'text', 'list="venue-list"')}${f('정원', 'capacity', 'number', 'min="3"')}${f('신청 오픈', 'applyOpen', 'datetime-local')}${f('신청 마감', 'applyClose', 'datetime-local')}</div>
+    <div class="pgrid">${f('회차', 'no', 'number', 'min="1"')}${f('시간', 'time', 'time')}<label class="pf"><span>장소</span>${venuePicker((S.venueCustom ??= {})[id] ? (s.venue && !VENUES.includes(s.venue) ? s.venue : '__custom') : s.venue, `data-in="venuesel" data-sid="${id}"`, `data-in="cell" data-sid="${id}" data-f="venue"`)}</label>${f('정원', 'capacity', 'number', 'min="3"')}${f('신청 오픈', 'applyOpen', 'datetime-local')}${f('신청 마감', 'applyClose', 'datetime-local')}</div>
     <div class="plinks">
       <button class="plink" data-act="staffedit" data-id="${id}"><span>구장 예약자 · 운영자</span><b>${esc(idsToNames(s.p0) || '-')} · ${esc(idsToNames(s.ops) || '-')}</b></button>
       <button class="plink" data-act="dutyedit" data-id="${id}"><span>공당 · 물당</span><b>${(s.duty?.ball || []).length || (s.duty?.drink || []).length ? `${esc(idsToNames(s.duty?.ball) || '-')} · ${esc(idsToNames(s.duty?.drink) || '-')}` : dutyReqLabel(s) || (applyClosed(s) ? '지정하기' : '아직 신청 없음')}</b></button>
@@ -1846,6 +1848,7 @@ let saveT = {};
 document.addEventListener('focusout', () => setTimeout(() => { if (S.pending && !isTyping()) render() }, 0));
 document.addEventListener('input', e => { const el = e.target; const k = el.dataset.in; if (!k) return;
   if (k === 'calf' && S.cal) { S.cal.f[el.dataset.f] = el.value; if (el.dataset.f === 'no') S.cal.f.noAuto = false; return }
+  if (k === 'calfvenue' && S.cal) { if (el.value === '__custom') { S.cal.f.venueCustom = true; S.cal.f.venue = ''; render(); setTimeout(() => document.getElementById('calf-venue')?.focus(), 50) } else { S.cal.f.venueCustom = false; S.cal.f.venue = el.value } return }
   if (k === 'impf' && S.imp) { S.imp[el.dataset.f] = el.value; return }
   if (k === 'schedf' && S.admin) { const f = el.dataset.f; S.meta = S.meta || {}; S.meta.sched = { ...schedCfg(), [f]: el.value }; clearTimeout(S.schedT); S.schedT = setTimeout(async () => { await w(() => S.store.set('meta/sched', S.meta.sched)); S.schedImg = {}; refreshSchedule() }, 700); return }
   if (k === 'mq') { S.mq = el.value; clearTimeout(S.mqT); S.mqT = setTimeout(() => { const pos = el.selectionStart; S.pending = false; const a = document.activeElement; a && a.blur(); render(); const n = document.getElementById('mq'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos) } catch { } } }, 250); return }
@@ -1856,6 +1859,7 @@ document.addEventListener('change', e => { const el = e.target;
   if (el.dataset.in === 'schedym') { S.schedYm = el.value; render(); return }
   if (el.dataset.in === 'nsid') { S.nsid = el.value; render(); return }
   if (el.dataset.in === 'mmpick') { S.mmPick = el.value; S.mmStage = null; S.mmDraft = null; render(); return }
+  if (el.dataset.in === 'venuesel') { const sid = el.dataset.sid; if (el.value === '__custom') { (S.venueCustom ??= {})[sid] = true; render(); setTimeout(() => document.querySelector(`[data-in=cell][data-sid="${sid}"][data-f=venue]`)?.focus(), 50) } else if (el.value) { (S.venueCustom ??= {})[sid] = false; S.store.update(sp(sid), { venue: el.value }).catch(e => toast(errMsg(e))) } return }
   if (el.dataset.in === 'ctxpick') { S.sid = el.value; S.planSel = el.value; S.planM = el.value.slice(0, 7); S.nsid = el.value; S.step = null; S.sel = null; S.openMatch = null; render(); return }
   if (el.dataset.in === 'latetoggle' && S.admin) { el.checked = false; cancelApp(S.sid, el.dataset.id, null, true); return }
   if (el.dataset.in === 'lateuntoggle' && S.admin) { if (!confirm(`${pname(el.dataset.id)} 님의 마감 후 취소 표시를 지울까요? (다음 경기 3순위가 해제돼요. 참가 명단에는 다시 들어가지 않아요)`)) { el.checked = true; return } w(() => S.store.update(sp(S.sid), { [`late.${el.dataset.id}`]: null }), '해제했어요.'); return }

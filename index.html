@@ -1717,11 +1717,28 @@ body.dm-on{position:fixed;inset:0;width:100%;overflow:hidden}
   .homegrid .review .rc-row.mine{box-shadow:inset 0 0 0 999px rgba(36,72,216,.06)!important;border-radius:10px}
   .homegrid .review .rc-row.mine .rk{margin-left:0}
 }
+/* v1.20 MY badge, fixed-height apply dock */
+.rv-rows .rc-row.mine,.rc-row.mine,.homegrid .review .rc-row.mine{box-shadow:none!important;background:none!important;border-radius:0}
+.rv-rows .rc-row.mine .rk,.homegrid .review .rc-row.mine .rk{margin-left:0!important}
+.mytag{display:inline-flex;align-items:center;justify-content:center;height:16px;padding:0 5px;border-radius:5px;background:var(--accent);color:#fff;font-style:normal;font-family:var(--latin);font-size:10px;letter-spacing:.8px;line-height:1;margin-left:6px;vertical-align:1px;flex:none}
+@media (prefers-color-scheme:dark){.mytag{color:#081030}}
+.applydock{--dockh:132px;height:calc(var(--dockh) + 30px + env(safe-area-inset-bottom,0px))!important;box-sizing:border-box;display:grid!important;align-items:stretch;gap:8px;padding:8px 12px 30px!important}
+.applydock>.applybtn{height:100%!important;min-height:0!important;font-size:19px!important}
+.applydock>.btn:not(.applybtn){height:100%}
+.applydock:has(.extras){grid-template-columns:1fr 1fr}
+.applydock .applied{margin:0!important;display:flex!important;flex-direction:column;justify-content:space-between;align-items:flex-start!important;height:100%;padding:10px 12px!important;gap:6px}
+.applydock .applied>span{display:flex;flex-direction:column;gap:2px}
+.applydock .applied .btn,.applydock .applied button{align-self:stretch;width:100%;min-height:36px}
+.applydock .extras{margin:0!important;display:grid!important;grid-template-columns:1fr!important;grid-auto-rows:1fr;gap:6px;height:100%}
+.applydock .xpill{min-height:0!important;flex-direction:row;justify-content:space-between;padding:0 12px!important;gap:8px}
+.applydock .xpill b{font-size:13px}.applydock .xpill small{font-size:11px;max-width:55%;text-align:right}
+@media (max-height:740px){.applydock{--dockh:116px;padding:6px 12px 30px!important}.applydock .xpill b{font-size:12px}.applydock .applied{padding:8px 10px!important}.applydock .applied small{display:block}}
+@media (max-width:360px){.applydock .xpill small{display:none}}
 </style>
 </head>
 <body>
 <div id="app"><p class="empty">불러오는 중…</p></div>
-<script src="config.js?v=1.19"></script>
-<script type="module" src="app.js?v=1.19"></script>
+<script src="config.js?v=0.12"></script>
+<script type="module" src="app.js?v=0.12"></script>
 </body>
 </html>
