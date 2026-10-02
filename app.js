@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.9';
+const APP_VERSION = '0.21.10';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -491,7 +491,7 @@ function render() {
   S.dm = !isDesk();
   if (S.ready >= 3 || S.err) hideBoot();
   if (S.ready >= 3) ensureQueues();
-  if (S.ready >= 3 && S.auth && !S.admin) { loadPrefs(); pushListen() }
+  if (S.ready >= 3 && S.auth && !S.admin) { loadPrefs(); pushListen(); watchInbox() }
   if (!S.admin && S.auth && S.ready >= 3) { const cs = capSid(); if (cs && S.tab !== 'draft' && !(S.capPop ??= {})[cs] && !S.sheet) { S.capPop[cs] = 1; S.sheet = { type: 'cappop', sid: cs } } }
   if (!S.admin && !S.auth && S.ready >= 3) { document.body.classList.remove('dm-on'); document.getElementById('app').innerHTML = loginScreen() + (S.sheet ? viewSheet() : ''); return }
   if (S.ready >= 3 && qzTarget() && window.WF_QZ_RESET && !S.qzResetDone) { S.qzResetDone = true; const me = myPid(); S.store.update('meta/qz', { [me]: null }).catch(() => { }); if (S.meta?.qz) S.meta.qz[me] = null }
@@ -499,7 +499,7 @@ function render() {
   if (S.ready >= 3 && qzTarget() && (!qzDone() || S.qzStep === 'blocked')) { document.body.classList.remove('dm-on'); document.getElementById('app').innerHTML = viewQuiz(); return }
   if (S.ready >= 3 && (!S.sid || !S.sessions[S.sid])) S.sid = defaultSid();
   if (S.store && S.chatSid !== S.sid) watchChat();
-  if (S.admin) watchContacts();
+  if (S.admin) { watchContacts(); if (!S.unRules && S.store) S.unRules = S.store.watchCol('pushRules', docs => { const o = {}; docs.forEach(d => { const { id, ...r } = d; o[id] = r }); S.rules = o; renderSoon() }, null, () => { }) }
   const atB = [...document.querySelectorAll('.msgs')].map(b => b.scrollHeight - b.scrollTop - b.clientHeight < 40); const atBottom = atB.length ? atB[0] : true;
   const ov = document.querySelector('.overlay')?.scrollTop;
   const ci = document.getElementById('chatin'); const ciState = ci ? { v: ci.value, f: document.activeElement === ci, a: ci.selectionStart, b: ci.selectionEnd } : null;
@@ -555,7 +555,7 @@ function appbar() {
   const s = S.sid ? S.sessions[S.sid] : null; const back = false;
   return `<header class="appbar"><div class="in">${back ? '<button class="back" data-act="home" aria-label="경기일 목록">‹</button>' : `<img src="${EMBLEM_SRC}" alt="홈으로" data-act="gohome" style="cursor:pointer">`}
   <div class="ttl" data-act="gohome" role="button" tabindex="0" aria-label="홈으로"><b>${esc(CFG.club?.name || 'WEEKDAYS FUTSAL CLUB')}</b><span></span></div>
-  ${!S.dm && !S.admin && S.auth ? `<button class="mmtop ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" aria-label="${S.tab === 'mm' ? '일반모드로 돌아가기' : '경기모드 열기'}"><span class="mmball">⚽</span><b>${S.tab === 'mm' ? '일반모드' : '경기모드'}</b>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : ''}<button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">운영모드</button></div>${capStrip()}</header>`;
+  ${!S.dm && !S.admin && S.auth ? `<button class="mmtop ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" aria-label="${S.tab === 'mm' ? '일반모드로 돌아가기' : '경기모드 열기'}"><span class="mmball">⚽</span><b>${S.tab === 'mm' ? '일반모드' : '경기모드'}</b>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : ''}${S.auth && !S.admin ? (() => { const n = (S.inbox || []).filter(x => !x.read).length; return `<button class="bell" data-act="inbox" aria-label="받은 알림${n ? ' ' + n + '개 안 읽음' : ''}">🔔${n ? `<i>${n > 9 ? '9+' : n}</i>` : ''}</button>` })() : ''}<button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">운영모드</button></div>${capStrip()}</header>`;
 }
 function tabs() {
   const t = S.admin ? [['manage', '일정'], ['run', '경기'], ['notice', '공지'], ['members', '회원'], ['settings', '설정']] : [['mhome', '홈'], ['sched', '일정'], ...(isDesk() ? [] : [['mm', '경기모드']]), ['results', '경기결과'], capSid() ? ['draft', '팀 선정'] : viewSid() ? ['draft', '드래프트 참관'] : ['settings', '내 정보']];
@@ -880,6 +880,8 @@ function viewSheet() {
   else if (sh.type === 'duty') h += dutySheet(sh.sid);
   else if (sh.type === 'park') h += parkSheet(sh.sid);
   else if (sh.type === 'parkapply') { const ss = S.sessions[sh.sid]; h += `<h4>🚗 주차 신청</h4><p>${fmtDate(sh.sid)} 경기 주차를 신청해요. 신청자 중 ${PARK_SLOTS}명을 추첨해요.</p><div class="panel"><div class="field"><label for="pk-car2">차량번호</label><input id="pk-car2" class="inp" type="text" maxlength="12" placeholder="예: 12가3456" value="${esc(myCar())}"></div><p class="note" style="margin:6px 0 0">내 정보에 차량번호를 저장해 두면 자동으로 채워져요.</p></div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="parksave">신청</button></div>` }
+  else if (sh.type === 'inbox') h += inboxSheet();
+  else if (sh.type === 'rule') h += ruleSheet();
   else if (sh.type === 'kakao') { const L = S.kk || null;
     h += `<h4>📋 카톡 투표 명단 반영</h4>${S.ocrBusy ? `<div class="ocrbox"><div class="ocrspin"></div><b>${S.ocrMsg || '글자 읽는 중…'}</b><small>처음 한 번은 한글 인식 데이터를 받느라 조금 걸려요.</small></div>` : !L ? `<p>카톡 투표 <b>참여자 목록 화면</b>을 캡처해서 올려 주세요. 스크롤해서 여러 장이면 <b>위에서부터 순서대로</b> 모두 골라 주세요. 겹치는 이름은 한 번만 읽어요.</p>
       <label class="btn primary block" style="cursor:pointer">📷 캡처 이미지 올리기 (여러 장 가능)<input type="file" accept="image/*" multiple data-in="kkimg" hidden></label>
@@ -927,6 +929,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.10', '2026.10.02', ['오른쪽 위 🔔에서 받은 알림을 모아 볼 수 있어요', '[운영진] 알림 보내기 화면을 발송 그룹 · 회원 목록 · 메시지로 나눴어요', '[운영진] 자동 알림: 내용·대상·보내는 때(특정 날짜, 또는 경기마다 신청 오픈·마감·경기 시작 몇 시간 전후)를 정해 두면 자동으로 보내요']],
   ['0.21.9', '2026.10.02', ['[운영진] 공지 메뉴의 "알림 보내기"에서 전체·신청자·참가자·공당·물당·주차 신청자 또는 원하는 회원만 골라 알림을 보낼 수 있어요']],
   ['0.21.8', '2026.10.02', ['휴대폰 알림: 신청 오픈, 마감 임박, 대기→선발, 주장 지정, 팀 발표, 경기 당일, 운영진 공지 (내 정보에서 켜고 종류별로 고를 수 있어요)']],
   ['0.21.7', '2026.10.02', ['운영모드를 쓰다가 앱을 닫고 다시 열면, 운영모드가 꺼지고 항상 홈에서 시작해요']],
@@ -991,6 +994,12 @@ function notiCard() { const sup = pushSupport(); const on = typeof Notification 
     ${on ? `<div class="ntypes">${NOTI_TYPES.map(([k, n, d]) => `<label class="ntype"><span><b>${n}</b><small>${d}</small></span><input type="checkbox" data-in="npref" data-k="${k}" ${np[k] !== false ? 'checked' : ''}></label>`).join('')}</div>` : ''}</div>` }
 function selSet(s0) { if (!s0) return new Set(); return new Set(s0.stage === 'apply' ? classify(s0).sel.map(r => r.pid).filter(Boolean) : (s0.applicants || [])) }
 function watchPromote(sid, before, exclude) { setTimeout(() => { const after = selSet(S.sessions[sid]); const up = [...after].filter(p0 => !before.has(p0) && !(exclude || []).includes(p0)); if (up.length) queuePush({ type: 'promote', pids: up, sid }) }, 2500) }
+function watchInbox() { const pid = myPid(); if (!S.store || S.inboxPid === pid) return; try { S.unInbox && S.unInbox() } catch { } S.inboxPid = pid; S.inbox = []; if (!pid) return;
+  S.unInbox = S.store.watchCol('inbox/' + pid + '/items', docs => { S.inbox = docs.sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 50); renderSoon() }, { order: 'at', limit: 50 }, () => { }) }
+function inboxSheet() { const L = S.inbox || []; const ico = { open: '📢', closing: '⏰', promote: '🎉', captain: '👑', team: '📣', day: '⚽', notice: '📝' };
+  const when = t => { const d = new Date(t); const diff = (Date.now() - t) / 60000; return diff < 1 ? '방금' : diff < 60 ? Math.floor(diff) + '분 전' : diff < 1440 ? Math.floor(diff / 60) + '시간 전' : `${d.getMonth() + 1}.${d.getDate()} ${p2(d.getHours())}:${p2(d.getMinutes())}` };
+  return `<h4>🔔 받은 알림</h4>${L.length ? `<div class="inbox">${L.map(x => `<div class="ib ${x.read ? '' : 'new'}"><span class="ib-ico">${ico[x.type] || '🔔'}</span><div><b>${esc(String(x.title || '').replace(/^[📢⏰🎉👑📣⚽📝]\s*/u, ''))}</b><p>${esc(x.body || '').replace(/\n/g, '<br>')}</p><small>${when(x.at || 0)}</small></div></div>`).join('')}</div>` : '<p class="empty">아직 받은 알림이 없어요.</p>'}<p class="note" style="margin:10px 0 0">최근 50개까지 보여요. 휴대폰 알림을 켜지 않아도 여기에는 쌓여요.</p>` }
+async function markInboxRead() { const pid = myPid(); const un = (S.inbox || []).filter(x => !x.read && x.id); un.forEach(x => x.read = true); for (const x of un) { try { await S.store.update(`inbox/${pid}/items/${x.id}`, { read: true }) } catch { } } }
 async function queuePush(doc) { try { await S.store.add('pushQueue', { ...doc, by: myPid() || (S.admin ? 'admin' : ''), at: Date.now() }) } catch (e) { console.warn('push queue', e) } }
 function viewSettings() {
   return `<h2>내 정보<small>이름 + 비밀번호 4자리로 로그인해요</small></h2>${loginCard()}
@@ -1745,18 +1754,43 @@ function pushGroups(s0) { if (!s0) return {}; const c = s0.stage === 'apply' ? c
   const duty = k => { const fix = s0.duty?.[k] || []; return fix.length ? fix : Object.entries(s0.dutyReq?.[k] || {}).filter(([, v]) => v).map(([p0]) => p0) };
   const uniq = a => [...new Set(a.filter(p0 => p0 && S.players[p0]))];
   return { apps: uniq(all), sel: uniq(sel), ball: uniq(duty('ball')), drink: uniq(duty('drink')), park: uniq(Object.keys(s0.park || {}).filter(p0 => s0.park[p0])) } }
+const RULE_TARGETS = [['all', '전체 회원'], ['apps', '신청자 (대기 포함)'], ['unapplied', '아직 신청 안 한 회원'], ['sel', '참가자 (대기 제외)'], ['ball', '⚽ 공당'], ['drink', '🥤 물당'], ['park', '🚗 주차 신청자']];
+const RULE_EVENTS = [['applyOpen', '신청 오픈'], ['applyClose', '신청 마감'], ['match', '경기 시작']];
+function ruleDesc(R) { const tg = (RULE_TARGETS.find(x => x[0] === R.target) || [, '전체 회원'])[1];
+  if (R.kind === 'date') return `${R.at ? R.at.replace('T', ' ') : '-'} 한 번 · ${tg}${R.sentAt ? ' · ✓ 보냄' : ''}`;
+  const m = Math.abs(+R.offsetMin || 0), h = Math.floor(m / 60), mm = m % 60; const off = m ? `${h ? h + '시간' : ''}${mm ? ' ' + mm + '분' : ''} ${+R.offsetMin < 0 ? '전' : '후'}` : '그 시각';
+  return `경기마다 · ${(RULE_EVENTS.find(x => x[0] === R.event) || [, '-'])[1]} ${off.trim()} · ${tg}` }
 function pushComposer() { const ids = Object.keys(S.sessions).filter(id => !S.sessions[id].practice).sort().reverse().slice(0, 12); if (!S.pnSid || !S.sessions[S.pnSid]) S.pnSid = runSid() || ids[0] || null;
   const s0 = S.pnSid ? S.sessions[S.pnSid] : null; const G = pushGroups(s0); S.pnSel ??= [];
   const members = byName(Object.keys(S.players).filter(id => mstatus(S.players[id]) !== 'dormant'));
   const grp = [['all', '전체 회원', members.length], ['apps', '신청자 (대기 포함)', G.apps?.length || 0], ['sel', '참가자 (대기 제외)', G.sel?.length || 0], ['ball', '⚽ 공당', G.ball?.length || 0], ['drink', '🥤 물당', G.drink?.length || 0], ['park', '🚗 주차 신청자', G.park?.length || 0]];
-  const sel = new Set(S.pnSel);
-  return `<div class="panel pad pnc"><h3 style="margin:0 0 4px">🔔 알림 보내기</h3><p class="note" style="margin:0 0 12px">알림을 켠 회원 폰으로 바로 보내요. 그룹 버튼으로 받을 사람을 고른 뒤, 아래에서 한 명씩 더하거나 뺄 수 있어요.</p>
-    <label class="pf"><span>기준 경기</span><select class="inp" data-in="pnsid">${ids.map(id => `<option value="${id}" ${id === S.pnSid ? 'selected' : ''}>${fmtDate(id)} ${esc(S.sessions[id].time || '')} · ${esc(S.sessions[id].venue || '')}</option>`).join('')}</select></label>
-    <div class="pngrp">${grp.map(([k, n, c]) => `<button class="btn sm" data-act="pngrp" data-k="${k}" ${c ? '' : 'disabled'}>${n} <b>${c}</b></button>`).join('')}<button class="btn sm" data-act="pngrp" data-k="none">선택 해제</button></div>
-    <div class="pnsel"><b>받는 사람 ${sel.size}명</b></div>
-    <div class="dpick pnchips">${members.map(id => `<button class="chip ${sel.has(id) ? 'sel' : ''}" data-act="pntog" data-id="${id}">${esc(pname(id))}</button>`).join('')}</div>
-    <input id="pn-title" class="inp" maxlength="40" placeholder="제목 (예: 이번 주 구장 변경 안내)" value="${esc(S.pnTitle || '')}" style="margin-top:14px"><textarea id="pn-body" class="inp" rows="3" maxlength="200" placeholder="내용" style="margin-top:8px">${esc(S.pnBody || '')}</textarea>
-    <button class="btn primary block" style="margin-top:10px" data-act="pushsend" ${sel.size ? '' : 'disabled'}>${sel.size ? `${sel.size}명에게 알림 보내기` : '받는 사람을 골라 주세요'}</button></div>` }
+  const sel = new Set(S.pnSel); const q = (S.pnQ || '').trim(); const shown = q ? members.filter(id => pname(id).includes(q)) : members;
+  const rules = Object.entries(S.rules || {}).sort((x, y) => (y[1].createdAt || 0) - (x[1].createdAt || 0));
+  return `<div class="pnwrap"><div class="pncol">
+    <section class="panel pad"><h3 class="pnh">① 발송 그룹</h3><label class="pf"><span>기준 경기</span><select class="inp" data-in="pnsid">${ids.map(id => `<option value="${id}" ${id === S.pnSid ? 'selected' : ''}>${fmtDate(id)} ${esc(S.sessions[id].time || '')} · ${esc(S.sessions[id].venue || '')}</option>`).join('')}</select></label>
+      <div class="pngrp">${grp.map(([k, n, c]) => `<button class="pgbtn" data-act="pngrp" data-k="${k}" ${c ? '' : 'disabled'}><span>${n}</span><b>${c}</b></button>`).join('')}</div><p class="note" style="margin:6px 0 0">그룹을 누르면 아래 회원 목록에 그 사람들이 선택돼요.</p></section>
+    <section class="panel pad"><div class="pnh2"><h3 class="pnh">② 회원 목록 <small>${sel.size}명 선택</small></h3><button class="linkbtn" data-act="pngrp" data-k="none">선택 해제</button></div>
+      <input class="inp" type="search" placeholder="이름 검색" value="${esc(S.pnQ || '')}" data-in="pnq" style="margin:8px 0">
+      <div class="dpick pnchips">${shown.map(id => `<button class="chip ${sel.has(id) ? 'sel' : ''}" data-act="pntog" data-id="${id}">${sel.has(id) ? '✓ ' : ''}${esc(pname(id))}</button>`).join('') || '<span class="muted">맞는 회원이 없어요.</span>'}</div></section></div>
+  <div class="pncol pnright"><section class="panel pad pnmsg"><h3 class="pnh">③ 메시지</h3>
+    <input id="pn-title" class="inp" maxlength="40" placeholder="제목 (예: 이번 주 구장 변경 안내)" value="${esc(S.pnTitle || '')}"><textarea id="pn-body" class="inp" rows="6" maxlength="200" placeholder="내용" style="margin-top:8px">${esc(S.pnBody || '')}</textarea>
+    <div class="pnto">받는 사람 <b>${sel.size}명</b>${sel.size ? ` · ${[...sel].slice(0, 4).map(id => esc(pname(id))).join(', ')}${sel.size > 4 ? ` 외 ${sel.size - 4}명` : ''}` : ''}</div>
+    <button class="btn primary block" data-act="pushsend" ${sel.size ? '' : 'disabled'}>${sel.size ? `${sel.size}명에게 지금 보내기` : '받는 사람을 골라 주세요'}</button></section>
+  <section class="panel pad"><div class="pnh2"><h3 class="pnh">⏰ 자동 알림 <small>${rules.length}개</small></h3><button class="btn sm primary" data-act="rulenew">＋ 새 자동 알림</button></div>
+    <p class="note" style="margin:4px 0 8px">정해 둔 때가 되면 서버가 자동으로 보내요(5분 단위). 신청 오픈·마감 임박·경기 당일 기본 알림은 따로 자동으로 가요.</p>
+    ${rules.length ? `<div class="rules">${rules.map(([id, R]) => `<div class="rule ${R.on === false ? 'off' : ''}"><div><b>${esc(R.title)}</b><small>${esc(ruleDesc(R))}</small></div><label class="sw"><input type="checkbox" data-in="ruleon" data-id="${id}" ${R.on === false ? '' : 'checked'}><i></i></label><button class="btn sm" data-act="ruleedit" data-id="${id}">수정</button><button class="btn sm danger" data-act="ruledel" data-id="${id}" aria-label="삭제">×</button></div>`).join('')}</div>` : '<p class="muted" style="margin:0">아직 자동 알림이 없어요.</p>'}</section></div></div>` }
+function ruleSheet() { const R = S.ruleF || {}; const kind = R.kind || 'event';
+  return `<h4>${S.ruleId ? '자동 알림 수정' : '새 자동 알림'}</h4>
+    <label class="pf"><span>제목</span><input class="inp" id="rf-title" maxlength="40" value="${esc(R.title || '')}" placeholder="예: {날짜} 경기 신청이 곧 마감돼요"></label>
+    <label class="pf"><span>내용</span><textarea class="inp" id="rf-body" rows="3" maxlength="200" placeholder="예: {시간} {구장} · 아직 신청 안 했다면 서둘러 주세요">${esc(R.body || '')}</textarea></label>
+    <p class="note" style="margin:-2px 0 10px">글 속에 <b>{날짜}</b> <b>{시간}</b> <b>{구장}</b> <b>{마감}</b>을 쓰면 그 경기 정보로 바뀌어요.</p>
+    <label class="pf"><span>받는 대상</span><select class="inp" id="rf-target">${RULE_TARGETS.map(([k, n]) => `<option value="${k}" ${(R.target || 'all') === k ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+    <div class="pf"><span>보내는 때</span><div class="seg"><button role="tab" data-act="rulekind" data-k="event" aria-selected="${kind === 'event'}">경기마다 반복</button><button role="tab" data-act="rulekind" data-k="date" aria-selected="${kind === 'date'}">특정 날짜·시간</button></div></div>
+    ${kind === 'date' ? `<label class="pf"><span>날짜·시간</span><input class="inp" type="datetime-local" id="rf-at" value="${esc(R.at || '')}"></label><p class="note" style="margin:0 0 8px">경기 관련 대상(신청자, 공당 등)은 가장 가까운 다음 경기 기준이에요.</p>`
+      : `<div class="rf-ev"><select class="inp" id="rf-event">${RULE_EVENTS.map(([k, n]) => `<option value="${k}" ${(R.event || 'applyClose') === k ? 'selected' : ''}>${n}</option>`).join('')}</select><input class="inp" id="rf-h" type="number" min="0" max="168" step="1" value="${Math.floor(Math.abs(+R.offsetMin || 120) / 60)}"><span>시간</span><input class="inp" id="rf-m" type="number" min="0" max="59" step="5" value="${Math.abs(+R.offsetMin || 120) % 60}"><span>분</span><select class="inp" id="rf-dir"><option value="-1" ${(+R.offsetMin || -1) < 0 ? 'selected' : ''}>전</option><option value="1" ${(+R.offsetMin || -1) > 0 ? 'selected' : ''}>후</option></select></div><p class="note" style="margin:0 0 8px">예: "신청 마감 · 3시간 0분 · 전" → 매 경기 마감 3시간 전에 보내요.</p>`}
+    <div class="row" style="margin-top:8px"><button class="btn primary" data-act="rulesave">저장</button></div>` }
+function readRuleForm() { const g = id => document.getElementById(id); const R = { ...(S.ruleF || {}) }; if (g('rf-title')) R.title = g('rf-title').value.trim(); if (g('rf-body')) R.body = g('rf-body').value.trim(); if (g('rf-target')) R.target = g('rf-target').value;
+  if (g('rf-at')) R.at = g('rf-at').value; if (g('rf-event')) { R.event = g('rf-event').value; R.offsetMin = (+g('rf-dir').value) * ((+g('rf-h').value || 0) * 60 + (+g('rf-m').value || 0)) } return R }
 function viewNoticeMenu() {
   const nt = S.noticeTab || 'team';
   let h = `<div class="mg-top"><div class="seg pseg" role="tablist">${[['team', '👥 팀 공지'], ['month', '📅 월간 일정표'], ['recruit', '📝 신청 안내 글'], ['push', '🔔 알림 보내기']].map(([k, n]) => `<button role="tab" data-act="ntab" data-k="${k}" aria-selected="${nt === k}">${n}</button>`).join('')}</div></div>`;
@@ -2110,7 +2144,8 @@ async function sendChat() {
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'ap-pin') { e.preventDefault(); document.querySelector('[data-act=adminpinok]')?.click(); return } if (e.key === 'Enter' && e.target.dataset?.act === 'gohome') { e.target.click(); return } if (e.key === 'Enter' && (e.target.id === 'lg-pin' || e.target.id === 'lg-name')) { e.preventDefault(); document.querySelector('[data-act=login]')?.click(); return } if (e.target.id !== 'chatin' || e.key !== 'Enter' || e.shiftKey) return; e.preventDefault();
   if (e.isComposing) { S.sendAfterCompose = true; return } sendChat() }, true);
 document.addEventListener('scroll', e => { const t = e.target; if (t && t.classList && t.classList.contains('msgs') && !S.autoScrolling) S.chatUp = t.scrollHeight - t.scrollTop - t.clientHeight > 40 }, true);
-document.addEventListener('input', e => { if (e.target.dataset?.in === 'colq' && S.sheet?.type === 'colf') { S.colQ = e.target.value; const tmp = document.createElement('div'); tmp.innerHTML = colFilterSheet(S.sheet.k); const nl = tmp.querySelector('.cf-list'), ol = document.querySelector('.cf-list'); if (nl && ol) ol.replaceWith(nl); return }
+document.addEventListener('input', e => { if (e.target.dataset?.in === 'pnq') { S.pnQ = e.target.value; const tmp = document.createElement('div'); tmp.innerHTML = pushComposer(); const nl = tmp.querySelector('.pnchips'), ol = document.querySelector('.pnchips'); if (nl && ol) ol.replaceWith(nl); return }
+  if (e.target.dataset?.in === 'colq' && S.sheet?.type === 'colf') { S.colQ = e.target.value; const tmp = document.createElement('div'); tmp.innerHTML = colFilterSheet(S.sheet.k); const nl = tmp.querySelector('.cf-list'), ol = document.querySelector('.cf-list'); if (nl && ol) ol.replaceWith(nl); return }
   if (/-name$/.test(e.target.id || '')) document.querySelectorAll('.lgerr').forEach(x => x.hidden = true); if (e.target.classList?.contains('pin')) { const v = e.target.value.replace(/\D/g, ''); if (v !== e.target.value) e.target.value = v } }, true);
 document.addEventListener('compositionstart', e => { if (e.target.id === 'chatin') S.composing = true });
 document.addEventListener('compositionend', e => { if (e.target.id !== 'chatin') return; S.composing = false;
@@ -2157,6 +2192,7 @@ document.addEventListener('change', e => { const el = e.target;
         S.ocrBusy = false; if (!L.length) { toast('이미지에서 이름을 찾지 못했어요. 참여자 목록이 잘 보이게 캡처해 주세요.'); render(); return } S.kk = L; S.kkFromImg = true; render() }
       catch (e) { console.error(e); S.ocrBusy = false; toast('글자를 읽지 못했어요. 인터넷 연결을 확인하거나, "글자로 붙여넣기"를 써 주세요.'); render() } })(); return }
   if (el.dataset.in === 'npref') { const pid = myPid(); if (!pid) return; S.np = { ...(S.np || { on: true }), [el.dataset.k]: el.checked }; S.store.set('notifPrefs/' + pid, { ...S.np, at: Date.now() }).catch(e => toast(errMsg(e))); return }
+  if (el.dataset.in === 'ruleon') { if (!S.admin) return; S.store.update('pushRules/' + el.dataset.id, { on: el.checked }).catch(e => toast(errMsg(e))); return }
   if (el.dataset.in === 'pnsid') { S.pnSid = el.value; S.pnTitle = document.getElementById('pn-title')?.value || ''; S.pnBody = document.getElementById('pn-body')?.value || ''; render(); return }
   if (el.dataset.in === 'kkpick') { if (S.kk) S.kk[+el.dataset.i].use = el.value; return }
   if (el.dataset.in === 'mancol') { S.manF.cols[+el.dataset.i] = el.value; return }
@@ -2210,6 +2246,15 @@ document.addEventListener('click', async e => {
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
     case 'pushon': await pushEnable(); break;
+    case 'inbox': S.sheet = { type: 'inbox' }; render(); markInboxRead(); break;
+    case 'rulenew': if (!needAdmin()) break; S.ruleId = null; S.ruleF = { kind: 'event', event: 'applyClose', offsetMin: -180, target: 'unapplied', title: '⏰ {날짜} 경기 신청 마감 3시간 전', body: '{시간} {구장} · 아직 신청하지 않았어요.' }; S.sheet = { type: 'rule' }; render(); break;
+    case 'ruleedit': if (!needAdmin()) break; S.ruleId = id; S.ruleF = { ...(S.rules?.[id] || {}) }; S.sheet = { type: 'rule' }; render(); break;
+    case 'rulekind': S.ruleF = { ...readRuleForm(), kind: el.dataset.k }; render(); break;
+    case 'rulesave': { if (!needAdmin()) break; const R = readRuleForm(); if (!R.title) { toast('제목을 입력해 주세요.'); break } if (R.kind === 'date' && !R.at) { toast('보낼 날짜·시간을 골라 주세요.'); break }
+      const doc = { title: R.title, body: R.body || '', target: R.target || 'all', kind: R.kind || 'event', on: R.on !== false, ...(R.kind === 'date' ? { at: R.at, event: null, offsetMin: null } : { event: R.event, offsetMin: R.offsetMin, at: null }), updatedAt: Date.now() };
+      const ok = S.ruleId ? await w(() => S.store.update('pushRules/' + S.ruleId, R.kind === 'date' && R.at !== S.rules?.[S.ruleId]?.at ? { ...doc, sentAt: null } : doc), '자동 알림을 고쳤어요.') : await w(() => S.store.add('pushRules', { ...doc, createdAt: Date.now() }), '자동 알림을 만들었어요.');
+      if (ok) { S.sheet = null; S.ruleF = null; S.ruleId = null; render() } break }
+    case 'ruledel': if (!needAdmin() || !confirm('이 자동 알림을 지울까요?')) break; await w(() => S.store.del('pushRules/' + id), '지웠어요.'); break;
     case 'pushoff': await pushDisable(); break;
     case 'pngrp': { if (!needAdmin()) break; const k = el.dataset.k; S.pnTitle = document.getElementById('pn-title')?.value || S.pnTitle; S.pnBody = document.getElementById('pn-body')?.value || S.pnBody;
       if (k === 'none') S.pnSel = []; else if (k === 'all') S.pnSel = Object.keys(S.players).filter(id => mstatus(S.players[id]) !== 'dormant'); else S.pnSel = [...(pushGroups(S.sessions[S.pnSid])[k] || [])]; render(); break }
