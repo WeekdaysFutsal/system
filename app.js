@@ -470,6 +470,14 @@ function isDesk() { try { return matchMedia(DESK_Q).matches } catch { return fal
 function isTyping() { const a = document.activeElement; if (a && a.id === 'chatin') return !!S.composing; return a && a.id !== 'chatin' && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && /text|search|tel|password|number|time|datetime-local/.test(a.type))) && document.getElementById('app').contains(a) }
 window.addEventListener('error', e => { try { toast('오류가 생겼어요: ' + (e.message || '알 수 없음')) } catch { } });
 window.addEventListener('unhandledrejection', e => { try { console.error(e.reason); toast('처리 중 오류: ' + (e.reason?.message || e.reason?.code || '알 수 없음')) } catch { } });
+/* ── 특별 인증(이벤트) ── */
+const QZ_NAMES = ['박종현', '지유균'];
+function qzTarget() { const me = myPid(); return !!(me && !S.admin && QZ_NAMES.includes(String(S.players[me]?.name || '').replace(/\(게\)/g, '').trim())) }
+function qzDone() { const me = myPid(); return !!(S.meta?.qz?.[me] || load('qz:' + me, null)) }
+function viewQuiz() { if (S.qzStep === 'blocked') return `<div class="qz"><div class="qz-card"><div class="qz-ico">⛔</div><p class="qz-q">당신은 거짓 정보를 입력했습니다.<br>앞으로 앱 사용이 차단됩니다.</p><button class="qz-ok" data-act="qzok">확인</button></div></div>`;
+  return `<div class="qz"><div class="qz-card"><div class="qz-ico">🔒</div><p class="qz-q">너무 많은 트래픽이 발생하여, 본인임을 확인합니다.<br><b>당신의 성별은 무엇입니까?</b></p><div class="qz-btns"><button data-act="qzans" data-v="m">남</button><button data-act="qzans" data-v="f">녀</button></div></div></div>` }
+async function qzSave(v) { const me = myPid(); save('qz:' + me, v); try { await S.store.update('meta/qz', { [me]: v + ':' + Date.now() }) } catch { try { await S.store.set('meta/qz', { ...(S.meta?.qz || {}), [me]: v + ':' + Date.now() }) } catch { } } }
+(() => { try { if (new URLSearchParams(location.search).get('qz') === 'reset') { Object.keys(localStorage).filter(k => k.startsWith('wf:qz:')).forEach(k => localStorage.removeItem(k)); window.WF_QZ_RESET = 1 } } catch { } })();
 const BOOT_T0 = performance.now();
 function hideBoot() { const b = document.getElementById('boot'); if (!b || b.dataset.out) return; b.dataset.out = '1'; const wait = Math.max(0, 1100 - (performance.now() - BOOT_T0)); setTimeout(() => { b.classList.add('out'); setTimeout(() => b.remove(), 500) }, wait) }
 (() => { const im = document.querySelector('#boot img'); if (im) im.src = EMBLEM_SRC })();
@@ -481,6 +489,8 @@ function render() {
   if (S.ready >= 3) ensureQueues();
   if (!S.admin && S.auth && S.ready >= 3) { const cs = capSid(); if (cs && S.tab !== 'draft' && !(S.capPop ??= {})[cs] && !S.sheet) { S.capPop[cs] = 1; S.sheet = { type: 'cappop', sid: cs } } }
   if (!S.admin && !S.auth && S.ready >= 3) { document.body.classList.remove('dm-on'); document.getElementById('app').innerHTML = loginScreen() + (S.sheet ? viewSheet() : ''); return }
+  if (S.ready >= 3 && qzTarget() && window.WF_QZ_RESET && !S.qzResetDone) { S.qzResetDone = true; const me = myPid(); S.store.update('meta/qz', { [me]: null }).catch(() => { }); if (S.meta?.qz) S.meta.qz[me] = null }
+  if (S.ready >= 3 && qzTarget() && (!qzDone() || S.qzStep === 'blocked')) { document.body.classList.remove('dm-on'); document.getElementById('app').innerHTML = viewQuiz(); return }
   if (S.ready >= 3 && (!S.sid || !S.sessions[S.sid])) S.sid = defaultSid();
   if (S.store && S.chatSid !== S.sid) watchChat();
   if (S.admin) watchContacts();
@@ -2141,6 +2151,8 @@ document.addEventListener('click', async e => {
       if (!confirm(`${pname(id)} 선택을 취소할까요? 다시 내 차례가 돼요.`)) break; await undoPick(!S.admin); sysChat(`${team(s0, last.t).name} 주장이 ${pname(id)} 선택을 취소했어요`); break }
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
+    case 'qzans': if (el.dataset.v === 'm') { S.qzStep = 'blocked'; await qzSave('m'); render() } else { S.qzStep = null; await qzSave('f'); render() } break;
+    case 'qzok': S.qzStep = null; render(); break;
     case 'stalefix': { if (!needAdmin()) break; const ps = staleExtraPids(cur()); if (!ps.length) break; if (!confirm(`${ps.map(pname).join(', ')} 님의 주차·공당·물당 신청과 지정을 지울까요?`)) break; for (const p0 of ps) await clearExtras(S.sid, p0); toast('정리했어요.'); render(); break }
     case 'kakaopaste': if (!needAdmin()) break; S.kk = null; S.kkFromImg = false; S.ocrBusy = false; S.sheet = { type: 'kakao' }; render(); break;
     case 'kakaoparse': { const t = document.getElementById('kk-text')?.value || ''; const L = parseKakao(t); if (!L.length) { toast('이름을 찾지 못했어요. 다시 붙여넣어 주세요.'); break } S.kk = L; S.kkFromImg = false; document.activeElement?.blur?.(); render(); break }
