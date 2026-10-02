@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.4';
+const APP_VERSION = '0.21.5';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -162,6 +162,12 @@ async function applyKakao(sid, list) { const picks = list.map(x => x.use).filter
     uniq.forEach((pid, i) => { if (!keyOf[pid]) { const k = 'kk' + rand(); base.push({ k, pid, uid: 'kakao', at: now + i }); keyOf[pid] = k; added++ } });
     const head = uniq.map(pid => keyOf[pid]); const rest = merged.map(a => a.k).filter(k => !head.includes(k)); d.apps = base; d.appOrder = [...head, ...rest]; return d }));
   if (ok) toast(`카톡 투표 순서대로 ${uniq.length}명을 반영했어요${added ? ` (새로 추가 ${added}명)` : ''}.`); return ok }
+/* 신청이 취소되거나 명단에서 빠지면 주차·공당·물당 신청과 지정도 함께 정리 */
+function extrasFor(s0, pid) { const set = {}, remove = {}; if (!pid || !s0) return null;
+  if (s0.park?.[pid]) set[`park.${pid}`] = null; if (s0.dutyReq?.ball?.[pid]) set[`dutyReq.ball.${pid}`] = null; if (s0.dutyReq?.drink?.[pid]) set[`dutyReq.drink.${pid}`] = null;
+  if ((s0.duty?.ball || []).includes(pid)) remove['duty.ball'] = [pid]; if ((s0.duty?.drink || []).includes(pid)) remove['duty.drink'] = [pid];
+  return Object.keys(set).length || Object.keys(remove).length ? { set, remove } : null }
+async function clearExtras(sid, pid) { const ops = extrasFor(S.sessions[sid], pid); if (!ops) return; try { await withTimeout(S.store.patch(sp(sid), ops), 10000) } catch (e) { console.warn(e) } }
 function appSrc(s0, r) { if (r.auto) return ['auto', '자동']; const a = appsOf(s0).find(x => x.k === r.k) || {};
   if (a.srv || a.q) return ['self', '본인 신청']; if (a.uid === 'admin') return ['admin', '운영진 추가']; if (a.uid === 'kakao') return ['kakao', '카톡 반영']; if (a.uid === 'sim') return ['sim', '연습'];
   if (String(r.k || '').startsWith('L') || String(r.k || '').startsWith('f') || String(r.k || '').startsWith('w')) return ['list', '명단']; return ['self', '본인 신청'] }
@@ -900,6 +906,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.5', '2026.10.02', ['신청을 취소하거나 신청자 명단에서 빠지면 주차·공당·물당 신청과 지정도 자동으로 취소돼요']],
   ['0.21.4', '2026.10.02', ['[운영진] 신청자 목록에 본인 신청 · 운영진 추가 · 카톡 반영을 구분해서 보여요', '업데이트 내용이 앱을 열 때 자동으로 뜨지 않아요(내 정보 → 업데이트 내용에서 볼 수 있어요)']],
   ['0.21.3', '2026.10.02', ['[운영진] 신청자를 직접 추가할 때 회원 명단에 없는 이름은 막고, 게스트는 이름 뒤에 (게)를 붙여야 추가돼요', '[운영진] 직접 추가하면 새로고침 없이 바로 목록에 반영돼요']],
   ['0.21.2', '2026.10.02', ['[운영진·베타] 카톡 투표 참여자 화면 캡처를 여러 장 올리면 이름을 자동으로 읽어서 신청 순서에 반영해요']],
@@ -1460,7 +1467,7 @@ async function cancelApp(sid, pid, key, byAdmin) {
   const penal = closed && wasSel && pid;
   if (!confirm(penal ? `${byAdmin ? pname(pid) + ' 님의 ' : ''}신청 마감 후 취소예요. 취소하면 다음 경기 신청 때 3순위가 돼요. 그래도 취소할까요?` : '신청을 취소할까요?')) return;
   const qdel = Object.entries(S.q?.[sid] || {}).filter(([qi, d]) => (pid && d.pid === pid) || (key && 'q' + qi === key)).map(([qi]) => qi);
-  if (qdel.length && !Array.isArray(s.apps)) { if (!(await w(() => Promise.all(qdel.map(qi => withTimeout(S.store.del(sp(sid) + '/q/' + qi), 10000)))))) return; if (!(s.applicants || []).includes(pid) && !appsOf0(s).some(a => a.pid === pid)) { toast('취소했어요.'); render(); return } }
+  if (qdel.length && !Array.isArray(s.apps)) { if (!(await w(() => Promise.all(qdel.map(qi => withTimeout(S.store.del(sp(sid) + '/q/' + qi), 10000)))))) return; if (!(s.applicants || []).includes(pid) && !appsOf0(s).some(a => a.pid === pid)) { await clearExtras(sid, pid); toast('취소했어요.'); render(); return } }
   if (s.stage === 'apply' && Array.isArray(s.apps)) {
     const vals = s.apps.filter(a => a && ((key && a.k === key) || (pid && a.pid === pid))); const set = {};
     if (pid && s.park?.[pid]) set[`park.${pid}`] = null; if (penal) set[`late.${pid}`] = Date.now();
@@ -1474,6 +1481,7 @@ async function cancelApp(sid, pid, key, byAdmin) {
     if (d.stage !== 'apply') { const was = (d.applicants || []).includes(pid); d.applicants = (d.applicants || []).filter(x => x !== pid); d.waitlist = (d.waitlist || []).filter(x => x !== pid); if (was && d.waitlist.length) d.applicants.push(d.waitlist.shift()); KEYS.forEach(k => { if (d.captains?.[k] === pid) d.captains[k] = null }) }
     if (pid && d.park?.[pid]) d.park[pid] = null;
     if (pid && d.duty) ['ball', 'drink'].forEach(k => { if (d.duty[k]) d.duty[k] = d.duty[k].filter(x => x !== pid) });
+    if (pid && d.dutyReq) ['ball', 'drink'].forEach(k => { if (d.dutyReq[k]?.[pid]) d.dutyReq[k][pid] = null });
     if (penal) d.late = { ...(d.late || {}), [pid]: Date.now() };
     return d }));
   if (ok) { const s2 = S.sessions[sid]; if (!byAdmin && pid && isBase(s) && autoIds(s2 || s).includes(pid)) toast(`신청은 취소했지만 ${roleOf(s2 || s, pid)}(이)라 자동 참가로 남아 있어요. 운영진에게 해제를 요청해 주세요.`); else toast(penal ? '취소했어요. 마감 후 취소로 기록됐어요.' : '취소했어요.') }
@@ -2111,7 +2119,7 @@ document.addEventListener('click', async e => {
     case 'gostage': if (!needAdmin() && el.dataset.v !== 'trade') break; if (el.dataset.v === 'captain' && !(await freezeApps(s))) break; await setStage(el.dataset.v); break;
     case 'addone': { const inp = document.getElementById('addone'); const v = inp.value.trim(); if (!v) break; inp.value = ''; inp.blur(); document.activeElement?.blur?.(); await addApplicants(v.split(/[,，\n]+/).map(x => x.trim()).filter(Boolean)); break }
     case 'rmapply': if (!needAdmin()) break; if (s.draftStatus !== 'ready') { toast('드래프트가 시작된 뒤에는 신청자를 뺄 수 없어요.'); break }
-      await w(() => S.store.update(sp(S.sid), { applicants: (s.applicants || []).filter(x => x !== id), captains: Object.fromEntries(KEYS.map(k => [k, s.captains?.[k] === id ? null : (s.captains?.[k] || null)])) })); break;
+      await clearExtras(S.sid, id); await w(() => S.store.update(sp(S.sid), { applicants: (s.applicants || []).filter(x => x !== id), captains: Object.fromEntries(KEYS.map(k => [k, s.captains?.[k] === id ? null : (s.captains?.[k] || null)])) })); break;
     case 'capslot': S.sheet = { type: 'capslot', k: el.dataset.k }; render(); break;
     case 'pickcap': { const k = S.sheet.k; S.sheet = null; render(); await w(() => S.store.update(sp(S.sid), { [`captains.${k}`]: id || null, [`captainTokens.${k}`]: id ? rand() : null })); break }
     case 'ord': { const o = [...(s.order || KEYS)]; const i = +el.dataset.i, j = i + (+el.dataset.d); [o[i], o[j]] = [o[j], o[i]]; await w(() => S.store.update(sp(S.sid), { order: o })); break }
@@ -2226,7 +2234,7 @@ document.addEventListener('click', async e => {
       if (!myPid()) { const pid0 = await loginFlow(v, document.getElementById('an-pin')?.value, document.getElementById('an-auto')?.checked); if (!pid0) break; v = pname(pid0) } const pkOn = document.getElementById('pk-on')?.checked, pkCar = document.getElementById('pk-car')?.value; if (pkOn && !(pkCar || '').trim()) { toast('주차 신청을 하려면 차량번호를 입력해 주세요.'); break }
       if (await setAppName(sh.sid, sh.key, v)) { if (pkOn) { const pid = findPlayer(v.replace(/\(\s*게\s*\)/g, '').trim()); if (pid) await saveParking(sh.sid, pid, pkCar) } S.sheet = null; render() } break }
     case 'appnameadmin': { if (!needAdmin()) break; const v = prompt('이 신청자의 이름을 입력하세요'); if (v && v.trim()) await setAppName(S.sid, id, v); break }
-    case 'apprm': { if (!needAdmin() || !confirm('이 신청을 삭제할까요?')) break; const a0 = appsOf(s).find(a => a.k === id); if (a0?.q) { await w(() => S.store.del(sp(S.sid) + '/q/' + a0.q)) } await w(() => S.store.txn(sp(S.sid), d => { d.apps = appsOf0(d).filter(a => a.k !== id && !(a0?.pid && a.pid === a0.pid && a0.q)); return d })); break }
+    case 'apprm': { if (!needAdmin() || !confirm('이 신청을 삭제할까요? 주차·공당·물당 신청도 함께 취소돼요.')) break; const a0 = appsOf(s).find(a => a.k === id); if (a0?.pid) await clearExtras(S.sid, a0.pid); if (a0?.q) { await w(() => S.store.del(sp(S.sid) + '/q/' + a0.q)) } await w(() => S.store.txn(sp(S.sid), d => { d.apps = appsOf0(d).filter(a => a.k !== id && !(a0?.pid && a.pid === a0.pid && a0.q)); return d })); break }
     case 'p0toggle': { if (!needAdmin()) break; const p0 = new Set(s.p0 || []); p0.has(id) ? p0.delete(id) : p0.add(id); await w(() => S.store.update(sp(S.sid), { p0: [...p0] })); break }
     case 'colorpick': { const k = el.dataset.k; if (!(S.admin || myTeam(s) === k)) break; S.sheet = { type: 'colorpick', k }; render(); break }
     case 'colorset': { const k = S.sheet?.k, c = el.dataset.c; if (!k || !(S.admin || myTeam(s) === k)) break; const old = team(s, k).name; S.sheet = null; render();
