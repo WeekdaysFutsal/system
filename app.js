@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.3';
+const APP_VERSION = '0.21.4';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -162,6 +162,9 @@ async function applyKakao(sid, list) { const picks = list.map(x => x.use).filter
     uniq.forEach((pid, i) => { if (!keyOf[pid]) { const k = 'kk' + rand(); base.push({ k, pid, uid: 'kakao', at: now + i }); keyOf[pid] = k; added++ } });
     const head = uniq.map(pid => keyOf[pid]); const rest = merged.map(a => a.k).filter(k => !head.includes(k)); d.apps = base; d.appOrder = [...head, ...rest]; return d }));
   if (ok) toast(`카톡 투표 순서대로 ${uniq.length}명을 반영했어요${added ? ` (새로 추가 ${added}명)` : ''}.`); return ok }
+function appSrc(s0, r) { if (r.auto) return ['auto', '자동']; const a = appsOf(s0).find(x => x.k === r.k) || {};
+  if (a.srv || a.q) return ['self', '본인 신청']; if (a.uid === 'admin') return ['admin', '운영진 추가']; if (a.uid === 'kakao') return ['kakao', '카톡 반영']; if (a.uid === 'sim') return ['sim', '연습'];
+  if (String(r.k || '').startsWith('L') || String(r.k || '').startsWith('f') || String(r.k || '').startsWith('w')) return ['list', '명단']; return ['self', '본인 신청'] }
 function dispRows(s0) { const c = classify(s0); return [...c.sel, ...c.wait].filter(r => !r.auto && r.k) }
 async function moveApp(sid, key, to) { const s0 = S.sessions[sid]; if (!s0 || s0.stage !== 'apply' || !betaOn()) return;
   const rows = dispRows(s0); const i = rows.findIndex(r => r.k === key); if (i < 0) return; const me = rows[i];
@@ -465,7 +468,6 @@ function render() {
   S.dm = !isDesk();
   if (S.ready >= 3 || S.err) hideBoot();
   if (S.ready >= 3) ensureQueues();
-  if (S.ready >= 3 && (S.auth || S.admin) && !S.sheet && !S.clChecked) { S.clChecked = true; const seen = load('seenVer', null); save('seenVer', APP_VERSION); if (seen && seen !== APP_VERSION) S.sheet = { type: 'changelog', fresh: true } }
   if (!S.admin && S.auth && S.ready >= 3) { const cs = capSid(); if (cs && S.tab !== 'draft' && !(S.capPop ??= {})[cs] && !S.sheet) { S.capPop[cs] = 1; S.sheet = { type: 'cappop', sid: cs } } }
   if (!S.admin && !S.auth && S.ready >= 3) { document.body.classList.remove('dm-on'); document.getElementById('app').innerHTML = loginScreen() + (S.sheet ? viewSheet() : ''); return }
   if (S.ready >= 3 && (!S.sid || !S.sessions[S.sid])) S.sid = defaultSid();
@@ -898,6 +900,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.4', '2026.10.02', ['[운영진] 신청자 목록에 본인 신청 · 운영진 추가 · 카톡 반영을 구분해서 보여요', '업데이트 내용이 앱을 열 때 자동으로 뜨지 않아요(내 정보 → 업데이트 내용에서 볼 수 있어요)']],
   ['0.21.3', '2026.10.02', ['[운영진] 신청자를 직접 추가할 때 회원 명단에 없는 이름은 막고, 게스트는 이름 뒤에 (게)를 붙여야 추가돼요', '[운영진] 직접 추가하면 새로고침 없이 바로 목록에 반영돼요']],
   ['0.21.2', '2026.10.02', ['[운영진·베타] 카톡 투표 참여자 화면 캡처를 여러 장 올리면 이름을 자동으로 읽어서 신청 순서에 반영해요']],
   ['0.21.1', '2026.10.02', ['[운영진·베타] 카톡 투표 명단을 붙여넣으면 회원과 자동으로 맞춰 신청 순서에 한 번에 반영해요', '[운영진·베타] 직접 바꾼 순서를 "실제 신청 순서"로 되돌리는 버튼', '[회원] 신청자 보기는 신청한 순서대로, 순위 표시는 The Base 구장에서만 보여요', '[운영진] 경기 메뉴는 진행이 시작된 다음 경기를 먼저 보여 주고, 신청자 현황에 공당·물당 신청이 보여요', '앱을 새로 열면 항상 홈에서 시작해요']],
@@ -1486,7 +1489,7 @@ function vApplyTable(s) {
   const betaNote = ad && !frozen && betaOn() ? `<div class="betatools"><button class="btn sm primary" data-act="kakaopaste">📷 카톡 투표 명단 반영</button>${Array.isArray(s.appOrder) && s.appOrder.length ? '<button class="btn sm" data-act="orderreset">↺ 실제 신청 순서로 되돌리기</button>' : ''}</div><p class="note betanote">🧪 베타테스트 기간이라 신청 순번을 바꿀 수 있어요. ▲▼로 한 칸씩, #으로 원하는 자리로 옮겨요. 0~3순위 규칙은 그대로라 같은 순위 안에서만 옮겨져요. (설정에서 정식 오픈하면 잠겨요)</p>` : '';
   const h = dsum + betaNote + `<div class="panel sheetwrap"><table class="grid atbl"><thead><tr><th>신청순</th><th class="stick">이름</th><th>순위</th><th>구분</th><th>신청 시각</th>${ad && !frozen && betaOn() ? '<th>순번 변경</th>' : ''}<th>주차</th><th>공당</th><th>물당</th><th>상태</th><th>마감 후 취소</th>${ad ? '<th>관리</th>' : ''}</tr></thead><tbody>
   ${rows.length ? rows.map(r => { const pk = r.pid && s.park?.[r.pid]?.car;
-    return `<tr class="${r.sel ? '' : 'wrow'}"><td class="num">${r.auto ? '자동' : r.n}</td><td class="stick"><b>${r.pid ? esc(pname(r.pid)) : '<i class="nn">이름 입력 대기</i>'}</b></td><td>${tb(r.tier)}</td>
+    return `<tr class="${r.sel ? '' : 'wrow'}"><td class="num">${r.auto ? '자동' : r.n}</td><td class="stick"><b>${r.pid ? esc(pname(r.pid)) : '<i class="nn">이름 입력 대기</i>'}</b>${(() => { const [k, t] = appSrc(s, r); return k === 'auto' ? '' : `<span class="src src-${k}">${t}</span>` })()}</td><td>${tb(r.tier)}</td>
       <td class="muted">${r.auto ? roleOf(s, r.pid) + ' (자동)' : r.pid ? (roleOf(s, r.pid) || (late.has(r.pid) ? '지난 경기 마감 후 취소' : '')) : ''}</td>
       <td class="num muted">${r.at ? fmtTS(r.at) : '-'}</td>
       ${ad && !frozen && betaOn() ? `<td class="mv">${r.auto ? '' : `<button class="btn sm" data-act="appmove" data-k="${r.k}" data-d="-1" aria-label="위로">▲</button><button class="btn sm" data-act="appmove" data-k="${r.k}" data-d="1" aria-label="아래로">▼</button><button class="btn sm" data-act="appmoveto" data-k="${r.k}" aria-label="순번 입력">#</button>`}</td>` : ''}
