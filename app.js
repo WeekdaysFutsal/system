@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.2';
+const APP_VERSION = '0.21.3';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -313,10 +313,15 @@ async function createSession(f) {
 }
 async function setStage(st) { const s = cur(); if (stageIdx(st) > stageIdx(s.stage)) await w(() => S.store.update(sp(S.sid), { stage: st })); if (st === 'notice') { S.tab = 'run'; S.step = 'trade'; render(); window.scrollTo(0, 0); return } S.step = st; render(); window.scrollTo(0, 0) }
 async function addApplicants(names) {
-  const s = cur(); const ids = []; for (const nm of names) { const id = await ensurePlayer(nm); if (id) ids.push(id) }
-  if (s.stage === 'apply') { let n = 0; await w(() => S.store.txn(sp(S.sid), d => { const apps = appsOf(d); n = 0; for (const id of ids) if (!apps.some(a => a.pid === id)) { apps.push({ k: rand() + rand(), pid: id, uid: 'admin', at: nowS() }); n++ } d.apps = apps; return d }), `${ids.length}명을 반영했어요.`); return }
+  const s = cur(); const ids = [], rejected = [];
+  for (const nm of names) { const guest = /\(\s*게(스트)?\s*\)/.test(nm); const name = nm.replace(/\(\s*게(스트)?\s*\)/g, '').trim(); if (!name) continue;
+    const ex = findPlayer(name); if (ex) { ids.push(ex); continue }
+    if (!guest) { rejected.push(name); continue } const id = await ensurePlayer(nm); if (id) ids.push(id) }
+  if (rejected.length) toast(`회원 명단에 없는 이름이에요: ${rejected.join(', ')}. 이름을 확인하거나, 게스트면 이름 뒤에 (게)를 붙여 주세요.`);
+  if (!ids.length) { render(); return }
+  if (s.stage === 'apply') { let n = 0; await w(() => S.store.txn(sp(S.sid), d => { const apps = appsOf(d); n = 0; for (const id of ids) if (!apps.some(a => a.pid === id)) { apps.push({ k: rand() + rand(), pid: id, uid: 'admin', at: nowS() }); n++ } d.apps = apps; return d }), rejected.length ? null : `${ids.length}명을 반영했어요.`); render(); return }
   const cur0 = [...(s.applicants || [])]; let n = 0; for (const id of ids) if (!cur0.includes(id)) { cur0.push(id); n++ }
-  await w(() => S.store.update(sp(S.sid), { applicants: cur0 }), `${n}명을 추가했어요.`);
+  await w(() => S.store.update(sp(S.sid), { applicants: cur0 }), rejected.length ? null : `${n}명을 추가했어요.`); render();
 }
 async function sysChat(text) { if (!S.sid) return; try { await S.store.add(sp(S.sid) + '/chat', { name: '', uid: 'sys', text, at: Date.now() }) } catch { } }
 async function undoPick(byCap) {
@@ -893,6 +898,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.3', '2026.10.02', ['[운영진] 신청자를 직접 추가할 때 회원 명단에 없는 이름은 막고, 게스트는 이름 뒤에 (게)를 붙여야 추가돼요', '[운영진] 직접 추가하면 새로고침 없이 바로 목록에 반영돼요']],
   ['0.21.2', '2026.10.02', ['[운영진·베타] 카톡 투표 참여자 화면 캡처를 여러 장 올리면 이름을 자동으로 읽어서 신청 순서에 반영해요']],
   ['0.21.1', '2026.10.02', ['[운영진·베타] 카톡 투표 명단을 붙여넣으면 회원과 자동으로 맞춰 신청 순서에 한 번에 반영해요', '[운영진·베타] 직접 바꾼 순서를 "실제 신청 순서"로 되돌리는 버튼', '[회원] 신청자 보기는 신청한 순서대로, 순위 표시는 The Base 구장에서만 보여요', '[운영진] 경기 메뉴는 진행이 시작된 다음 경기를 먼저 보여 주고, 신청자 현황에 공당·물당 신청이 보여요', '앱을 새로 열면 항상 홈에서 시작해요']],
   ['0.21', '2026.10.02', ['[운영진] 베타테스트 기간에는 신청자 순번을 바꿀 수 있어요(설정 → 서비스 상태에서 정식 오픈하면 잠겨요)', '경기모드 "일정 경기"에서 경기 일정을 직접 고를 수 있어요. 다음 경기는 시작 1시간 전부터, 지난 경기는 끝나고 1시간까지만 고를 수 있어요', '[운영진] 로딩 화면 배경 사진을 최대 5장까지 올리면, 앱을 열 때마다 무작위로 보여요', '배경 사진은 전체를 어둡게 깔아서 엠블럼과 글자가 또렷해요', '사진 속 주인공이 가운데 엠블럼에 가리지 않게, 사진 크기와 위치를 자동으로 맞춰요']],
@@ -2100,7 +2106,7 @@ document.addEventListener('click', async e => {
     case 'newsession': if (!needAdmin()) break; S.sheet = { type: 'newsession' }; render(); break;
     case 'step': S.step = el.dataset.v; S.sel = null; render(); window.scrollTo(0, 0); break;
     case 'gostage': if (!needAdmin() && el.dataset.v !== 'trade') break; if (el.dataset.v === 'captain' && !(await freezeApps(s))) break; await setStage(el.dataset.v); break;
-    case 'addone': { const inp = document.getElementById('addone'); const v = inp.value.trim(); if (!v) break; inp.value = ''; await addApplicants([v]); break }
+    case 'addone': { const inp = document.getElementById('addone'); const v = inp.value.trim(); if (!v) break; inp.value = ''; inp.blur(); document.activeElement?.blur?.(); await addApplicants(v.split(/[,，\n]+/).map(x => x.trim()).filter(Boolean)); break }
     case 'rmapply': if (!needAdmin()) break; if (s.draftStatus !== 'ready') { toast('드래프트가 시작된 뒤에는 신청자를 뺄 수 없어요.'); break }
       await w(() => S.store.update(sp(S.sid), { applicants: (s.applicants || []).filter(x => x !== id), captains: Object.fromEntries(KEYS.map(k => [k, s.captains?.[k] === id ? null : (s.captains?.[k] || null)])) })); break;
     case 'capslot': S.sheet = { type: 'capslot', k: el.dataset.k }; render(); break;
