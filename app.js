@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.18';
+const APP_VERSION = '0.19';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -15,7 +15,6 @@ const isBase = s => /the\s*base/i.test(s?.venue || '');
 const DEFAULTS = { time: '21:00', venue: '용산 7구장', notice: '', openDays: 6, openTime: '13:00', closeDays: 2, closeTime: '20:00', ...(CFG.defaults || {}) };
 
 /* ───────── storage backends ───────── */
-function clone(o) { return o == null ? o : JSON.parse(JSON.stringify(o)) }
 function setDotted(obj, path, val) { const ks = path.split('.'); let o = obj; ks.slice(0, -1).forEach(k => { if (typeof o[k] !== 'object' || o[k] === null) o[k] = {}; o = o[k] }); o[ks[ks.length - 1]] = val }
 
 async function artifactStore() {
@@ -105,13 +104,6 @@ function pname(id) { if (!id) return '미지정'; const p = S.players[id]; if (!
 function team(s, k) { const t = s?.teams?.[k] || {}; const p = PALETTE.find(x => x.name === t.colorName); if (p) return { name: p.name, color: p.color, picked: true };
   return { name: k + '팀', color: NEUTRAL[k], picked: false } }
 function allPicked(s) { return KEYS.every(k => team(s, k).picked) }
-function colorPanel(s) {
-  if (s.draftStatus !== 'done') return ''; const my = myTeam(s); const can = k => S.admin || my === k;
-  return `<h2>팀 색 선택<small>${allPicked(s) ? '모든 팀이 골랐어요' : '각 팀 주장이 조끼 색을 골라요'}</small></h2><div class="panel">${KEYS.map(k => { const t = team(s, k); const cur = s.teams?.[k]?.colorName;
-    return `<div class="colrow"><div class="colhd">${tag(t)}<span>👑 ${esc(pname(s.captains?.[k]))}</span>${t.picked ? '' : '<em>선택 전</em>'}${my === k ? '<b class="metag">내 팀</b>' : ''}</div>
-    ${can(k) ? `<div class="cswatch">${PALETTE.map(p => { const by = KEYS.find(o => o !== k && s.teams?.[o]?.colorName === p.name);
-      return `<button class="csw ${cur === p.name ? 'on' : ''}" style="background:${p.color};color:${inkOn(p.color)}" data-act="pickcolor" data-k="${k}" data-c="${p.name}" ${by ? 'disabled' : ''} aria-pressed="${cur === p.name}">${p.name}${by ? '<small>선택됨</small>' : ''}</button>` }).join('')}</div>` : ''}</div>` }).join('')}</div>`;
-}
 function bib(c) { return `<span class="bib" style="background:${c}"></span>` }
 function tag(t) { return `<span class="teamtag" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}</span>` }
 function timing(s) { return { ...DEF_TIMING, ...(s?.timing || {}) } }
@@ -158,8 +150,9 @@ function teamPlayers(s, k) {
 function captainOf(s, k) { return s?.captains?.[k] || null }
 
 /* ───────── match logic ───────── */
-function orderIdx(m) { return (m.round - 1) * 3 + m.slot }
-function sessMatches(sid) { return Object.entries(S.matches).filter(([, m]) => m.session === sid).map(([id, m]) => { const t = m.home && m.away ? [m.home, m.away] : PAIRS[m.slot - 1]; return { id, ...m, home: t[0], away: t[1] } }).sort((a, b) => a.n - b.n) }
+let SM_REF = null, SM_CACHE = {};
+function sessMatches(sid) { if (SM_REF !== S.matches) { SM_REF = S.matches; SM_CACHE = {} } return SM_CACHE[sid] || (SM_CACHE[sid] = sessMatches0(sid)) }
+function sessMatches0(sid) { return Object.entries(S.matches).filter(([, m]) => m.session === sid).map(([id, m]) => { const t = m.home && m.away ? [m.home, m.away] : PAIRS[m.slot - 1]; return { id, ...m, home: t[0], away: t[1] } }).sort((a, b) => a.n - b.n) }
 function M(id) { const m = S.matches[id]; if (!m) return null; const t = m.home && m.away ? [m.home, m.away] : PAIRS[m.slot - 1]; return { id, ...m, home: t[0], away: t[1] } }
 function evsOf(mid) { return Object.entries(S.events).filter(([, e]) => e.match === mid).map(([id, e]) => ({ id, ...e })).sort((a, b) => a.sec - b.sec || a.at - b.at) }
 function score(m) { let h = 0, a = 0; for (const e of Object.values(S.events)) { if (e.match !== m.id) continue; if (e.team === m.home) h++; else if (e.team === m.away) a++ } return [h, a] }
@@ -255,15 +248,6 @@ async function ensurePlayer(raw) {
   const guest = /\(\s*게\s*\)/.test(raw); const name = raw.replace(/\(\s*게\s*\)/g, '').trim().slice(0, 20); if (!name) return null;
   const ex = findPlayer(name); if (ex) return ex;
   const id = await S.store.add('players', { name, guest, createdAt: Date.now() }); S.players[id] = { name, guest }; return id;
-}
-function parseNames(txt) {
-  const bad = /^(투표|참여|참석|불참|미정|명|총|인원|결과|항목|선택|님|외)$/;
-  const out = []; for (const line of txt.split(/\r?\n/)) {
-    const clean = line.replace(/^\s*[\d]+[.)]\s*/, '').replace(/[•·\-–—▪︎◦*#]/g, ' ');
-    for (let tk of clean.split(/[\s,，、/]+/)) { tk = tk.trim(); if (!tk) continue; const guest = /\(\s*게\s*\)/.test(tk);
-      tk = tk.replace(/\(.*?\)/g, '').replace(/[^\p{L}\p{N}]/gu, '').replace(/님$/, ''); if (!tk || /^\d+$/.test(tk) || bad.test(tk) || !/[가-힣A-Za-z]/.test(tk) || tk.length > 12) continue;
-      out.push(tk + (guest ? '(게)' : '')) } }
-  return [...new Set(out)];
 }
 async function createSession(f) {
   const sid = f.date; if (S.sessions[sid]) { toast('그 날짜의 경기일이 이미 있어요.'); S.sid = sid; S.step = null; S.tab = 'home'; render(); return }
@@ -417,6 +401,7 @@ window.addEventListener('unhandledrejection', e => { try { console.error(e.reaso
 const BOOT_T0 = performance.now();
 function hideBoot() { const b = document.getElementById('boot'); if (!b || b.dataset.out) return; b.dataset.out = '1'; const wait = Math.max(0, 1100 - (performance.now() - BOOT_T0)); setTimeout(() => { b.classList.add('out'); setTimeout(() => b.remove(), 500) }, wait) }
 (() => { const im = document.querySelector('#boot img'); if (im) im.src = EMBLEM_SRC })();
+let RENDER_Q = 0; function renderSoon() { if (RENDER_Q) return; RENDER_Q = requestAnimationFrame(() => { RENDER_Q = 0; render() }) }
 function render() {
   if (isTyping()) { S.pending = true; return } S.pending = false;
   S.dm = !isDesk();
@@ -503,24 +488,6 @@ function vMemberNotice(s) {
   <p class="note">드래프트가 시작되면 이 화면에서 실시간으로 볼 수 있어요.</p>` + chatPanel();
 }
 
-function viewHome() {
-  const ids = Object.keys(S.sessions).sort().reverse();
-  let h = `<h2>경기일</h2>`;
-  if (S.admin) h += `<button class="btn primary block" data-act="newsession">＋ 새 경기일 만들기</button><div style="height:12px"></div>`;
-  h += `<div class="panel">${ids.length ? ids.map(id => { const s = S.sessions[id]; const st = STAGES[stageIdx(s.stage)]?.[1] || '';
-    let r = `<span class="stagebadge">${st} 단계</span>`;
-    if (isComplete(id)) { const top = standings(id).filter(x => x.rank === 1); r = top.map(x => `${bib(team(s, x.k).color)} ${esc(team(s, x.k).name)}`).join(' ') + (top.length > 1 ? ' 공동 1위' : ' 1위') }
-    return `<button class="card" data-act="opensession" data-id="${id}"><span><span class="d">${fmtDate(id)} ${esc(s.time || '')}</span><br><span class="s">${esc(s.venue || '')}${s.applicants?.length ? `, 신청 ${s.applicants.length}명` : ''}</span></span><span class="r">${r}</span></button>` }).join('')
-    : `<p class="empty">${S.admin ? '위 버튼으로 첫 경기일을 만들어 보세요.' : '아직 경기일이 없어요. 운영진이 만들면 여기에 보여요.'}</p>`}</div>`;
-  return h;
-}
-
-function viewSession() {
-  const s = cur(); const step = S.step || s.stage; const si = stageIdx(s.stage);
-  let h = `<nav class="steps" aria-label="진행 단계">${STAGES.map(([k, n], i) => `<button data-act="step" data-v="${k}" class="${i < si ? 'done' : ''}" ${k === step ? 'aria-current="step"' : ''}><i>${i + 1}</i>${n}</button>`).join('')}</nav>`;
-  h += ({ apply: vApply, captain: vCaptain, draft: vDraft, trade: vTrade, notice: vNotice, match: vMatchDay })[step](s);
-  return h;
-}
 function vApply(s) {
   const ad = S.admin; const ids = s.applicants || [];
   let h = `<h2>신청 조건<small>수정은 일정 메뉴에서</small></h2><div class="panel apinfo ro">${[['정원', s.capacity ? s.capacity + '명' : '-'], ['신청 오픈', s.applyOpen ? fmtDT(s.applyOpen) : '-'], ['신청 마감', s.applyClose ? fmtDT(s.applyClose) : '-'], ['순위 규칙', isBase(s) ? 'The Base 0~3순위' : '선착순'], ['구장 예약자', idsToNames(s.p0) || '-'], ['경기 운영자', idsToNames(s.ops) || '-']].map(([k, v]) => `<div class="field"><span>${k}</span><b>${esc(v)}</b></div>`).join('')}</div>`;
@@ -545,12 +512,6 @@ function vCaptain(s) {
   if (S.admin) { const vs = s.viewers || []; const pool = byName(Object.keys(S.players).filter(id => mstatus(S.players[id]) !== 'dormant' && !captainsOf(s).includes(id)));
     h += `<h2>드래프트 참관자<small>지정한 회원만 드래프트를 볼 수 있어요 (${vs.length}명)</small></h2><div class="panel pad"><div class="dpick">${pool.map(id => `<button class="chip ${vs.includes(id) ? 'sel' : ''}" data-act="viewertog" data-id="${id}">${vs.includes(id) ? '👀 ' : ''}${esc(pname(id))}</button>`).join('')}</div></div>` }
   return h;
-}
-function capLinksPanel(s) {
-  if (s.draftStatus === 'done') return '';
-  return `<h2>주장 링크<small>주장에게 보내면 그 이름으로 드래프트에 참여해요</small></h2><div class="panel">${KEYS.map(k => { const c = s.captains?.[k];
-    return `<div class="slot">${tag(team(s, k))}<span class="who ${c ? '' : 'empty'}">${c ? esc(pname(c)) : '주장 미지정'}</span>${c ? `<button class="btn sm" data-act="caplink" data-k="${k}" data-how="share">보내기</button><button class="btn sm" data-act="caplink" data-k="${k}" data-how="copy">복사</button>` : ''}</div>` }).join('')}</div>
-  <p class="note">주장을 바꾸면 이전 링크는 더 이상 쓸 수 없어요.</p>`;
 }
 /* ───────── draft room (board game) ───────── */
 const LADDER_MS = 4200;
@@ -724,20 +685,6 @@ async function runLadder() {
   if (await w(() => S.store.update(sp(S.sid), { ladder: L, order, cardgame: null, draftStatus: 'live', picks: [], pending: null }))) {
     setTimeout(() => sysChat(`사다리 결과: ${order.map((k, i) => `${i + 1}번 ${team(s, k).name}(${pname(s.captains[k])})`).join(', ')}. 1순위부터 팀원을 골라요!`), LADDER_MS) }
 }
-async function commitPick(pid) {
-  const s = cur(); const i0 = (s.picks || []).length; const k = pickTeamAt(s, i0);
-  if (!(S.admin || (myTeam(s) === k && s.room?.[k]?.in))) { toast('내 차례에만 고를 수 있어요.'); return }
-  if (S.picking) return; S.picking = true; let info = null, done = false;
-  try {
-    const ok = await w(() => S.store.txn(sp(S.sid), d => { if (!d || d.draftStatus !== 'live') return null; const i = (d.picks || []).length; const kk = pickTeamAt(d, i);
-      if (kk !== k || !pool(d).includes(pid)) return null; info = { t: kk, p: pid, n: i + 1 };
-      d.picks = [...(d.picks || []), { t: kk, p: pid, at: Date.now() }]; d.pending = null;
-      if (!pool(d).length) { d.draftStatus = 'done'; d.stage = 'trade'; KEYS.forEach(t => { d.teams[t] = { ...(d.teams[t] || {}), players: [d.captains[t], ...d.picks.filter(x => x.t === t).map(x => x.p)] } }); done = true }
-      return d }));
-    if (ok && info) { try { navigator.vibrate?.(40) } catch { } sysChat(`${info.n}순위 ${team(s, info.t).name}: ${pname(info.p)}`); if (done) sysChat('드래프트 완료! 🎉') }
-    else if (!ok) toast('이미 다른 선택이 반영됐어요. 화면을 확인해 주세요.');
-  } finally { S.picking = false }
-}
 async function setPending(pid) {
   const s = cur(); const k = pickTeamAt(s, (s.picks || []).length);
   if (!(S.admin || (myTeam(s) === k && s.room?.[k]?.in))) { toast('내 차례에만 고를 수 있어요.'); return }
@@ -886,6 +833,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.19', '2026.10.02', ['베타테스트 대비 전체 최적화: 다시 열 때 화면·스타일·앱 파일을 폰 저장본에서 바로 불러와 훨씬 빨라졌어요', '서버 연결 준비를 앱 시작과 동시에 해서 첫 화면이 빨라졌어요', '데이터가 한꺼번에 들어와도 화면을 한 번만 다시 그려서 더 부드러워졌어요', '쓰지 않는 코드와 화면 스타일을 정리하고 엠블럼 이미지를 가볍게 줄였어요', '드래프트 화면 아래 채팅 기록 글자가 겹쳐 보이던 문제를 고쳤어요']],
   ['0.18', '2026.10.01', ['업데이트 내용을 내 정보에서 확인할 수 있어요', '로딩 화면은 앱을 처음 열 때만 보이고, 새로고침은 바로 돼요']],
   ['0.17', '2026.10.01', ['신청 순번을 서버에 도착한 시각(1/1000초)으로 정해요. 폰 시계나 조작으로 바꿀 수 없어요', '마감 시각 이후에 도착한 신청은 인정되지 않아요', '앱이 데이터를 폰에 저장해 두고 바뀐 것만 받아서 더 빠르고 가벼워졌어요']],
   ['0.16', '2026.10.01', ['앱을 열 때 클럽 엠블럼 로딩 화면', '경기모드 "직접 설정": 일정 없이 팀·경기 수·시간을 정해 경기 진행과 결과 정리', '운영모드 비밀번호 변경', '드래프트 참관자 지정', '연습 데이터를 항목별로 지우기']],
@@ -930,7 +878,6 @@ async function loadOld(sid) { if (!S.cut || sid >= S.cut || (S.oldLoaded ??= {})
     S.oldMatches ??= {}; S.oldEvents ??= {}; ms.forEach(d => { const { id, ...r } = d; S.oldMatches[id] = r; S.matches[id] = r }); ev.forEach(d => { const { id, ...r } = d; S.oldEvents[id] = r; S.events[id] = r }); render() } catch (e) { S.oldLoaded[sid] = 0; console.warn(e) } }
 function myPid() { return S.auth?.pid && S.players[S.auth.pid] ? S.auth.pid : null }
 function myTeamIn(s) { const me = myPid(); return me ? KEYS.find(k => teamPlayers(s, k).includes(me)) || null : null }
-function rankOf(rows, key, id) { const v = r => key === 'pts' ? r.g + r.a : r[key]; const mine = rows.find(r => r.id === id); if (!mine) return null; return 1 + rows.filter(r => v(r) > v(mine)).length }
 function backbar(label) { return `<button class="backlink" data-act="sub" data-v="">‹ ${label}</button>` }
 
 function viewMHome() {
@@ -1036,7 +983,6 @@ function viewResults() {
     <div class="rddots">${ids.slice().reverse().map(id => `<i class="${id === S.detail ? 'on' : ''}"></i>`).join('')}</div>${vResultDetail(s)}</div>`;
 }
 
-const RANKS = [['g', '득점'], ['days', '참가']];
 function viewApplicants() { const s = cur(); const me = myPid();
   if (s.stage === 'apply') { const c = classify(s); const mine = myApp(s);
     const chip = r => `<span class="chip ${(mine && mine.k === r.k) ? 'sel' : ''}"><small class="muted">${r.auto ? '자동' : r.n}</small> ${r.pid ? esc(pname(r.pid)) : '이름 입력 대기'}${r.sel ? `<b class="tb t${r.tier}">${TIER[r.tier]}</b>` : ''}</span>`;
@@ -1255,7 +1201,7 @@ function queueApps(s) { const q = S.q?.[s?.date]; if (!q) return []; const open 
   return Object.entries(q).map(([id, d]) => ({ k: 'q' + id, q: id, pid: d.pid || null, uid: d.uid, at: tsMs(d.at) ?? d.tap ?? 0, srv: true })).filter(a => (!open || a.at >= open - 1500) && (!close || a.at <= close)) }
 function ensureQueues() { if (!S.store) return; S.qUn ??= {}; S.q ??= {}; const want = new Set(Object.keys(S.sessions).filter(id => ['apply', 'captain'].includes(S.sessions[id].stage) && id >= today()));
   for (const id of Object.keys(S.qUn)) if (!want.has(id)) { try { S.qUn[id]() } catch { } delete S.qUn[id]; delete S.q[id] }
-  for (const id of want) if (!S.qUn[id]) S.qUn[id] = S.store.watchCol(sp(id) + '/q', docs => { const o = {}; docs.forEach(d => { const { id: di, ...r } = d; o[di] = r }); S.q[id] = o; render() }, { est: true }, () => { }) }
+  for (const id of want) if (!S.qUn[id]) S.qUn[id] = S.store.watchCol(sp(id) + '/q', docs => { const o = {}; docs.forEach(d => { const { id: di, ...r } = d; o[di] = r }); S.q[id] = o; renderSoon() }, { est: true }, () => { }) }
 function appsOf(s) { const qa = queueApps(s); if (qa.length) { const base = Array.isArray(s.apps) ? s.apps : appsOf0(s); return appsOf0({ ...s, apps: [...base, ...qa] }) } return appsOf0(s) }
 function appsOf0(s) { if (Array.isArray(s.apps)) { const seen = new Set(); return s.apps.filter(a => a && typeof a === 'object').map((a, i) => ({ a, i })).sort((x, y) => ((x.a.at || 0) - (y.a.at || 0)) || (x.i - y.i)).map(x => x.a).filter(a => { if (!a.pid) return true; if (seen.has(a.pid)) return false; seen.add(a.pid); return true }) } return [...(s.applicants || []), ...(s.waitlist || [])].map((pid, i) => ({ k: 'L' + i, pid, at: 0 })) }
 function prevSessionId(s) { const ids = Object.keys(S.sessions).filter(id => id < s.date).sort().reverse(); return ids.find(id => KEYS.some(k => teamPlayers(S.sessions[id], k).length)) || null }
@@ -1264,7 +1210,9 @@ function autoIds(s) { return [...new Set([...(s.p0 || []), ...(s.ops || [])])].f
 function roleOf(s, id) { return (s.p0 || []).includes(id) ? '구장 예약자' : (s.ops || []).includes(id) ? '경기 운영자' : S.players[id]?.staff ? '운영진' : '' }
 async function namesToIds(txt) { const out = []; for (const nm of (txt || '').split(/[,，、\n]+/).map(x => x.trim()).filter(Boolean)) { const id = await ensurePlayer(nm); if (id && !out.includes(id)) out.push(id) } return out }
 function idsToNames(ids) { return (ids || []).map(id => S.players[id]?.name).filter(Boolean).join(', ') }
-function classify(s) {
+const CL_CACHE = new WeakMap();
+function classify(s) { const key = S.q?.[s?.date]; const c = s && CL_CACHE.get(s); if (c && c.q === key && c.p === S.players && c.ss === S.sessions && c.m === S.matches) return c.r; const r = classify0(s); if (s) CL_CACHE.set(s, { q: key, p: S.players, ss: S.sessions, m: S.matches, r }); return r }
+function classify0(s) {
   const apps = appsOf(s); const prev = prevSessionId(s); const played = prev ? new Set(KEYS.flatMap(k => teamPlayers(S.sessions[prev], k))) : null; const staff = staffSet(s); const late = lateSet(s);
   const base = isBase(s); const applied = new Set(apps.map(a => a.pid).filter(Boolean));
   const autos = (base ? autoIds(s) : []).filter(id => !applied.has(id)).map(id => ({ k: 'auto-' + id, pid: id, auto: true, n: 0, tier: 0 }));
@@ -1766,7 +1714,6 @@ async function mmSavePairs() {
   if (ok) { S.mmStage = null; S.mmDraft = null; if (!s.mm?.timed) S.mmStage = 'time'; render() }
 }
 function beepAt(t, freq, dur) { const ctx = AC; const nodes = []; const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = freq; const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.9, t + .01); g.gain.setValueAtTime(.9, t + dur - .03); g.gain.linearRampToValueAtTime(0, t + dur); o.connect(g); g.connect(MASTER); o.start(t); o.stop(t + dur + .02); nodes.push(o); return nodes }
-function beep(freq, dur) { const ctx = audio(); if (!ctx) return; if (ctx.state === 'suspended') ctx.resume(); const t = ctx.currentTime + .01; const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = freq; const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.9, t + .01); g.gain.setValueAtTime(.9, t + dur - .03); g.gain.linearRampToValueAtTime(0, t + dur); o.connect(g); g.connect(MASTER); o.start(t); o.stop(t + dur + .02) }
 function mmCountdown(m) {
   const ctx = audio(); keepAwake(true); if (ctx && ctx.state === 'suspended') ctx.resume();
   if (ctx && S.whistle) { const t0 = ctx.currentTime + .05; beepAt(t0, 1320, .18); beepAt(t0 + 1, 1320, .18); beepAt(t0 + 2, 1320, .18); let t = t0 + 3; blowN(t, .9) } let n = 3; const ov = document.createElement('div'); ov.className = 'mm-cd'; document.body.appendChild(ov);
@@ -2299,10 +2246,10 @@ function swipeTab(dir) {
     if (key === 'sessions' && S.pendingLink) { const sid = S.pendingLink; S.pendingLink = null; S.sid = S.sessions[sid] ? sid : null; if (!S.sessions[sid] || !myTeam(S.sessions[sid])) { toast('만료되었거나 잘못된 주장 링크예요. 운영진에게 새 링크를 받아 주세요.'); S.tab = 'mhome' } else toast(`${team(S.sessions[sid], myTeam(S.sessions[sid])).name} 주장으로 드래프트에 참여해요.`) }
     if (key === 'sessions' && S.tab === 'notice' && S.admin) S.schedImg = {};
     if (key === 'sessions' && S.sid && (S.tab === 'notice' || S.sub === 'poster')) { clearTimeout(posterT); posterT = setTimeout(refreshPoster, 300) }
-    render() }, null, onErr) };
+    renderSoon() }, null, onErr) };
   sub('players', 'players'); sub('sessions', 'sessions'); const CUT = (() => { const d = new Date(); d.setDate(d.getDate() - 90); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}` })(); S.cut = CUT;
-  { let first = true; S.store.watchCol('matches', docs => { const o = { ...(S.oldMatches || {}) }; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); S.matches = o; if (first) { first = false; S.ready++; if (S.ready === 3) { setTimeout(maybeSeed, 300); verifyAuth(); syncClock(); setInterval(syncClock, 5 * 60 * 1000) } } render() }, { where: [['session', '>=', CUT]] }, onErr) }
+  { let first = true; S.store.watchCol('matches', docs => { const o = { ...(S.oldMatches || {}) }; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); S.matches = o; if (first) { first = false; S.ready++; if (S.ready === 3) { setTimeout(maybeSeed, 300); verifyAuth(); syncClock(); setInterval(syncClock, 5 * 60 * 1000) } } renderSoon() }, { where: [['session', '>=', CUT]] }, onErr) }
   S.store.watchCol('meta', docs => { const o = {}; docs.forEach(d => { const { id, ...r } = d; o[id] = r }); S.meta = o; if (S.tab === 'notice' && S.admin) { S.schedImg = {}; refreshSchedule() } }, null, () => { });
-  S.store.watchCol('events', docs => { const o = { ...(S.oldEvents || {}) }; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); S.events = o; render() }, { where: [['session', '>=', S.cut]] }, onErr);
+  S.store.watchCol('events', docs => { const o = { ...(S.oldEvents || {}) }; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); S.events = o; renderSoon() }, { where: [['session', '>=', S.cut]] }, onErr);
   if (!IS_ARTIFACT && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => r.update()).catch(() => { });
 })();
