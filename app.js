@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.1';
+const APP_VERSION = '0.21.2';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -133,6 +133,27 @@ function parseKakao(text) { const byN = {}; Object.entries(S.players).forEach(([
   for (const t of toks) { let pid = byN[t.n]?.[0] || null, guess = null;
     if (!pid) { let best = null, bd = 9; for (const [k, ids] of Object.entries(byN)) { const dd = editDist(t.n, k); if (dd < bd) { bd = dd; best = ids[0] } } if (bd <= 1 && t.n.length >= 2) guess = best }
     const key = pid || guess || 'x:' + t.n; if (seen.has(key)) continue; seen.add(key); out.push({ raw: t.raw, pid, guess, use: pid || guess || '' }) }
+  return out }
+/* ── 캡처 이미지 글자 읽기(OCR): 기기 안에서 Tesseract로 읽고, 회원 이름과 맞춰요 ── */
+let OCR_W = null;
+function loadScript(src) { return new Promise((res, rej) => { if ([...document.scripts].some(x => x.src === src)) return res(); const sc = document.createElement('script'); sc.src = src; sc.onload = res; sc.onerror = () => rej(new Error('스크립트를 불러오지 못했어요')); document.head.appendChild(sc) }) }
+async function ocrWorker(onProg) { if (OCR_W) return OCR_W; await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
+  OCR_W = await window.Tesseract.createWorker('kor', 1, { logger: m => { if (m.status === 'recognizing text') onProg?.(m.progress) } }); return OCR_W }
+async function prepImage(file) { const url = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file) });
+  const im = await new Promise((res, rej) => { const g = new Image(); g.onload = () => res(g); g.onerror = rej; g.src = url });
+  const sc = Math.min(2, 1400 / im.width); const cv = document.createElement('canvas'); cv.width = Math.round(im.width * sc); cv.height = Math.round(im.height * sc); const c = cv.getContext('2d'); c.drawImage(im, 0, 0, cv.width, cv.height);
+  const d = c.getImageData(0, 0, cv.width, cv.height); const a = d.data; let sum = 0; for (let i = 0; i < a.length; i += 4) sum += .299 * a[i] + .587 * a[i + 1] + .114 * a[i + 2]; const dark = sum / (a.length / 4) < 110;
+  for (let i = 0; i < a.length; i += 4) { let v = .299 * a[i] + .587 * a[i + 1] + .114 * a[i + 2]; if (dark) v = 255 - v; v = v < 150 ? Math.max(0, v * .6) : 255; a[i] = a[i + 1] = a[i + 2] = v } c.putImageData(d, 0, 0); return cv }
+function matchLine(line, names) { const L = normName(line); if (L.length < 2) return null; let best = null;
+  for (const [n, id] of names) { if (L.includes(n)) { const sc = 100 + n.length; if (!best || sc > best.sc) best = { id, sc, exact: true } } }
+  if (best) return best; for (const [n, id] of names) { if (n.length < 2) continue; for (let w0 = n.length - 1; w0 <= n.length + 1; w0++) for (let i = 0; i + w0 <= L.length; i++) { const dd = editDist(L.slice(i, i + w0), n); const lim = n.length >= 3 ? 1 : 0; if (dd <= lim) { const sc = 50 + n.length - dd * 10; if (!best || sc > best.sc) best = { id, sc, exact: false } } } }
+  return best }
+async function ocrKakao(files, onStep) { const names = Object.entries(S.players).map(([id, p]) => [normName(p.name), id]).filter(([n]) => n.length >= 2).sort((x, y) => y[0].length - x[0].length);
+  const out = [], seen = new Set(); const W0 = await ocrWorker(p => onStep?.(S.ocrI, p));
+  for (let i = 0; i < files.length; i++) { S.ocrI = i; onStep?.(i, 0); const cv = await prepImage(files[i]); const { data } = await W0.recognize(cv);
+    const lines = (data.lines || []).map(l => l.text).filter(Boolean); const texts = lines.length ? lines : String(data.text || '').split('\n');
+    for (const t of texts) { const m = matchLine(t, names); const raw = t.trim(); if (m) { if (seen.has(m.id)) continue; seen.add(m.id); out.push({ raw, pid: m.exact ? m.id : null, guess: m.exact ? null : m.id, use: m.id }) }
+      else { const h = normName(t); if (/^[가-힣]{2,4}$/.test(h) && !/^(투표|참여|완료|선택|오전|오후|어제|오늘|참석|불참|명단)$/.test(h) && !seen.has('x:' + h)) { seen.add('x:' + h); out.push({ raw, pid: null, guess: null, use: '' }) } } } }
   return out }
 async function applyKakao(sid, list) { const picks = list.map(x => x.use).filter(Boolean); const uniq = [...new Set(picks)]; if (!uniq.length) { toast('반영할 회원이 없어요.'); return false }
   const now = nowS(); let added = 0;
@@ -826,9 +847,11 @@ function viewSheet() {
   else if (sh.type === 'park') h += parkSheet(sh.sid);
   else if (sh.type === 'parkapply') { const ss = S.sessions[sh.sid]; h += `<h4>🚗 주차 신청</h4><p>${fmtDate(sh.sid)} 경기 주차를 신청해요. 신청자 중 ${PARK_SLOTS}명을 추첨해요.</p><div class="panel"><div class="field"><label for="pk-car2">차량번호</label><input id="pk-car2" class="inp" type="text" maxlength="12" placeholder="예: 12가3456" value="${esc(myCar())}"></div><p class="note" style="margin:6px 0 0">내 정보에 차량번호를 저장해 두면 자동으로 채워져요.</p></div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="parksave">신청</button></div>` }
   else if (sh.type === 'kakao') { const L = S.kk || null;
-    h += `<h4>📋 카톡 투표 명단 붙여넣기</h4>${!L ? `<p>카톡 투표 참여자 이름을 <b>투표한 순서대로</b> 붙여넣어 주세요. 줄바꿈·쉼표·띄어쓰기 모두 괜찮아요.</p><textarea id="kk-text" class="inp" rows="8" placeholder="예)\n김민혁\n이도형\n안준영"></textarea><button class="btn primary block" style="margin-top:10px" data-act="kakaoparse">이름 확인하기</button>`
-      : `<p>${L.filter(x => x.use).length}명을 이 순서대로 맨 앞에 놓아요. 확인 후 반영을 눌러 주세요.</p><div class="kk-list">${L.map((x, i) => `<div class="kk-row ${x.pid ? '' : x.guess ? 'warn' : 'bad'}"><em>${i + 1}</em><span>${esc(x.raw)}</span><select class="inp" data-in="kkpick" data-i="${i}"><option value="">${x.pid || x.guess ? '건너뛰기' : '명단에 없음 · 건너뛰기'}</option>${byName(Object.keys(S.players)).map(id => `<option value="${id}" ${x.use === id ? 'selected' : ''}>${esc(pname(id))}${x.guess === id && !x.pid ? ' (혹시?)' : ''}</option>`).join('')}</select></div>`).join('')}</div>
-      <div class="row" style="margin-top:10px"><button class="btn" data-act="kakaoback">← 다시 붙여넣기</button><button class="btn primary" data-act="kakaoapply">반영하기</button></div>` }` }
+    h += `<h4>📋 카톡 투표 명단 반영</h4>${S.ocrBusy ? `<div class="ocrbox"><div class="ocrspin"></div><b>${S.ocrMsg || '글자 읽는 중…'}</b><small>처음 한 번은 한글 인식 데이터를 받느라 조금 걸려요.</small></div>` : !L ? `<p>카톡 투표 <b>참여자 목록 화면</b>을 캡처해서 올려 주세요. 스크롤해서 여러 장이면 <b>위에서부터 순서대로</b> 모두 골라 주세요. 겹치는 이름은 한 번만 읽어요.</p>
+      <label class="btn primary block" style="cursor:pointer">📷 캡처 이미지 올리기 (여러 장 가능)<input type="file" accept="image/*" multiple data-in="kkimg" hidden></label>
+      <details class="kk-alt"><summary>글자로 붙여넣기</summary><textarea id="kk-text" class="inp" rows="6" placeholder="예)\n김민혁\n이도형\n안준영"></textarea><button class="btn block" style="margin-top:8px" data-act="kakaoparse">이름 확인하기</button></details>`
+      : `<p>${L.filter(x => x.use).length}명을 이 순서대로 맨 앞에 놓아요. 이름이 맞는지 확인하고 반영을 눌러 주세요.${S.kkFromImg ? ' 카톡 화면에 보이는 순서(위→아래)대로 읽었어요. 투표 순서가 반대라면 <b>순서 뒤집기</b>를 눌러 주세요.' : ''}</p>${S.kkFromImg ? '<button class="btn sm" data-act="kakaorev" style="margin-bottom:8px">⇅ 순서 뒤집기</button>' : ''}<div class="kk-list">${L.map((x, i) => `<div class="kk-row ${x.pid ? '' : x.guess ? 'warn' : 'bad'}"><em>${i + 1}</em><span>${esc(x.raw)}</span><select class="inp" data-in="kkpick" data-i="${i}"><option value="">${x.pid || x.guess ? '건너뛰기' : '명단에 없음 · 건너뛰기'}</option>${byName(Object.keys(S.players)).map(id => `<option value="${id}" ${x.use === id ? 'selected' : ''}>${esc(pname(id))}${x.guess === id && !x.pid ? ' (혹시?)' : ''}</option>`).join('')}</select></div>`).join('')}</div>
+      <div class="row" style="margin-top:10px"><button class="btn" data-act="kakaoback">← 다시 하기</button><button class="btn primary" data-act="kakaoapply">반영하기</button></div>` }` }
   else if (sh.type === 'colf') h += colFilterSheet(sh.k);
   else if (sh.type === 'changelog') h += `<h4>업데이트 내용</h4>${sh.fresh ? `<p class="cl-new">🎉 ${APP_VERSION} 버전으로 업데이트됐어요</p>` : ''}<div class="cl">${CHANGELOG.map(([v, d, items], i) => `<section class="${i === 0 ? 'cur' : ''}"><div class="cl-hd"><b>${v}</b><small>${d}</small>${v === APP_VERSION ? '<em>현재</em>' : ''}</div><ul>${items.map(t => `<li>${esc(t)}</li>`).join('')}</ul></section>`).join('')}</div>`;
   else if (sh.type === 'staffedit') { const ss = S.sessions[sh.sid];
@@ -870,6 +893,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.2', '2026.10.02', ['[운영진·베타] 카톡 투표 참여자 화면 캡처를 여러 장 올리면 이름을 자동으로 읽어서 신청 순서에 반영해요']],
   ['0.21.1', '2026.10.02', ['[운영진·베타] 카톡 투표 명단을 붙여넣으면 회원과 자동으로 맞춰 신청 순서에 한 번에 반영해요', '[운영진·베타] 직접 바꾼 순서를 "실제 신청 순서"로 되돌리는 버튼', '[회원] 신청자 보기는 신청한 순서대로, 순위 표시는 The Base 구장에서만 보여요', '[운영진] 경기 메뉴는 진행이 시작된 다음 경기를 먼저 보여 주고, 신청자 현황에 공당·물당 신청이 보여요', '앱을 새로 열면 항상 홈에서 시작해요']],
   ['0.21', '2026.10.02', ['[운영진] 베타테스트 기간에는 신청자 순번을 바꿀 수 있어요(설정 → 서비스 상태에서 정식 오픈하면 잠겨요)', '경기모드 "일정 경기"에서 경기 일정을 직접 고를 수 있어요. 다음 경기는 시작 1시간 전부터, 지난 경기는 끝나고 1시간까지만 고를 수 있어요', '[운영진] 로딩 화면 배경 사진을 최대 5장까지 올리면, 앱을 열 때마다 무작위로 보여요', '배경 사진은 전체를 어둡게 깔아서 엠블럼과 글자가 또렷해요', '사진 속 주인공이 가운데 엠블럼에 가리지 않게, 사진 크기와 위치를 자동으로 맞춰요']],
   ['0.20', '2026.10.02', ['[운영진] 회원 관리 표에 스프레드시트처럼 열마다 정렬(오름·내림차순)과 값 골라 보기 필터를 넣었어요']],
@@ -1453,7 +1477,7 @@ function vApplyTable(s) {
   const dline = (k, ico, nm) => { const req = Object.entries(s.dutyReq?.[k] || {}).filter(([, v]) => v).sort((a, b) => a[1] - b[1]).map(([p]) => p); const fix = s.duty?.[k] || [];
     return `<div class="dsum-row"><b>${ico} ${nm}</b><span>${fix.length ? `<em class="ok">지정</em> ${fix.map(p => esc(pname(p))).join(', ')}` : '<em class="muted">미지정</em>'}</span><span>${req.length ? `🙋 신청 ${req.length}명 · ${req.map(p => esc(pname(p))).join(', ')}` : '<span class="muted">신청 없음</span>'}</span>${ad ? `<button class="btn sm" data-act="dutyedit" data-id="${s.date}">${applyClosed(s) ? '지정하기' : '신청 현황'}</button>` : ''}</div>` };
   const dsum = `<div class="panel dsum">${dline('ball', '⚽', '공당')}${dline('drink', '🥤', '물당')}</div>`;
-  const betaNote = ad && !frozen && betaOn() ? `<div class="betatools"><button class="btn sm primary" data-act="kakaopaste">📋 카톡 투표 명단 붙여넣기</button>${Array.isArray(s.appOrder) && s.appOrder.length ? '<button class="btn sm" data-act="orderreset">↺ 실제 신청 순서로 되돌리기</button>' : ''}</div><p class="note betanote">🧪 베타테스트 기간이라 신청 순번을 바꿀 수 있어요. ▲▼로 한 칸씩, #으로 원하는 자리로 옮겨요. 0~3순위 규칙은 그대로라 같은 순위 안에서만 옮겨져요. (설정에서 정식 오픈하면 잠겨요)</p>` : '';
+  const betaNote = ad && !frozen && betaOn() ? `<div class="betatools"><button class="btn sm primary" data-act="kakaopaste">📷 카톡 투표 명단 반영</button>${Array.isArray(s.appOrder) && s.appOrder.length ? '<button class="btn sm" data-act="orderreset">↺ 실제 신청 순서로 되돌리기</button>' : ''}</div><p class="note betanote">🧪 베타테스트 기간이라 신청 순번을 바꿀 수 있어요. ▲▼로 한 칸씩, #으로 원하는 자리로 옮겨요. 0~3순위 규칙은 그대로라 같은 순위 안에서만 옮겨져요. (설정에서 정식 오픈하면 잠겨요)</p>` : '';
   const h = dsum + betaNote + `<div class="panel sheetwrap"><table class="grid atbl"><thead><tr><th>신청순</th><th class="stick">이름</th><th>순위</th><th>구분</th><th>신청 시각</th>${ad && !frozen && betaOn() ? '<th>순번 변경</th>' : ''}<th>주차</th><th>공당</th><th>물당</th><th>상태</th><th>마감 후 취소</th>${ad ? '<th>관리</th>' : ''}</tr></thead><tbody>
   ${rows.length ? rows.map(r => { const pk = r.pid && s.park?.[r.pid]?.car;
     return `<tr class="${r.sel ? '' : 'wrow'}"><td class="num">${r.auto ? '자동' : r.n}</td><td class="stick"><b>${r.pid ? esc(pname(r.pid)) : '<i class="nn">이름 입력 대기</i>'}</b></td><td>${tb(r.tier)}</td>
@@ -2037,6 +2061,11 @@ document.addEventListener('change', e => { const el = e.target;
         let q = .72, out = cv.toDataURL('image/jpeg', q); while (out.length > 320000 && q > .3) { q -= .08; out = cv.toDataURL('image/jpeg', q) }
         if (await w(() => S.store.set('meta/' + free[i], { img: out, at: Date.now() }))) ok++ } catch (e) { console.error(e) } }
       toast(ok ? `배경 사진 ${ok}장을 저장했어요.` : '사진을 불러오지 못했어요. 다른 사진으로 해 주세요.') })(); el.value = ''; return }
+  if (el.dataset.in === 'kkimg') { const files = [...(el.files || [])]; el.value = ''; if (!files.length) return;
+    S.ocrBusy = true; S.ocrMsg = '글자 인식 준비 중…'; render();
+    (async () => { try { const L = await ocrKakao(files, (i, p) => { const t = `${files.length}장 중 ${i + 1}장째 읽는 중… ${Math.round((p || 0) * 100)}%`; S.ocrMsg = t; const b0 = document.querySelector('.ocrbox b'); if (b0) b0.textContent = t });
+        S.ocrBusy = false; if (!L.length) { toast('이미지에서 이름을 찾지 못했어요. 참여자 목록이 잘 보이게 캡처해 주세요.'); render(); return } S.kk = L; S.kkFromImg = true; render() }
+      catch (e) { console.error(e); S.ocrBusy = false; toast('글자를 읽지 못했어요. 인터넷 연결을 확인하거나, "글자로 붙여넣기"를 써 주세요.'); render() } })(); return }
   if (el.dataset.in === 'kkpick') { if (S.kk) S.kk[+el.dataset.i].use = el.value; return }
   if (el.dataset.in === 'mancol') { S.manF.cols[+el.dataset.i] = el.value; return }
   if (el.dataset.in === 'mmpick') { S.mmPick = el.value; S.mmStage = null; S.mmDraft = null; render(); return }
@@ -2088,9 +2117,10 @@ document.addEventListener('click', async e => {
       if (!confirm(`${pname(id)} 선택을 취소할까요? 다시 내 차례가 돼요.`)) break; await undoPick(!S.admin); sysChat(`${team(s0, last.t).name} 주장이 ${pname(id)} 선택을 취소했어요`); break }
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
-    case 'kakaopaste': if (!needAdmin()) break; S.kk = null; S.sheet = { type: 'kakao' }; render(); break;
-    case 'kakaoparse': { const t = document.getElementById('kk-text')?.value || ''; const L = parseKakao(t); if (!L.length) { toast('이름을 찾지 못했어요. 다시 붙여넣어 주세요.'); break } S.kk = L; document.activeElement?.blur?.(); render(); break }
-    case 'kakaoback': S.kk = null; render(); break;
+    case 'kakaopaste': if (!needAdmin()) break; S.kk = null; S.kkFromImg = false; S.ocrBusy = false; S.sheet = { type: 'kakao' }; render(); break;
+    case 'kakaoparse': { const t = document.getElementById('kk-text')?.value || ''; const L = parseKakao(t); if (!L.length) { toast('이름을 찾지 못했어요. 다시 붙여넣어 주세요.'); break } S.kk = L; S.kkFromImg = false; document.activeElement?.blur?.(); render(); break }
+    case 'kakaoback': S.kk = null; S.kkFromImg = false; render(); break;
+    case 'kakaorev': if (S.kk) { S.kk.reverse(); render() } break;
     case 'kakaoapply': { if (!needAdmin() || !S.kk) break; if (await applyKakao(S.sid, S.kk)) { S.sheet = null; S.kk = null; render() } break }
     case 'orderreset': if (!needAdmin() || !confirm('직접 바꾼 순서를 지우고, 실제로 신청이 들어온 순서(서버 도착 시각)로 되돌릴까요?')) break; await w(() => S.store.update(sp(S.sid), { appOrder: null }), '실제 신청 순서로 되돌렸어요.'); break;
     case 'appmove': { if (!needAdmin()) break; const rows = dispRows(S.sessions[S.sid]); const i = rows.findIndex(r => r.k === el.dataset.k); await moveApp(S.sid, el.dataset.k, i + (+el.dataset.d)); break }
