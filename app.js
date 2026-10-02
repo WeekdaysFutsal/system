@@ -122,6 +122,15 @@ function capSid() { const me = myPid(); if (!me) return null; const t = today();
 function capLink(sid, k, t) { return `${location.origin}${location.pathname}?d=${sid}&c=${k}&t=${t}` }
 function canMom(s, k) { return S.admin || myTeam(s) === k }
 /* 운영모드 경기 메뉴의 기본 경기: 진행이 시작된(신청이 열렸거나 그 이후 단계) 가장 가까운 다음 경기 → 없으면 오늘 이후 첫 경기 → 없으면 가장 최근 경기 */
+function betaOn() { return S.meta?.flags?.beta !== false }
+function dispRows(s0) { const c = classify(s0); return [...c.sel, ...c.wait].filter(r => !r.auto && r.k) }
+async function moveApp(sid, key, to) { const s0 = S.sessions[sid]; if (!s0 || s0.stage !== 'apply' || !betaOn()) return;
+  const rows = dispRows(s0); const i = rows.findIndex(r => r.k === key); if (i < 0) return; const me = rows[i];
+  const lo = rows.findIndex(r => r.tier === me.tier), hi = rows.length - 1 - [...rows].reverse().findIndex(r => r.tier === me.tier);
+  let j = Math.max(0, Math.min(rows.length - 1, to)); let clamped = false; if (j < lo) { j = lo; clamped = true } if (j > hi) { j = hi; clamped = true }
+  if (i === j) { toast(clamped ? `${TIER[me.tier] || '같은 순위'} 안에서만 순서를 바꿀 수 있어요.` : '이미 그 자리예요.'); return }
+  const keys = rows.map(r => r.k); keys.splice(j, 0, keys.splice(i, 1)[0]); const rest = appsOf(s0).map(a => a.k).filter(k => !keys.includes(k));
+  if (await w(() => S.store.update(sp(sid), { appOrder: [...keys, ...rest] }))) toast(clamped ? `${TIER[me.tier] || '같은 순위'} 안에서만 옮길 수 있어서, 그 순위의 ${j === lo ? '맨 앞' : '맨 뒤'}으로 옮겼어요.` : '순번을 바꿨어요.') }
 function runSid() { const ids = Object.keys(S.sessions).filter(id => !S.sessions[id].practice).sort(); const t = today(); const now = nowS();
   const started = id => { const x = S.sessions[id]; if (!x) return false; if (x.stage && x.stage !== 'apply') return true; return !x.applyOpen || new Date(x.applyOpen).getTime() <= now };
   const live = id => sessMatches(id).some(m => m.status !== 'done') || !sessMatches(id).length;
@@ -839,7 +848,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
-  ['0.21', '2026.10.02', ['경기모드 "일정 경기"에서 경기 일정을 직접 고를 수 있어요. 다음 경기는 시작 1시간 전부터, 지난 경기는 끝나고 1시간까지만 고를 수 있어요', '[운영진] 로딩 화면 배경 사진을 최대 5장까지 올리면, 앱을 열 때마다 무작위로 보여요', '배경 사진은 전체를 어둡게 깔아서 엠블럼과 글자가 또렷해요', '사진 속 주인공이 가운데 엠블럼에 가리지 않게, 사진 크기와 위치를 자동으로 맞춰요']],
+  ['0.21', '2026.10.02', ['[운영진] 베타테스트 기간에는 신청자 순번을 바꿀 수 있어요(설정 → 서비스 상태에서 정식 오픈하면 잠겨요)', '경기모드 "일정 경기"에서 경기 일정을 직접 고를 수 있어요. 다음 경기는 시작 1시간 전부터, 지난 경기는 끝나고 1시간까지만 고를 수 있어요', '[운영진] 로딩 화면 배경 사진을 최대 5장까지 올리면, 앱을 열 때마다 무작위로 보여요', '배경 사진은 전체를 어둡게 깔아서 엠블럼과 글자가 또렷해요', '사진 속 주인공이 가운데 엠블럼에 가리지 않게, 사진 크기와 위치를 자동으로 맞춰요']],
   ['0.20', '2026.10.02', ['[운영진] 회원 관리 표에 스프레드시트처럼 열마다 정렬(오름·내림차순)과 값 골라 보기 필터를 넣었어요']],
   ['0.19', '2026.10.02', ['베타테스트 대비 전체 최적화: 다시 열 때 화면·스타일·앱 파일을 폰 저장본에서 바로 불러와 훨씬 빨라졌어요', '서버 연결 준비를 앱 시작과 동시에 해서 첫 화면이 빨라졌어요', '데이터가 한꺼번에 들어와도 화면을 한 번만 다시 그려서 더 부드러워졌어요', '쓰지 않는 코드와 화면 스타일을 정리하고 엠블럼 이미지를 가볍게 줄였어요', '드래프트 화면 아래 채팅 기록 글자가 겹쳐 보이던 문제를 고쳤어요']],
   ['0.18', '2026.10.01', ['업데이트 내용을 내 정보에서 확인할 수 있어요', '로딩 화면은 앱을 처음 열 때만 보이고, 새로고침은 바로 돼요']],
@@ -871,6 +880,7 @@ function bootBgs() { const m = S.meta || {}; const out = []; Object.keys(m).filt
 function viewSettings() {
   return `<h2>내 정보<small>이름 + 비밀번호 4자리로 로그인해요</small></h2>${loginCard()}
   <h2>휘슬</h2><div class="panel pad"><button class="btn block" data-act="whistle">${S.whistle ? '🔊 이 폰에서 휘슬 켜짐' : '🔇 이 폰에서 휘슬 꺼짐'}</button><p class="note">웹에서는 휘슬이 울리려면 경기 화면을 켜 두어야 해요.</p></div>
+  ${S.admin ? `<h2>서비스 상태</h2><div class="panel pad"><div class="betarow"><div><b>${betaOn() ? '🧪 베타테스트 중' : '✅ 정식 서비스'}</b><small>${betaOn() ? '운영진이 신청자 순번을 바꿀 수 있어요(카톡 투표 결과 반영용).' : '신청 순번은 서버 도착 시각으로만 정해지고, 바꿀 수 없어요.'}</small></div><button class="btn ${betaOn() ? 'primary' : ''}" data-act="betatoggle">${betaOn() ? '정식 오픈하기' : '베타로 되돌리기'}</button></div></div>` : ''}
   ${S.admin ? (() => { const L = bootBgs(); const VG = 'linear-gradient(rgba(0,0,0,.62),rgba(0,0,0,.62))';
     return `<h2>로딩 화면 배경<small>최대 5장 · 앱을 열 때마다 무작위로 보여요</small></h2><div class="panel pad"><div class="bggrid">${Array.from({ length: 5 }, (_, i) => { const x = L[i];
       return x ? `<div class="bgslot" style="background-image:${VG},url('${x.img}')"><img src="${EMBLEM_SRC}" alt=""><button class="bgdel" data-act="bootbgdel" data-k="${x.id}" aria-label="${i + 1}번 배경 지우기">✕</button></div>` : `<label class="bgslot empty" style="cursor:pointer">＋<input type="file" accept="image/*" multiple data-in="bootbg" hidden></label>` }).join('')}</div>
@@ -1013,14 +1023,16 @@ function viewResults() {
     <div class="rddots">${ids.slice().reverse().map(id => `<i class="${id === S.detail ? 'on' : ''}"></i>`).join('')}</div>${vResultDetail(s)}</div>`;
 }
 
-function viewApplicants() { const s = cur(); const me = myPid();
+function viewApplicants() { const s = cur(); const me = myPid(); const base = isBase(s);
   if (s.stage === 'apply') { const c = classify(s); const mine = myApp(s);
-    const chip = r => `<span class="chip ${(mine && mine.k === r.k) ? 'sel' : ''}"><small class="muted">${r.auto ? '자동' : r.n}</small> ${r.pid ? esc(pname(r.pid)) : '이름 입력 대기'}${r.sel ? `<b class="tb t${r.tier}">${TIER[r.tier]}</b>` : ''}</span>`;
-    return backbar('홈으로') + `<h2>선발<small>${c.sel.length}${s.capacity ? ' / ' + s.capacity : ''}명</small></h2><div class="panel"><div class="chips">${[...c.sel].sort((a, b) => (a.pid ? pname(a.pid) : '힣').localeCompare(b.pid ? pname(b.pid) : '힣', 'ko')).map(chip).join('') || '<span class="muted">아직 신청자가 없어요.</span>'}</div></div>
-    ${c.wait.length ? `<h2>대기<small>${c.wait.length}명</small></h2><div class="panel"><div class="chips">${c.wait.map(chip).join('')}</div></div>` : ''}<p class="note">0순위: 구장예약자·경기운영자, 1순위: 직전 경기 미참여자, 2순위: 그 외 선착순. 숫자는 신청 순서예요.</p>` }
-  const chip = (id, i) => `<span class="chip ${id === me ? 'sel' : ''}"><small class="muted">${i + 1}</small> ${esc(pname(id))}</span>`; const chipN = id => `<span class="chip ${id === me ? 'sel' : ''}">${esc(pname(id))}</span>`;
-  return backbar('홈으로') + `<h2>신청자<small>${(s.applicants || []).length}${s.capacity ? ' / ' + s.capacity : ''}명</small></h2><div class="panel"><div class="chips">${byName(s.applicants || []).map(chipN).join('') || '<span class="muted">아직 신청자가 없어요.</span>'}</div></div>
-  ${(s.waitlist || []).length ? `<h2>대기<small>${s.waitlist.length}명</small></h2><div class="panel"><div class="chips">${s.waitlist.map(chip).join('')}</div></div>` : ''}` }
+    // 신청 순서(자동 신청은 맨 앞) — 이름순이 아님
+    const ord = arr => [...arr].sort((a, b) => (a.auto === b.auto ? 0 : a.auto ? -1 : 1) || ((typeof a.n === 'number' ? a.n : 1e9) - (typeof b.n === 'number' ? b.n : 1e9)));
+    const chip = r => `<span class="chip ${(mine && mine.k === r.k) ? 'sel' : ''}"><small class="muted">${r.auto ? '자동' : r.n}</small> ${r.pid ? esc(pname(r.pid)) : '이름 입력 대기'}${base && r.sel ? `<b class="tb t${r.tier}">${TIER[r.tier]}</b>` : ''}</span>`;
+    return backbar('홈으로') + `<h2>선발<small>${c.sel.length}${s.capacity ? ' / ' + s.capacity : ''}명</small></h2><div class="panel"><div class="chips">${ord(c.sel).map(chip).join('') || '<span class="muted">아직 신청자가 없어요.</span>'}</div></div>
+    ${c.wait.length ? `<h2>대기<small>${c.wait.length}명</small></h2><div class="panel"><div class="chips">${c.wait.map(chip).join('')}</div></div>` : ''}<p class="note">${base ? '0순위: 구장예약자·경기운영자, 1순위: 직전 경기 미참여자, 2순위: 그 외 선착순, 3순위: 직전 경기 마감 후 취소자. ' : '이 구장은 순위 없이 신청한 순서대로 선발해요. '}숫자는 신청 순서예요.</p>` }
+  const chip = (id, i) => `<span class="chip ${id === me ? 'sel' : ''}"><small class="muted">${i + 1}</small> ${esc(pname(id))}</span>`;
+  return backbar('홈으로') + `<h2>신청자<small>${(s.applicants || []).length}${s.capacity ? ' / ' + s.capacity : ''}명</small></h2><div class="panel"><div class="chips">${(s.applicants || []).map(chip).join('') || '<span class="muted">아직 신청자가 없어요.</span>'}</div></div>
+  ${(s.waitlist || []).length ? `<h2>대기<small>${s.waitlist.length}명</small></h2><div class="panel"><div class="chips">${s.waitlist.map((id, i) => chip(id, i)).join('')}</div></div>` : ''}` }
 /* ───────── admin views ───────── */
 async function deleteSessionBy(sid) { if (!confirm(fmtDate(sid) + ' 경기를 통째로 지울까요? 신청자, 경기 기록도 함께 지워지고 되돌릴 수 없어요.')) return;
   const ok = await w(async () => { for (const [eid, ev] of Object.entries(S.events)) if (ev.session === sid) await S.store.del('events/' + eid); for (const mm of sessMatches(sid)) await S.store.del(mp(mm.id)); await S.store.del(sp(sid)) }, '삭제했어요.');
@@ -1233,7 +1245,7 @@ function ensureQueues() { if (!S.store) return; S.qUn ??= {}; S.q ??= {}; const 
   for (const id of Object.keys(S.qUn)) if (!want.has(id)) { try { S.qUn[id]() } catch { } delete S.qUn[id]; delete S.q[id] }
   for (const id of want) if (!S.qUn[id]) S.qUn[id] = S.store.watchCol(sp(id) + '/q', docs => { const o = {}; docs.forEach(d => { const { id: di, ...r } = d; o[di] = r }); S.q[id] = o; renderSoon() }, { est: true }, () => { }) }
 function appsOf(s) { const qa = queueApps(s); if (qa.length) { const base = Array.isArray(s.apps) ? s.apps : appsOf0(s); return appsOf0({ ...s, apps: [...base, ...qa] }) } return appsOf0(s) }
-function appsOf0(s) { if (Array.isArray(s.apps)) { const seen = new Set(); return s.apps.filter(a => a && typeof a === 'object').map((a, i) => ({ a, i })).sort((x, y) => ((x.a.at || 0) - (y.a.at || 0)) || (x.i - y.i)).map(x => x.a).filter(a => { if (!a.pid) return true; if (seen.has(a.pid)) return false; seen.add(a.pid); return true }) } return [...(s.applicants || []), ...(s.waitlist || [])].map((pid, i) => ({ k: 'L' + i, pid, at: 0 })) }
+function appsOf0(s) { if (Array.isArray(s.apps)) { const seen = new Set(); return s.apps.filter(a => a && typeof a === 'object').map((a, i) => ({ a, i })).sort((x, y) => ((x.a.at || 0) - (y.a.at || 0)) || (x.i - y.i)).map(x => x.a).filter(a => { if (!a.pid) return true; if (seen.has(a.pid)) return false; seen.add(a.pid); return true }).map((a, i) => ({ a, i })).sort((x, y) => { const O = s.appOrder; if (!Array.isArray(O) || !O.length) return x.i - y.i; const rx = O.indexOf(x.a.k), ry = O.indexOf(y.a.k); return (rx < 0 ? O.length + x.i : rx) - (ry < 0 ? O.length + y.i : ry) }).map(x => x.a) } return [...(s.applicants || []), ...(s.waitlist || [])].map((pid, i) => ({ k: 'L' + i, pid, at: 0 })) }
 function prevSessionId(s) { const ids = Object.keys(S.sessions).filter(id => id < s.date).sort().reverse(); return ids.find(id => KEYS.some(k => teamPlayers(S.sessions[id], k).length)) || null }
 function staffSet(s) { return new Set([...(s.p0 || []), ...(s.ops || []), ...Object.entries(S.players).filter(([, p]) => p.staff).map(([id]) => id)]) }
 function autoIds(s) { return [...new Set([...(s.p0 || []), ...(s.ops || [])])].filter(id => S.players[id]) }
@@ -1418,11 +1430,13 @@ function vApplyTable(s) {
   const dline = (k, ico, nm) => { const req = Object.entries(s.dutyReq?.[k] || {}).filter(([, v]) => v).sort((a, b) => a[1] - b[1]).map(([p]) => p); const fix = s.duty?.[k] || [];
     return `<div class="dsum-row"><b>${ico} ${nm}</b><span>${fix.length ? `<em class="ok">지정</em> ${fix.map(p => esc(pname(p))).join(', ')}` : '<em class="muted">미지정</em>'}</span><span>${req.length ? `🙋 신청 ${req.length}명 · ${req.map(p => esc(pname(p))).join(', ')}` : '<span class="muted">신청 없음</span>'}</span>${ad ? `<button class="btn sm" data-act="dutyedit" data-id="${s.date}">${applyClosed(s) ? '지정하기' : '신청 현황'}</button>` : ''}</div>` };
   const dsum = `<div class="panel dsum">${dline('ball', '⚽', '공당')}${dline('drink', '🥤', '물당')}</div>`;
-  const h = dsum + `<div class="panel sheetwrap"><table class="grid atbl"><thead><tr><th>신청순</th><th class="stick">이름</th><th>순위</th><th>구분</th><th>신청 시각</th><th>주차</th><th>공당</th><th>물당</th><th>상태</th><th>마감 후 취소</th>${ad ? '<th>관리</th>' : ''}</tr></thead><tbody>
+  const betaNote = ad && !frozen && betaOn() ? `<p class="note betanote">🧪 베타테스트 기간이라 신청 순번을 바꿀 수 있어요. ▲▼로 한 칸씩, #으로 원하는 자리로 옮겨요. 0~3순위 규칙은 그대로라 같은 순위 안에서만 옮겨져요. (설정에서 정식 오픈하면 잠겨요)</p>` : '';
+  const h = dsum + betaNote + `<div class="panel sheetwrap"><table class="grid atbl"><thead><tr><th>신청순</th><th class="stick">이름</th><th>순위</th><th>구분</th><th>신청 시각</th>${ad && !frozen && betaOn() ? '<th>순번 변경</th>' : ''}<th>주차</th><th>공당</th><th>물당</th><th>상태</th><th>마감 후 취소</th>${ad ? '<th>관리</th>' : ''}</tr></thead><tbody>
   ${rows.length ? rows.map(r => { const pk = r.pid && s.park?.[r.pid]?.car;
     return `<tr class="${r.sel ? '' : 'wrow'}"><td class="num">${r.auto ? '자동' : r.n}</td><td class="stick"><b>${r.pid ? esc(pname(r.pid)) : '<i class="nn">이름 입력 대기</i>'}</b></td><td>${tb(r.tier)}</td>
       <td class="muted">${r.auto ? roleOf(s, r.pid) + ' (자동)' : r.pid ? (roleOf(s, r.pid) || (late.has(r.pid) ? '지난 경기 마감 후 취소' : '')) : ''}</td>
       <td class="num muted">${r.at ? fmtTS(r.at) : '-'}</td>
+      ${ad && !frozen && betaOn() ? `<td class="mv">${r.auto ? '' : `<button class="btn sm" data-act="appmove" data-k="${r.k}" data-d="-1" aria-label="위로">▲</button><button class="btn sm" data-act="appmove" data-k="${r.k}" data-d="1" aria-label="아래로">▼</button><button class="btn sm" data-act="appmoveto" data-k="${r.k}" aria-label="순번 입력">#</button>`}</td>` : ''}
       <td class="muted">${pk ? `🚗 ${esc(pk)}` : ''}</td>${['ball', 'drink'].map(k => { const fixed = r.pid && (s.duty?.[k] || []).includes(r.pid), req = r.pid && s.dutyReq?.[k]?.[r.pid]; return `<td class="num">${fixed ? '<b class="ok">✓ 지정</b>' : req ? '<span class="dreq">🙋 신청</span>' : ''}</td>` }).join('')}<td>${r.sel ? '<b class="ok">선발</b>' : `<b class="tw">대기 ${r.wn}</b>`}</td>
       <td class="num"><input type="checkbox" class="staffck" ${ad && closed && r.pid && !r.auto ? `data-in="latetoggle" data-id="${r.pid}"` : 'disabled'} aria-label="마감 후 취소"></td>
       ${ad ? `<td class="acts">${r.pid && !r.auto ? `<button class="btn sm" data-act="p0toggle" data-id="${r.pid}">${(s.p0 || []).includes(r.pid) ? '예약자 해제' : '예약자'}</button>` : ''}${r.auto ? `<button class="btn sm" data-act="staffedit" data-id="${s.date}">변경</button>` : ''}${!r.pid ? `<button class="btn sm" data-act="appnameadmin" data-id="${r.k}">이름</button>` : ''}${closed && r.pid && !r.auto ? `<button class="btn sm danger" data-act="latecancel" data-id="${r.pid}">${r.sel ? '마감 후 취소' : '대기 취소'}</button>` : ''}${!closed && !frozen && !r.auto ? `<button class="btn sm danger" data-act="apprm" data-id="${r.k}" aria-label="삭제">×</button>` : ''}</td>` : ''}</tr>` }).join('') : `<tr><td colspan="11" class="empty">아직 신청자가 없어요.</td></tr>`}${Object.entries(s.late || {}).filter(([, v]) => v).map(([pid, t]) => `<tr class="lrow"><td class="num">-</td><td class="stick"><b>${esc(pname(pid))}</b></td><td></td><td class="muted">신청 마감 후 취소</td><td class="num muted">${fmtTS(t)}</td><td></td><td><b class="t3">취소</b></td><td class="num"><input type="checkbox" class="staffck" checked ${ad ? `data-in="lateuntoggle" data-id="${pid}"` : 'disabled'} aria-label="마감 후 취소 해제"></td>${ad ? '<td></td>' : ''}</tr>`).join('')}</tbody></table></div>`;
@@ -2050,6 +2064,10 @@ document.addEventListener('click', async e => {
       if (!confirm(`${pname(id)} 선택을 취소할까요? 다시 내 차례가 돼요.`)) break; await undoPick(!S.admin); sysChat(`${team(s0, last.t).name} 주장이 ${pname(id)} 선택을 취소했어요`); break }
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
+    case 'appmove': { if (!needAdmin()) break; const rows = dispRows(S.sessions[S.sid]); const i = rows.findIndex(r => r.k === el.dataset.k); await moveApp(S.sid, el.dataset.k, i + (+el.dataset.d)); break }
+    case 'appmoveto': { if (!needAdmin()) break; const rows = dispRows(S.sessions[S.sid]); const n = rows.length; const v = prompt(`표에서 몇 번째 자리로 옮길까요? (1 ~ ${n}, 자동 신청 줄은 빼고 셉니다)`); const t = parseInt(v, 10); if (!t) break; await moveApp(S.sid, el.dataset.k, t - 1); break }
+    case 'betatoggle': { if (!needAdmin()) break; const on = betaOn(); if (on && !confirm('정식 서비스를 오픈할까요?\n신청 순번 변경 기능이 잠기고, 순번은 서버 도착 시각으로만 정해져요.')) break; if (!on && !confirm('다시 베타테스트 모드로 바꿀까요? 신청 순번을 바꿀 수 있게 돼요.')) break;
+      await w(() => S.store.set('meta/flags', { ...(S.meta?.flags || {}), beta: !on, at: Date.now() }), on ? '정식 서비스로 전환했어요. 순번 변경이 잠겼어요.' : '베타테스트 모드로 바꿨어요.'); break }
     case 'bootbgdel': if (!needAdmin() || !confirm('이 배경 사진을 지울까요?')) break; await w(() => S.store.set('meta/' + el.dataset.k, { img: '', at: Date.now() }), '배경 사진을 지웠어요.'); break;
     case 'colf': { const k = el.dataset.k; const c = mcol(k); const all = [...new Set(memberRows().map(r => String(c[2](r))))]; S.colTmp = S.colF?.[k] ? [...S.colF[k]] : all; S.colQ = ''; S.sheet = { type: 'colf', k }; render(); break }
     case 'colsort': S.colSort = { k: el.dataset.k, d: +el.dataset.d }; S.sheet = null; render(); break;
