@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.19';
+const APP_VERSION = '0.20';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -793,6 +793,7 @@ function viewSheet() {
   else if (sh.type === 'duty') h += dutySheet(sh.sid);
   else if (sh.type === 'park') h += parkSheet(sh.sid);
   else if (sh.type === 'parkapply') { const ss = S.sessions[sh.sid]; h += `<h4>🚗 주차 신청</h4><p>${fmtDate(sh.sid)} 경기 주차를 신청해요. 신청자 중 ${PARK_SLOTS}명을 추첨해요.</p><div class="panel"><div class="field"><label for="pk-car2">차량번호</label><input id="pk-car2" class="inp" type="text" maxlength="12" placeholder="예: 12가3456" value="${esc(myCar())}"></div><p class="note" style="margin:6px 0 0">내 정보에 차량번호를 저장해 두면 자동으로 채워져요.</p></div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="parksave">신청</button></div>` }
+  else if (sh.type === 'colf') h += colFilterSheet(sh.k);
   else if (sh.type === 'changelog') h += `<h4>업데이트 내용</h4>${sh.fresh ? `<p class="cl-new">🎉 ${APP_VERSION} 버전으로 업데이트됐어요</p>` : ''}<div class="cl">${CHANGELOG.map(([v, d, items], i) => `<section class="${i === 0 ? 'cur' : ''}"><div class="cl-hd"><b>${v}</b><small>${d}</small>${v === APP_VERSION ? '<em>현재</em>' : ''}</div><ul>${items.map(t => `<li>${esc(t)}</li>`).join('')}</ul></section>`).join('')}</div>`;
   else if (sh.type === 'staffedit') { const ss = S.sessions[sh.sid];
     h += `<h4>${fmtDate(sh.sid)} 예약자 · 운영자</h4><p>여기 적힌 사람은 따로 신청하지 않아도 0순위로 자동 신청돼요. 여러 명은 쉼표로 구분해요.</p><div class="panel">
@@ -833,6 +834,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.20', '2026.10.02', ['[운영진] 회원 관리 표에 스프레드시트처럼 열마다 정렬(오름·내림차순)과 값 골라 보기 필터를 넣었어요']],
   ['0.19', '2026.10.02', ['베타테스트 대비 전체 최적화: 다시 열 때 화면·스타일·앱 파일을 폰 저장본에서 바로 불러와 훨씬 빨라졌어요', '서버 연결 준비를 앱 시작과 동시에 해서 첫 화면이 빨라졌어요', '데이터가 한꺼번에 들어와도 화면을 한 번만 다시 그려서 더 부드러워졌어요', '쓰지 않는 코드와 화면 스타일을 정리하고 엠블럼 이미지를 가볍게 줄였어요', '드래프트 화면 아래 채팅 기록 글자가 겹쳐 보이던 문제를 고쳤어요']],
   ['0.18', '2026.10.01', ['업데이트 내용을 내 정보에서 확인할 수 있어요', '로딩 화면은 앱을 처음 열 때만 보이고, 새로고침은 바로 돼요']],
   ['0.17', '2026.10.01', ['신청 순번을 서버에 도착한 시각(1/1000초)으로 정해요. 폰 시계나 조작으로 바꿀 수 없어요', '마감 시각 이후에 도착한 신청은 인정되지 않아요', '앱이 데이터를 폰에 저장해 두고 바뀐 것만 받아서 더 빠르고 가벼워졌어요']],
@@ -842,9 +844,14 @@ const CHANGELOG = [
   ['0.13', '2026.10.01', ['홈·운영·경기모드 화면에서 겹치는 정보를 정리했어요']],
   ['0.12', '2026.10.01', ['경기 추가 때 장소를 목록에서 고르거나 직접 입력', '정식 출시 전이라 버전을 0.x로 표기해요']],
 ];
+function bootBgs() { const m = S.meta || {}; const out = []; Object.keys(m).filter(k => /^bootbg(_\d+)?$/.test(k)).sort().forEach(k => { if (m[k]?.img) out.push({ id: k, img: m[k].img, at: m[k].at || 0 }) }); return out.slice(0, 5) }
 function viewSettings() {
   return `<h2>내 정보<small>이름 + 비밀번호 4자리로 로그인해요</small></h2>${loginCard()}
   <h2>휘슬</h2><div class="panel pad"><button class="btn block" data-act="whistle">${S.whistle ? '🔊 이 폰에서 휘슬 켜짐' : '🔇 이 폰에서 휘슬 꺼짐'}</button><p class="note">웹에서는 휘슬이 울리려면 경기 화면을 켜 두어야 해요.</p></div>
+  ${S.admin ? (() => { const L = bootBgs(); const VG = 'radial-gradient(ellipse at center,rgba(0,0,0,.2) 0%,rgba(0,0,0,.72) 62%,#000 100%)';
+    return `<h2>로딩 화면 배경<small>최대 5장 · 앱을 열 때마다 무작위로 보여요</small></h2><div class="panel pad"><div class="bggrid">${Array.from({ length: 5 }, (_, i) => { const x = L[i];
+      return x ? `<div class="bgslot" style="background-image:${VG},url('${x.img}')"><img src="${EMBLEM_SRC}" alt=""><button class="bgdel" data-act="bootbgdel" data-k="${x.id}" aria-label="${i + 1}번 배경 지우기">✕</button></div>` : `<label class="bgslot empty" style="cursor:pointer">＋<input type="file" accept="image/*" multiple data-in="bootbg" hidden></label>` }).join('')}</div>
+    <p class="note" style="margin:8px 0 0">${L.length}/5장 · 사진은 자동으로 줄이고 가장자리를 어둡게(비네팅) 처리해요. 여러 장을 한 번에 골라도 돼요. 다음에 앱을 열 때부터 보여요.</p></div>` })() : ''}
   ${S.admin ? `<h2>운영모드 비밀번호</h2><div class="panel pad"><div class="pinrow"><input id="apc-cur" class="inp pin" type="text" inputmode="numeric" maxlength="8" placeholder="현재"><input id="apc-new" class="inp pin" type="text" inputmode="numeric" maxlength="8" placeholder="새 번호"><input id="apc-new2" class="inp pin" type="text" inputmode="numeric" maxlength="8" placeholder="새 번호 확인"></div><button class="btn block" style="margin-top:8px" data-act="adminpinchange">비밀번호 변경</button><p class="note" style="margin:6px 0 0">숫자 4~8자리. 바꾸면 모든 운영진이 새 번호로 들어와요.</p></div>` : ''}
   ${S.admin ? `<h2>시뮬레이션(연습 데이터)<small>가상 경기를 만들어 미리 해 보고 지워요</small></h2><div class="panel pad"><p class="muted" style="margin:0 0 10px">실제 회원 명단으로 원하는 단계의 가상 경기를 만들어요. 만든 뒤 바로 그 단계 화면으로 이동해요. 실제 경기와 회원 정보는 건드리지 않아요.</p>
     <div class="simgrid">${[...Object.entries(SIM).map(([k, [n]]) => [k, n, { apply: '신청 중인 경기, 신청자 12명', captain: '신청 마감, 18명 확정', draft: '주장 3명 입장한 드래프트 방', trade: '팀 구성이 끝난 상태' }[k], 'mksim']), ['mm', '경기모드', '팀 구성 완료, 오늘 날짜', 'mkpractice']].map(([k, n, d, act]) => { const cnt = Object.values(S.sessions).filter(x => x.practice && x.simKind === k).length;
@@ -1841,20 +1848,38 @@ function memberRows() {
   const last = {}; for (const [sid, s] of Object.entries(S.sessions)) { if (!sessMatches(sid).some(m => m.status === 'done')) continue; for (const k of KEYS) for (const id of teamPlayers(s, k)) if (!last[id] || last[id] < sid) last[id] = sid }
   return Object.entries(S.players).map(([id, p]) => ({ id, name: p.name, status: mstatus(p), phone: S.contacts?.[id]?.phone || '', memo: S.contacts?.[id]?.memo || '', days: st[id]?.days || 0, g: st[id]?.g || 0, a: st[id]?.a || 0, last: last[id] || '', created: p.createdAt || 0 }));
 }
+const MCOLS = [
+  ['name', '이름', r => r.name, 't'], ['status', '구분', r => MSTAT[r.status] || r.status, 't'], ['staff', '운영진', r => S.players[r.id]?.staff ? '운영진' : '-', 't'],
+  ['login', '로그인', r => S.authMap?.[r.id] ? '등록됨' : '미등록', 't'], ['birth', '생년월일', r => S.contacts?.[r.id]?.birth || '', 't'], ['phone', '연락처', r => r.phone || '', 't'],
+  ['memo', '메모', r => r.memo || '', 't'], ['days', '참가', r => r.days || 0, 'n'], ['last', '최근 참가', r => r.last || '', 't']];
+const mcol = k => MCOLS.find(c => c[0] === k);
+function mApplyCols(rows) { const F = S.colF || {}; for (const [k, vals] of Object.entries(F)) { if (!vals) continue; const c = mcol(k); const set = new Set(vals); rows = rows.filter(r => set.has(String(c[2](r)))) }
+  const so = S.colSort || { k: 'name', d: 1 }; const c = mcol(so.k) || MCOLS[0]; const g = c[2];
+  return rows.sort((a, b) => { const x = g(a), y = g(b); if (c[3] === 'n') return (x - y) * so.d; if (x === '' && y !== '') return 1; if (y === '' && x !== '') return -1; return String(x).localeCompare(String(y), 'ko', { numeric: true }) * so.d }) }
+function mTh(k, cls) { const c = mcol(k); const so = S.colSort || { k: 'name', d: 1 }; const on = !!S.colF?.[k]; const sorted = so.k === k;
+  return `<th class="${cls || ''}"><button class="thf ${on ? 'on' : ''} ${sorted ? 'sorted' : ''}" data-act="colf" data-k="${k}" aria-label="${c[1]} 정렬·필터">${c[1]}<i>${sorted ? (so.d > 0 ? '▲' : '▼') : ''}${on ? '●' : '▾'}</i></button></th>` }
+function colFilterSheet(k) { const c = mcol(k); const all = memberRows(); const cnt = {}; all.forEach(r => { const v = String(c[2](r)); cnt[v] = (cnt[v] || 0) + 1 });
+  let vals = Object.keys(cnt).sort((a, b) => c[3] === 'n' ? b - a : (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b, 'ko', { numeric: true })));
+  const tmp = S.colTmp; const q = (S.colQ || '').trim(); const shown = q ? vals.filter(v => v.includes(q)) : vals;
+  return `<h4>${c[1]}</h4><div class="cf-sort"><button class="btn sm" data-act="colsort" data-k="${k}" data-d="1">${c[3] === 'n' ? '작은 수부터 ▲' : '오름차순 ▲ (ㄱ→ㅎ)'}</button><button class="btn sm" data-act="colsort" data-k="${k}" data-d="-1">${c[3] === 'n' ? '큰 수부터 ▼' : '내림차순 ▼ (ㅎ→ㄱ)'}</button></div>
+    <input class="inp" type="search" placeholder="값 검색" value="${esc(S.colQ || '')}" data-in="colq" style="margin:10px 0 6px">
+    <div class="cf-all"><button class="linkbtn" data-act="colall">모두 선택</button><button class="linkbtn" data-act="colnone">모두 해제</button><span class="muted">${tmp.length}/${vals.length}개 선택</span></div>
+    <div class="cf-list">${shown.map(v => `<label class="cf-item"><input type="checkbox" data-in="colfv" value="${esc(v)}" ${tmp.includes(v) ? 'checked' : ''}><span>${v === '' ? '<i class="muted">(비어 있음)</i>' : esc(v)}</span><small>${cnt[v]}</small></label>`).join('') || '<p class="muted">맞는 값이 없어요.</p>'}</div>
+    <div class="row" style="margin-top:12px"><button class="btn" data-act="colclear" data-k="${k}">필터 해제</button><button class="btn primary" data-act="colapply" data-k="${k}" ${tmp.length ? '' : 'disabled'}>적용</button></div>` }
 function viewMembers() {
   const q = (S.mq || '').trim(); const f = S.mstat || 'all';
   const allRows = memberRows(); let rows = allRows; const cnt = k => allRows.filter(r => r.status === k).length;
   if (f !== 'all') rows = rows.filter(r => r.status === f);
   if (q) rows = rows.filter(r => r.name.includes(q) || r.phone.replace(/-/g, '').includes(q.replace(/-/g, '')) || r.memo.includes(q));
-  const key = S.msort || 'name'; rows.sort((a, b) => key === 'name' ? a.name.localeCompare(b.name, 'ko') : key === 'days' ? b.days - a.days : key === 'last' ? (b.last || '').localeCompare(a.last || '') : b.created - a.created);
+  rows = mApplyCols(rows); const fk = Object.keys(S.colF || {}).filter(k => S.colF[k]);
   let h = `<div class="mg-top"><h2 style="margin:0">회원 관리<small>${Object.keys(S.players).length}명</small></h2><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="mbulk">명단 붙여넣기</button><button class="btn sm" data-act="mcsv">CSV 저장</button><button class="btn primary sm" data-act="madd">＋ 회원 추가</button></div></div>
   <div class="mtools"><input class="inp" type="search" id="mq" placeholder="이름, 연락처, 메모 검색" value="${esc(q)}" data-in="mq">
   <div class="seg">${[['all', `전체 ${Object.keys(S.players).length}`], ['active', `정회원 ${cnt('active')}`], ['guest', `게스트 ${cnt('guest')}`], ['dormant', `휴면 ${cnt('dormant')}`]].map(([k, n]) => `<button role="tab" data-act="mstat" data-k="${k}" aria-selected="${f === k}">${n}</button>`).join('')}</div>
-  <label class="msort">정렬 <select class="inp" data-in="msort">${[['name', '이름순'], ['days', '참가 많은 순'], ['last', '최근 참가순'], ['created', '최근 등록순']].map(([k, n]) => `<option value="${k}" ${key === k ? 'selected' : ''}>${n}</option>`).join('')}</select></label></div>`;
+</div>${fk.length || S.colSort ? `<div class="cf-bar">${fk.map(k => `<button class="chip sel" data-act="colclear" data-k="${k}">${mcol(k)[1]}: ${S.colF[k].length > 2 ? S.colF[k].slice(0, 2).map(v => esc(v || '(빈칸)')).join(', ') + ` 외 ${S.colF[k].length - 2}` : S.colF[k].map(v => esc(v || '(빈칸)')).join(', ')} ✕</button>`).join('')}${S.colSort ? `<span class="chip">정렬: ${mcol(S.colSort.k)[1]} ${S.colSort.d > 0 ? '▲' : '▼'}</span>` : ''}<button class="linkbtn" data-act="colreset">모두 초기화</button><span class="muted">${rows.length}명 표시</span></div>` : ''}`;
   const nsel = Object.values(S.msel || {}).filter(Boolean).length;
   if (nsel) h += `<div class="bulkbar"><b>${nsel}명 선택</b><button class="btn sm" data-act="mselclear">선택 해제</button><button class="btn sm danger" data-act="mbulkdel">선택 삭제</button></div>`;
-  if (!rows.length) return h + `<div class="panel"><p class="empty">${q ? '검색 결과가 없어요.' : '회원이 없어요. 회원 추가나 명단 붙여넣기로 등록하세요.'}</p></div>`;
-  h += `<div class="panel sheetwrap"><table class="grid"><thead><tr><th class="ck"><input type="checkbox" class="staffck" data-in="mselall" aria-label="모두 선택" ${rows.length && rows.every(r => S.msel?.[r.id]) ? 'checked' : ''}></th><th class="stick">이름</th><th>구분</th><th>운영진</th><th>로그인</th><th>생년월일</th><th>연락처</th><th>메모</th><th>참가</th><th>최근 참가</th><th>관리</th></tr></thead><tbody>
+  if (!rows.length) return h + `<div class="panel"><p class="empty">${q || fk.length ? '조건에 맞는 회원이 없어요.' : '회원이 없어요. 회원 추가나 명단 붙여넣기로 등록하세요.'}</p></div>`;
+  h += `<div class="panel sheetwrap"><table class="grid"><thead><tr><th class="ck"><input type="checkbox" class="staffck" data-in="mselall" aria-label="모두 선택" ${rows.length && rows.every(r => S.msel?.[r.id]) ? 'checked' : ''}></th>${mTh('name', 'stick')}${mTh('status')}${mTh('staff')}${mTh('login')}${mTh('birth')}${mTh('phone')}${mTh('memo')}${mTh('days')}${mTh('last')}<th>관리</th></tr></thead><tbody>
   ${rows.map(r => `<tr class="${S.msel?.[r.id] ? 'msel' : ''}"><td class="ck"><input type="checkbox" class="staffck" data-in="msel" data-id="${r.id}" ${S.msel?.[r.id] ? 'checked' : ''} aria-label="${esc(r.name)} 선택"></td><td class="stick"><input class="cell w-name" type="text" value="${esc(r.name)}" data-in="mcell" data-id="${r.id}" data-f="name"></td>
     <td><select class="cell w-st st-${r.status}" data-in="mcell" data-id="${r.id}" data-f="status">${Object.entries(MSTAT).map(([k, n]) => `<option value="${k}" ${r.status === k ? 'selected' : ''}>${n}</option>`).join('')}</select></td>
     <td class="num"><input type="checkbox" class="staffck" data-in="staff" data-id="${r.id}" ${S.players[r.id]?.staff ? 'checked' : ''} aria-label="${esc(r.name)} 운영진(0순위)"></td>
@@ -1901,7 +1926,8 @@ async function sendChat() {
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'ap-pin') { e.preventDefault(); document.querySelector('[data-act=adminpinok]')?.click(); return } if (e.key === 'Enter' && e.target.dataset?.act === 'gohome') { e.target.click(); return } if (e.key === 'Enter' && (e.target.id === 'lg-pin' || e.target.id === 'lg-name')) { e.preventDefault(); document.querySelector('[data-act=login]')?.click(); return } if (e.target.id !== 'chatin' || e.key !== 'Enter' || e.shiftKey) return; e.preventDefault();
   if (e.isComposing) { S.sendAfterCompose = true; return } sendChat() }, true);
 document.addEventListener('scroll', e => { const t = e.target; if (t && t.classList && t.classList.contains('msgs') && !S.autoScrolling) S.chatUp = t.scrollHeight - t.scrollTop - t.clientHeight > 40 }, true);
-document.addEventListener('input', e => { if (/-name$/.test(e.target.id || '')) document.querySelectorAll('.lgerr').forEach(x => x.hidden = true); if (e.target.classList?.contains('pin')) { const v = e.target.value.replace(/\D/g, ''); if (v !== e.target.value) e.target.value = v } }, true);
+document.addEventListener('input', e => { if (e.target.dataset?.in === 'colq' && S.sheet?.type === 'colf') { S.colQ = e.target.value; const tmp = document.createElement('div'); tmp.innerHTML = colFilterSheet(S.sheet.k); const nl = tmp.querySelector('.cf-list'), ol = document.querySelector('.cf-list'); if (nl && ol) ol.replaceWith(nl); return }
+  if (/-name$/.test(e.target.id || '')) document.querySelectorAll('.lgerr').forEach(x => x.hidden = true); if (e.target.classList?.contains('pin')) { const v = e.target.value.replace(/\D/g, ''); if (v !== e.target.value) e.target.value = v } }, true);
 document.addEventListener('compositionstart', e => { if (e.target.id === 'chatin') S.composing = true });
 document.addEventListener('compositionend', e => { if (e.target.id !== 'chatin') return; S.composing = false;
   if (S.sendAfterCompose) { S.sendAfterCompose = false; setTimeout(sendChat, 0) } else if (S.pending) setTimeout(() => { if (!S.composing) render() }, 0) });
@@ -1931,6 +1957,16 @@ document.addEventListener('input', e => { const el = e.target; const k = el.data
 document.addEventListener('change', e => { const el = e.target;
   if (el.dataset.in === 'schedym') { S.schedYm = el.value; render(); return }
   if (el.dataset.in === 'nsid') { S.nsid = el.value; render(); return }
+  if (el.dataset.in === 'colfv') { const v = el.value; S.colTmp = el.checked ? [...new Set([...S.colTmp, v])] : S.colTmp.filter(x => x !== v); const ap = document.querySelector('[data-act=colapply]'); if (ap) ap.disabled = !S.colTmp.length; const sp_ = document.querySelector('.cf-all .muted'); if (sp_) sp_.textContent = sp_.textContent.replace(/^\d+/, S.colTmp.length); return }
+  if (el.dataset.in === 'bootbg') { const files = [...(el.files || [])]; if (!files.length) return; const used = new Set(bootBgs().map(x => x.id)); const free = [0, 1, 2, 3, 4].map(i => 'bootbg_' + i).filter(k => !used.has(k)); if (used.has('bootbg')) free.pop();
+    if (!free.length) { toast('배경은 5장까지예요. 하나를 지우고 올려 주세요.'); el.value = ''; return } const pick = files.slice(0, free.length); if (files.length > pick.length) toast(`빈 자리가 ${free.length}칸이라 ${pick.length}장만 올려요.`); else toast('사진을 줄이는 중이에요…');
+    (async () => { let ok = 0; for (let i = 0; i < pick.length; i++) { try { const f = pick[i];
+        const url = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(f) });
+        const im = await new Promise((res, rej) => { const g = new Image(); g.onload = () => res(g); g.onerror = rej; g.src = url });
+        const max = 1080, sc = Math.min(1, max / Math.max(im.width, im.height)); const cv = document.createElement('canvas'); cv.width = Math.round(im.width * sc); cv.height = Math.round(im.height * sc); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
+        let q = .7, out = cv.toDataURL('image/jpeg', q); while (out.length > 320000 && q > .3) { q -= .08; out = cv.toDataURL('image/jpeg', q) }
+        if (await w(() => S.store.set('meta/' + free[i], { img: out, at: Date.now() }))) ok++ } catch (e) { console.error(e) } }
+      toast(ok ? `배경 사진 ${ok}장을 저장했어요.` : '사진을 불러오지 못했어요. 다른 사진으로 해 주세요.') })(); el.value = ''; return }
   if (el.dataset.in === 'mancol') { S.manF.cols[+el.dataset.i] = el.value; return }
   if (el.dataset.in === 'mmpick') { S.mmPick = el.value; S.mmStage = null; S.mmDraft = null; render(); return }
   if (el.dataset.in === 'venuesel') { const sid = el.dataset.sid; if (el.value === '__custom') { (S.venueCustom ??= {})[sid] = true; render(); setTimeout(() => document.querySelector(`[data-in=cell][data-sid="${sid}"][data-f=venue]`)?.focus(), 50) } else if (el.value) { (S.venueCustom ??= {})[sid] = false; S.store.update(sp(sid), { venue: el.value }).catch(e => toast(errMsg(e))) } return }
@@ -1981,6 +2017,14 @@ document.addEventListener('click', async e => {
       if (!confirm(`${pname(id)} 선택을 취소할까요? 다시 내 차례가 돼요.`)) break; await undoPick(!S.admin); sysChat(`${team(s0, last.t).name} 주장이 ${pname(id)} 선택을 취소했어요`); break }
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
+    case 'bootbgdel': if (!needAdmin() || !confirm('이 배경 사진을 지울까요?')) break; await w(() => S.store.set('meta/' + el.dataset.k, { img: '', at: Date.now() }), '배경 사진을 지웠어요.'); break;
+    case 'colf': { const k = el.dataset.k; const c = mcol(k); const all = [...new Set(memberRows().map(r => String(c[2](r))))]; S.colTmp = S.colF?.[k] ? [...S.colF[k]] : all; S.colQ = ''; S.sheet = { type: 'colf', k }; render(); break }
+    case 'colsort': S.colSort = { k: el.dataset.k, d: +el.dataset.d }; S.sheet = null; render(); break;
+    case 'colall': { const c = mcol(S.sheet.k); const all = [...new Set(memberRows().map(r => String(c[2](r))))]; const q = (S.colQ || '').trim(); S.colTmp = q ? [...new Set([...S.colTmp, ...all.filter(v => v.includes(q))])] : all; render(); break }
+    case 'colnone': { const q = (S.colQ || '').trim(); S.colTmp = q ? S.colTmp.filter(v => !v.includes(q)) : []; render(); break }
+    case 'colapply': { const k = el.dataset.k; const c = mcol(k); const all = new Set(memberRows().map(r => String(c[2](r)))); S.colF = { ...(S.colF || {}) }; S.colF[k] = S.colTmp.length >= all.size ? null : [...S.colTmp]; S.sheet = null; render(); break }
+    case 'colclear': { S.colF = { ...(S.colF || {}) }; S.colF[el.dataset.k] = null; if (S.sheet?.type === 'colf') S.sheet = null; render(); break }
+    case 'colreset': S.colF = {}; S.colSort = null; render(); break;
     case 'changelog': S.sheet = { type: 'changelog' }; render(); break;
     case 'adminpinchange': { if (!needAdmin()) break; const cur = document.getElementById('apc-cur')?.value || '', n1 = document.getElementById('apc-new')?.value || '', n2 = document.getElementById('apc-new2')?.value || '';
       if (!(await adminPinOk(cur))) { toast('현재 운영모드 비밀번호가 달라요.'); break } if (!/^\d{4,8}$/.test(n1)) { toast('새 비밀번호는 숫자 4~8자리로 정해 주세요.'); break } if (n1 !== n2) { toast('새 비밀번호 두 번이 서로 달라요.'); break }
@@ -2172,7 +2216,7 @@ document.addEventListener('click', async e => {
       if (el.dataset.how === 'share' && navigator.share) { try { await navigator.share({ text: msg }); break } catch (e) { if (e.name === 'AbortError') break } }
       try { await navigator.clipboard.writeText(msg); toast(`${team(s, k).name} 주장 안내를 복사했어요.`) } catch { prompt('아래 내용을 복사해서 보내세요', msg.replace(/\n/g, ' / ')) } break }
     case 'whistle': S.whistle = !S.whistle; save('whistle', S.whistle); if (S.whistle) { audio(); whistle([.35]) } render(); break;
-    case 'closesheet': S.sheet = null; render(); break;
+    case 'closesheet': document.activeElement?.blur?.(); S.sheet = null; render(); break;
   }
 });
 
@@ -2249,7 +2293,7 @@ function swipeTab(dir) {
     renderSoon() }, null, onErr) };
   sub('players', 'players'); sub('sessions', 'sessions'); const CUT = (() => { const d = new Date(); d.setDate(d.getDate() - 90); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}` })(); S.cut = CUT;
   { let first = true; S.store.watchCol('matches', docs => { const o = { ...(S.oldMatches || {}) }; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); S.matches = o; if (first) { first = false; S.ready++; if (S.ready === 3) { setTimeout(maybeSeed, 300); verifyAuth(); syncClock(); setInterval(syncClock, 5 * 60 * 1000) } } renderSoon() }, { where: [['session', '>=', CUT]] }, onErr) }
-  S.store.watchCol('meta', docs => { const o = {}; docs.forEach(d => { const { id, ...r } = d; o[id] = r }); S.meta = o; if (S.tab === 'notice' && S.admin) { S.schedImg = {}; refreshSchedule() } }, null, () => { });
+  S.store.watchCol('meta', docs => { const o = {}; docs.forEach(d => { const { id, ...r } = d; o[id] = r }); S.meta = o; try { const L = Object.keys(o).filter(k => /^bootbg(_\d+)?$/.test(k)).sort().map(k => o[k]?.img).filter(Boolean).slice(0, 5); const js = JSON.stringify(L); if (L.length) { if (localStorage.getItem('wf:bootbgs') !== js) localStorage.setItem('wf:bootbgs', js) } else localStorage.removeItem('wf:bootbgs'); localStorage.removeItem('wf:bootbg') } catch { } if (S.tab === 'notice' && S.admin) { S.schedImg = {}; refreshSchedule() } }, null, () => { });
   S.store.watchCol('events', docs => { const o = { ...(S.oldEvents || {}) }; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); S.events = o; renderSoon() }, { where: [['session', '>=', S.cut]] }, onErr);
   if (!IS_ARTIFACT && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => r.update()).catch(() => { });
 })();
