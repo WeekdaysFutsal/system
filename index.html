@@ -20,14 +20,14 @@
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet" media="print" onload="this.media='all'">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <style>#boot{position:fixed;inset:0;z-index:1000;background:#000}</style>
-<link rel="stylesheet" href="style.css?v=0.21.7&b=1">
+<link rel="stylesheet" href="style.css?v=0.21.7&b=3">
 </head>
 <body>
 <div id="boot" role="status" aria-label="불러오는 중"><div class="bt-logo"><span class="bt-ring"></span><span class="bt-ring r2"></span><img src="assets/emblem.png" alt=""></div><b>WEEKDAYS FUTSAL CLUB</b><i class="bt-bar"><i></i></i></div>
 <div id="app"></div>
 <script>try{var L=JSON.parse(localStorage.getItem("wf:bootbgs")||"[]");var bg=L.length?L[Math.floor(Math.random()*L.length)]:localStorage.getItem("wf:bootbg");if(bg){var bt=document.getElementById("boot");if(bt){bt.style.backgroundImage="linear-gradient(rgba(0,0,0,.62),rgba(0,0,0,.62)),url('"+bg+"')";bt.classList.add("hasbg")}}}catch(e){}</script>
 <script>try{if(sessionStorage.getItem("wf:booted")){var b=document.getElementById("boot");if(b)b.remove();document.getElementById("app").innerHTML='<p class="empty">불러오는 중…</p>'}else{sessionStorage.setItem("wf:booted","1");window.WF_FRESH=1}}catch(e){}</script>
-<script src="config.js?v=0.21.7&b=1"></script>
-<script type="module" src="app.js?v=0.21.7&b=1"></script>
+<script src="config.js?v=0.21.7&b=3"></script>
+<script type="module" src="app.js?v=0.21.7&b=3"></script>
 </body>
 </html>
