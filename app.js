@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.20';
+const APP_VERSION = '0.21';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -834,6 +834,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21', '2026.10.02', ['[운영진] 로딩 화면 배경 사진을 최대 5장까지 올리면, 앱을 열 때마다 무작위로 보여요', '배경 사진은 전체를 어둡게 깔아서 엠블럼과 글자가 또렷해요', '사진 속 주인공이 가운데 엠블럼에 가리지 않게, 사진 크기와 위치를 자동으로 맞춰요']],
   ['0.20', '2026.10.02', ['[운영진] 회원 관리 표에 스프레드시트처럼 열마다 정렬(오름·내림차순)과 값 골라 보기 필터를 넣었어요']],
   ['0.19', '2026.10.02', ['베타테스트 대비 전체 최적화: 다시 열 때 화면·스타일·앱 파일을 폰 저장본에서 바로 불러와 훨씬 빨라졌어요', '서버 연결 준비를 앱 시작과 동시에 해서 첫 화면이 빨라졌어요', '데이터가 한꺼번에 들어와도 화면을 한 번만 다시 그려서 더 부드러워졌어요', '쓰지 않는 코드와 화면 스타일을 정리하고 엠블럼 이미지를 가볍게 줄였어요', '드래프트 화면 아래 채팅 기록 글자가 겹쳐 보이던 문제를 고쳤어요']],
   ['0.18', '2026.10.01', ['업데이트 내용을 내 정보에서 확인할 수 있어요', '로딩 화면은 앱을 처음 열 때만 보이고, 새로고침은 바로 돼요']],
@@ -844,14 +845,31 @@ const CHANGELOG = [
   ['0.13', '2026.10.01', ['홈·운영·경기모드 화면에서 겹치는 정보를 정리했어요']],
   ['0.12', '2026.10.01', ['경기 추가 때 장소를 목록에서 고르거나 직접 입력', '정식 출시 전이라 버전을 0.x로 표기해요']],
 ];
+/* 로딩 배경 자동 구성: 세로 화면(9:16)에 맞추고, 사진 속 주인공(윤곽이 몰린 곳)이 가운데 엠블럼 자리(세로 36~64%)를 피하도록 배치 */
+function composeBootBg(im) { const W = 1080, H = 1920; const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const c = cv.getContext('2d'); c.imageSmoothingQuality = 'high';
+  const sw = 96, sh = Math.max(8, Math.round(96 * im.height / im.width)); const t = document.createElement('canvas'); t.width = sw; t.height = sh; const tc = t.getContext('2d'); tc.drawImage(im, 0, 0, sw, sh);
+  const d = tc.getImageData(0, 0, sw, sh).data; const Lm = new Float32Array(sw * sh); for (let i = 0; i < sw * sh; i++) Lm[i] = .299 * d[i * 4] + .587 * d[i * 4 + 1] + .114 * d[i * 4 + 2];
+  const E = []; for (let y = 1; y < sh - 1; y++) for (let x = 1; x < sw - 1; x++) { const i = y * sw + x; E.push([Math.abs(Lm[i + 1] - Lm[i - 1]) + Math.abs(Lm[i + sw] - Lm[i - sw]), x / sw, y / sh]) }
+  E.sort((a, b) => b[0] - a[0]); const top = E.slice(0, Math.max(10, Math.round(E.length * .12))); let sx = 0, sy = 0, sg = 0; top.forEach(([g, x, y]) => { sx += g * x; sy += g * y; sg += g }); const fx = sg ? sx / sg : .5, fy = sg ? sy / sg : .5;
+  // 배경: 같은 사진을 화면 가득 채우고 강하게 흐리게(작게 줄였다가 키움)
+  const cov = Math.max(W / im.width, H / im.height); const bl = document.createElement('canvas'); bl.width = 27; bl.height = 48; const bc = bl.getContext('2d'); bc.imageSmoothingQuality = 'high';
+  const bw = im.width * cov * bl.width / W, bh = im.height * cov * bl.height / H; bc.drawImage(im, (bl.width - bw) / 2, (bl.height - bh) / 2, bw, bh); c.drawImage(bl, 0, 0, W, H); c.fillStyle = 'rgba(0,0,0,.4)'; c.fillRect(0, 0, W, H);
+  // 본 사진: 가로 사진은 폭에 맞춰 통째로, 세로 사진은 폭에 맞춘 뒤 위아래를 잘라서 — 주인공을 위쪽(24%) 또는 아래쪽(78%)에 둠
+  let s = W / im.width; if (im.height * s > H * 1.6) s = H * 1.6 / im.height; const fw = im.width * s, fh = im.height * s; const X = Math.max(W - fw, Math.min(0, W / 2 - fx * fw));
+  const target = (fy < .5 ? .24 : .78) * H; const T = fh <= H ? Math.max(0, Math.min(H - fh, target - fy * fh)) : Math.max(H - fh, Math.min(0, target - fy * fh));
+  if (fw < W) c.drawImage(im, (W - fw) / 2, T, fw, fh); else c.drawImage(im, X, T, fw, fh);
+  // 본 사진 위아래 경계를 부드럽게
+  if (fh < H) { const fade = 90; if (T > 0) { const g = c.createLinearGradient(0, T, 0, T + fade); g.addColorStop(0, 'rgba(0,0,0,.55)'); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(0, T, W, fade) }
+    if (T + fh < H) { const g = c.createLinearGradient(0, T + fh - fade, 0, T + fh); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.55)'); c.fillStyle = g; c.fillRect(0, T + fh - fade, W, fade) } }
+  return { cv, fx, fy, T, fh } }
 function bootBgs() { const m = S.meta || {}; const out = []; Object.keys(m).filter(k => /^bootbg(_\d+)?$/.test(k)).sort().forEach(k => { if (m[k]?.img) out.push({ id: k, img: m[k].img, at: m[k].at || 0 }) }); return out.slice(0, 5) }
 function viewSettings() {
   return `<h2>내 정보<small>이름 + 비밀번호 4자리로 로그인해요</small></h2>${loginCard()}
   <h2>휘슬</h2><div class="panel pad"><button class="btn block" data-act="whistle">${S.whistle ? '🔊 이 폰에서 휘슬 켜짐' : '🔇 이 폰에서 휘슬 꺼짐'}</button><p class="note">웹에서는 휘슬이 울리려면 경기 화면을 켜 두어야 해요.</p></div>
-  ${S.admin ? (() => { const L = bootBgs(); const VG = 'radial-gradient(ellipse at center,rgba(0,0,0,.2) 0%,rgba(0,0,0,.72) 62%,#000 100%)';
+  ${S.admin ? (() => { const L = bootBgs(); const VG = 'linear-gradient(rgba(0,0,0,.62),rgba(0,0,0,.62))';
     return `<h2>로딩 화면 배경<small>최대 5장 · 앱을 열 때마다 무작위로 보여요</small></h2><div class="panel pad"><div class="bggrid">${Array.from({ length: 5 }, (_, i) => { const x = L[i];
       return x ? `<div class="bgslot" style="background-image:${VG},url('${x.img}')"><img src="${EMBLEM_SRC}" alt=""><button class="bgdel" data-act="bootbgdel" data-k="${x.id}" aria-label="${i + 1}번 배경 지우기">✕</button></div>` : `<label class="bgslot empty" style="cursor:pointer">＋<input type="file" accept="image/*" multiple data-in="bootbg" hidden></label>` }).join('')}</div>
-    <p class="note" style="margin:8px 0 0">${L.length}/5장 · 사진은 자동으로 줄이고 가장자리를 어둡게(비네팅) 처리해요. 여러 장을 한 번에 골라도 돼요. 다음에 앱을 열 때부터 보여요.</p></div>` })() : ''}
+    <p class="note" style="margin:8px 0 0">${L.length}/5장 · 사진 속 주인공이 가운데 엠블럼에 가리지 않게 크기와 위치를 자동으로 맞추고, 전체를 어둡게 처리해요. 여러 장을 한 번에 골라도 돼요.</p></div>` })() : ''}
   ${S.admin ? `<h2>운영모드 비밀번호</h2><div class="panel pad"><div class="pinrow"><input id="apc-cur" class="inp pin" type="text" inputmode="numeric" maxlength="8" placeholder="현재"><input id="apc-new" class="inp pin" type="text" inputmode="numeric" maxlength="8" placeholder="새 번호"><input id="apc-new2" class="inp pin" type="text" inputmode="numeric" maxlength="8" placeholder="새 번호 확인"></div><button class="btn block" style="margin-top:8px" data-act="adminpinchange">비밀번호 변경</button><p class="note" style="margin:6px 0 0">숫자 4~8자리. 바꾸면 모든 운영진이 새 번호로 들어와요.</p></div>` : ''}
   ${S.admin ? `<h2>시뮬레이션(연습 데이터)<small>가상 경기를 만들어 미리 해 보고 지워요</small></h2><div class="panel pad"><p class="muted" style="margin:0 0 10px">실제 회원 명단으로 원하는 단계의 가상 경기를 만들어요. 만든 뒤 바로 그 단계 화면으로 이동해요. 실제 경기와 회원 정보는 건드리지 않아요.</p>
     <div class="simgrid">${[...Object.entries(SIM).map(([k, [n]]) => [k, n, { apply: '신청 중인 경기, 신청자 12명', captain: '신청 마감, 18명 확정', draft: '주장 3명 입장한 드래프트 방', trade: '팀 구성이 끝난 상태' }[k], 'mksim']), ['mm', '경기모드', '팀 구성 완료, 오늘 날짜', 'mkpractice']].map(([k, n, d, act]) => { const cnt = Object.values(S.sessions).filter(x => x.practice && x.simKind === k).length;
@@ -1963,8 +1981,8 @@ document.addEventListener('change', e => { const el = e.target;
     (async () => { let ok = 0; for (let i = 0; i < pick.length; i++) { try { const f = pick[i];
         const url = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(f) });
         const im = await new Promise((res, rej) => { const g = new Image(); g.onload = () => res(g); g.onerror = rej; g.src = url });
-        const max = 1080, sc = Math.min(1, max / Math.max(im.width, im.height)); const cv = document.createElement('canvas'); cv.width = Math.round(im.width * sc); cv.height = Math.round(im.height * sc); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
-        let q = .7, out = cv.toDataURL('image/jpeg', q); while (out.length > 320000 && q > .3) { q -= .08; out = cv.toDataURL('image/jpeg', q) }
+        const { cv } = composeBootBg(im);
+        let q = .72, out = cv.toDataURL('image/jpeg', q); while (out.length > 320000 && q > .3) { q -= .08; out = cv.toDataURL('image/jpeg', q) }
         if (await w(() => S.store.set('meta/' + free[i], { img: out, at: Date.now() }))) ok++ } catch (e) { console.error(e) } }
       toast(ok ? `배경 사진 ${ok}장을 저장했어요.` : '사진을 불러오지 못했어요. 다른 사진으로 해 주세요.') })(); el.value = ''; return }
   if (el.dataset.in === 'mancol') { S.manF.cols[+el.dataset.i] = el.value; return }
