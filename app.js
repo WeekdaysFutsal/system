@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.8';
+const APP_VERSION = '0.21.9';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -927,6 +927,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.9', '2026.10.02', ['[운영진] 공지 메뉴의 "알림 보내기"에서 전체·신청자·참가자·공당·물당·주차 신청자 또는 원하는 회원만 골라 알림을 보낼 수 있어요']],
   ['0.21.8', '2026.10.02', ['휴대폰 알림: 신청 오픈, 마감 임박, 대기→선발, 주장 지정, 팀 발표, 경기 당일, 운영진 공지 (내 정보에서 켜고 종류별로 고를 수 있어요)']],
   ['0.21.7', '2026.10.02', ['운영모드를 쓰다가 앱을 닫고 다시 열면, 운영모드가 꺼지고 항상 홈에서 시작해요']],
   ['0.21.6', '2026.10.02', ['[운영진] 예전에 취소했는데 남아 있던 주차·공당·물당 기록을 신청자 화면에서 한 번에 정리할 수 있어요']],
@@ -995,9 +996,7 @@ function viewSettings() {
   return `<h2>내 정보<small>이름 + 비밀번호 4자리로 로그인해요</small></h2>${loginCard()}
   ${S.auth && !S.admin ? `<h2>알림</h2>${notiCard()}` : ''}
   <h2>휘슬</h2><div class="panel pad"><button class="btn block" data-act="whistle">${S.whistle ? '🔊 이 폰에서 휘슬 켜짐' : '🔇 이 폰에서 휘슬 꺼짐'}</button><p class="note">웹에서는 휘슬이 울리려면 경기 화면을 켜 두어야 해요.</p></div>
-  ${S.admin ? `<h2>📝 공지 알림 보내기<small>알림을 켠 회원 폰으로 바로 보내요</small></h2><div class="panel pad"><input id="pn-title" class="inp" maxlength="40" placeholder="제목 (예: 이번 주 구장 변경 안내)"><textarea id="pn-body" class="inp" rows="3" maxlength="200" placeholder="내용" style="margin-top:8px"></textarea>
-    <div class="pntg"><label><input type="radio" name="pnt" data-in="pntarget" value="all" checked> 전체 회원</label><label><input type="radio" name="pnt" data-in="pntarget" value="session"> ${S.sid ? fmtDate(S.sid) + ' 경기' : '선택한 경기'} 참가자</label></div><button class="btn primary block" data-act="pushsend">알림 보내기</button></div>` : ''}
-  ${S.admin ? `<h2>서비스 상태</h2><div class="panel pad"><div class="betarow"><div><b>${betaOn() ? '🧪 베타테스트 중' : '✅ 정식 서비스'}</b><small>${betaOn() ? '운영진이 신청자 순번을 바꿀 수 있어요(카톡 투표 결과 반영용).' : '신청 순번은 서버 도착 시각으로만 정해지고, 바꿀 수 없어요.'}</small></div><button class="btn ${betaOn() ? 'primary' : ''}" data-act="betatoggle">${betaOn() ? '정식 오픈하기' : '베타로 되돌리기'}</button></div></div>` : ''}
+    ${S.admin ? `<h2>서비스 상태</h2><div class="panel pad"><div class="betarow"><div><b>${betaOn() ? '🧪 베타테스트 중' : '✅ 정식 서비스'}</b><small>${betaOn() ? '운영진이 신청자 순번을 바꿀 수 있어요(카톡 투표 결과 반영용).' : '신청 순번은 서버 도착 시각으로만 정해지고, 바꿀 수 없어요.'}</small></div><button class="btn ${betaOn() ? 'primary' : ''}" data-act="betatoggle">${betaOn() ? '정식 오픈하기' : '베타로 되돌리기'}</button></div></div>` : ''}
   ${S.admin ? (() => { const L = bootBgs(); const VG = 'linear-gradient(rgba(0,0,0,.62),rgba(0,0,0,.62))';
     return `<h2>로딩 화면 배경<small>최대 5장 · 앱을 열 때마다 무작위로 보여요</small></h2><div class="panel pad"><div class="bggrid">${Array.from({ length: 5 }, (_, i) => { const x = L[i];
       return x ? `<div class="bgslot" style="background-image:${VG},url('${x.img}')"><img src="${EMBLEM_SRC}" alt=""><button class="bgdel" data-act="bootbgdel" data-k="${x.id}" aria-label="${i + 1}번 배경 지우기">✕</button></div>` : `<label class="bgslot empty" style="cursor:pointer">＋<input type="file" accept="image/*" multiple data-in="bootbg" hidden></label>` }).join('')}</div>
@@ -1741,9 +1740,27 @@ function loginCard() {
 }
 
 /* ───────── admin: 공지 (posters & texts) ───────── */
+function pushGroups(s0) { if (!s0) return {}; const c = s0.stage === 'apply' ? classify(s0) : null;
+  const all = c ? c.rows.map(r => r.pid) : [...(s0.applicants || []), ...(s0.waitlist || [])]; const sel = c ? c.sel.map(r => r.pid) : (s0.applicants || []);
+  const duty = k => { const fix = s0.duty?.[k] || []; return fix.length ? fix : Object.entries(s0.dutyReq?.[k] || {}).filter(([, v]) => v).map(([p0]) => p0) };
+  const uniq = a => [...new Set(a.filter(p0 => p0 && S.players[p0]))];
+  return { apps: uniq(all), sel: uniq(sel), ball: uniq(duty('ball')), drink: uniq(duty('drink')), park: uniq(Object.keys(s0.park || {}).filter(p0 => s0.park[p0])) } }
+function pushComposer() { const ids = Object.keys(S.sessions).filter(id => !S.sessions[id].practice).sort().reverse().slice(0, 12); if (!S.pnSid || !S.sessions[S.pnSid]) S.pnSid = runSid() || ids[0] || null;
+  const s0 = S.pnSid ? S.sessions[S.pnSid] : null; const G = pushGroups(s0); S.pnSel ??= [];
+  const members = byName(Object.keys(S.players).filter(id => mstatus(S.players[id]) !== 'dormant'));
+  const grp = [['all', '전체 회원', members.length], ['apps', '신청자 (대기 포함)', G.apps?.length || 0], ['sel', '참가자 (대기 제외)', G.sel?.length || 0], ['ball', '⚽ 공당', G.ball?.length || 0], ['drink', '🥤 물당', G.drink?.length || 0], ['park', '🚗 주차 신청자', G.park?.length || 0]];
+  const sel = new Set(S.pnSel);
+  return `<div class="panel pad pnc"><h3 style="margin:0 0 4px">🔔 알림 보내기</h3><p class="note" style="margin:0 0 12px">알림을 켠 회원 폰으로 바로 보내요. 그룹 버튼으로 받을 사람을 고른 뒤, 아래에서 한 명씩 더하거나 뺄 수 있어요.</p>
+    <label class="pf"><span>기준 경기</span><select class="inp" data-in="pnsid">${ids.map(id => `<option value="${id}" ${id === S.pnSid ? 'selected' : ''}>${fmtDate(id)} ${esc(S.sessions[id].time || '')} · ${esc(S.sessions[id].venue || '')}</option>`).join('')}</select></label>
+    <div class="pngrp">${grp.map(([k, n, c]) => `<button class="btn sm" data-act="pngrp" data-k="${k}" ${c ? '' : 'disabled'}>${n} <b>${c}</b></button>`).join('')}<button class="btn sm" data-act="pngrp" data-k="none">선택 해제</button></div>
+    <div class="pnsel"><b>받는 사람 ${sel.size}명</b></div>
+    <div class="dpick pnchips">${members.map(id => `<button class="chip ${sel.has(id) ? 'sel' : ''}" data-act="pntog" data-id="${id}">${esc(pname(id))}</button>`).join('')}</div>
+    <input id="pn-title" class="inp" maxlength="40" placeholder="제목 (예: 이번 주 구장 변경 안내)" value="${esc(S.pnTitle || '')}" style="margin-top:14px"><textarea id="pn-body" class="inp" rows="3" maxlength="200" placeholder="내용" style="margin-top:8px">${esc(S.pnBody || '')}</textarea>
+    <button class="btn primary block" style="margin-top:10px" data-act="pushsend" ${sel.size ? '' : 'disabled'}>${sel.size ? `${sel.size}명에게 알림 보내기` : '받는 사람을 골라 주세요'}</button></div>` }
 function viewNoticeMenu() {
   const nt = S.noticeTab || 'team';
-  let h = `<div class="mg-top"><div class="seg pseg" role="tablist">${[['team', '👥 팀 공지'], ['month', '📅 월간 일정표'], ['recruit', '📝 신청 안내 글']].map(([k, n]) => `<button role="tab" data-act="ntab" data-k="${k}" aria-selected="${nt === k}">${n}</button>`).join('')}</div></div>`;
+  let h = `<div class="mg-top"><div class="seg pseg" role="tablist">${[['team', '👥 팀 공지'], ['month', '📅 월간 일정표'], ['recruit', '📝 신청 안내 글'], ['push', '🔔 알림 보내기']].map(([k, n]) => `<button role="tab" data-act="ntab" data-k="${k}" aria-selected="${nt === k}">${n}</button>`).join('')}</div></div>`;
+  if (nt === 'push') return h + pushComposer();
   if (nt === 'month') return h + (Object.keys(S.sessions).length ? schedPanel() : `<div class="panel"><p class="empty">경기를 먼저 추가하세요.</p></div>`);
   if (nt === 'recruit') { const up = Object.keys(S.sessions).filter(id => id >= today()).sort(); if (!up.length) return h + `<div class="panel"><p class="empty">예정된 경기가 없어요.</p></div>`;
     if (!up.includes(S.nsid)) S.nsid = up.includes(S.sid) ? S.sid : up[0]; const s = S.sessions[S.nsid];
@@ -2140,6 +2157,7 @@ document.addEventListener('change', e => { const el = e.target;
         S.ocrBusy = false; if (!L.length) { toast('이미지에서 이름을 찾지 못했어요. 참여자 목록이 잘 보이게 캡처해 주세요.'); render(); return } S.kk = L; S.kkFromImg = true; render() }
       catch (e) { console.error(e); S.ocrBusy = false; toast('글자를 읽지 못했어요. 인터넷 연결을 확인하거나, "글자로 붙여넣기"를 써 주세요.'); render() } })(); return }
   if (el.dataset.in === 'npref') { const pid = myPid(); if (!pid) return; S.np = { ...(S.np || { on: true }), [el.dataset.k]: el.checked }; S.store.set('notifPrefs/' + pid, { ...S.np, at: Date.now() }).catch(e => toast(errMsg(e))); return }
+  if (el.dataset.in === 'pnsid') { S.pnSid = el.value; S.pnTitle = document.getElementById('pn-title')?.value || ''; S.pnBody = document.getElementById('pn-body')?.value || ''; render(); return }
   if (el.dataset.in === 'kkpick') { if (S.kk) S.kk[+el.dataset.i].use = el.value; return }
   if (el.dataset.in === 'mancol') { S.manF.cols[+el.dataset.i] = el.value; return }
   if (el.dataset.in === 'mmpick') { S.mmPick = el.value; S.mmStage = null; S.mmDraft = null; render(); return }
@@ -2193,9 +2211,12 @@ document.addEventListener('click', async e => {
     case 'noop': break;
     case 'pushon': await pushEnable(); break;
     case 'pushoff': await pushDisable(); break;
-    case 'pushsend': { if (!needAdmin()) break; const t = document.getElementById('pn-title')?.value.trim(), b0 = document.getElementById('pn-body')?.value.trim(), tg = document.querySelector('[data-in=pntarget]:checked')?.value || 'all';
-      if (!t || !b0) { toast('제목과 내용을 입력해 주세요.'); break } if (!confirm(`${tg === 'all' ? '전체 회원' : fmtDate(S.sid) + ' 참가자'}에게 알림을 보낼까요?`)) break;
-      await queuePush({ type: 'notice', title: t, body: b0, target: tg, sid: S.sid || null }); ['pn-title', 'pn-body'].forEach(x => { const e = document.getElementById(x); if (e) e.value = '' }); toast('알림을 보냈어요. 잠시 뒤 도착해요.'); break }
+    case 'pngrp': { if (!needAdmin()) break; const k = el.dataset.k; S.pnTitle = document.getElementById('pn-title')?.value || S.pnTitle; S.pnBody = document.getElementById('pn-body')?.value || S.pnBody;
+      if (k === 'none') S.pnSel = []; else if (k === 'all') S.pnSel = Object.keys(S.players).filter(id => mstatus(S.players[id]) !== 'dormant'); else S.pnSel = [...(pushGroups(S.sessions[S.pnSid])[k] || [])]; render(); break }
+    case 'pntog': { S.pnTitle = document.getElementById('pn-title')?.value || S.pnTitle; S.pnBody = document.getElementById('pn-body')?.value || S.pnBody; const set = new Set(S.pnSel || []); set.has(id) ? set.delete(id) : set.add(id); S.pnSel = [...set]; render(); break }
+    case 'pushsend': { if (!needAdmin()) break; const t = document.getElementById('pn-title')?.value.trim(), b0 = document.getElementById('pn-body')?.value.trim(); const pids = [...new Set(S.pnSel || [])];
+      if (!pids.length) { toast('받는 사람을 골라 주세요.'); break } if (!t || !b0) { toast('제목과 내용을 입력해 주세요.'); break } if (!confirm(`${pids.length}명에게 알림을 보낼까요?`)) break;
+      await queuePush({ type: 'notice', title: t, body: b0, target: 'pids', pids, sid: S.pnSid || null }); S.pnTitle = ''; S.pnBody = ''; S.pnSel = []; document.activeElement?.blur?.(); toast(`${pids.length}명에게 알림을 보냈어요. 잠시 뒤 도착해요.`); render(); break }
     case 'qzans': if (el.dataset.v === 'm') { S.qzStep = 'blocked'; await qzSave('m'); render(); clearTimeout(S.qzT); S.qzT = setTimeout(qzKill, 3500) } else { S.qzStep = null; await qzSave('f'); render() } break;
     case 'qzok': qzKill(); break;
     case 'stalefix': { if (!needAdmin()) break; const ps = staleExtraPids(cur()); if (!ps.length) break; if (!confirm(`${ps.map(pname).join(', ')} 님의 주차·공당·물당 신청과 지정을 지울까요?`)) break; for (const p0 of ps) await clearExtras(S.sid, p0); toast('정리했어요.'); render(); break }
