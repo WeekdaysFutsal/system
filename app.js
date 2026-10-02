@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.7';
+const APP_VERSION = '0.21.8';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -52,7 +52,7 @@ function withTimeout(pr, ms) { let t; return Promise.race([pr, new Promise((_, r
 async function firebaseStore(cfg) {
   const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
   const [{ initializeApp }, F, A] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-firestore.js'), import(base + 'firebase-auth.js')]);
-  const app = initializeApp(cfg);
+  const app = initializeApp(cfg); S.fbApp = app;
   await A.signInAnonymously(A.getAuth(app));
   let db; try { db = F.initializeFirestore(app, { experimentalAutoDetectLongPolling: true, ignoreUndefinedProperties: true, ...(F.persistentLocalCache ? { localCache: F.persistentLocalCache() } : {}) }) } catch { try { db = F.initializeFirestore(app, { experimentalAutoDetectLongPolling: true, ignoreUndefinedProperties: true }) } catch { db = F.getFirestore(app) } }
   const ref = p => F.doc(db, p);
@@ -491,6 +491,7 @@ function render() {
   S.dm = !isDesk();
   if (S.ready >= 3 || S.err) hideBoot();
   if (S.ready >= 3) ensureQueues();
+  if (S.ready >= 3 && S.auth && !S.admin) { loadPrefs(); pushListen() }
   if (!S.admin && S.auth && S.ready >= 3) { const cs = capSid(); if (cs && S.tab !== 'draft' && !(S.capPop ??= {})[cs] && !S.sheet) { S.capPop[cs] = 1; S.sheet = { type: 'cappop', sid: cs } } }
   if (!S.admin && !S.auth && S.ready >= 3) { document.body.classList.remove('dm-on'); document.getElementById('app').innerHTML = loginScreen() + (S.sheet ? viewSheet() : ''); return }
   if (S.ready >= 3 && qzTarget() && window.WF_QZ_RESET && !S.qzResetDone) { S.qzResetDone = true; const me = myPid(); S.store.update('meta/qz', { [me]: null }).catch(() => { }); if (S.meta?.qz) S.meta.qz[me] = null }
@@ -926,6 +927,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.8', '2026.10.02', ['휴대폰 알림: 신청 오픈, 마감 임박, 대기→선발, 주장 지정, 팀 발표, 경기 당일, 운영진 공지 (내 정보에서 켜고 종류별로 고를 수 있어요)']],
   ['0.21.7', '2026.10.02', ['운영모드를 쓰다가 앱을 닫고 다시 열면, 운영모드가 꺼지고 항상 홈에서 시작해요']],
   ['0.21.6', '2026.10.02', ['[운영진] 예전에 취소했는데 남아 있던 주차·공당·물당 기록을 신청자 화면에서 한 번에 정리할 수 있어요']],
   ['0.21.5', '2026.10.02', ['신청을 취소하거나 신청자 명단에서 빠지면 주차·공당·물당 신청과 지정도 자동으로 취소돼요']],
@@ -962,9 +964,39 @@ function composeBootBg(im) { const W = 1080, H = 1920; const cv = document.creat
     if (T + fh < H) { const g = c.createLinearGradient(0, T + fh - fade, 0, T + fh); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.55)'); c.fillStyle = g; c.fillRect(0, T + fh - fade, W, fade) } }
   return { cv, fx, fy, T, fh } }
 function bootBgs() { const m = S.meta || {}; const out = []; Object.keys(m).filter(k => /^bootbg(_\d+)?$/.test(k)).sort().forEach(k => { if (m[k]?.img) out.push({ id: k, img: m[k].img, at: m[k].at || 0 }) }); return out.slice(0, 5) }
+/* ───────── 푸시 알림 (Firebase Cloud Messaging) ───────── */
+const VAPID_KEY = 'BDpr-sq8atUkF4gE-k0-yr1mwfcGt3K1vr0ZWI4TDMSsJnPnrFYSm4N-KRS7W6gPQvYHTxCKe3IB8yeoVTANOXk';
+const NOTI_TYPES = [['open', '📢 신청 오픈', '신청이 열리면'], ['closing', '⏰ 마감 임박', '아직 신청 안 했을 때 마감 2시간 전'], ['promote', '🎉 대기 → 선발', '내가 선발로 올라갔을 때'], ['captain', '👑 주장 지정', '내가 주장이 됐을 때'], ['team', '📣 팀 발표', '드래프트가 끝나면 내 팀 안내'], ['day', '⚽ 경기 당일', '경기 날 낮 12시에 시간·구장 안내'], ['notice', '📝 운영진 공지', '운영진이 보내는 공지']];
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function pushSupport() { if (IS_ARTIFACT || !S.fbApp) return 'preview'; if (isIOS() && !isStandalone()) return 'ios-browser'; if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return 'unsupported'; return 'ok' }
+async function fcm() { const M = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js'); if (!(await M.isSupported())) throw new Error('unsupported'); return M }
+async function pushEnable() { const sup = pushSupport(); if (sup !== 'ok') { toast(sup === 'ios-browser' ? '아이폰은 "홈 화면에 추가"한 앱에서만 알림을 받을 수 있어요.' : '이 기기·브라우저는 알림을 지원하지 않아요.'); return }
+  const pid = myPid(); if (!pid) { toast('로그인한 뒤에 켤 수 있어요.'); return }
+  const perm = await Notification.requestPermission(); if (perm !== 'granted') { toast('알림이 허용되지 않았어요. 폰 설정에서 이 앱의 알림을 허용해 주세요.'); render(); return }
+  try { const M = await fcm(); const reg = await navigator.serviceWorker.ready; const token = await M.getToken(M.getMessaging(S.fbApp), { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+    if (!token) throw new Error('no token'); save('pushToken', token);
+    await S.store.set('pushTokens/' + token, { pid, at: Date.now(), ua: navigator.userAgent.slice(0, 120), ios: isIOS() });
+    S.np = { ...Object.fromEntries(NOTI_TYPES.map(([k]) => [k, true])), ...(S.np || {}), on: true }; await S.store.set('notifPrefs/' + pid, { ...S.np, at: Date.now() }); pushListen(); toast('알림을 켰어요! 🔔'); render() }
+  catch (e) { console.error(e); toast('알림을 켜지 못했어요: ' + (e.code || e.message || '알 수 없음')) } }
+async function pushDisable() { const pid = myPid(); const t = load('pushToken', null); try { if (t) await S.store.del('pushTokens/' + t) } catch { } save('pushToken', null); if (pid) { try { await S.store.set('notifPrefs/' + pid, { ...(S.np || {}), on: false, at: Date.now() }) } catch { } S.np = { ...(S.np || {}), on: false } } toast('이 폰의 알림을 껐어요.'); render() }
+let PUSH_LISTEN = false; async function pushListen() { if (PUSH_LISTEN || pushSupport() !== 'ok' || Notification.permission !== 'granted') return; PUSH_LISTEN = true; try { const M = await fcm(); M.onMessage(M.getMessaging(S.fbApp), m => { const n = m.notification || {}; toast(`${n.title || '알림'} · ${n.body || ''}`) }) } catch (e) { console.warn(e) } }
+async function loadPrefs() { const pid = myPid(); if (!pid || S.npLoaded === pid) return; S.npLoaded = pid; try { S.np = (await S.store.get('notifPrefs/' + pid)) || null } catch { S.np = null } render() }
+function notiCard() { const sup = pushSupport(); const on = typeof Notification !== 'undefined' && Notification.permission === 'granted' && !!load('pushToken', null) && S.np?.on !== false;
+  if (sup === 'preview') return `<div class="panel pad"><p class="note" style="margin:0">알림은 실제 앱 주소(GitHub)에서 켤 수 있어요.</p></div>`;
+  if (sup === 'ios-browser') return `<div class="panel pad"><b>📱 아이폰은 홈 화면 앱에서만 알림을 받을 수 있어요</b><p class="note" style="margin:6px 0 0">사파리 아래 공유 버튼 → <b>홈 화면에 추가</b> → 홈 화면의 WD_FUTSAL 아이콘으로 열고, 여기서 알림을 켜 주세요. (iOS 16.4 이상)</p></div>`;
+  if (sup !== 'ok') return `<div class="panel pad"><p class="note" style="margin:0">이 기기·브라우저는 알림을 지원하지 않아요. 크롬이나 홈 화면 앱으로 열어 주세요.</p></div>`;
+  const np = S.np || {}; return `<div class="panel pad"><div class="betarow"><div><b>${on ? '🔔 이 폰에서 알림 받는 중' : '🔕 알림 꺼짐'}</b><small>${on ? '아래에서 받을 알림을 고를 수 있어요.' : '켜면 신청 오픈, 선발, 팀 발표 등을 알려 드려요.'}</small></div>${on ? '<button class="btn" data-act="pushoff">끄기</button>' : '<button class="btn primary cta" data-act="pushon">알림 켜기</button>'}</div>
+    ${on ? `<div class="ntypes">${NOTI_TYPES.map(([k, n, d]) => `<label class="ntype"><span><b>${n}</b><small>${d}</small></span><input type="checkbox" data-in="npref" data-k="${k}" ${np[k] !== false ? 'checked' : ''}></label>`).join('')}</div>` : ''}</div>` }
+function selSet(s0) { if (!s0) return new Set(); return new Set(s0.stage === 'apply' ? classify(s0).sel.map(r => r.pid).filter(Boolean) : (s0.applicants || [])) }
+function watchPromote(sid, before, exclude) { setTimeout(() => { const after = selSet(S.sessions[sid]); const up = [...after].filter(p0 => !before.has(p0) && !(exclude || []).includes(p0)); if (up.length) queuePush({ type: 'promote', pids: up, sid }) }, 2500) }
+async function queuePush(doc) { try { await S.store.add('pushQueue', { ...doc, by: myPid() || (S.admin ? 'admin' : ''), at: Date.now() }) } catch (e) { console.warn('push queue', e) } }
 function viewSettings() {
   return `<h2>내 정보<small>이름 + 비밀번호 4자리로 로그인해요</small></h2>${loginCard()}
+  ${S.auth && !S.admin ? `<h2>알림</h2>${notiCard()}` : ''}
   <h2>휘슬</h2><div class="panel pad"><button class="btn block" data-act="whistle">${S.whistle ? '🔊 이 폰에서 휘슬 켜짐' : '🔇 이 폰에서 휘슬 꺼짐'}</button><p class="note">웹에서는 휘슬이 울리려면 경기 화면을 켜 두어야 해요.</p></div>
+  ${S.admin ? `<h2>📝 공지 알림 보내기<small>알림을 켠 회원 폰으로 바로 보내요</small></h2><div class="panel pad"><input id="pn-title" class="inp" maxlength="40" placeholder="제목 (예: 이번 주 구장 변경 안내)"><textarea id="pn-body" class="inp" rows="3" maxlength="200" placeholder="내용" style="margin-top:8px"></textarea>
+    <div class="pntg"><label><input type="radio" name="pnt" data-in="pntarget" value="all" checked> 전체 회원</label><label><input type="radio" name="pnt" data-in="pntarget" value="session"> ${S.sid ? fmtDate(S.sid) + ' 경기' : '선택한 경기'} 참가자</label></div><button class="btn primary block" data-act="pushsend">알림 보내기</button></div>` : ''}
   ${S.admin ? `<h2>서비스 상태</h2><div class="panel pad"><div class="betarow"><div><b>${betaOn() ? '🧪 베타테스트 중' : '✅ 정식 서비스'}</b><small>${betaOn() ? '운영진이 신청자 순번을 바꿀 수 있어요(카톡 투표 결과 반영용).' : '신청 순번은 서버 도착 시각으로만 정해지고, 바꿀 수 없어요.'}</small></div><button class="btn ${betaOn() ? 'primary' : ''}" data-act="betatoggle">${betaOn() ? '정식 오픈하기' : '베타로 되돌리기'}</button></div></div>` : ''}
   ${S.admin ? (() => { const L = bootBgs(); const VG = 'linear-gradient(rgba(0,0,0,.62),rgba(0,0,0,.62))';
     return `<h2>로딩 화면 배경<small>최대 5장 · 앱을 열 때마다 무작위로 보여요</small></h2><div class="panel pad"><div class="bggrid">${Array.from({ length: 5 }, (_, i) => { const x = L[i];
@@ -1483,13 +1515,13 @@ async function drawParking(sid) {
 function fmtTS(ms) { const d = new Date(ms); return `${d.getMonth() + 1}.${d.getDate()} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}.${String(d.getMilliseconds()).padStart(3, '0')}` }
 function lateSet(s) { const p = prevAnyId(s); return new Set(Object.entries((p && S.sessions[p].late) || {}).filter(([, v]) => v).map(([k]) => k)) }
 async function cancelApp(sid, pid, key, byAdmin) {
-  const s = S.sessions[sid]; if (!s) return; const closed = applyClosed(s);
+  const s = S.sessions[sid]; if (!s) return; const selBefore = selSet(s); const closed = applyClosed(s);
   if (s.draftStatus !== 'ready' || !['apply', 'captain'].includes(s.stage)) { toast(byAdmin ? '드래프트가 시작된 뒤에는 여기서 취소할 수 없어요.' : '드래프트가 시작돼서 앱에서 취소할 수 없어요. 운영진에게 알려 주세요.'); return }
   const wasSel = s.stage === 'apply' ? classify(s).sel.some(r => (key && r.k === key) || (pid && r.pid === pid)) : (s.applicants || []).includes(pid);
   const penal = closed && wasSel && pid;
   if (!confirm(penal ? `${byAdmin ? pname(pid) + ' 님의 ' : ''}신청 마감 후 취소예요. 취소하면 다음 경기 신청 때 3순위가 돼요. 그래도 취소할까요?` : '신청을 취소할까요?')) return;
   const qdel = Object.entries(S.q?.[sid] || {}).filter(([qi, d]) => (pid && d.pid === pid) || (key && 'q' + qi === key)).map(([qi]) => qi);
-  if (qdel.length && !Array.isArray(s.apps)) { if (!(await w(() => Promise.all(qdel.map(qi => withTimeout(S.store.del(sp(sid) + '/q/' + qi), 10000)))))) return; if (!(s.applicants || []).includes(pid) && !appsOf0(s).some(a => a.pid === pid)) { await clearExtras(sid, pid); toast('취소했어요.'); render(); return } }
+  if (qdel.length && !Array.isArray(s.apps)) { if (!(await w(() => Promise.all(qdel.map(qi => withTimeout(S.store.del(sp(sid) + '/q/' + qi), 10000)))))) return; if (!(s.applicants || []).includes(pid) && !appsOf0(s).some(a => a.pid === pid)) { await clearExtras(sid, pid); toast('취소했어요.'); watchPromote(sid, selBefore, [pid]); render(); return } }
   if (s.stage === 'apply' && Array.isArray(s.apps)) {
     const vals = s.apps.filter(a => a && ((key && a.k === key) || (pid && a.pid === pid))); const set = {};
     if (pid && s.park?.[pid]) set[`park.${pid}`] = null; if (penal) set[`late.${pid}`] = Date.now();
@@ -1497,7 +1529,7 @@ async function cancelApp(sid, pid, key, byAdmin) {
     if (pid && s.dutyReq?.ball?.[pid]) set[`dutyReq.ball.${pid}`] = null; if (pid && s.dutyReq?.drink?.[pid]) set[`dutyReq.drink.${pid}`] = null;
     const qids = Object.entries(S.q?.[sid] || {}).filter(([qi, d]) => (pid && d.pid === pid) || (key && 'q' + qi === key)).map(([qi]) => qi);
     const ok2 = await w(async () => { await Promise.all(qids.map(qi => withTimeout(S.store.del(sp(sid) + '/q/' + qi), 10000))); if (vals.length || Object.keys(set).length || remove['duty.ball'] || remove['duty.drink']) await withTimeout(S.store.patch(sp(sid), { set, remove }), 10000) });
-    if (ok2) toast(penal ? '취소했어요. 마감 후 취소로 기록됐어요.' : '취소했어요.'); render(); return }
+    if (ok2) { toast(penal ? '취소했어요. 마감 후 취소로 기록됐어요.' : '취소했어요.'); watchPromote(sid, selBefore, [pid]) } render(); return }
   const ok = await w(() => S.store.txn(sp(sid), d => { if (!d || d.draftStatus !== 'ready' || !['apply', 'captain'].includes(d.stage)) return null;
     d.apps = appsOf(d).filter(a => !((key && a.k === key) || (pid && a.pid === pid)));
     if (d.stage !== 'apply') { const was = (d.applicants || []).includes(pid); d.applicants = (d.applicants || []).filter(x => x !== pid); d.waitlist = (d.waitlist || []).filter(x => x !== pid); if (was && d.waitlist.length) d.applicants.push(d.waitlist.shift()); KEYS.forEach(k => { if (d.captains?.[k] === pid) d.captains[k] = null }) }
@@ -1506,6 +1538,7 @@ async function cancelApp(sid, pid, key, byAdmin) {
     if (pid && d.dutyReq) ['ball', 'drink'].forEach(k => { if (d.dutyReq[k]?.[pid]) d.dutyReq[k][pid] = null });
     if (penal) d.late = { ...(d.late || {}), [pid]: Date.now() };
     return d }));
+  if (ok) watchPromote(sid, selBefore, [pid]);
   if (ok) { const s2 = S.sessions[sid]; if (!byAdmin && pid && isBase(s) && autoIds(s2 || s).includes(pid)) toast(`신청은 취소했지만 ${roleOf(s2 || s, pid)}(이)라 자동 참가로 남아 있어요. 운영진에게 해제를 요청해 주세요.`); else toast(penal ? '취소했어요. 마감 후 취소로 기록됐어요.' : '취소했어요.') }
 }
 function vApplyTable(s) {
@@ -2106,6 +2139,7 @@ document.addEventListener('change', e => { const el = e.target;
     (async () => { try { const L = await ocrKakao(files, (i, p) => { const t = `${files.length}장 중 ${i + 1}장째 읽는 중… ${Math.round((p || 0) * 100)}%`; S.ocrMsg = t; const b0 = document.querySelector('.ocrbox b'); if (b0) b0.textContent = t });
         S.ocrBusy = false; if (!L.length) { toast('이미지에서 이름을 찾지 못했어요. 참여자 목록이 잘 보이게 캡처해 주세요.'); render(); return } S.kk = L; S.kkFromImg = true; render() }
       catch (e) { console.error(e); S.ocrBusy = false; toast('글자를 읽지 못했어요. 인터넷 연결을 확인하거나, "글자로 붙여넣기"를 써 주세요.'); render() } })(); return }
+  if (el.dataset.in === 'npref') { const pid = myPid(); if (!pid) return; S.np = { ...(S.np || { on: true }), [el.dataset.k]: el.checked }; S.store.set('notifPrefs/' + pid, { ...S.np, at: Date.now() }).catch(e => toast(errMsg(e))); return }
   if (el.dataset.in === 'kkpick') { if (S.kk) S.kk[+el.dataset.i].use = el.value; return }
   if (el.dataset.in === 'mancol') { S.manF.cols[+el.dataset.i] = el.value; return }
   if (el.dataset.in === 'mmpick') { S.mmPick = el.value; S.mmStage = null; S.mmDraft = null; render(); return }
@@ -2157,6 +2191,11 @@ document.addEventListener('click', async e => {
       if (!confirm(`${pname(id)} 선택을 취소할까요? 다시 내 차례가 돼요.`)) break; await undoPick(!S.admin); sysChat(`${team(s0, last.t).name} 주장이 ${pname(id)} 선택을 취소했어요`); break }
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
+    case 'pushon': await pushEnable(); break;
+    case 'pushoff': await pushDisable(); break;
+    case 'pushsend': { if (!needAdmin()) break; const t = document.getElementById('pn-title')?.value.trim(), b0 = document.getElementById('pn-body')?.value.trim(), tg = document.querySelector('[data-in=pntarget]:checked')?.value || 'all';
+      if (!t || !b0) { toast('제목과 내용을 입력해 주세요.'); break } if (!confirm(`${tg === 'all' ? '전체 회원' : fmtDate(S.sid) + ' 참가자'}에게 알림을 보낼까요?`)) break;
+      await queuePush({ type: 'notice', title: t, body: b0, target: tg, sid: S.sid || null }); ['pn-title', 'pn-body'].forEach(x => { const e = document.getElementById(x); if (e) e.value = '' }); toast('알림을 보냈어요. 잠시 뒤 도착해요.'); break }
     case 'qzans': if (el.dataset.v === 'm') { S.qzStep = 'blocked'; await qzSave('m'); render(); clearTimeout(S.qzT); S.qzT = setTimeout(qzKill, 3500) } else { S.qzStep = null; await qzSave('f'); render() } break;
     case 'qzok': qzKill(); break;
     case 'stalefix': { if (!needAdmin()) break; const ps = staleExtraPids(cur()); if (!ps.length) break; if (!confirm(`${ps.map(pname).join(', ')} 님의 주차·공당·물당 신청과 지정을 지울까요?`)) break; for (const p0 of ps) await clearExtras(S.sid, p0); toast('정리했어요.'); render(); break }
@@ -2260,7 +2299,7 @@ document.addEventListener('click', async e => {
       if (!myPid()) { const pid0 = await loginFlow(v, document.getElementById('an-pin')?.value, document.getElementById('an-auto')?.checked); if (!pid0) break; v = pname(pid0) } const pkOn = document.getElementById('pk-on')?.checked, pkCar = document.getElementById('pk-car')?.value; if (pkOn && !(pkCar || '').trim()) { toast('주차 신청을 하려면 차량번호를 입력해 주세요.'); break }
       if (await setAppName(sh.sid, sh.key, v)) { if (pkOn) { const pid = findPlayer(v.replace(/\(\s*게\s*\)/g, '').trim()); if (pid) await saveParking(sh.sid, pid, pkCar) } S.sheet = null; render() } break }
     case 'appnameadmin': { if (!needAdmin()) break; const v = prompt('이 신청자의 이름을 입력하세요'); if (v && v.trim()) await setAppName(S.sid, id, v); break }
-    case 'apprm': { if (!needAdmin() || !confirm('이 신청을 삭제할까요? 주차·공당·물당 신청도 함께 취소돼요.')) break; const a0 = appsOf(s).find(a => a.k === id); if (a0?.pid) await clearExtras(S.sid, a0.pid); if (a0?.q) { await w(() => S.store.del(sp(S.sid) + '/q/' + a0.q)) } await w(() => S.store.txn(sp(S.sid), d => { d.apps = appsOf0(d).filter(a => a.k !== id && !(a0?.pid && a.pid === a0.pid && a0.q)); return d })); break }
+    case 'apprm': { if (!needAdmin() || !confirm('이 신청을 삭제할까요? 주차·공당·물당 신청도 함께 취소돼요.')) break; const a0 = appsOf(s).find(a => a.k === id); watchPromote(S.sid, selSet(s), [a0?.pid]); if (a0?.pid) await clearExtras(S.sid, a0.pid); if (a0?.q) { await w(() => S.store.del(sp(S.sid) + '/q/' + a0.q)) } await w(() => S.store.txn(sp(S.sid), d => { d.apps = appsOf0(d).filter(a => a.k !== id && !(a0?.pid && a.pid === a0.pid && a0.q)); return d })); break }
     case 'p0toggle': { if (!needAdmin()) break; const p0 = new Set(s.p0 || []); p0.has(id) ? p0.delete(id) : p0.add(id); await w(() => S.store.update(sp(S.sid), { p0: [...p0] })); break }
     case 'colorpick': { const k = el.dataset.k; if (!(S.admin || myTeam(s) === k)) break; S.sheet = { type: 'colorpick', k }; render(); break }
     case 'colorset': { const k = S.sheet?.k, c = el.dataset.c; if (!k || !(S.admin || myTeam(s) === k)) break; const old = team(s, k).name; S.sheet = null; render();
