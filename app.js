@@ -2254,6 +2254,7 @@ const ADMIN_TABS = ['manage', 'run', 'notice', 'members', 'settings'], MEMBER_TA
 function saveNav() { if (S.ready < 3) return; const n = { tab: S.tab, sid: S.sid, step: S.step, sub: S.sub, detail: S.detail, admin: S.admin };
   const k = JSON.stringify(n); if (k === S.lastNav) return; S.lastNav = k; try { sessionStorage.setItem('wf:nav', k) } catch { } save('nav', { ...n, at: Date.now() }) }
 function restoreNav() {
+  if (window.WF_FRESH) { S.tab = S.admin ? 'manage' : 'mhome'; S.sub = null; S.detail = null; S.step = null; return } // 앱을 새로 열면 항상 홈에서 시작
   let n = null; try { n = JSON.parse(sessionStorage.getItem('wf:nav') || 'null') } catch { } if (!n) { const l = load('nav', null); if (l && Date.now() - (l.at || 0) < 6 * 3600e3) n = l }
   if (!n || !!n.admin !== !!S.admin) return;
   if (!(S.admin ? ADMIN_TABS : MEMBER_TABS).includes(n.tab)) return;
