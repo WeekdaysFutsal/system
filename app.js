@@ -834,7 +834,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
-  ['0.21', '2026.10.02', ['[운영진] 로딩 화면 배경 사진을 최대 5장까지 올리면, 앱을 열 때마다 무작위로 보여요', '배경 사진은 전체를 어둡게 깔아서 엠블럼과 글자가 또렷해요', '사진 속 주인공이 가운데 엠블럼에 가리지 않게, 사진 크기와 위치를 자동으로 맞춰요']],
+  ['0.21', '2026.10.02', ['경기모드 "일정 경기"에서 경기 일정을 직접 고를 수 있어요. 다음 경기는 시작 1시간 전부터, 지난 경기는 끝나고 1시간까지만 고를 수 있어요', '[운영진] 로딩 화면 배경 사진을 최대 5장까지 올리면, 앱을 열 때마다 무작위로 보여요', '배경 사진은 전체를 어둡게 깔아서 엠블럼과 글자가 또렷해요', '사진 속 주인공이 가운데 엠블럼에 가리지 않게, 사진 크기와 위치를 자동으로 맞춰요']],
   ['0.20', '2026.10.02', ['[운영진] 회원 관리 표에 스프레드시트처럼 열마다 정렬(오름·내림차순)과 값 골라 보기 필터를 넣었어요']],
   ['0.19', '2026.10.02', ['베타테스트 대비 전체 최적화: 다시 열 때 화면·스타일·앱 파일을 폰 저장본에서 바로 불러와 훨씬 빨라졌어요', '서버 연결 준비를 앱 시작과 동시에 해서 첫 화면이 빨라졌어요', '데이터가 한꺼번에 들어와도 화면을 한 번만 다시 그려서 더 부드러워졌어요', '쓰지 않는 코드와 화면 스타일을 정리하고 엠블럼 이미지를 가볍게 줄였어요', '드래프트 화면 아래 채팅 기록 글자가 겹쳐 보이던 문제를 고쳤어요']],
   ['0.18', '2026.10.01', ['업데이트 내용을 내 정보에서 확인할 수 있어요', '로딩 화면은 앱을 처음 열 때만 보이고, 새로고침은 바로 돼요']],
@@ -1649,11 +1649,14 @@ function planSide(id) {
 }
 
 /* ───────── 경기모드 (match mode) ───────── */
+/* 일정 경기는 [시작 1시간 전 ~ 끝 예정 시각 + 1시간] 사이에만 고를 수 있어요 (연습 경기·진행 중인 경기는 예외) */
+function mmHasTeams(id) { const s = S.sessions[id]; return s && KEYS.every(k => teamPlayers(s, k).length) }
+function mmWindow(s) { const st = new Date(`${s.date}T${s.time || '21:00'}`).getTime(); const T = timing(s); const n = sessMatches(s.date).length || 9; const dur = n * (T.h1 + T.gk + T.h2 + (T.rest || 180)) * 1000; return { open: st - 3600e3, start: st, close: st + dur + 3600e3 } }
+function mmAvail(id) { const s = S.sessions[id]; if (!s) return 'none'; if (s.practice || sessMatches(id).some(m => m.status === 'live')) return 'ok'; const w0 = mmWindow(s), now = nowS(); return now < w0.open ? 'soon' : now > w0.close ? 'past' : 'ok' }
 function mmSid() {
-  const t = today(); const has = id => { const s = S.sessions[id]; return s && KEYS.every(k => teamPlayers(s, k).length) };
-  const ids = Object.keys(S.sessions).filter(has).sort(); if (!ids.length) return null;
-  if (S.mmPick && ids.includes(S.mmPick)) return S.mmPick;
-  return ids.find(id => id === t) || ids.find(id => id > t) || ids[ids.length - 1];
+  const ids = Object.keys(S.sessions).filter(mmHasTeams).sort(); if (!ids.length) return null;
+  const ok = ids.filter(id => mmAvail(id) === 'ok'); if (S.mmPick && ok.includes(S.mmPick)) return S.mmPick;
+  return ok.find(id => !S.sessions[id].practice) || ok[0] || null;
 }
 function pairsOf(s) { return (s.mm?.pairs || []).map(p => Array.isArray(p) ? p : String(p).split('')) }
 function mmReady(s) { return !!s.mm?.pairs && sessMatches(s.date).length === 9 }
@@ -1676,9 +1679,13 @@ function viewMatchMode() {
   return viewMatchModeSched(sw);
 }
 function viewMatchModeSched(sw) {
-  const sid = mmSid(); if (!sid) return `<div class="mm">${sw}<div class="mm-empty">⚽<b>일정 경기 없음</b><p>팀 구성이 끝난 경기가 아직 없어요.<br>위의 <b>✏️ 직접 설정</b>으로 팀과 경기 수를 정해 바로 진행할 수 있어요.</p></div></div>`;
-  S.mmSid = sid; const s = S.sessions[sid]; const ids = Object.keys(S.sessions).filter(id => KEYS.every(k => teamPlayers(S.sessions[id], k).length)).sort();
-  const head = sw + `<div class="mm-hd"><div><b>⚽ 경기모드${s.practice ? ' <span class="prac">연습</span>' : ''}</b><small>${ids.length > 1 ? esc(s.venue || '') : `${fmtDate(sid)} ${esc(s.time || '')} · ${esc(s.venue || '')}`}</small></div>${ids.length > 1 ? `<select class="inp mm-pick" data-in="mmpick" aria-label="경기일 선택">${ids.slice().reverse().map(id => `<option value="${id}" ${id === sid ? 'selected' : ''}>${fmtDate(id)} ${esc(S.sessions[id].time || '')}</option>`).join('')}</select>` : ''}</div>`;
+  const all = Object.keys(S.sessions).filter(mmHasTeams).sort(); const sid = mmSid();
+  const optLabel = id => { const a = mmAvail(id); const x = S.sessions[id]; return `${fmtDate(id)} ${esc(x.time || '')}${x.practice ? ' · 연습' : ''}${a === 'soon' ? ' · 1시간 전부터' : a === 'past' ? ' · 종료' : ''}` };
+  const picker = cur => all.length ? `<select class="inp mm-pick" data-in="mmpick" aria-label="경기 일정 선택">${cur ? '' : '<option value="" selected>경기 일정 선택</option>'}${all.slice().reverse().map(id => `<option value="${id}" ${id === cur ? 'selected' : ''} ${mmAvail(id) === 'ok' ? '' : 'disabled'}>${optLabel(id)}</option>`).join('')}</select>` : '';
+  if (!sid) { const next = all.find(id => mmAvail(id) === 'soon'); const nw = next && mmWindow(S.sessions[next]);
+    return `<div class="mm">${sw}<div class="mm-hd"><div><b>⚽ 경기모드</b><small>일정 경기</small></div>${picker(null)}</div><div class="mm-empty">⚽<b>${all.length ? '지금 고를 수 있는 경기가 없어요' : '일정 경기 없음'}</b><p>${next ? `다음 경기 <b>${fmtDate(next)} ${esc(S.sessions[next].time || '')}</b>는<br><b>${p2(new Date(nw.open).getHours())}:${p2(new Date(nw.open).getMinutes())}</b>부터(시작 1시간 전) 고를 수 있어요.` : all.length ? '지난 경기는 끝나고 1시간이 지나면 고를 수 없어요.' : '팀 구성이 끝난 경기가 아직 없어요.'}<br>바로 해야 하면 위의 <b>✏️ 직접 설정</b>을 써 주세요.</p></div></div>` }
+  S.mmSid = sid; const s = S.sessions[sid]; const ids = all;
+  const head = sw + `<div class="mm-hd"><div><b>⚽ 경기모드${s.practice ? ' <span class="prac">연습</span>' : ''}</b><small>${esc(s.venue || '')}</small></div>${picker(sid)}</div>`;
   const ctl = mmCtl(s).mine; const cb = mmCtlBar(s);
   if (!ctl && S.tab === 'mm' && mmCtl(s).free && !(S.mmTry ??= {})[sid]) { S.mmTry[sid] = 1; setTimeout(() => mmTake(sid), 50) }
   let stage = S.mmStage || (!mmReady(s) ? 'pair' : !s.mm?.timed ? 'time' : 'play'); if (!ctl && stage !== 'play') stage = mmReady(s) ? 'play' : 'wait';
