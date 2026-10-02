@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.10';
+const APP_VERSION = '0.21.12';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -929,6 +929,8 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.12', '2026.10.02', ['[운영진] 기본 알림(신청 오픈·마감 임박·경기 당일·대기→선발·주장 지정·팀 발표)도 자동 알림 목록에서 고치거나 끄고 지울 수 있어요', '받은 알림을 하나씩 또는 모두 지울 수 있어요']],
+  ['0.21.11', '2026.10.02', ['[운영진] 알림 보내기의 회원 목록을 ㄱ~ㅎ 탭으로 나눠 보여 줘요 (선택됨 탭, 탭별 모두 선택·해제)']],
   ['0.21.10', '2026.10.02', ['오른쪽 위 🔔에서 받은 알림을 모아 볼 수 있어요', '[운영진] 알림 보내기 화면을 발송 그룹 · 회원 목록 · 메시지로 나눴어요', '[운영진] 자동 알림: 내용·대상·보내는 때(특정 날짜, 또는 경기마다 신청 오픈·마감·경기 시작 몇 시간 전후)를 정해 두면 자동으로 보내요']],
   ['0.21.9', '2026.10.02', ['[운영진] 공지 메뉴의 "알림 보내기"에서 전체·신청자·참가자·공당·물당·주차 신청자 또는 원하는 회원만 골라 알림을 보낼 수 있어요']],
   ['0.21.8', '2026.10.02', ['휴대폰 알림: 신청 오픈, 마감 임박, 대기→선발, 주장 지정, 팀 발표, 경기 당일, 운영진 공지 (내 정보에서 켜고 종류별로 고를 수 있어요)']],
@@ -998,7 +1000,7 @@ function watchInbox() { const pid = myPid(); if (!S.store || S.inboxPid === pid)
   S.unInbox = S.store.watchCol('inbox/' + pid + '/items', docs => { S.inbox = docs.sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 50); renderSoon() }, { order: 'at', limit: 50 }, () => { }) }
 function inboxSheet() { const L = S.inbox || []; const ico = { open: '📢', closing: '⏰', promote: '🎉', captain: '👑', team: '📣', day: '⚽', notice: '📝' };
   const when = t => { const d = new Date(t); const diff = (Date.now() - t) / 60000; return diff < 1 ? '방금' : diff < 60 ? Math.floor(diff) + '분 전' : diff < 1440 ? Math.floor(diff / 60) + '시간 전' : `${d.getMonth() + 1}.${d.getDate()} ${p2(d.getHours())}:${p2(d.getMinutes())}` };
-  return `<h4>🔔 받은 알림</h4>${L.length ? `<div class="inbox">${L.map(x => `<div class="ib ${x.read ? '' : 'new'}"><span class="ib-ico">${ico[x.type] || '🔔'}</span><div><b>${esc(String(x.title || '').replace(/^[📢⏰🎉👑📣⚽📝]\s*/u, ''))}</b><p>${esc(x.body || '').replace(/\n/g, '<br>')}</p><small>${when(x.at || 0)}</small></div></div>`).join('')}</div>` : '<p class="empty">아직 받은 알림이 없어요.</p>'}<p class="note" style="margin:10px 0 0">최근 50개까지 보여요. 휴대폰 알림을 켜지 않아도 여기에는 쌓여요.</p>` }
+  return `<h4>🔔 받은 알림</h4>${L.length ? `<div class="inbox">${L.map(x => `<div class="ib ${x.read ? '' : 'new'}"><button class="ib-del" data-act="ibdel" data-id="${x.id}" aria-label="이 알림 지우기">✕</button><span class="ib-ico">${ico[x.type] || '🔔'}</span><div><b>${esc(String(x.title || '').replace(/^[📢⏰🎉👑📣⚽📝]\s*/u, ''))}</b><p>${esc(x.body || '').replace(/\n/g, '<br>')}</p><small>${when(x.at || 0)}</small></div></div>`).join('')}</div>` : '<p class="empty">아직 받은 알림이 없어요.</p>'}${L.length ? '<button class="btn sm danger" style="margin-top:10px" data-act="ibclear">모두 지우기</button>' : ''}<p class="note" style="margin:10px 0 0">최근 50개까지 보여요. 휴대폰 알림을 켜지 않아도 여기에는 쌓여요.</p>` }
 async function markInboxRead() { const pid = myPid(); const un = (S.inbox || []).filter(x => !x.read && x.id); un.forEach(x => x.read = true); for (const x of un) { try { await S.store.update(`inbox/${pid}/items/${x.id}`, { read: true }) } catch { } } }
 async function queuePush(doc) { try { await S.store.add('pushQueue', { ...doc, by: myPid() || (S.admin ? 'admin' : ''), at: Date.now() }) } catch (e) { console.warn('push queue', e) } }
 function viewSettings() {
@@ -1756,39 +1758,64 @@ function pushGroups(s0) { if (!s0) return {}; const c = s0.stage === 'apply' ? c
   return { apps: uniq(all), sel: uniq(sel), ball: uniq(duty('ball')), drink: uniq(duty('drink')), park: uniq(Object.keys(s0.park || {}).filter(p0 => s0.park[p0])) } }
 const RULE_TARGETS = [['all', '전체 회원'], ['apps', '신청자 (대기 포함)'], ['unapplied', '아직 신청 안 한 회원'], ['sel', '참가자 (대기 제외)'], ['ball', '⚽ 공당'], ['drink', '🥤 물당'], ['park', '🚗 주차 신청자']];
 const RULE_EVENTS = [['applyOpen', '신청 오픈'], ['applyClose', '신청 마감'], ['match', '경기 시작']];
-function ruleDesc(R) { const tg = (RULE_TARGETS.find(x => x[0] === R.target) || [, '전체 회원'])[1];
+const SYS_RULES = {
+  sys_open: { sys: 'open', ptype: 'open', kind: 'event', event: 'applyOpen', offsetMin: 0, target: 'all', title: '📢 경기 신청이 열렸어요', body: '{날짜} {시간} · {구장}\n지금 앱에서 신청하세요! (선착순)' },
+  sys_closing: { sys: 'closing', ptype: 'closing', kind: 'event', event: 'applyClose', offsetMin: -120, target: 'unapplied', title: '⏰ 신청 마감 2시간 전이에요', body: '{날짜} {시간} · {구장}\n아직 신청하지 않았어요.' },
+  sys_day: { sys: 'day', ptype: 'day', kind: 'event', event: 'match', offsetMin: -540, target: 'sel', title: '⚽ 오늘 {시간} 경기가 있어요', body: '{구장}\n공당 {공당} · 물당 {물당}' },
+  sys_promote: { sys: 'promote', ptype: 'promote', kind: 'trigger', trigger: 'promote', title: '🎉 선발됐어요!', body: '{날짜} 경기 대기에서 선발로 올라갔어요. 꼭 참석해 주세요!' },
+  sys_captain: { sys: 'captain', ptype: 'captain', kind: 'trigger', trigger: 'captain', title: '👑 주장으로 지정됐어요', body: '{날짜} 경기 주장이에요. 앱에서 드래프트에 참여해 주세요.' },
+  sys_team: { sys: 'team', ptype: 'team', kind: 'trigger', trigger: 'team', title: '📣 팀 발표! 내 팀은 {팀}', body: '{날짜} 경기 · 주장 {주장}\n팀원 {팀원}' } };
+const TRIGGER_DESC = { promote: ['누군가 취소해서 대기에서 선발로 올라갔을 때', '올라간 회원 본인', '{날짜} {시간} {구장}'], captain: ['운영진이 주장으로 지정했을 때', '주장이 된 회원', '{날짜} {시간} {구장} {팀} {주장}'], team: ['드래프트가 끝났을 때', '각 팀원', '{날짜} {시간} {구장} {팀} {주장} {팀원}'] };
+async function seedSysRules() { if (S.sysSeeding || !S.rules || !S.admin) return; const miss = Object.keys(SYS_RULES).filter(id => !S.rules[id]); if (!miss.length) return; S.sysSeeding = true;
+  try { for (const id of miss) { const def = SYS_RULES[id]; const sentFor = {}; if (def.kind === 'event') Object.entries(S.sessions).forEach(([sid, x]) => { const n = x.notified || {}; if (n[def.sys]) sentFor[sid] = n[def.sys] });
+      await S.store.set('pushRules/' + id, { ...def, on: true, sentFor, createdAt: 1 }) } } catch (e) { console.warn(e) } S.sysSeeding = false }
+function ruleDesc(R) { if (R.kind === 'trigger') { const d = TRIGGER_DESC[R.trigger] || ['', '']; return `${d[0]} · ${d[1]}` } const tg = (RULE_TARGETS.find(x => x[0] === R.target) || [, '전체 회원'])[1];
   if (R.kind === 'date') return `${R.at ? R.at.replace('T', ' ') : '-'} 한 번 · ${tg}${R.sentAt ? ' · ✓ 보냄' : ''}`;
   const m = Math.abs(+R.offsetMin || 0), h = Math.floor(m / 60), mm = m % 60; const off = m ? `${h ? h + '시간' : ''}${mm ? ' ' + mm + '분' : ''} ${+R.offsetMin < 0 ? '전' : '후'}` : '그 시각';
   return `경기마다 · ${(RULE_EVENTS.find(x => x[0] === R.event) || [, '-'])[1]} ${off.trim()} · ${tg}` }
+const CHO = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'], CHO_BASE = { 'ㄲ': 'ㄱ', 'ㄸ': 'ㄷ', 'ㅃ': 'ㅂ', 'ㅆ': 'ㅅ', 'ㅉ': 'ㅈ' };
+const CHO_TABS = ['ㄱ', 'ㄴ', 'ㄷ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅅ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
+function choOf(name) { const c = String(name || '').trim().charCodeAt(0); if (c >= 0xAC00 && c <= 0xD7A3) { const k = CHO[Math.floor((c - 0xAC00) / 588)]; return CHO_BASE[k] || k } return '기타' }
 function pushComposer() { const ids = Object.keys(S.sessions).filter(id => !S.sessions[id].practice).sort().reverse().slice(0, 12); if (!S.pnSid || !S.sessions[S.pnSid]) S.pnSid = runSid() || ids[0] || null;
   const s0 = S.pnSid ? S.sessions[S.pnSid] : null; const G = pushGroups(s0); S.pnSel ??= [];
   const members = byName(Object.keys(S.players).filter(id => mstatus(S.players[id]) !== 'dormant'));
   const grp = [['all', '전체 회원', members.length], ['apps', '신청자 (대기 포함)', G.apps?.length || 0], ['sel', '참가자 (대기 제외)', G.sel?.length || 0], ['ball', '⚽ 공당', G.ball?.length || 0], ['drink', '🥤 물당', G.drink?.length || 0], ['park', '🚗 주차 신청자', G.park?.length || 0]];
-  const sel = new Set(S.pnSel); const q = (S.pnQ || '').trim(); const shown = q ? members.filter(id => pname(id).includes(q)) : members;
-  const rules = Object.entries(S.rules || {}).sort((x, y) => (y[1].createdAt || 0) - (x[1].createdAt || 0));
+  const sel = new Set(S.pnSel); const q = (S.pnQ || '').trim();
+  const byCho = {}; members.forEach(id => { const k = choOf(pname(id)); (byCho[k] ??= []).push(id) }); const tabs = [...CHO_TABS, ...(byCho['기타'] ? ['기타'] : [])];
+  if (!S.pnTab || (S.pnTab !== 'sel' && !byCho[S.pnTab])) S.pnTab = tabs.find(t => byCho[t]) || 'ㄱ';
+  const shown = q ? members.filter(id => pname(id).includes(q)) : S.pnTab === 'sel' ? members.filter(id => sel.has(id)) : (byCho[S.pnTab] || []);
+  const choTabs = `<div class="chotabs" role="tablist"><button role="tab" class="cho sel-tab" data-act="pntab" data-k="sel" aria-selected="${S.pnTab === 'sel' && !q}">선택됨<b>${sel.size}</b></button>${tabs.map(t => { const n = (byCho[t] || []).length, m = (byCho[t] || []).filter(id => sel.has(id)).length; return `<button role="tab" class="cho" data-act="pntab" data-k="${t}" aria-selected="${S.pnTab === t && !q}" ${n ? '' : 'disabled'}>${t}${m ? `<i>${m}</i>` : ''}</button>` }).join('')}</div>`;
+  seedSysRules(); const order = Object.keys(SYS_RULES); const all = Object.entries(S.rules || {}); const delSys = all.filter(([id, R]) => R.sys && R.deleted);
+  const rules = all.filter(([, R]) => !R.deleted).sort((x, y) => { const a = order.indexOf(x[0]), b = order.indexOf(y[0]); if (a >= 0 || b >= 0) return (a < 0 ? 99 : a) - (b < 0 ? 99 : b); return (y[1].createdAt || 0) - (x[1].createdAt || 0) });
   return `<div class="pnwrap"><div class="pncol">
     <section class="panel pad"><h3 class="pnh">① 발송 그룹</h3><label class="pf"><span>기준 경기</span><select class="inp" data-in="pnsid">${ids.map(id => `<option value="${id}" ${id === S.pnSid ? 'selected' : ''}>${fmtDate(id)} ${esc(S.sessions[id].time || '')} · ${esc(S.sessions[id].venue || '')}</option>`).join('')}</select></label>
       <div class="pngrp">${grp.map(([k, n, c]) => `<button class="pgbtn" data-act="pngrp" data-k="${k}" ${c ? '' : 'disabled'}><span>${n}</span><b>${c}</b></button>`).join('')}</div><p class="note" style="margin:6px 0 0">그룹을 누르면 아래 회원 목록에 그 사람들이 선택돼요.</p></section>
     <section class="panel pad"><div class="pnh2"><h3 class="pnh">② 회원 목록 <small>${sel.size}명 선택</small></h3><button class="linkbtn" data-act="pngrp" data-k="none">선택 해제</button></div>
-      <input class="inp" type="search" placeholder="이름 검색" value="${esc(S.pnQ || '')}" data-in="pnq" style="margin:8px 0">
-      <div class="dpick pnchips">${shown.map(id => `<button class="chip ${sel.has(id) ? 'sel' : ''}" data-act="pntog" data-id="${id}">${sel.has(id) ? '✓ ' : ''}${esc(pname(id))}</button>`).join('') || '<span class="muted">맞는 회원이 없어요.</span>'}</div></section></div>
+      <input class="inp" type="search" placeholder="이름 검색 (전체에서 찾기)" value="${esc(S.pnQ || '')}" data-in="pnq" style="margin:8px 0">${choTabs}
+      <div class="dpick pnchips">${shown.map(id => `<button class="chip ${sel.has(id) ? 'sel' : ''}" data-act="pntog" data-id="${id}">${sel.has(id) ? '✓ ' : ''}${esc(pname(id))}</button>`).join('') || `<span class="muted">${S.pnTab === 'sel' && !q ? '아직 선택한 회원이 없어요.' : '맞는 회원이 없어요.'}</span>`}</div>${!q && S.pnTab !== 'sel' && shown.length ? `<div class="chotools"><button class="linkbtn" data-act="pnchoall">${S.pnTab} 모두 선택</button><button class="linkbtn" data-act="pnchonone">${S.pnTab} 모두 해제</button></div>` : ''}</section></div>
   <div class="pncol pnright"><section class="panel pad pnmsg"><h3 class="pnh">③ 메시지</h3>
     <input id="pn-title" class="inp" maxlength="40" placeholder="제목 (예: 이번 주 구장 변경 안내)" value="${esc(S.pnTitle || '')}"><textarea id="pn-body" class="inp" rows="6" maxlength="200" placeholder="내용" style="margin-top:8px">${esc(S.pnBody || '')}</textarea>
     <div class="pnto">받는 사람 <b>${sel.size}명</b>${sel.size ? ` · ${[...sel].slice(0, 4).map(id => esc(pname(id))).join(', ')}${sel.size > 4 ? ` 외 ${sel.size - 4}명` : ''}` : ''}</div>
     <button class="btn primary block" data-act="pushsend" ${sel.size ? '' : 'disabled'}>${sel.size ? `${sel.size}명에게 지금 보내기` : '받는 사람을 골라 주세요'}</button></section>
   <section class="panel pad"><div class="pnh2"><h3 class="pnh">⏰ 자동 알림 <small>${rules.length}개</small></h3><button class="btn sm primary" data-act="rulenew">＋ 새 자동 알림</button></div>
-    <p class="note" style="margin:4px 0 8px">정해 둔 때가 되면 서버가 자동으로 보내요(5분 단위). 신청 오픈·마감 임박·경기 당일 기본 알림은 따로 자동으로 가요.</p>
-    ${rules.length ? `<div class="rules">${rules.map(([id, R]) => `<div class="rule ${R.on === false ? 'off' : ''}"><div><b>${esc(R.title)}</b><small>${esc(ruleDesc(R))}</small></div><label class="sw"><input type="checkbox" data-in="ruleon" data-id="${id}" ${R.on === false ? '' : 'checked'}><i></i></label><button class="btn sm" data-act="ruleedit" data-id="${id}">수정</button><button class="btn sm danger" data-act="ruledel" data-id="${id}" aria-label="삭제">×</button></div>`).join('')}</div>` : '<p class="muted" style="margin:0">아직 자동 알림이 없어요.</p>'}</section></div></div>` }
+    <p class="note" style="margin:4px 0 8px">정해 둔 때가 되면 서버가 자동으로 보내요(5분 단위). <b>기본</b> 표시는 앱에 처음부터 있던 알림이고, 내용·대상·시기를 고치거나 끌 수 있어요.</p>
+    ${rules.length ? `<div class="rules">${rules.map(([id, R]) => `<div class="rule ${R.on === false ? 'off' : ''}"><div><b>${R.sys ? '<em class="sysb">기본</em>' : ''}${esc(R.title)}</b><small>${esc(ruleDesc(R))}</small></div><label class="sw"><input type="checkbox" data-in="ruleon" data-id="${id}" ${R.on === false ? '' : 'checked'}><i></i></label><button class="btn sm" data-act="ruleedit" data-id="${id}">수정</button><button class="btn sm danger" data-act="ruledel" data-id="${id}" aria-label="삭제">×</button></div>`).join('')}</div>` : '<p class="muted" style="margin:0">아직 자동 알림이 없어요.</p>'}${delSys.length ? `<button class="linkbtn" style="margin-top:8px" data-act="sysrestore">지운 기본 알림 ${delSys.length}개 되살리기</button>` : ''}</section></div></div>` }
 function ruleSheet() { const R = S.ruleF || {}; const kind = R.kind || 'event';
+  if (kind === 'trigger') { const d = TRIGGER_DESC[R.trigger] || ['', '', ''];
+    return `<h4>기본 알림 수정</h4><p class="note" style="margin:0 0 10px"><b>보내는 때</b> ${d[0]}<br><b>받는 사람</b> ${d[1]}</p>
+    <label class="pf"><span>제목</span><input class="inp" id="rf-title" maxlength="40" value="${esc(R.title || '')}"></label>
+    <label class="pf"><span>내용</span><textarea class="inp" id="rf-body" rows="3" maxlength="200">${esc(R.body || '')}</textarea></label>
+    <p class="note" style="margin:-2px 0 10px">쓸 수 있는 글자: <b>${d[2].split(' ').join('</b> <b>')}</b></p>
+    <div class="row" style="margin-top:8px"><button class="btn" data-act="rulereset">처음 내용으로</button><button class="btn primary" data-act="rulesave">저장</button></div>` }
   return `<h4>${S.ruleId ? '자동 알림 수정' : '새 자동 알림'}</h4>
     <label class="pf"><span>제목</span><input class="inp" id="rf-title" maxlength="40" value="${esc(R.title || '')}" placeholder="예: {날짜} 경기 신청이 곧 마감돼요"></label>
     <label class="pf"><span>내용</span><textarea class="inp" id="rf-body" rows="3" maxlength="200" placeholder="예: {시간} {구장} · 아직 신청 안 했다면 서둘러 주세요">${esc(R.body || '')}</textarea></label>
-    <p class="note" style="margin:-2px 0 10px">글 속에 <b>{날짜}</b> <b>{시간}</b> <b>{구장}</b> <b>{마감}</b>을 쓰면 그 경기 정보로 바뀌어요.</p>
+    <p class="note" style="margin:-2px 0 10px">글 속에 <b>{날짜}</b> <b>{시간}</b> <b>{구장}</b> <b>{마감}</b> <b>{공당}</b> <b>{물당}</b>을 쓰면 그 경기 정보로 바뀌어요.</p>
     <label class="pf"><span>받는 대상</span><select class="inp" id="rf-target">${RULE_TARGETS.map(([k, n]) => `<option value="${k}" ${(R.target || 'all') === k ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
     <div class="pf"><span>보내는 때</span><div class="seg"><button role="tab" data-act="rulekind" data-k="event" aria-selected="${kind === 'event'}">경기마다 반복</button><button role="tab" data-act="rulekind" data-k="date" aria-selected="${kind === 'date'}">특정 날짜·시간</button></div></div>
     ${kind === 'date' ? `<label class="pf"><span>날짜·시간</span><input class="inp" type="datetime-local" id="rf-at" value="${esc(R.at || '')}"></label><p class="note" style="margin:0 0 8px">경기 관련 대상(신청자, 공당 등)은 가장 가까운 다음 경기 기준이에요.</p>`
       : `<div class="rf-ev"><select class="inp" id="rf-event">${RULE_EVENTS.map(([k, n]) => `<option value="${k}" ${(R.event || 'applyClose') === k ? 'selected' : ''}>${n}</option>`).join('')}</select><input class="inp" id="rf-h" type="number" min="0" max="168" step="1" value="${Math.floor(Math.abs(+R.offsetMin || 120) / 60)}"><span>시간</span><input class="inp" id="rf-m" type="number" min="0" max="59" step="5" value="${Math.abs(+R.offsetMin || 120) % 60}"><span>분</span><select class="inp" id="rf-dir"><option value="-1" ${(+R.offsetMin || -1) < 0 ? 'selected' : ''}>전</option><option value="1" ${(+R.offsetMin || -1) > 0 ? 'selected' : ''}>후</option></select></div><p class="note" style="margin:0 0 8px">예: "신청 마감 · 3시간 0분 · 전" → 매 경기 마감 3시간 전에 보내요.</p>`}
-    <div class="row" style="margin-top:8px"><button class="btn primary" data-act="rulesave">저장</button></div>` }
+    <div class="row" style="margin-top:8px">${R.sys ? '<button class="btn" data-act="rulereset">처음 내용으로</button>' : ''}<button class="btn primary" data-act="rulesave">저장</button></div>` }
 function readRuleForm() { const g = id => document.getElementById(id); const R = { ...(S.ruleF || {}) }; if (g('rf-title')) R.title = g('rf-title').value.trim(); if (g('rf-body')) R.body = g('rf-body').value.trim(); if (g('rf-target')) R.target = g('rf-target').value;
   if (g('rf-at')) R.at = g('rf-at').value; if (g('rf-event')) { R.event = g('rf-event').value; R.offsetMin = (+g('rf-dir').value) * ((+g('rf-h').value || 0) * 60 + (+g('rf-m').value || 0)) } return R }
 function viewNoticeMenu() {
@@ -2144,7 +2171,7 @@ async function sendChat() {
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'ap-pin') { e.preventDefault(); document.querySelector('[data-act=adminpinok]')?.click(); return } if (e.key === 'Enter' && e.target.dataset?.act === 'gohome') { e.target.click(); return } if (e.key === 'Enter' && (e.target.id === 'lg-pin' || e.target.id === 'lg-name')) { e.preventDefault(); document.querySelector('[data-act=login]')?.click(); return } if (e.target.id !== 'chatin' || e.key !== 'Enter' || e.shiftKey) return; e.preventDefault();
   if (e.isComposing) { S.sendAfterCompose = true; return } sendChat() }, true);
 document.addEventListener('scroll', e => { const t = e.target; if (t && t.classList && t.classList.contains('msgs') && !S.autoScrolling) S.chatUp = t.scrollHeight - t.scrollTop - t.clientHeight > 40 }, true);
-document.addEventListener('input', e => { if (e.target.dataset?.in === 'pnq') { S.pnQ = e.target.value; const tmp = document.createElement('div'); tmp.innerHTML = pushComposer(); const nl = tmp.querySelector('.pnchips'), ol = document.querySelector('.pnchips'); if (nl && ol) ol.replaceWith(nl); return }
+document.addEventListener('input', e => { if (e.target.dataset?.in === 'pnq') { S.pnQ = e.target.value; const tmp = document.createElement('div'); tmp.innerHTML = pushComposer(); for (const sel of ['.pnchips', '.chotabs', '.chotools']) { const nl = tmp.querySelector(sel), ol = document.querySelector(sel); if (nl && ol) ol.replaceWith(nl); else if (ol && !nl) ol.remove(); else if (nl && !ol) document.querySelector('.pnchips')?.after(nl) } return }
   if (e.target.dataset?.in === 'colq' && S.sheet?.type === 'colf') { S.colQ = e.target.value; const tmp = document.createElement('div'); tmp.innerHTML = colFilterSheet(S.sheet.k); const nl = tmp.querySelector('.cf-list'), ol = document.querySelector('.cf-list'); if (nl && ol) ol.replaceWith(nl); return }
   if (/-name$/.test(e.target.id || '')) document.querySelectorAll('.lgerr').forEach(x => x.hidden = true); if (e.target.classList?.contains('pin')) { const v = e.target.value.replace(/\D/g, ''); if (v !== e.target.value) e.target.value = v } }, true);
 document.addEventListener('compositionstart', e => { if (e.target.id === 'chatin') S.composing = true });
@@ -2247,17 +2274,24 @@ document.addEventListener('click', async e => {
     case 'noop': break;
     case 'pushon': await pushEnable(); break;
     case 'inbox': S.sheet = { type: 'inbox' }; render(); markInboxRead(); break;
+    case 'ibdel': { const pid = myPid(); if (!pid) break; S.inbox = (S.inbox || []).filter(x => x.id !== id); render(); try { await S.store.del(`inbox/${pid}/items/${id}`) } catch (e) { toast(errMsg(e)) } break }
+    case 'ibclear': { const pid = myPid(); if (!pid || !confirm('받은 알림을 모두 지울까요?')) break; const ids = (S.inbox || []).map(x => x.id); S.inbox = []; render(); for (const x of ids) { try { await S.store.del(`inbox/${pid}/items/${x}`) } catch { } } toast('모두 지웠어요.'); break }
     case 'rulenew': if (!needAdmin()) break; S.ruleId = null; S.ruleF = { kind: 'event', event: 'applyClose', offsetMin: -180, target: 'unapplied', title: '⏰ {날짜} 경기 신청 마감 3시간 전', body: '{시간} {구장} · 아직 신청하지 않았어요.' }; S.sheet = { type: 'rule' }; render(); break;
     case 'ruleedit': if (!needAdmin()) break; S.ruleId = id; S.ruleF = { ...(S.rules?.[id] || {}) }; S.sheet = { type: 'rule' }; render(); break;
     case 'rulekind': S.ruleF = { ...readRuleForm(), kind: el.dataset.k }; render(); break;
-    case 'rulesave': { if (!needAdmin()) break; const R = readRuleForm(); if (!R.title) { toast('제목을 입력해 주세요.'); break } if (R.kind === 'date' && !R.at) { toast('보낼 날짜·시간을 골라 주세요.'); break }
+    case 'rulesave': { if (!needAdmin()) break; const R = readRuleForm(); if (!R.title) { toast('제목을 입력해 주세요.'); break }
+      if (R.kind === 'trigger') { if (await w(() => S.store.update('pushRules/' + S.ruleId, { title: R.title, body: R.body || '', updatedAt: Date.now() }), '기본 알림을 고쳤어요.')) { S.sheet = null; S.ruleF = null; S.ruleId = null; render() } break } if (R.kind === 'date' && !R.at) { toast('보낼 날짜·시간을 골라 주세요.'); break }
       const doc = { title: R.title, body: R.body || '', target: R.target || 'all', kind: R.kind || 'event', on: R.on !== false, ...(R.kind === 'date' ? { at: R.at, event: null, offsetMin: null } : { event: R.event, offsetMin: R.offsetMin, at: null }), updatedAt: Date.now() };
       const ok = S.ruleId ? await w(() => S.store.update('pushRules/' + S.ruleId, R.kind === 'date' && R.at !== S.rules?.[S.ruleId]?.at ? { ...doc, sentAt: null } : doc), '자동 알림을 고쳤어요.') : await w(() => S.store.add('pushRules', { ...doc, createdAt: Date.now() }), '자동 알림을 만들었어요.');
       if (ok) { S.sheet = null; S.ruleF = null; S.ruleId = null; render() } break }
-    case 'ruledel': if (!needAdmin() || !confirm('이 자동 알림을 지울까요?')) break; await w(() => S.store.del('pushRules/' + id), '지웠어요.'); break;
+    case 'ruledel': { if (!needAdmin()) break; const R0 = S.rules?.[id]; if (!confirm(R0?.sys ? '이 기본 알림을 지울까요? (나중에 되살릴 수 있어요)' : '이 자동 알림을 지울까요?')) break; await w(() => R0?.sys ? S.store.update('pushRules/' + id, { deleted: true, on: false }) : S.store.del('pushRules/' + id), '지웠어요.'); break }
+    case 'sysrestore': if (!needAdmin()) break; for (const [rid, R0] of Object.entries(S.rules || {})) if (R0.sys && R0.deleted) await w(() => S.store.update('pushRules/' + rid, { deleted: false, on: true })); toast('기본 알림을 되살렸어요.'); break;
+    case 'rulereset': { const def = SYS_RULES[S.ruleId]; if (!def) break; S.ruleF = { ...S.ruleF, title: def.title, body: def.body, ...(def.kind === 'event' ? { event: def.event, offsetMin: def.offsetMin, target: def.target } : {}) }; render(); break }
     case 'pushoff': await pushDisable(); break;
     case 'pngrp': { if (!needAdmin()) break; const k = el.dataset.k; S.pnTitle = document.getElementById('pn-title')?.value || S.pnTitle; S.pnBody = document.getElementById('pn-body')?.value || S.pnBody;
       if (k === 'none') S.pnSel = []; else if (k === 'all') S.pnSel = Object.keys(S.players).filter(id => mstatus(S.players[id]) !== 'dormant'); else S.pnSel = [...(pushGroups(S.sessions[S.pnSid])[k] || [])]; render(); break }
+    case 'pntab': S.pnTitle = document.getElementById('pn-title')?.value || S.pnTitle; S.pnBody = document.getElementById('pn-body')?.value || S.pnBody; S.pnTab = el.dataset.k; S.pnQ = ''; render(); break;
+    case 'pnchoall': case 'pnchonone': { S.pnTitle = document.getElementById('pn-title')?.value || S.pnTitle; S.pnBody = document.getElementById('pn-body')?.value || S.pnBody; const ids = Object.keys(S.players).filter(x => mstatus(S.players[x]) !== 'dormant' && choOf(pname(x)) === S.pnTab); const set = new Set(S.pnSel || []); ids.forEach(x => act === 'pnchoall' ? set.add(x) : set.delete(x)); S.pnSel = [...set]; render(); break }
     case 'pntog': { S.pnTitle = document.getElementById('pn-title')?.value || S.pnTitle; S.pnBody = document.getElementById('pn-body')?.value || S.pnBody; const set = new Set(S.pnSel || []); set.has(id) ? set.delete(id) : set.add(id); S.pnSel = [...set]; render(); break }
     case 'pushsend': { if (!needAdmin()) break; const t = document.getElementById('pn-title')?.value.trim(), b0 = document.getElementById('pn-body')?.value.trim(); const pids = [...new Set(S.pnSel || [])];
       if (!pids.length) { toast('받는 사람을 골라 주세요.'); break } if (!t || !b0) { toast('제목과 내용을 입력해 주세요.'); break } if (!confirm(`${pids.length}명에게 알림을 보낼까요?`)) break;
