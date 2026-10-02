@@ -1818,11 +1818,34 @@ body.hasmm .homefit{bottom:calc(80px + env(safe-area-inset-bottom,0px))!importan
 .hero .caplink{color:#FFE14D!important}
 .hero-empty{text-shadow:0 1px 4px rgba(0,0,0,.55)}
 @media (prefers-color-scheme:dark){.hero{box-shadow:inset 0 0 0 8px #2B8A44,inset 0 0 0 10px rgba(255,255,255,.4),0 18px 40px -18px rgba(0,0,0,.8)!important}}
+/* v0.16 loading screen */
+#boot{position:fixed;inset:0;z-index:1000;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;transition:opacity .45s ease}
+#boot.out{opacity:0;pointer-events:none}
+.bt-logo{position:relative;width:132px;height:132px;display:flex;align-items:center;justify-content:center}
+.bt-logo img{width:96px;height:96px;border-radius:50%;animation:btpulse 1.6s ease-in-out infinite;box-shadow:0 0 0 2px rgba(255,255,255,.12)}
+.bt-ring{position:absolute;inset:0;border-radius:50%;border:3px solid transparent;border-top-color:#FFCF1F;border-right-color:rgba(255,207,31,.35);animation:btspin 1.1s linear infinite}
+.bt-ring.r2{inset:10px;border-top-color:rgba(255,255,255,.55);border-right-color:transparent;animation-duration:1.8s;animation-direction:reverse}
+#boot b{font-family:"Anton",Impact,sans-serif;font-weight:400;color:#fff;letter-spacing:3px;font-size:16px;opacity:.9}
+.bt-bar{display:block;width:140px;height:3px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}
+.bt-bar i{display:block;width:40%;height:100%;background:#FFCF1F;border-radius:3px;animation:btbar 1.2s ease-in-out infinite}
+@keyframes btspin{to{transform:rotate(360deg)}}
+@keyframes btpulse{0%,100%{transform:scale(.94)}50%{transform:scale(1.04)}}
+@keyframes btbar{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
+@media (prefers-reduced-motion:reduce){.bt-ring,.bt-logo img,.bt-bar i{animation:none}}
+/* manual mode, spectators, sims, admin pin */
+.mmseg{margin:4px 0 12px}
+.mm-sumlist{display:grid;gap:4px;margin-top:12px}
+.mm-sumlist>div{display:grid;grid-template-columns:56px 1fr 56px 1fr;align-items:center;gap:6px;padding:7px 10px;border-radius:10px;background:var(--surface2);font-size:14px}
+.mm-sumlist em{font-style:normal;color:var(--muted);font-size:12px;font-weight:700}.mm-sumlist b{text-align:center;font-family:var(--latin);font-weight:400;font-size:17px}.mm-sumlist span:last-child{text-align:right}
+.viewbar{margin:0 -10px 4px;padding:6px 12px;background:#E0E7FF;color:#1E1B4B;font-size:12.5px;font-weight:700;text-align:center}
+.simcell{display:flex;flex-direction:column;gap:4px}.simcell .btn.sm{min-height:30px}
+.pinrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.pinrow .pin{max-width:none!important;letter-spacing:4px;font-size:16px!important}
 </style>
 </head>
 <body>
-<div id="app"><p class="empty">불러오는 중…</p></div>
-<script src="config.js?v=0.15"></script>
-<script type="module" src="app.js?v=0.15"></script>
+<div id="boot" role="status" aria-label="불러오는 중"><div class="bt-logo"><span class="bt-ring"></span><span class="bt-ring r2"></span><img src="assets/emblem.png" alt=""></div><b>WEEKDAYS FUTSAL CLUB</b><i class="bt-bar"><i></i></i></div>
+<div id="app"></div>
+<script src="config.js?v=0.16"></script>
+<script type="module" src="app.js?v=0.16"></script>
 </body>
 </html>
