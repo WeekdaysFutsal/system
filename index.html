@@ -1840,12 +1840,23 @@ body.hasmm .homefit{bottom:calc(80px + env(safe-area-inset-bottom,0px))!importan
 .viewbar{margin:0 -10px 4px;padding:6px 12px;background:#E0E7FF;color:#1E1B4B;font-size:12.5px;font-weight:700;text-align:center}
 .simcell{display:flex;flex-direction:column;gap:4px}.simcell .btn.sm{min-height:30px}
 .pinrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.pinrow .pin{max-width:none!important;letter-spacing:4px;font-size:16px!important}
+.verbtns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.cl{display:grid;gap:10px;max-height:60vh;overflow:auto}
+.cl section{padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:var(--surface)}
+.cl section.cur{border-color:var(--accent);background:var(--accent-soft)}
+.cl-hd{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
+.cl-hd b{font-family:var(--latin);font-weight:400;font-size:20px;letter-spacing:.5px}
+.cl-hd small{color:var(--muted);font-size:12px}
+.cl-hd em{margin-left:auto;font-style:normal;font-size:11px;font-weight:800;color:#fff;background:var(--accent);padding:2px 8px;border-radius:999px}
+.cl ul{margin:0;padding-left:18px}.cl li{font-size:14px;margin:3px 0;line-height:1.5}
+.cl-new{margin:0 0 10px;font-weight:800;color:var(--accent)}
 </style>
 </head>
 <body>
 <div id="boot" role="status" aria-label="불러오는 중"><div class="bt-logo"><span class="bt-ring"></span><span class="bt-ring r2"></span><img src="assets/emblem.png" alt=""></div><b>WEEKDAYS FUTSAL CLUB</b><i class="bt-bar"><i></i></i></div>
 <div id="app"></div>
-<script src="config.js?v=0.16"></script>
-<script type="module" src="app.js?v=0.16"></script>
+<script>try{if(sessionStorage.getItem("wf:booted")){var b=document.getElementById("boot");if(b)b.remove();document.getElementById("app").innerHTML='<p class="empty">불러오는 중…</p>'}else sessionStorage.setItem("wf:booted","1")}catch(e){}</script>
+<script src="config.js?v=0.18"></script>
+<script type="module" src="app.js?v=0.18"></script>
 </body>
 </html>

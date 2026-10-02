@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.16';
+const APP_VERSION = '0.18';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -28,6 +28,8 @@ async function artifactStore() {
     watchCol(p, cb, opt, onErr) { let q = db.collection(p); if (opt?.order) q = q.orderBy(opt.order, 'desc').limit(opt.limit || 100);
       return q.onSnapshot(sn => { let docs = sn.docs.map(d => ({ id: d.id, ...d.data() })); if (opt?.order) docs.reverse(); cb(docs) }, e => { console.error(e); onErr && onErr(e) }) },
     get: async p => { const sn = await db.doc(p).get(); return sn.exists ? sn.data() : null },
+    stamp: () => Date.now(),
+    query: async (p, where) => (await listCol(p)).filter(d => where.every(([f, op, v]) => op === '==' ? d[f] === v : op === '>=' ? d[f] >= v : true)),
     set: (p, d) => db.doc(p).set(d),
     update: (p, d) => db.doc(p).update(nest(d)),
     add: async (p, d) => (await db.collection(p).add(d)).id,
@@ -53,14 +55,15 @@ async function firebaseStore(cfg) {
   const [{ initializeApp }, F, A] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-firestore.js'), import(base + 'firebase-auth.js')]);
   const app = initializeApp(cfg);
   await A.signInAnonymously(A.getAuth(app));
-  let db; try { db = F.initializeFirestore(app, { experimentalAutoDetectLongPolling: true, ignoreUndefinedProperties: true }) } catch { db = F.getFirestore(app) }
+  let db; try { db = F.initializeFirestore(app, { experimentalAutoDetectLongPolling: true, ignoreUndefinedProperties: true, ...(F.persistentLocalCache ? { localCache: F.persistentLocalCache() } : {}) }) } catch { try { db = F.initializeFirestore(app, { experimentalAutoDetectLongPolling: true, ignoreUndefinedProperties: true }) } catch { db = F.getFirestore(app) } }
   const ref = p => F.doc(db, p);
   return {
     kind: 'live',
     watchCol(p, cb, opt, onErr) {
       let q = F.collection(db, p);
+      if (opt?.where) q = F.query(q, ...opt.where.map(w => F.where(w[0], w[1], w[2])));
       if (opt?.order) q = F.query(q, F.orderBy(opt.order, 'desc'), F.limit(opt.limit || 100));
-      return F.onSnapshot(q, s => { let docs = s.docs.map(d => ({ id: d.id, ...d.data() })); if (opt?.order) docs.reverse(); cb(docs) }, e => { console.error(e); onErr && onErr(e) });
+      return F.onSnapshot(q, s => { let docs = s.docs.map(d => ({ id: d.id, ...d.data(opt?.est ? { serverTimestamps: 'estimate' } : undefined) })); if (opt?.order) docs.reverse(); cb(docs) }, e => { console.error(e); onErr && onErr(e) });
     },
     get: async p => { const sn = await F.getDoc(ref(p)); return sn.exists() ? sn.data() : null },
     serverNow: async key => { const r = ref('clock/' + key); const t0 = Date.now(); await F.setDoc(r, { t: F.serverTimestamp() }); const sn = await F.getDoc(r); const t1 = Date.now(); const st = sn.data()?.t?.toMillis?.(); return st ? { st, mid: (t0 + t1) / 2, rtt: t1 - t0 } : null },
@@ -68,6 +71,8 @@ async function firebaseStore(cfg) {
     update: (p, d) => F.updateDoc(ref(p), d),
     add: async (p, d) => (await F.addDoc(F.collection(db, p), d)).id,
     del: p => F.deleteDoc(ref(p)),
+    stamp: () => F.serverTimestamp(),
+    query: async (p, where) => { const sn = await F.getDocs(F.query(F.collection(db, p), ...where.map(w => F.where(w[0], w[1], w[2])))); return sn.docs.map(d => ({ id: d.id, ...d.data() })) },
     patch: (p, ops) => { const u = {}; Object.entries(ops.set || {}).forEach(([k, v]) => u[k] = v); Object.entries(ops.union || {}).forEach(([k, v]) => u[k] = F.arrayUnion(...v)); Object.entries(ops.remove || {}).forEach(([k, v]) => { if (v.length) u[k] = F.arrayRemove(...v) }); return F.updateDoc(ref(p), u) },
     txn: async (p, fn) => { for (let i = 0; ; i++) { try { return await withTimeout(F.runTransaction(db, async t => { const r = ref(p); const s = await t.get(r); const nd = fn(s.exists() ? s.data() : null); if (nd == null) throw new Error('aborted'); t.set(r, nd) }, { maxAttempts: 8 }), 8000) }
       catch (e) { const c = String(e?.code || ''); if (e?.message === 'aborted' || i >= 2 || !/aborted|unavailable|deadline|failed-precondition/.test(c)) throw e; await new Promise(r => setTimeout(r, 400 * (i + 1))) } } }
@@ -416,6 +421,8 @@ function render() {
   if (isTyping()) { S.pending = true; return } S.pending = false;
   S.dm = !isDesk();
   if (S.ready >= 3 || S.err) hideBoot();
+  if (S.ready >= 3) ensureQueues();
+  if (S.ready >= 3 && (S.auth || S.admin) && !S.sheet && !S.clChecked) { S.clChecked = true; const seen = load('seenVer', null); save('seenVer', APP_VERSION); if (seen && seen !== APP_VERSION) S.sheet = { type: 'changelog', fresh: true } }
   if (!S.admin && S.auth && S.ready >= 3) { const cs = capSid(); if (cs && S.tab !== 'draft' && !(S.capPop ??= {})[cs] && !S.sheet) { S.capPop[cs] = 1; S.sheet = { type: 'cappop', sid: cs } } }
   if (!S.admin && !S.auth && S.ready >= 3) { document.body.classList.remove('dm-on'); document.getElementById('app').innerHTML = loginScreen() + (S.sheet ? viewSheet() : ''); return }
   if (S.ready >= 3 && (!S.sid || !S.sessions[S.sid])) S.sid = defaultSid();
@@ -839,6 +846,7 @@ function viewSheet() {
   else if (sh.type === 'duty') h += dutySheet(sh.sid);
   else if (sh.type === 'park') h += parkSheet(sh.sid);
   else if (sh.type === 'parkapply') { const ss = S.sessions[sh.sid]; h += `<h4>🚗 주차 신청</h4><p>${fmtDate(sh.sid)} 경기 주차를 신청해요. 신청자 중 ${PARK_SLOTS}명을 추첨해요.</p><div class="panel"><div class="field"><label for="pk-car2">차량번호</label><input id="pk-car2" class="inp" type="text" maxlength="12" placeholder="예: 12가3456" value="${esc(myCar())}"></div><p class="note" style="margin:6px 0 0">내 정보에 차량번호를 저장해 두면 자동으로 채워져요.</p></div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="parksave">신청</button></div>` }
+  else if (sh.type === 'changelog') h += `<h4>업데이트 내용</h4>${sh.fresh ? `<p class="cl-new">🎉 ${APP_VERSION} 버전으로 업데이트됐어요</p>` : ''}<div class="cl">${CHANGELOG.map(([v, d, items], i) => `<section class="${i === 0 ? 'cur' : ''}"><div class="cl-hd"><b>${v}</b><small>${d}</small>${v === APP_VERSION ? '<em>현재</em>' : ''}</div><ul>${items.map(t => `<li>${esc(t)}</li>`).join('')}</ul></section>`).join('')}</div>`;
   else if (sh.type === 'staffedit') { const ss = S.sessions[sh.sid];
     h += `<h4>${fmtDate(sh.sid)} 예약자 · 운영자</h4><p>여기 적힌 사람은 따로 신청하지 않아도 0순위로 자동 신청돼요. 여러 명은 쉼표로 구분해요.</p><div class="panel">
       <div class="field"><label>구장 예약자<input id="se-res" class="inp" type="text" list="mem-list2" value="${esc(idsToNames(ss.p0))}"></label></div>
@@ -877,6 +885,15 @@ function viewSheet() {
     h += `<h4>${esc(t.name)} MOM</h4><p>주장이 고른 선수를 눌러 주세요.</p><div class="pick">${teamPlayers(s, sh.k).map(id => `<button class="${c === id ? 'cur' : ''}" data-act="pickmom" data-id="${id}">${esc(pname(id))}</button>`).join('')}${c ? '<button class="alt" data-act="pickmom" data-id="">선택 취소</button>' : ''}</div>` }
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
+const CHANGELOG = [
+  ['0.18', '2026.10.01', ['업데이트 내용을 내 정보에서 확인할 수 있어요', '로딩 화면은 앱을 처음 열 때만 보이고, 새로고침은 바로 돼요']],
+  ['0.17', '2026.10.01', ['신청 순번을 서버에 도착한 시각(1/1000초)으로 정해요. 폰 시계나 조작으로 바꿀 수 없어요', '마감 시각 이후에 도착한 신청은 인정되지 않아요', '앱이 데이터를 폰에 저장해 두고 바뀐 것만 받아서 더 빠르고 가벼워졌어요']],
+  ['0.16', '2026.10.01', ['앱을 열 때 클럽 엠블럼 로딩 화면', '경기모드 "직접 설정": 일정 없이 팀·경기 수·시간을 정해 경기 진행과 결과 정리', '운영모드 비밀번호 변경', '드래프트 참관자 지정', '연습 데이터를 항목별로 지우기']],
+  ['0.15', '2026.10.01', ['NEXT MATCH 카드 배경을 풋살장으로 바꿨어요']],
+  ['0.14', '2026.10.01', ['신청하기 버튼을 NEXT MATCH 카드 바로 아래로 옮겨, 홈 화면이 가려지지 않아요', '폰 크기에 맞춰 홈 화면 크기가 자동으로 조절돼서 신청 버튼이 항상 바로 보여요']],
+  ['0.13', '2026.10.01', ['홈·운영·경기모드 화면에서 겹치는 정보를 정리했어요']],
+  ['0.12', '2026.10.01', ['경기 추가 때 장소를 목록에서 고르거나 직접 입력', '정식 출시 전이라 버전을 0.x로 표기해요']],
+];
 function viewSettings() {
   return `<h2>내 정보<small>이름 + 비밀번호 4자리로 로그인해요</small></h2>${loginCard()}
   <h2>휘슬</h2><div class="panel pad"><button class="btn block" data-act="whistle">${S.whistle ? '🔊 이 폰에서 휘슬 켜짐' : '🔇 이 폰에서 휘슬 꺼짐'}</button><p class="note">웹에서는 휘슬이 울리려면 경기 화면을 켜 두어야 해요.</p></div>
@@ -886,7 +903,7 @@ function viewSettings() {
       return `<div class="simcell"><button class="btn" data-act="${act}" data-k="${k}"><b>${n}</b><small>${d}</small></button><button class="btn sm danger" data-act="clrsim" data-k="${k}" ${cnt ? '' : 'disabled'}>지우기${cnt ? ` (${cnt})` : ''}</button></div>` }).join('')}</div>
     <button class="btn danger block" style="margin-top:10px" data-act="clrpractice">연습 데이터 모두 지우기${Object.values(S.sessions).filter(x => x.practice).length ? ` (${Object.values(S.sessions).filter(x => x.practice).length}개)` : ''}</button></div>` : ''}
   ${S.admin ? `<h2>샘플 데이터</h2><div class="panel pad"><p class="muted" style="margin:0 0 10px">화면 확인용 가상 회원, 지난 경기 2개, 다음 경기 1개를 넣거나 지워요. 직접 입력한 데이터는 건드리지 않아요.</p><div class="row"><button class="btn" data-act="addsample">샘플 데이터 넣기</button><button class="btn danger" data-act="clearsample">샘플 데이터 모두 지우기</button></div></div>` : ''}
-  <div class="verbox"><div><span>앱 버전</span><b>${APP_VERSION}</b></div><button class="btn sm" data-act="appreload">최신 버전 확인</button></div>
+  <div class="verbox"><div><span>앱 버전</span><b>${APP_VERSION}</b></div><div class="verbtns"><button class="btn sm" data-act="changelog">업데이트 내용</button><button class="btn sm" data-act="appreload">최신 버전 확인</button></div></div>
   <p class="note" style="text-align:center;margin:8px 0 0">새 기능이 안 보이면 "최신 버전 확인"을 눌러 주세요.</p>`;
 }
 /* ───────── member views ───────── */
@@ -907,7 +924,10 @@ function sStatus(s) {
   return { k: 'closed', label: '신청 마감' };
 }
 function nextSid() { const t = today(); const ids = Object.keys(S.sessions).sort(); return ids.find(id => id >= t && !isComplete(id)) || null }
-function pastSids() { return Object.keys(S.sessions).filter(id => sessMatches(id).some(m => m.status === 'done')).sort().reverse() }
+function pastSids() { const t = today(); return Object.keys(S.sessions).filter(id => sessMatches(id).some(m => m.status === 'done') || (S.cut && id < S.cut && id < t && (S.sessions[id].stage === 'match' || S.sessions[id].imported))).sort().reverse() }
+async function loadOld(sid) { if (!S.cut || sid >= S.cut || (S.oldLoaded ??= {})[sid] || !S.store?.query) return; S.oldLoaded[sid] = 1;
+  try { const [ms, ev] = await Promise.all([S.store.query('matches', [['session', '==', sid]]), S.store.query('events', [['session', '==', sid]])]);
+    S.oldMatches ??= {}; S.oldEvents ??= {}; ms.forEach(d => { const { id, ...r } = d; S.oldMatches[id] = r; S.matches[id] = r }); ev.forEach(d => { const { id, ...r } = d; S.oldEvents[id] = r; S.events[id] = r }); render() } catch (e) { S.oldLoaded[sid] = 0; console.warn(e) } }
 function myPid() { return S.auth?.pid && S.players[S.auth.pid] ? S.auth.pid : null }
 function myTeamIn(s) { const me = myPid(); return me ? KEYS.find(k => teamPlayers(s, k).includes(me)) || null : null }
 function rankOf(rows, key, id) { const v = r => key === 'pts' ? r.g + r.a : r[key]; const mine = rows.find(r => r.id === id); if (!mine) return null; return 1 + rows.filter(r => v(r) > v(mine)).length }
@@ -1009,7 +1029,7 @@ function vResultDetail(s) {
 function viewResults() {
   const ids = pastSids(); if (!ids.length) return `<h2>경기결과</h2><div class="panel"><p class="empty">아직 끝난 경기가 없어요.</p></div>`;
   if (!S.detail || !ids.includes(S.detail)) S.detail = ids[0];
-  const i = ids.indexOf(S.detail); const s = S.sessions[S.detail]; S.sid = S.detail; const older = ids[i + 1], newer = ids[i - 1];
+  const i = ids.indexOf(S.detail); const s = S.sessions[S.detail]; S.sid = S.detail; loadOld(S.detail); const older = ids[i + 1], newer = ids[i - 1];
   return `<div class="rdswipe ${S.rdAnim || ''}"><div class="rdnav"><button class="navb" data-act="rdgo" data-id="${older || ''}" ${older ? '' : 'disabled'} aria-label="이전 경기">‹<small>이전</small></button>
     <div class="rdt2"><b>${fmtDate(S.detail)}</b><small>${esc(s.time || '')} · ${esc(s.venue || '')}${s.no ? ` · ${s.no}회` : ''}</small></div>
     <button class="navb" data-act="rdgo" data-id="${newer || ''}" ${newer ? '' : 'disabled'} aria-label="이후 경기"><small>이후</small>›</button></div>
@@ -1230,7 +1250,14 @@ async function clearSample() {
 /* ───────── member application ───────── */
 /* ───────── applications (reserve first, name later; priority tiers) ───────── */
 const TIER = ['0순위', '1순위', '2순위', '3순위'];
-function appsOf(s) { if (Array.isArray(s.apps)) { const seen = new Set(); return s.apps.filter(a => a && typeof a === 'object').map((a, i) => ({ a, i })).sort((x, y) => ((x.a.at || 0) - (y.a.at || 0)) || (x.i - y.i)).map(x => x.a).filter(a => { if (!a.pid) return true; if (seen.has(a.pid)) return false; seen.add(a.pid); return true }) } return [...(s.applicants || []), ...(s.waitlist || [])].map((pid, i) => ({ k: 'L' + i, pid, at: 0 })) }
+const tsMs = v => v == null ? null : typeof v === 'number' ? v : v.toMillis ? v.toMillis() : v.seconds ? v.seconds * 1000 + Math.floor((v.nanoseconds || 0) / 1e6) : +v;
+function queueApps(s) { const q = S.q?.[s?.date]; if (!q) return []; const open = s.applyOpen ? new Date(s.applyOpen).getTime() : null, close = s.applyClose ? new Date(s.applyClose).getTime() : null;
+  return Object.entries(q).map(([id, d]) => ({ k: 'q' + id, q: id, pid: d.pid || null, uid: d.uid, at: tsMs(d.at) ?? d.tap ?? 0, srv: true })).filter(a => (!open || a.at >= open - 1500) && (!close || a.at <= close)) }
+function ensureQueues() { if (!S.store) return; S.qUn ??= {}; S.q ??= {}; const want = new Set(Object.keys(S.sessions).filter(id => ['apply', 'captain'].includes(S.sessions[id].stage) && id >= today()));
+  for (const id of Object.keys(S.qUn)) if (!want.has(id)) { try { S.qUn[id]() } catch { } delete S.qUn[id]; delete S.q[id] }
+  for (const id of want) if (!S.qUn[id]) S.qUn[id] = S.store.watchCol(sp(id) + '/q', docs => { const o = {}; docs.forEach(d => { const { id: di, ...r } = d; o[di] = r }); S.q[id] = o; render() }, { est: true }, () => { }) }
+function appsOf(s) { const qa = queueApps(s); if (qa.length) { const base = Array.isArray(s.apps) ? s.apps : appsOf0(s); return appsOf0({ ...s, apps: [...base, ...qa] }) } return appsOf0(s) }
+function appsOf0(s) { if (Array.isArray(s.apps)) { const seen = new Set(); return s.apps.filter(a => a && typeof a === 'object').map((a, i) => ({ a, i })).sort((x, y) => ((x.a.at || 0) - (y.a.at || 0)) || (x.i - y.i)).map(x => x.a).filter(a => { if (!a.pid) return true; if (seen.has(a.pid)) return false; seen.add(a.pid); return true }) } return [...(s.applicants || []), ...(s.waitlist || [])].map((pid, i) => ({ k: 'L' + i, pid, at: 0 })) }
 function prevSessionId(s) { const ids = Object.keys(S.sessions).filter(id => id < s.date).sort().reverse(); return ids.find(id => KEYS.some(k => teamPlayers(S.sessions[id], k).length)) || null }
 function staffSet(s) { return new Set([...(s.p0 || []), ...(s.ops || []), ...Object.entries(S.players).filter(([, p]) => p.staff).map(([id]) => id)]) }
 function autoIds(s) { return [...new Set([...(s.p0 || []), ...(s.ops || [])])].filter(id => S.players[id]) }
@@ -1273,8 +1300,11 @@ async function doApply(sid, cancel) {
   S.applyBusy = sid; S.applyBusyAt = Date.now(); render();
   let ok = false, err = null, slow = false;
   try {
-    if (Array.isArray(s.apps)) {
-      // one atomic append (no read, no lock, no contention) — order is decided by the tap time in `at`
+    if (S.store.stamp) {
+      // one tiny per-member record; the SERVER stamps the time it arrived (that is the official order)
+      const qid = pid || uid; const pr = S.store.txn(sp(sid) + '/q/' + qid, d => d ? null : { pid: pid || null, uid, at: S.store.stamp(), tap: entry.at });
+      try { await withTimeout(pr, 9000); ok = true } catch (e) { if (String(e?.message) === 'aborted') { ok = true } else if (String(e?.code).includes('deadline')) { slow = true; pr.then(() => { toast('신청이 저장됐어요!'); render() }).catch(e2 => { if (String(e2?.message) !== 'aborted') toast(errMsg(e2).replace(/\.$/, '') + '. 신청이 저장되지 않았어요. 다시 눌러 주세요.') }) } else err = e }
+    } else if (Array.isArray(s.apps)) {
       const pr = S.store.patch(sp(sid), { union: { apps: [entry] } });
       try { await withTimeout(pr, 9000); ok = true } catch (e) { if (String(e?.code).includes('deadline')) { slow = true; pr.then(() => { toast('신청이 저장됐어요!'); render() }).catch(e2 => toast(errMsg(e2).replace(/\.$/, '') + '. 신청이 저장되지 않았어요. 다시 눌러 주세요.')) } else err = e }
     } else {
@@ -1283,9 +1313,9 @@ async function doApply(sid, cancel) {
   } catch (e) { if (String(e?.message) !== 'aborted') err = e; else ok = true }
   finally { S.applyBusy = null }
   render();
-  if (ok) { const s2 = S.sessions[sid] || s; const cur = appsOf(s2); const pos = (cur.some(a => a.k === entry.k) ? cur : appsOf({ apps: [...cur, entry] })).findIndex(a => a.k === entry.k) + 1;
+  if (ok) { const s2 = S.sessions[sid] || s; const cur = appsOf(s2); const mineNow = cur.find(a => pid ? a.pid === pid : a.uid === uid); const pos = mineNow ? cur.indexOf(mineNow) + 1 : appsOf0({ apps: [...cur, entry] }).findIndex(a => a.k === entry.k) + 1;
     toast(pos > 0 ? `${pos}번째 신청 순번을 확보했어요!` : '신청했어요!'); if (!pid) { S.sheet = { type: 'appname', sid, key: entry.k }; render() } return }
-  if (slow) { toast('연결이 느려서 저장을 기다리고 있어요. 앱을 닫지 말고 잠시만 기다려 주세요. 순번은 누른 시각 기준이에요.'); return }
+  if (slow) { toast('연결이 느려서 저장을 기다리고 있어요. 앱을 닫지 말고 잠시만 기다려 주세요.'); return }
   console.error(err); toast(errMsg(err).replace(/\.$/, '') + '. 신청이 저장되지 않았어요. 다시 눌러 주세요.');
 }
 async function setAppName(sid, key, name) {
@@ -1375,7 +1405,7 @@ async function drawParking(sid) {
 }
 
 /* ───────── late cancel (3순위) ───────── */
-function fmtTS(ms) { const d = new Date(ms); return `${d.getMonth() + 1}.${d.getDate()} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}` }
+function fmtTS(ms) { const d = new Date(ms); return `${d.getMonth() + 1}.${d.getDate()} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}.${String(d.getMilliseconds()).padStart(3, '0')}` }
 function lateSet(s) { const p = prevAnyId(s); return new Set(Object.entries((p && S.sessions[p].late) || {}).filter(([, v]) => v).map(([k]) => k)) }
 async function cancelApp(sid, pid, key, byAdmin) {
   const s = S.sessions[sid]; if (!s) return; const closed = applyClosed(s);
@@ -1383,12 +1413,15 @@ async function cancelApp(sid, pid, key, byAdmin) {
   const wasSel = s.stage === 'apply' ? classify(s).sel.some(r => (key && r.k === key) || (pid && r.pid === pid)) : (s.applicants || []).includes(pid);
   const penal = closed && wasSel && pid;
   if (!confirm(penal ? `${byAdmin ? pname(pid) + ' 님의 ' : ''}신청 마감 후 취소예요. 취소하면 다음 경기 신청 때 3순위가 돼요. 그래도 취소할까요?` : '신청을 취소할까요?')) return;
+  const qdel = Object.entries(S.q?.[sid] || {}).filter(([qi, d]) => (pid && d.pid === pid) || (key && 'q' + qi === key)).map(([qi]) => qi);
+  if (qdel.length && !Array.isArray(s.apps)) { if (!(await w(() => Promise.all(qdel.map(qi => withTimeout(S.store.del(sp(sid) + '/q/' + qi), 10000)))))) return; if (!(s.applicants || []).includes(pid) && !appsOf0(s).some(a => a.pid === pid)) { toast('취소했어요.'); render(); return } }
   if (s.stage === 'apply' && Array.isArray(s.apps)) {
     const vals = s.apps.filter(a => a && ((key && a.k === key) || (pid && a.pid === pid))); const set = {};
     if (pid && s.park?.[pid]) set[`park.${pid}`] = null; if (penal) set[`late.${pid}`] = Date.now();
     const remove = { apps: vals }; if (pid && (s.duty?.ball || []).includes(pid)) remove['duty.ball'] = [pid]; if (pid && (s.duty?.drink || []).includes(pid)) remove['duty.drink'] = [pid];
     if (pid && s.dutyReq?.ball?.[pid]) set[`dutyReq.ball.${pid}`] = null; if (pid && s.dutyReq?.drink?.[pid]) set[`dutyReq.drink.${pid}`] = null;
-    const ok2 = await w(() => withTimeout(S.store.patch(sp(sid), { set, remove }), 10000));
+    const qids = Object.entries(S.q?.[sid] || {}).filter(([qi, d]) => (pid && d.pid === pid) || (key && 'q' + qi === key)).map(([qi]) => qi);
+    const ok2 = await w(async () => { await Promise.all(qids.map(qi => withTimeout(S.store.del(sp(sid) + '/q/' + qi), 10000))); if (vals.length || Object.keys(set).length || remove['duty.ball'] || remove['duty.drink']) await withTimeout(S.store.patch(sp(sid), { set, remove }), 10000) });
     if (ok2) toast(penal ? '취소했어요. 마감 후 취소로 기록됐어요.' : '취소했어요.'); render(); return }
   const ok = await w(() => S.store.txn(sp(sid), d => { if (!d || d.draftStatus !== 'ready' || !['apply', 'captain'].includes(d.stage)) return null;
     d.apps = appsOf(d).filter(a => !((key && a.k === key) || (pid && a.pid === pid)));
@@ -2001,6 +2034,7 @@ document.addEventListener('click', async e => {
       if (!confirm(`${pname(id)} 선택을 취소할까요? 다시 내 차례가 돼요.`)) break; await undoPick(!S.admin); sysChat(`${team(s0, last.t).name} 주장이 ${pname(id)} 선택을 취소했어요`); break }
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
+    case 'changelog': S.sheet = { type: 'changelog' }; render(); break;
     case 'adminpinchange': { if (!needAdmin()) break; const cur = document.getElementById('apc-cur')?.value || '', n1 = document.getElementById('apc-new')?.value || '', n2 = document.getElementById('apc-new2')?.value || '';
       if (!(await adminPinOk(cur))) { toast('현재 운영모드 비밀번호가 달라요.'); break } if (!/^\d{4,8}$/.test(n1)) { toast('새 비밀번호는 숫자 4~8자리로 정해 주세요.'); break } if (n1 !== n2) { toast('새 비밀번호 두 번이 서로 달라요.'); break }
       const nh = await sha('wd-admin:' + n1); if (await w(() => S.store.set('meta/admin', { h: nh, at: Date.now() }), '운영모드 비밀번호를 바꿨어요. 다른 운영진에게도 알려 주세요.')) ['apc-cur', 'apc-new', 'apc-new2'].forEach(i => { const x = document.getElementById(i); if (x) x.value = '' }); break }
@@ -2082,7 +2116,7 @@ document.addEventListener('click', async e => {
       if (!myPid()) { const pid0 = await loginFlow(v, document.getElementById('an-pin')?.value, document.getElementById('an-auto')?.checked); if (!pid0) break; v = pname(pid0) } const pkOn = document.getElementById('pk-on')?.checked, pkCar = document.getElementById('pk-car')?.value; if (pkOn && !(pkCar || '').trim()) { toast('주차 신청을 하려면 차량번호를 입력해 주세요.'); break }
       if (await setAppName(sh.sid, sh.key, v)) { if (pkOn) { const pid = findPlayer(v.replace(/\(\s*게\s*\)/g, '').trim()); if (pid) await saveParking(sh.sid, pid, pkCar) } S.sheet = null; render() } break }
     case 'appnameadmin': { if (!needAdmin()) break; const v = prompt('이 신청자의 이름을 입력하세요'); if (v && v.trim()) await setAppName(S.sid, id, v); break }
-    case 'apprm': if (!needAdmin() || !confirm('이 신청을 삭제할까요?')) break; await w(() => S.store.txn(sp(S.sid), d => { d.apps = appsOf(d).filter(a => a.k !== id); return d })); break;
+    case 'apprm': { if (!needAdmin() || !confirm('이 신청을 삭제할까요?')) break; const a0 = appsOf(s).find(a => a.k === id); if (a0?.q) { await w(() => S.store.del(sp(S.sid) + '/q/' + a0.q)) } await w(() => S.store.txn(sp(S.sid), d => { d.apps = appsOf0(d).filter(a => a.k !== id && !(a0?.pid && a.pid === a0.pid && a0.q)); return d })); break }
     case 'p0toggle': { if (!needAdmin()) break; const p0 = new Set(s.p0 || []); p0.has(id) ? p0.delete(id) : p0.add(id); await w(() => S.store.update(sp(S.sid), { p0: [...p0] })); break }
     case 'colorpick': { const k = el.dataset.k; if (!(S.admin || myTeam(s) === k)) break; S.sheet = { type: 'colorpick', k }; render(); break }
     case 'colorset': { const k = S.sheet?.k, c = el.dataset.c; if (!k || !(S.admin || myTeam(s) === k)) break; const old = team(s, k).name; S.sheet = null; render();
@@ -2266,8 +2300,9 @@ function swipeTab(dir) {
     if (key === 'sessions' && S.tab === 'notice' && S.admin) S.schedImg = {};
     if (key === 'sessions' && S.sid && (S.tab === 'notice' || S.sub === 'poster')) { clearTimeout(posterT); posterT = setTimeout(refreshPoster, 300) }
     render() }, null, onErr) };
-  sub('players', 'players'); sub('sessions', 'sessions'); sub('matches', 'matches');
+  sub('players', 'players'); sub('sessions', 'sessions'); const CUT = (() => { const d = new Date(); d.setDate(d.getDate() - 90); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}` })(); S.cut = CUT;
+  { let first = true; S.store.watchCol('matches', docs => { const o = { ...(S.oldMatches || {}) }; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); S.matches = o; if (first) { first = false; S.ready++; if (S.ready === 3) { setTimeout(maybeSeed, 300); verifyAuth(); syncClock(); setInterval(syncClock, 5 * 60 * 1000) } } render() }, { where: [['session', '>=', CUT]] }, onErr) }
   S.store.watchCol('meta', docs => { const o = {}; docs.forEach(d => { const { id, ...r } = d; o[id] = r }); S.meta = o; if (S.tab === 'notice' && S.admin) { S.schedImg = {}; refreshSchedule() } }, null, () => { });
-  S.store.watchCol('events', docs => { const o = {}; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); S.events = o; render() }, null, onErr);
+  S.store.watchCol('events', docs => { const o = { ...(S.oldEvents || {}) }; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); S.events = o; render() }, { where: [['session', '>=', S.cut]] }, onErr);
   if (!IS_ARTIFACT && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => r.update()).catch(() => { });
 })();
