@@ -471,14 +471,16 @@ function isTyping() { const a = document.activeElement; if (a && a.id === 'chati
 window.addEventListener('error', e => { try { toast('오류가 생겼어요: ' + (e.message || '알 수 없음')) } catch { } });
 window.addEventListener('unhandledrejection', e => { try { console.error(e.reason); toast('처리 중 오류: ' + (e.reason?.message || e.reason?.code || '알 수 없음')) } catch { } });
 /* ── 특별 인증(이벤트) ── */
-const QZ_NAMES = ['박종현', '지유균'];
-const QZ_REPEAT = true; // 테스트 중: 앱을 새로 열 때마다 다시 물어봐요 (실전에서는 false → 한 번만)
+const QZ_NAMES = ['김민준', '박종현', '지유균'];
+const QZ_ROUND = 'r2'; // 라운드가 바뀌면 이전 답변 기록과 상관없이 한 번 더 물어봐요
+const QZ_REPEAT = false; // false: 한 번만 물어봐요
 function qzTarget() { const me = myPid(); return !!(me && !S.admin && QZ_NAMES.includes(String(S.players[me]?.name || '').replace(/\(게\)/g, '').trim())) }
-function qzDone() { const me = myPid(); if (QZ_REPEAT) { try { return sessionStorage.getItem('wf:qzans') === me } catch { return false } } return !!(S.meta?.qz?.[me] || load('qz:' + me, null)) }
-function viewQuiz() { if (S.qzStep === 'blocked') return `<div class="qz"><div class="qz-card"><div class="qz-ico">⛔</div><p class="qz-q">당신은 거짓 정보를 입력했습니다.<br>앞으로 앱 사용이 차단됩니다.</p><button class="qz-ok" data-act="qzok">확인</button></div></div>`;
+function qzName() { const me = myPid(); return String(S.players[me]?.name || '').replace(/\(게\)/g, '').trim() || load('qzname', '') || '' }
+function qzDone() { const me = myPid(); if (QZ_REPEAT) { try { return sessionStorage.getItem('wf:qzans') === me } catch { return false } } return String(S.meta?.qz?.[me] || '').startsWith(QZ_ROUND + ':') || !!load('qz:' + QZ_ROUND + ':' + me, null) }
+function viewQuiz() { if (S.qzStep === 'blocked') return `<div class="qz"><div class="qz-card"><div class="qz-ico">⛔</div><p class="qz-q">${esc(qzName())} 님은 거짓 정보를 입력했습니다.<br>앞으로 앱 사용이 차단됩니다.</p><button class="qz-ok" data-act="qzok">확인</button></div></div>`;
   return `<div class="qz"><div class="qz-card"><div class="qz-ico">🔒</div><p class="qz-q">너무 많은 트래픽이 발생하여, 본인임을 확인합니다.<br><b>당신의 성별은 무엇입니까?</b></p><div class="qz-btns"><button data-act="qzans" data-v="m">남</button><button data-act="qzans" data-v="f">녀</button></div></div></div>` }
-function qzKill() { clearTimeout(S.qzT); S.qzStep = 'dead'; try { sessionStorage.setItem('wf:qzdead', '1') } catch { } render(); try { window.close() } catch { } try { if (navigator.app?.exitApp) navigator.app.exitApp() } catch { } }
-async function qzSave(v) { const me = myPid(); if (QZ_REPEAT) { try { sessionStorage.setItem('wf:qzans', me) } catch { } return } save('qz:' + me, v); try { await S.store.update('meta/qz', { [me]: v + ':' + Date.now() }) } catch { try { await S.store.set('meta/qz', { ...(S.meta?.qz || {}), [me]: v + ':' + Date.now() }) } catch { } } }
+function qzKill() { clearTimeout(S.qzT); S.qzStep = 'dead'; try { sessionStorage.setItem('wf:qzname', qzName()) } catch { } try { sessionStorage.setItem('wf:qzdead', '1') } catch { } render(); try { window.close() } catch { } try { if (navigator.app?.exitApp) navigator.app.exitApp() } catch { } }
+async function qzSave(v) { const me = myPid(); if (QZ_REPEAT) { try { sessionStorage.setItem('wf:qzans', me) } catch { } return } save('qz:' + QZ_ROUND + ':' + me, v); const val = QZ_ROUND + ':' + v + ':' + Date.now(); try { await S.store.update('meta/qz', { [me]: val }) } catch { try { await S.store.set('meta/qz', { ...(S.meta?.qz || {}), [me]: val }) } catch { } } }
 (() => { try { if (new URLSearchParams(location.search).get('qz') === 'reset') { Object.keys(localStorage).filter(k => k.startsWith('wf:qz:')).forEach(k => localStorage.removeItem(k)); window.WF_QZ_RESET = 1 } } catch { } })();
 const BOOT_T0 = performance.now();
 function hideBoot() { const b = document.getElementById('boot'); if (!b || b.dataset.out) return; b.dataset.out = '1'; const wait = Math.max(0, 1100 - (performance.now() - BOOT_T0)); setTimeout(() => { b.classList.add('out'); setTimeout(() => b.remove(), 500) }, wait) }
@@ -492,7 +494,7 @@ function render() {
   if (!S.admin && S.auth && S.ready >= 3) { const cs = capSid(); if (cs && S.tab !== 'draft' && !(S.capPop ??= {})[cs] && !S.sheet) { S.capPop[cs] = 1; S.sheet = { type: 'cappop', sid: cs } } }
   if (!S.admin && !S.auth && S.ready >= 3) { document.body.classList.remove('dm-on'); document.getElementById('app').innerHTML = loginScreen() + (S.sheet ? viewSheet() : ''); return }
   if (S.ready >= 3 && qzTarget() && window.WF_QZ_RESET && !S.qzResetDone) { S.qzResetDone = true; const me = myPid(); S.store.update('meta/qz', { [me]: null }).catch(() => { }); if (S.meta?.qz) S.meta.qz[me] = null }
-  if (S.qzStep === 'dead' || (() => { try { return sessionStorage.getItem('wf:qzdead') } catch { return null } })()) { document.body.classList.remove('dm-on'); document.querySelectorAll('.toast').forEach(x => x.remove()); document.getElementById('app').innerHTML = '<div class="qzdead">차단됨</div>'; return }
+  if (S.qzStep === 'dead' || (() => { try { return sessionStorage.getItem('wf:qzdead') } catch { return null } })()) { document.body.classList.remove('dm-on'); document.querySelectorAll('.toast').forEach(x => x.remove()); const nm = (() => { try { return sessionStorage.getItem('wf:qzname') || qzName() } catch { return qzName() } })(); document.getElementById('app').innerHTML = `<div class="qzdead"><div><small>${esc(nm)}</small>차단됨</div></div>`; return }
   if (S.ready >= 3 && qzTarget() && (!qzDone() || S.qzStep === 'blocked')) { document.body.classList.remove('dm-on'); document.getElementById('app').innerHTML = viewQuiz(); return }
   if (S.ready >= 3 && (!S.sid || !S.sessions[S.sid])) S.sid = defaultSid();
   if (S.store && S.chatSid !== S.sid) watchChat();
