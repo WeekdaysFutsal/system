@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.5';
+const APP_VERSION = '0.21.6';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -168,6 +168,11 @@ function extrasFor(s0, pid) { const set = {}, remove = {}; if (!pid || !s0) retu
   if ((s0.duty?.ball || []).includes(pid)) remove['duty.ball'] = [pid]; if ((s0.duty?.drink || []).includes(pid)) remove['duty.drink'] = [pid];
   return Object.keys(set).length || Object.keys(remove).length ? { set, remove } : null }
 async function clearExtras(sid, pid) { const ops = extrasFor(S.sessions[sid], pid); if (!ops) return; try { await withTimeout(S.store.patch(sp(sid), ops), 10000) } catch (e) { console.warn(e) } }
+/* 예전 버전에서 취소했는데 남아 있는 주차·공당·물당 기록 찾기 */
+function staleExtraPids(s0) { if (!s0 || !['apply', 'captain', 'draft', 'trade', 'notice', 'match'].includes(s0.stage)) return [];
+  const live = new Set([...appsOf(s0).map(a => a.pid), ...(s0.applicants || []), ...(s0.waitlist || []), ...autoIds(s0)].filter(Boolean));
+  const cand = new Set([...Object.keys(s0.park || {}).filter(k => s0.park[k]), ...['ball', 'drink'].flatMap(k => [...Object.keys(s0.dutyReq?.[k] || {}).filter(p => s0.dutyReq[k][p]), ...(s0.duty?.[k] || [])])]);
+  return [...cand].filter(p => !live.has(p)) }
 function appSrc(s0, r) { if (r.auto) return ['auto', '자동']; const a = appsOf(s0).find(x => x.k === r.k) || {};
   if (a.srv || a.q) return ['self', '본인 신청']; if (a.uid === 'admin') return ['admin', '운영진 추가']; if (a.uid === 'kakao') return ['kakao', '카톡 반영']; if (a.uid === 'sim') return ['sim', '연습'];
   if (String(r.k || '').startsWith('L') || String(r.k || '').startsWith('f') || String(r.k || '').startsWith('w')) return ['list', '명단']; return ['self', '본인 신청'] }
@@ -906,6 +911,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.6', '2026.10.02', ['[운영진] 예전에 취소했는데 남아 있던 주차·공당·물당 기록을 신청자 화면에서 한 번에 정리할 수 있어요']],
   ['0.21.5', '2026.10.02', ['신청을 취소하거나 신청자 명단에서 빠지면 주차·공당·물당 신청과 지정도 자동으로 취소돼요']],
   ['0.21.4', '2026.10.02', ['[운영진] 신청자 목록에 본인 신청 · 운영진 추가 · 카톡 반영을 구분해서 보여요', '업데이트 내용이 앱을 열 때 자동으로 뜨지 않아요(내 정보 → 업데이트 내용에서 볼 수 있어요)']],
   ['0.21.3', '2026.10.02', ['[운영진] 신청자를 직접 추가할 때 회원 명단에 없는 이름은 막고, 게스트는 이름 뒤에 (게)를 붙여야 추가돼요', '[운영진] 직접 추가하면 새로고침 없이 바로 목록에 반영돼요']],
@@ -1493,7 +1499,8 @@ function vApplyTable(s) {
   const tb = t => c.base ? `<b class="t${t}">${TIER[t]}</b>` : '<b class="t2">선착순</b>';
   const dline = (k, ico, nm) => { const req = Object.entries(s.dutyReq?.[k] || {}).filter(([, v]) => v).sort((a, b) => a[1] - b[1]).map(([p]) => p); const fix = s.duty?.[k] || [];
     return `<div class="dsum-row"><b>${ico} ${nm}</b><span>${fix.length ? `<em class="ok">지정</em> ${fix.map(p => esc(pname(p))).join(', ')}` : '<em class="muted">미지정</em>'}</span><span>${req.length ? `🙋 신청 ${req.length}명 · ${req.map(p => esc(pname(p))).join(', ')}` : '<span class="muted">신청 없음</span>'}</span>${ad ? `<button class="btn sm" data-act="dutyedit" data-id="${s.date}">${applyClosed(s) ? '지정하기' : '신청 현황'}</button>` : ''}</div>` };
-  const dsum = `<div class="panel dsum">${dline('ball', '⚽', '공당')}${dline('drink', '🥤', '물당')}</div>`;
+  const stale = ad ? staleExtraPids(s) : [];
+  const dsum = `<div class="panel dsum">${dline('ball', '⚽', '공당')}${dline('drink', '🥤', '물당')}${stale.length ? `<div class="dsum-row stale"><b>⚠️ 정리</b><span>신청자가 아닌 ${stale.map(p => esc(pname(p))).join(', ')} 님의 주차·공당·물당 기록이 남아 있어요.</span><span></span><button class="btn sm danger" data-act="stalefix">정리하기</button></div>` : ''}</div>`;
   const betaNote = ad && !frozen && betaOn() ? `<div class="betatools"><button class="btn sm primary" data-act="kakaopaste">📷 카톡 투표 명단 반영</button>${Array.isArray(s.appOrder) && s.appOrder.length ? '<button class="btn sm" data-act="orderreset">↺ 실제 신청 순서로 되돌리기</button>' : ''}</div><p class="note betanote">🧪 베타테스트 기간이라 신청 순번을 바꿀 수 있어요. ▲▼로 한 칸씩, #으로 원하는 자리로 옮겨요. 0~3순위 규칙은 그대로라 같은 순위 안에서만 옮겨져요. (설정에서 정식 오픈하면 잠겨요)</p>` : '';
   const h = dsum + betaNote + `<div class="panel sheetwrap"><table class="grid atbl"><thead><tr><th>신청순</th><th class="stick">이름</th><th>순위</th><th>구분</th><th>신청 시각</th>${ad && !frozen && betaOn() ? '<th>순번 변경</th>' : ''}<th>주차</th><th>공당</th><th>물당</th><th>상태</th><th>마감 후 취소</th>${ad ? '<th>관리</th>' : ''}</tr></thead><tbody>
   ${rows.length ? rows.map(r => { const pk = r.pid && s.park?.[r.pid]?.car;
@@ -2134,6 +2141,7 @@ document.addEventListener('click', async e => {
       if (!confirm(`${pname(id)} 선택을 취소할까요? 다시 내 차례가 돼요.`)) break; await undoPick(!S.admin); sysChat(`${team(s0, last.t).name} 주장이 ${pname(id)} 선택을 취소했어요`); break }
     case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
+    case 'stalefix': { if (!needAdmin()) break; const ps = staleExtraPids(cur()); if (!ps.length) break; if (!confirm(`${ps.map(pname).join(', ')} 님의 주차·공당·물당 신청과 지정을 지울까요?`)) break; for (const p0 of ps) await clearExtras(S.sid, p0); toast('정리했어요.'); render(); break }
     case 'kakaopaste': if (!needAdmin()) break; S.kk = null; S.kkFromImg = false; S.ocrBusy = false; S.sheet = { type: 'kakao' }; render(); break;
     case 'kakaoparse': { const t = document.getElementById('kk-text')?.value || ''; const L = parseKakao(t); if (!L.length) { toast('이름을 찾지 못했어요. 다시 붙여넣어 주세요.'); break } S.kk = L; S.kkFromImg = false; document.activeElement?.blur?.(); render(); break }
     case 'kakaoback': S.kk = null; S.kkFromImg = false; render(); break;
