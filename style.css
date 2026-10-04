@@ -50,3 +50,4 @@
 .fs-rot{display:none;margin:0;text-align:center;font-size:13px;opacity:.7}
 @media (orientation:portrait){.fs-main{grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr}.fs-mid{grid-column:1/3;grid-row:1}.fs-clock{font-size:min(17vh,26vw)}.fs-sc{font-size:min(22vh,30vw)}.fs-rot{display:block}}
 body:has(.mmfs){overflow:hidden}
+:root{--cssv:"0.21.14"}
