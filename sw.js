@@ -9,7 +9,7 @@ self.addEventListener('notificationclick', e => { e.notification.close(); const 
 // WD_FUTSAL service worker
 // - 버전이 붙은 파일(app.js?v=, style.css?v=, config.js?v=)과 이미지: 저장본을 바로 쓰고(빠름), 새 버전은 주소가 달라져 자동으로 새로 받아요.
 // - 앱 첫 화면(HTML): 항상 서버의 최신본을 먼저 확인하고, 오프라인이면 저장본을 써요.
-const C = 'wf-0.21.14';
+const C = 'wf-0.21.15';
 self.addEventListener('install', e => { self.skipWaiting() });
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C).map(k => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', e => {
