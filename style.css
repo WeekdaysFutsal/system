@@ -53,4 +53,4 @@
 @media (orientation:portrait){.fs-main{grid-template-columns:1fr 1fr;grid-template-rows:minmax(0,1fr) auto auto;grid-template-areas:"cl cl" "mid mid" "h a"}.fs-clock{font-size:min(36vw,40vh)}.fs-team{flex-direction:column;align-items:stretch;padding:12px}.fs-tx{flex-direction:column;align-items:center;gap:2px}.fs-sc{font-size:clamp(48px,14vh,120px)}.fs-gb{justify-content:center}.fs-g{flex:1}}
 body:has(.mmfs){overflow:hidden}
 .tierbtn{border:1px solid var(--line);border-radius:8px;padding:3px 8px;background:var(--surface);font-weight:700;white-space:nowrap}.tierbtn.ov{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}.tierpick{display:grid;gap:8px}.tierpick .btn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:10px 12px;height:auto}.tierpick small{font-weight:400;opacity:.8}
-:root{--cssv:"0.21.16"}
+:root{--cssv:"0.21.17"}
