@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.17';
+const APP_VERSION = '0.21.18';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -724,7 +724,7 @@ function vDraft(s) {
   h += S.dm ? `<div class="board-table dmbt">${hostH}<div class="felt">${feltHTML(s, ph)}</div><div class="seatrow"><div class="pos-l">${seatHTML(s, L, ph)}</div><div class="pos-b">${seatHTML(s, B, ph)}</div><div class="pos-r">${seatHTML(s, R, ph)}</div></div></div>`
     : `<h2>드래프트 테이블</h2><div class="board-table">${hostH}
     <div class="pos-l">${seatHTML(s, L, ph)}</div><div class="felt">${feltHTML(s, ph)}</div><div class="pos-r">${seatHTML(s, R, ph)}</div><div class="pos-b">${seatHTML(s, B, ph)}</div></div>`;
-  if (S.admin && ph !== 'closed' && !S.dm) h += `<div class="row" style="margin-top:10px">${(ph === 'draft' || ph === 'cards') && !(s.picks || []).length ? '<button class="btn sm" data-act="reorder">순번 다시 정하기</button>' : ''}<button class="btn sm danger" data-act="resetroom">드래프트 처음부터</button></div>`;
+  if (S.admin && ph !== 'closed' && !S.dm) h += `<div class="row" style="margin-top:10px">${ph === 'draft' && !(s.picks || []).length ? '<button class="btn sm primary" data-act="ordedit">✎ 순번 직접 바꾸기</button>' : ''}${(ph === 'draft' || ph === 'cards') && !(s.picks || []).length ? '<button class="btn sm" data-act="reorder">순번 다시 정하기</button>' : ''}<button class="btn sm danger" data-act="resetroom">드래프트 처음부터</button></div>`;
   if ((S.chatSeen ??= {})[S.sid] === undefined && S.chatSid === S.sid && S.chat.length) S.chatSeen[S.sid] = S.chat.length;
   // bottom: chat
   h += chatPanel(true);
@@ -905,7 +905,10 @@ function viewSheet() {
     h += `<h4>${esc(team(s, sh.k).name)} 팀 색 바꾸기</h4><p>다른 팀이 쓰는 색은 고를 수 없어요.</p><div class="pick cpick">${PALETTE.map(p => { const by = KEYS.find(o => o !== sh.k && s.teams?.[o]?.colorName === p.name);
       return `<button class="${cur0 === p.name ? 'cur' : ''}" style="background:${p.color};color:${inkOn(p.color)}" data-act="colorset" data-c="${p.name}" ${by ? 'disabled' : ''}>${p.name}${by ? '<small>사용 중</small>' : cur0 === p.name ? '<small>지금 색</small>' : ''}</button>` }).join('')}</div>` }
   else if (sh.type === 'roommenu') { const s = cur(); const ph = roomPhase(s);
-    h += `<h4>진행 메뉴</h4><p>드래프트 진행을 조정해요.</p><div class="pick" style="grid-template-columns:1fr">${ph === 'draft' && (s.picks || []).length ? '<button data-act="undo">↶ 마지막 지명 되돌리기</button>' : ''}${(ph === 'draft' || ph === 'cards') && !(s.picks || []).length ? '<button data-act="reorder">순번 다시 정하기</button>' : ''}<button class="alt" data-act="resetroom">드래프트 처음부터 다시</button></div>` }
+    h += `<h4>진행 메뉴</h4><p>드래프트 진행을 조정해요.</p><div class="pick" style="grid-template-columns:1fr">${ph === 'draft' && (s.picks || []).length ? '<button data-act="undo">↶ 마지막 지명 되돌리기</button>' : ''}${ph === 'draft' && !(s.picks || []).length ? '<button data-act="ordedit">✎ 순번 직접 바꾸기</button>' : ''}${(ph === 'draft' || ph === 'cards') && !(s.picks || []).length ? '<button data-act="reorder">순번 다시 정하기</button>' : ''}<button class="alt" data-act="resetroom">드래프트 처음부터 다시</button></div>` }
+  else if (sh.type === 'order') { const s = cur(); const o = S.ordDraft || s.order || KEYS; const can = roomPhase(s) === 'draft' && !(s.picks || []).length;
+    h += `<h4>순번 직접 바꾸기</h4><p>${s.ladder ? '사다리' : s.cardgame ? '카드' : ''} 결과로 정해진 순번을 바꿔요. 첫 지명 전까지만 바꿀 수 있고, 지명은 1→2→3→3→2→1 순서로 돌아가요.</p><div class="ordlist">${o.map((k, i) => { const t = team(s, k); return `<div class="ordrow"><b class="ordn">${i + 1}번</b><span class="tok" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}</span><span class="ordc">${esc(pname(s.captains?.[k]))} 주장</span><button class="btn sm" data-act="ordmv" data-i="${i}" data-d="-1" ${i ? '' : 'disabled'} aria-label="위로">▲</button><button class="btn sm" data-act="ordmv" data-i="${i}" data-d="1" ${i < o.length - 1 ? '' : 'disabled'} aria-label="아래로">▼</button></div>` }).join('')}</div>
+      <div class="row" style="margin-top:12px"><button class="btn primary cta" data-act="ordsave" ${can ? '' : 'disabled'}>이 순번으로 확정</button></div>${can ? '' : '<p class="note">이미 지명이 시작돼서 바꿀 수 없어요.</p>'}` }
   else if (sh.type === 'chatlog') { (S.chatSeen ??= {})[S.sid] = S.chat.length; h += `<h4>메시지 내역</h4><p>드래프트 방에서 주고받은 메시지예요.</p><div class="panel chat logsheet">${chatMsgs()}</div>` }
   else if (sh.type === 'cal') h += calSheet();
   else if (sh.type === 'madd') h += `<h4>회원 추가</h4><div class="panel"><div class="field"><label>이름<input id="ma-name" class="inp" type="text" maxlength="20"></label></div>
@@ -933,6 +936,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.18', '2026.10.15', ['[운영진] 드래프트에서 사다리·카드로 정해진 순번을 첫 지명 전까지 직접 바꿀 수 있어요']],
   ['0.21.17', '2026.10.15', ['구장 예약자는 직접 참가 신청을 해야 0순위로 들어가요. 신청하지 않으면 신청자 명단에 나오지 않아요']],
   ['0.21.16', '2026.10.15', ['[운영진] 신청자 표에서 신청을 언제든 삭제할 수 있어요(마감 후에도, 3순위 기록 없이)', '[운영진] The Base 구장 신청자의 0~3순위를 직접 바꿀 수 있어요. 순위 칸을 눌러 고르고, 자동 계산으로 되돌릴 수도 있어요']],
   ['0.21.15', '2026.10.02', ['크게 보기에서 시계를 화면 가득 가장 크게 보여 주도록 배치를 바꿨어요']],
@@ -2457,6 +2461,12 @@ document.addEventListener('click', async e => {
     case 'coloropen': if (!needAdmin()) break; if (joinedCount(s) < 3 && !confirm('아직 모든 주장이 입장하지 않았어요. 그래도 색 선택을 시작할까요?')) break;
       if (await w(() => S.store.update(sp(S.sid), { 'room.colorOpen': true }))) sysChat('색 선택을 시작합니다. 주장님들 팀 색을 골라 주세요!'); break;
     case 'roommenu': S.sheet = { type: 'roommenu' }; render(); break;
+    case 'ordedit': { if (!needAdmin()) break; const s0 = cur(); S.ordDraft = [...(s0.order || KEYS)]; S.sheet = { type: 'order' }; render(); break }
+    case 'ordmv': { const i = +el.dataset.i, j = i + +el.dataset.d; const o = S.ordDraft; if (!o || j < 0 || j >= o.length) break; [o[i], o[j]] = [o[j], o[i]]; render(); break }
+    case 'ordsave': { if (!needAdmin()) break; const s0 = cur(); const o = S.ordDraft; if (!o || o.length !== 3 || new Set(o).size !== 3) break;
+      if (JSON.stringify(o) === JSON.stringify(s0.order || KEYS)) { S.sheet = null; S.ordDraft = null; render(); break }
+      const ok = await w(() => S.store.txn(sp(S.sid), d => { if (!d || d.draftStatus !== 'live' || (d.picks || []).length || d.pending) return null; d.order = [...o]; return d }));
+      if (ok) { S.sheet = null; S.ordDraft = null; sysChat(`운영진이 순번을 바꿨어요: ${o.map((t, n) => `${n + 1}번 ${team(s0, t).name}(${pname(s0.captains?.[t])})`).join(', ')}. 1순위부터 팀원을 골라요!`); toast('순번을 바꿨어요.'); render() } else toast('이미 지명이 시작돼서 바꿀 수 없어요.'); break }
     case 'chatlog': (S.chatSeen ??= {})[S.sid] = S.chat.length; S.sheet = { type: 'chatlog' }; render(); setTimeout(() => { const m = document.querySelector('.logsheet .msgs'); if (m) m.scrollTop = m.scrollHeight }, 0); break;
     case 'adminteam': S.adminTeam = el.dataset.k; render(); break;
     case 'openroom': if (!needAdmin()) break; if (!(await freezeApps(s))) break; await openRoom(); break;
