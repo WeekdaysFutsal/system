@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.18';
+const APP_VERSION = '0.21.19';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -835,6 +835,20 @@ function vNotice(s, inMenu) {
   if (ad) h += sessMatches(s.date).length ? `<div style="height:14px"></div><button class="btn block" data-act="gorun" data-id="${s.date}" data-step="match">경기 진행 화면으로</button>` : `<div style="height:14px"></div><button class="btn primary block" data-act="mkmatches">경기 일정 만들기 (9경기)</button>`;
   return h + '</section></div>';
 }
+function pairSheet() { const s = cur(); const ms = s ? sessMatches(s.date) : []; const D = S.pairDraft || {};
+  const opt = (sel, mid, side) => `<select class="inp" data-in="pairsel" data-id="${mid}" data-side="${side}" aria-label="${side === 'h' ? '왼쪽' : '오른쪽'} 팀">${KEYS.map(k => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(team(s, k).name)}</option>`).join('')}</select>`;
+  return `<h4>1~9경기 대진 변경</h4><p>경기마다 맞붙는 두 팀을 골라요. 좌우만 바꾸면 골 기록은 그대로예요. 끝난 경기에서 한 팀을 다른 팀으로 바꾸면, 빠진 팀의 골 기록이 새로 들어온 팀으로 옮겨져서 점수는 그대로 유지돼요.</p><div class="pairlist">${ms.map(m => { const [hh, aa] = D[m.id] || [m.home, m.away]; const bad = hh === aa; const ch = hh !== m.home || aa !== m.away; const [a, b] = (() => { const [x, y] = score(m); return hh === m.away && aa === m.home ? [y, x] : [x, y] })();
+    return `<div class="pairrow${bad ? ' bad' : ''}${ch ? ' ch' : ''}"><b class="pn">${m.n}경기<small>${m.status === 'done' ? `종료 ${a}:${b}` : m.status === 'live' ? '진행 중' : `${m.round}R`}</small></b>${bib(team(s, hh).color)}${opt(hh, m.id, 'h')}<button class="btn sm" data-act="pairswap" data-id="${m.id}" aria-label="좌우 바꾸기">⇄</button>${opt(aa, m.id, 'a')}${bib(team(s, aa).color)}</div>` }).join('')}</div>
+    <div class="row" style="margin-top:12px"><button class="btn primary cta" data-act="pairsave">변경 저장</button></div>` }
+async function pairSave() { const s = cur(); const ms = sessMatches(s.date); const D = S.pairDraft || {};
+  const ch = ms.filter(m => D[m.id] && (D[m.id][0] !== m.home || D[m.id][1] !== m.away));
+  if (!ch.length) { S.sheet = null; S.pairDraft = null; render(); return }
+  const bad = ch.find(m => D[m.id][0] === D[m.id][1]); if (bad) { toast(`${bad.n}경기는 같은 팀끼리 붙을 수 없어요.`); return }
+  const started = ch.filter(m => m.status !== 'pending'); if (started.length && !confirm(`${started.map(m => m.n + '경기').join(', ')}는 이미 진행됐거나 끝난 경기예요. 대진을 바꾸고 골 기록도 바뀐 팀으로 옮길까요?`)) return;
+  const ok = await w(async () => { for (const m of ch) { const [nh, na] = D[m.id]; const nw = [nh, na], od = [m.home, m.away]; const add = nw.find(t => !od.includes(t)); const map = Object.fromEntries(od.map(t => [t, nw.includes(t) ? t : add])); // 남은 팀은 골 유지, 빠진 팀의 골만 새 팀으로
+    await withTimeout(S.store.update(mp(m.id), { home: nh, away: na }), 10000);
+    for (const e of evsOf(m.id)) if (map[e.team] && map[e.team] !== e.team) await withTimeout(S.store.update('events/' + e.id, { team: map[e.team] }), 10000) } });
+  if (ok) { S.sheet = null; S.pairDraft = null; toast(`${ch.map(m => m.n + '경기').join(', ')} 대진을 바꿨어요.`); render() } }
 function vMatchDay(s) {
   const ms = sessMatches(S.sid); if (!ms.length) return `<div class="notice">아직 경기 일정이 없어요. ${S.admin ? '<button class="btn sm primary" data-act="mkmatches">9경기 일정 만들기</button>' : ''}</div>`;
   const done = ms.filter(m => m.status === 'done').length; const T = timing(s);
@@ -852,7 +866,7 @@ function vMatchDay(s) {
   const top = Object.entries(tally).sort((x, y) => (y[1].g + y[1].a) - (x[1].g + x[1].a) || y[1].g - x[1].g).slice(0, 10);
   if (S.admin) { const st = (key, lab, val, unit) => `<div class="stepper"><button data-act="tstep" data-key="${key}" data-d="-1" aria-label="${lab} 줄이기">−</button><span><small>${lab}</small>${val}${unit}</span><button data-act="tstep" data-key="${key}" data-d="1" aria-label="${lab} 늘리기">+</button></div>`;
     sch += `<h2>경기 시간 설정</h2><div class="grid2">${st('h1', '전반', T.h1 / 60, '분')}${st('gk', 'GK 교체', T.gk, '초')}${st('h2', '후반', T.h2 / 60, '분')}${st('rest', '쉬는 시간', T.rest / 60, '분')}</div>
-    <h2>관리</h2><button class="btn danger block" data-act="delmatches">경기 대진(1~9경기) 삭제</button><p class="note">경기 일정(대진표)과 경기 기록만 지워요. 신청자, 팀 구성, 공지는 그대로 남고, 다시 "경기 일정 만들기"로 새 대진을 만들 수 있어요. 경기일 자체 삭제는 경기관리 메뉴에서 해요.</p>` }
+    <h2>관리</h2><button class="btn primary block" data-act="pairedit" style="margin-bottom:8px">⇄ 1~9경기 대진 변경</button><button class="btn danger block" data-act="delmatches">경기 대진(1~9경기) 삭제</button><p class="note">경기 일정(대진표)과 경기 기록만 지워요. 신청자, 팀 구성, 공지는 그대로 남고, 다시 "경기 일정 만들기"로 새 대진을 만들 수 있어요. 경기일 자체 삭제는 경기관리 메뉴에서 해요.</p>` }
   return `<div class="dgrid"><section>${h}</section><section>${sch}</section></div>`;
 }
 function viewMatch() {
@@ -909,6 +923,7 @@ function viewSheet() {
   else if (sh.type === 'order') { const s = cur(); const o = S.ordDraft || s.order || KEYS; const can = roomPhase(s) === 'draft' && !(s.picks || []).length;
     h += `<h4>순번 직접 바꾸기</h4><p>${s.ladder ? '사다리' : s.cardgame ? '카드' : ''} 결과로 정해진 순번을 바꿔요. 첫 지명 전까지만 바꿀 수 있고, 지명은 1→2→3→3→2→1 순서로 돌아가요.</p><div class="ordlist">${o.map((k, i) => { const t = team(s, k); return `<div class="ordrow"><b class="ordn">${i + 1}번</b><span class="tok" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}</span><span class="ordc">${esc(pname(s.captains?.[k]))} 주장</span><button class="btn sm" data-act="ordmv" data-i="${i}" data-d="-1" ${i ? '' : 'disabled'} aria-label="위로">▲</button><button class="btn sm" data-act="ordmv" data-i="${i}" data-d="1" ${i < o.length - 1 ? '' : 'disabled'} aria-label="아래로">▼</button></div>` }).join('')}</div>
       <div class="row" style="margin-top:12px"><button class="btn primary cta" data-act="ordsave" ${can ? '' : 'disabled'}>이 순번으로 확정</button></div>${can ? '' : '<p class="note">이미 지명이 시작돼서 바꿀 수 없어요.</p>'}` }
+  else if (sh.type === 'pairs') h += pairSheet();
   else if (sh.type === 'chatlog') { (S.chatSeen ??= {})[S.sid] = S.chat.length; h += `<h4>메시지 내역</h4><p>드래프트 방에서 주고받은 메시지예요.</p><div class="panel chat logsheet">${chatMsgs()}</div>` }
   else if (sh.type === 'cal') h += calSheet();
   else if (sh.type === 'madd') h += `<h4>회원 추가</h4><div class="panel"><div class="field"><label>이름<input id="ma-name" class="inp" type="text" maxlength="20"></label></div>
@@ -936,6 +951,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.19', '2026.10.15', ['[운영진] 경기진행 화면에서 1~9경기 대진(맞붙는 팀)을 경기마다 바꿀 수 있어요. 끝난 경기는 골 기록도 함께 옮겨져요']],
   ['0.21.18', '2026.10.15', ['[운영진] 드래프트에서 사다리·카드로 정해진 순번을 첫 지명 전까지 직접 바꿀 수 있어요']],
   ['0.21.17', '2026.10.15', ['구장 예약자는 직접 참가 신청을 해야 0순위로 들어가요. 신청하지 않으면 신청자 명단에 나오지 않아요']],
   ['0.21.16', '2026.10.15', ['[운영진] 신청자 표에서 신청을 언제든 삭제할 수 있어요(마감 후에도, 3순위 기록 없이)', '[운영진] The Base 구장 신청자의 0~3순위를 직접 바꿀 수 있어요. 순위 칸을 눌러 고르고, 자동 계산으로 되돌릴 수도 있어요']],
@@ -2242,6 +2258,7 @@ document.addEventListener('input', e => { const el = e.target; const k = el.data
   if (k === 'me') { S.me = el.value.trim(); save('me', S.me) }
   if (k === 'sfield' && S.admin) { const f = el.dataset.f; clearTimeout(saveT[f]); saveT[f] = setTimeout(async () => { await w(() => S.store.update(sp(S.sid), { [f]: el.value })); if (f === 'evpw' || f === 'notice') refreshPoster() }, 600) } });
 document.addEventListener('change', e => { const el = e.target;
+  if (el.dataset?.in === 'pairsel') { const m = M(el.dataset.id); if (!m) return; const D = (S.pairDraft ??= {}); const cur0 = D[m.id] || [m.home, m.away]; const nx = [...cur0]; const i = el.dataset.side === 'h' ? 0 : 1; nx[i] = el.value; if (nx[0] === nx[1]) nx[1 - i] = cur0[i]; D[m.id] = nx; render(); return }
   if (el.dataset.in === 'schedym') { S.schedYm = el.value; render(); return }
   if (el.dataset.in === 'nsid') { S.nsid = el.value; render(); return }
   if (el.dataset.in === 'colfv') { const v = el.value; S.colTmp = el.checked ? [...new Set([...S.colTmp, v])] : S.colTmp.filter(x => x !== v); const ap = document.querySelector('[data-act=colapply]'); if (ap) ap.disabled = !S.colTmp.length; const sp_ = document.querySelector('.cf-all .muted'); if (sp_) sp_.textContent = sp_.textContent.replace(/^\d+/, S.colTmp.length); return }
@@ -2461,6 +2478,9 @@ document.addEventListener('click', async e => {
     case 'coloropen': if (!needAdmin()) break; if (joinedCount(s) < 3 && !confirm('아직 모든 주장이 입장하지 않았어요. 그래도 색 선택을 시작할까요?')) break;
       if (await w(() => S.store.update(sp(S.sid), { 'room.colorOpen': true }))) sysChat('색 선택을 시작합니다. 주장님들 팀 색을 골라 주세요!'); break;
     case 'roommenu': S.sheet = { type: 'roommenu' }; render(); break;
+    case 'pairedit': { if (!needAdmin()) break; S.pairDraft = {}; S.sheet = { type: 'pairs' }; render(); break }
+    case 'pairswap': { const m = M(id); if (!m) break; const D = (S.pairDraft ??= {}); const [hh, aa] = D[id] || [m.home, m.away]; D[id] = [aa, hh]; render(); break }
+    case 'pairsave': { if (!needAdmin()) break; await pairSave(); break }
     case 'ordedit': { if (!needAdmin()) break; const s0 = cur(); S.ordDraft = [...(s0.order || KEYS)]; S.sheet = { type: 'order' }; render(); break }
     case 'ordmv': { const i = +el.dataset.i, j = i + +el.dataset.d; const o = S.ordDraft; if (!o || j < 0 || j >= o.length) break; [o[i], o[j]] = [o[j], o[i]]; render(); break }
     case 'ordsave': { if (!needAdmin()) break; const s0 = cur(); const o = S.ordDraft; if (!o || o.length !== 3 || new Set(o).size !== 3) break;
