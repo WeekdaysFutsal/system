@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.23';
+const APP_VERSION = '0.21.24';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -87,7 +87,7 @@ const S = {
   players: {}, sessions: {}, matches: {}, events: {}, chat: [], chatSid: null, unsubChat: null,
   tab: load('admin', false) ? 'manage' : 'mhome', mfilter: 'up', cal: null, sub: null, detail: null, rankKey: 'g', sid: null, step: null, openMatch: null, sheet: null, sel: null, statsSort: 'pts',
   adminOn: load('admin', false), me: load('me', ''), auth: null, schedSig: {}, startBlown: {}, capLinks: load('caplinks', {}), linkErr: '', whistle: load('whistle', true),
-  prev: {}, pending: false, poster: {}, pasteApply: ''
+  prev: {}, pending: false, poster: {}
 };
 
 /* ───────── helpers ───────── */
@@ -104,23 +104,21 @@ function pname(id) { if (!id) return '미지정'; const p = S.players[id]; if (!
 function team(s, k) { const t = s?.teams?.[k] || {}; const p = PALETTE.find(x => x.name === t.colorName); if (p) return { name: p.name, color: p.color, picked: true };
   return { name: k + '팀', color: NEUTRAL[k], picked: false } }
 function allPicked(s) { return KEYS.every(k => team(s, k).picked) }
+const memberNames = () => Object.values(S.players).map(p => p.name).sort((a, b) => a.localeCompare(b, 'ko'));
 function bib(c) { return `<span class="bib" style="background:${c}"></span>` }
 function tag(t) { return `<span class="teamtag" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}</span>` }
 function timing(s) { return { ...DEF_TIMING, ...(s?.timing || {}) } }
 function cur() { return S.sid ? S.sessions[S.sid] : null }
 function stageIdx(st) { return STAGES.findIndex(x => x[0] === st) }
-let toastT; function toast(t) { document.querySelectorAll('.toast').forEach(x => x.remove()); const d = document.createElement('div'); d.className = 'toast'; d.setAttribute('role', 'status'); d.textContent = t; document.body.appendChild(d); clearTimeout(toastT); toastT = setTimeout(() => d.remove(), 2600) }
+let toastT; function toast(t) { document.querySelectorAll('.toast').forEach(x => x.remove()); const d = document.createElement('div'); d.className = 'toast'; d.setAttribute('role', 'status'); d.textContent = t; document.body.appendChild(d); clearTimeout(toastT); toastT = setTimeout(() => d.remove(), Math.min(7000, Math.max(2600, String(t).length * 75))) }
 function needAdmin() { if (!S.admin) { toast('운영진만 할 수 있어요.'); return false } return true }
 function rand() { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let o = ''; for (let i = 0; i < 6; i++) o += A[Math.floor(Math.random() * A.length)]; return o }
 const EMBLEM_SRC = window.WF_EMBLEM || 'assets/emblem.png';
 const IS_ARTIFACT = !!window.WF_ARTIFACT;
-function findCode(code) { code = (code || '').trim().toUpperCase(); for (const [sid, s] of Object.entries(S.sessions)) for (const k of KEYS) if (s.captainTokens?.[k] && s.captainTokens[k] === code) return { sid, k }; return null }
 function myTeam(s) { if (!s) return null; const me = myPid(); if (me) { const k = KEYS.find(k => s.captains?.[k] === me); if (k) return k } const l = S.capLinks[s.date || S.sid]; if (!l) return null; return s.captainTokens?.[l.k] && s.captainTokens[l.k] === l.t ? l.k : null }
 function byName(ids) { return [...ids].sort((a, b) => pname(a).localeCompare(pname(b), 'ko')) }
 function viewSid() { const me = myPid(); if (!me) return null; const t = today(); return Object.keys(S.sessions).sort().find(id => { const s = S.sessions[id]; return id >= t && (s.viewers || []).includes(me) && (s.draftStatus !== 'done' || s.stage === 'trade') }) || null }
 function capSid() { const me = myPid(); if (!me) return null; const t = today(); return Object.keys(S.sessions).sort().find(id => { const s = S.sessions[id]; return id >= t && KEYS.some(k => s.captains?.[k] === me) && (s.draftStatus !== 'done' || s.stage === 'trade') }) || null }
-function capLink(sid, k, t) { return `${location.origin}${location.pathname}?d=${sid}&c=${k}&t=${t}` }
-function canMom(s, k) { return S.admin || myTeam(s) === k }
 /* 운영모드 경기 메뉴의 기본 경기: 진행이 시작된(신청이 열렸거나 그 이후 단계) 가장 가까운 다음 경기 → 없으면 오늘 이후 첫 경기 → 없으면 가장 최근 경기 */
 function betaOn() { return S.meta?.flags?.beta !== false }
 /* ── 카톡 투표 명단 붙여넣기 (베타) ── */
@@ -137,8 +135,9 @@ function parseKakao(text) { const byN = {}; Object.entries(S.players).forEach(([
 /* ── 캡처 이미지 글자 읽기(OCR): 기기 안에서 Tesseract로 읽고, 회원 이름과 맞춰요 ── */
 let OCR_W = null;
 function loadScript(src) { return new Promise((res, rej) => { if ([...document.scripts].some(x => x.src === src)) return res(); const sc = document.createElement('script'); sc.src = src; sc.onload = res; sc.onerror = () => rej(new Error('스크립트를 불러오지 못했어요')); document.head.appendChild(sc) }) }
-async function ocrWorker(onProg) { if (OCR_W) return OCR_W; await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
-  OCR_W = await window.Tesseract.createWorker('kor', 1, { logger: m => { if (m.status === 'recognizing text') onProg?.(m.progress) } }); return OCR_W }
+let OCR_PROG = null;
+async function ocrWorker(onProg) { OCR_PROG = onProg; if (OCR_W) return OCR_W; await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
+  OCR_W = await window.Tesseract.createWorker('kor', 1, { logger: m => { if (m.status === 'recognizing text') OCR_PROG?.(m.progress) } }); return OCR_W }
 async function prepImage(file) { const url = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file) });
   const im = await new Promise((res, rej) => { const g = new Image(); g.onload = () => res(g); g.onerror = rej; g.src = url });
   const sc = Math.min(2, 1400 / im.width); const cv = document.createElement('canvas'); cv.width = Math.round(im.width * sc); cv.height = Math.round(im.height * sc); const c = cv.getContext('2d'); c.drawImage(im, 0, 0, cv.width, cv.height);
@@ -157,7 +156,7 @@ async function ocrKakao(files, onStep) { const names = Object.entries(S.players)
   return out }
 async function applyKakao(sid, list) { const picks = list.map(x => x.use).filter(Boolean); const uniq = [...new Set(picks)]; if (!uniq.length) { toast('반영할 회원이 없어요.'); return false }
   const now = nowS(); let added = 0;
-  const ok = await w(() => S.store.txn(sp(sid), d => { if (!d || d.stage !== 'apply') return null; const merged = appsOf({ ...d, date: sid }); const base = Array.isArray(d.apps) ? [...d.apps] : appsOf0(d);
+  const ok = await w(() => S.store.txn(sp(sid), d => { added = 0; if (!d || d.stage !== 'apply') return null; const merged = appsOf({ ...d, date: sid }); const base = Array.isArray(d.apps) ? [...d.apps] : appsOf0(d);
     const keyOf = {}; merged.forEach(a => { if (a.pid && !keyOf[a.pid]) keyOf[a.pid] = a.k });
     uniq.forEach((pid, i) => { if (!keyOf[pid]) { const k = 'kk' + rand(); base.push({ k, pid, uid: 'kakao', at: now + i }); keyOf[pid] = k; added++ } });
     const head = uniq.map(pid => keyOf[pid]); const rest = merged.map(a => a.k).filter(k => !head.includes(k)); d.apps = base; d.appOrder = [...head, ...rest]; return d }));
@@ -222,8 +221,9 @@ function sessMatches(sid) { if (SM_REF !== S.matches) { SM_REF = S.matches; SM_C
 function sessMatches0(sid) { return Object.entries(S.matches).filter(([, m]) => m.session === sid).map(([id, m]) => { const t = m.home && m.away ? [m.home, m.away] : PAIRS[m.slot - 1]; return { id, ...m, home: t[0], away: t[1] } }).sort((a, b) => a.n - b.n) }
 function M(id) { const m = S.matches[id]; if (!m) return null; const t = m.home && m.away ? [m.home, m.away] : PAIRS[m.slot - 1]; return { id, ...m, home: t[0], away: t[1] } }
 function evsOf(mid) { return Object.entries(S.events).filter(([, e]) => e.match === mid).map(([id, e]) => ({ id, ...e })).sort((a, b) => a.sec - b.sec || a.at - b.at) }
-function score(m) { let h = 0, a = 0; for (const e of Object.values(S.events)) { if (e.match !== m.id) continue; if (e.team === m.home) h++; else if (e.team === m.away) a++ } return [h, a] }
-function elapsed(m) { const t = m.timer || {}; return (t.acc || 0) + (t.running && t.startedAt ? Math.max(0, (Date.now() - t.startedAt) / 1000) : 0) }
+let SC_REF = null, SC = {}; // 경기별 팀 득점 캐시 (events 스냅샷이 바뀔 때만 다시 계산)
+function score(m) { if (SC_REF !== S.events) { SC_REF = S.events; SC = {}; for (const e of Object.values(S.events)) { const t = (SC[e.match] ??= {}); t[e.team] = (t[e.team] || 0) + 1 } } const t = SC[m.id] || {}; return [t[m.home] || 0, t[m.away] || 0] }
+function elapsed(m) { const t = m.timer || {}; return (t.acc || 0) + (t.running && t.startedAt ? Math.max(0, (nowS() - t.startedAt) / 1000) : 0) }
 function prevMatch(m) { return sessMatches(m.session).filter(x => x.n < m.n).pop() || null }
 function clockInfo(m) {
   const T = timing(S.sessions[m.session]); const run = !!m.timer?.running; const e = elapsed(m);
@@ -231,7 +231,7 @@ function clockInfo(m) {
   if (m.status === 'done') return { label: '종료', time: fmt(Math.min(e, c)), phase: 'done', e, a, b, c };
   if (m.status === 'pending' && !run && e < .5) {
     const pr = prevMatch(m);
-    if (pr && pr.status === 'done' && pr.endedAt) { const restEnd = pr.endedAt + T.rest * 1000; const r = (restEnd - Date.now()) / 1000;
+    if (pr && pr.status === 'done' && pr.endedAt) { const restEnd = pr.endedAt + T.rest * 1000; const r = (restEnd - nowS()) / 1000;
       if (r > 0) return { label: '휴식', time: fmt(Math.ceil(r)), phase: 'rest', e, a, b, c, restEnd };
       return { label: '시작 대기', time: fmt(a), phase: 'ready', e, a, b, c, restEnd } }
     return { label: '시작 전', time: fmt(a), phase: 'ready', e, a, b, c };
@@ -258,7 +258,9 @@ function standings(sid) {
   let rank = 0; list.forEach((r, x) => { if (x === 0 || base(list[x - 1], r) !== 0) rank = x + 1; r.rank = rank }); return list;
 }
 function isComplete(sid) { const ms = sessMatches(sid); return ms.length === 9 && ms.every(m => m.status === 'done') }
-function playerStats() {
+let PS_KEY = null, PS_VAL = null;
+function playerStats() { const key = [S.sessions, S.matches, S.events, S.players]; if (PS_KEY && PS_KEY.every((x, i) => x === key[i])) return PS_VAL; PS_KEY = key; return (PS_VAL = playerStats0()) }
+function playerStats0() {
   const st = {}; const g = id => st[id] || (st[id] = { id, days: 0, gp: 0, w: 0, d: 0, l: 0, g: 0, a: 0, wins: 0, mom: 0, cap: 0 });
   for (const [sid, s] of Object.entries(S.sessions)) {
     const ms = sessMatches(sid); if (!ms.length) continue;
@@ -284,7 +286,7 @@ function whistle(pattern) { if (!S.whistle) return; if (!(mmIsCtl() || S.admin))
   try { navigator.vibrate && navigator.vibrate(pattern.flatMap((d, i) => i ? [140, Math.round(d * 1000)] : [Math.round(d * 1000)])) } catch { } }
 document.addEventListener('pointerdown', () => { const c = audio(); if (c && c.state === 'suspended') c.resume() }, { capture: true });
 let wake = null, wakeBusy = false; async function keepAwake(on) { try { if (on && !wake && !wakeBusy && navigator.wakeLock && !document.hidden) { wakeBusy = true; try { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null }) } finally { wakeBusy = false } } else if (!on && wake) { const w0 = wake; wake = null; await w0.release() } } catch { } }
-function mmHeartbeat() { const s = S.sessions[S.mmSid]; if (!s || document.hidden || !mmCtl(s).mine) return; if (Date.now() - (S.mmBeat || 0) < 20000) return; S.mmBeat = Date.now(); S.store.update(sp(S.mmSid), { 'mmCtl.beat': Date.now() }).catch(() => { }) }
+function mmHeartbeat() { const s = S.sessions[S.mmSid]; if (!s || document.hidden || !mmCtl(s).mine) return; if (Date.now() - (S.mmBeat || 0) < 20000) return; S.mmBeat = Date.now(); S.store.update(sp(S.mmSid), { 'mmCtl.beat': nowS() }).catch(() => { }) }
 function statusWatch() { if (S.inStatusWatch || Date.now() - (S.stAt || 0) < 1000) return; S.stAt = Date.now(); const sig = Object.keys(S.sessions).map(id => id + ':' + sStatus(S.sessions[id]).k).join('|'); const prev = S.stSig; S.stSig = sig; if (prev && sig !== prev && !isTyping()) { S.inStatusWatch = true; try { render() } finally { S.inStatusWatch = false } } }
 function awakeCheck() {
   statusWatch();
@@ -306,24 +308,15 @@ function watchPhases() {
     else if (prev === 'h1' && ci.phase === 'gk' && e - ci.a < 3) whistle([.3, .3]);
     else if (prev === 'gk' && ci.phase === 'h2' && e - ci.b < 3) whistle([.9]);
     else if (prev === 'h2' && ci.phase === 'full' && e - ci.c < 3) whistle([.3, .3, 1.3]);
-    else if (prev === 'rest' && ci.phase === 'ready' && ci.restEnd && Date.now() - ci.restEnd < 3000) whistle([.6, .6]) }
+    else if (prev === 'rest' && ci.phase === 'ready' && ci.restEnd && nowS() - ci.restEnd < 3000) whistle([.6, .6]) }
 }
 
 /* ───────── actions ───────── */
 function findPlayer(name) { const n = name.trim(); return Object.entries(S.players).find(([, p]) => p.name === n)?.[0] || null }
 async function ensurePlayer(raw) {
-  const guest = /\(\s*게\s*\)/.test(raw); const name = raw.replace(/\(\s*게\s*\)/g, '').trim().slice(0, 20); if (!name) return null;
+  const guest = /\(\s*게(스트)?\s*\)/.test(raw); const name = raw.replace(/\(\s*게(스트)?\s*\)/g, '').trim().slice(0, 20); if (!name) return null;
   const ex = findPlayer(name); if (ex) return ex;
   const id = await S.store.add('players', { name, guest, createdAt: Date.now() }); S.players[id] = { name, guest }; return id;
-}
-async function createSession(f) {
-  const sid = f.date; if (S.sessions[sid]) { toast('그 날짜의 경기일이 이미 있어요.'); S.sid = sid; S.step = null; S.tab = 'home'; render(); return }
-  const defOpen = shiftDate(sid, DEFAULTS.openDays, DEFAULTS.openTime), defClose = shiftDate(sid, DEFAULTS.closeDays, DEFAULTS.closeTime);
-  const doc = { date: sid, time: f.time || DEFAULTS.time, venue: f.venue || DEFAULTS.venue, evpw: f.evpw || '', notice: f.notice ?? DEFAULTS.notice,
-    capacity: +f.capacity || DEFAULTS.capacity || 18, applyOpen: f.applyOpen || defOpen, applyClose: f.applyClose || defClose,
-    stage: 'apply', applicants: [], captains: { A: null, B: null, C: null }, order: [...KEYS], picks: [], draftStatus: 'ready',
-    teams: { A: { players: [] }, B: { players: [] }, C: { players: [] } }, timing: DEF_TIMING, mom: {}, createdAt: Date.now() };
-  if (await w(() => S.store.set(sp(sid), doc), '경기일을 만들었어요.')) { S.sid = sid; S.step = 'apply'; S.sheet = null; render() }
 }
 async function setStage(st) { const s = cur(); if (stageIdx(st) > stageIdx(s.stage)) await w(() => S.store.update(sp(S.sid), { stage: st })); if (st === 'notice') { S.tab = 'run'; S.step = 'trade'; render(); window.scrollTo(0, 0); return } S.step = st; render(); window.scrollTo(0, 0) }
 async function addApplicants(names) {
@@ -333,7 +326,7 @@ async function addApplicants(names) {
     if (!guest) { rejected.push(name); continue } const id = await ensurePlayer(nm); if (id) ids.push(id) }
   if (rejected.length) toast(`회원 명단에 없는 이름이에요: ${rejected.join(', ')}. 이름을 확인하거나, 게스트면 이름 뒤에 (게)를 붙여 주세요.`);
   if (!ids.length) { render(); return }
-  if (s.stage === 'apply') { let n = 0; await w(() => S.store.txn(sp(S.sid), d => { const apps = appsOf(d); n = 0; for (const id of ids) if (!apps.some(a => a.pid === id)) { apps.push({ k: rand() + rand(), pid: id, uid: 'admin', at: nowS() }); n++ } d.apps = apps; return d }), rejected.length ? null : `${ids.length}명을 반영했어요.`); render(); return }
+  if (s.stage === 'apply') { let n = 0; if (await w(() => S.store.txn(sp(S.sid), d => { const apps = appsOf(d); n = 0; for (const id of ids) if (!apps.some(a => a.pid === id)) { apps.push({ k: rand() + rand(), pid: id, uid: 'admin', at: nowS() }); n++ } d.apps = apps; return d })) && !rejected.length) toast(n === ids.length ? `${n}명을 반영했어요.` : n ? `${n}명을 반영했어요. (${ids.length - n}명은 이미 신청돼 있어요)` : '이미 모두 신청돼 있어요.'); render(); return }
   const cur0 = [...(s.applicants || [])]; let n = 0; for (const id of ids) if (!cur0.includes(id)) { cur0.push(id); n++ }
   await w(() => S.store.update(sp(S.sid), { applicants: cur0 }), rejected.length ? null : `${n}명을 추가했어요.`); render();
 }
@@ -359,10 +352,10 @@ async function createMatches() {
   if (ok) { S.tab = 'run'; S.step = 'match'; render(); window.scrollTo(0, 0) }
 }
 const mp = id => 'matches/' + id;
-async function startClock(m) { audio(); await w(() => S.store.update(mp(m.id), { status: 'live', timer: { running: true, startedAt: Date.now(), acc: m.timer?.acc || 0 } })) }
+async function startClock(m) { audio(); await w(() => S.store.update(mp(m.id), { status: 'live', timer: { running: true, startedAt: nowS(), acc: m.timer?.acc || 0 } })) }
 async function pauseClock(m) { await w(() => S.store.update(mp(m.id), { timer: { running: false, startedAt: 0, acc: Math.floor(elapsed(m)) } })) }
 async function resetClock(m) { if (!confirm('타이머를 처음으로 되돌릴까요?')) return; await w(() => S.store.update(mp(m.id), { timer: { running: false, startedAt: 0, acc: 0 } })) }
-async function endMatch(m) { await w(() => S.store.update(mp(m.id), { status: 'done', endedAt: Date.now(), timer: { running: false, startedAt: 0, acc: Math.floor(elapsed(m)) } }), '경기를 종료했어요.') }
+async function endMatch(m) { await w(() => S.store.update(mp(m.id), { status: 'done', endedAt: nowS(), timer: { running: false, startedAt: 0, acc: Math.floor(elapsed(m)) } }), '경기를 종료했어요.') }
 async function addGoal(m, t, scorer, assist, og) { await w(() => S.store.add('events', { session: m.session, match: m.id, team: t, scorer: scorer || null, assist: assist || null, og: !!og, sec: Math.floor(elapsed(m)), half: clockInfo(m).phase, at: Date.now() }), '골을 기록했어요.') }
 
 /* ───────── poster (canvas) ───────── */
@@ -503,7 +496,6 @@ function render() {
   if (S.ready >= 3 && (!S.sid || !S.sessions[S.sid])) S.sid = defaultSid();
   if (S.store && S.chatSid !== S.sid) watchChat();
   if (S.admin) { watchContacts(); if (!S.unRules && S.store) S.unRules = S.store.watchCol('pushRules', docs => { const o = {}; docs.forEach(d => { const { id, ...r } = d; o[id] = r }); S.rules = o; renderSoon() }, null, () => { }) }
-  const atB = [...document.querySelectorAll('.msgs')].map(b => b.scrollHeight - b.scrollTop - b.clientHeight < 40); const atBottom = atB.length ? atB[0] : true;
   const ov = document.querySelector('.overlay')?.scrollTop;
   const ci = document.getElementById('chatin'); const ciState = ci ? { v: ci.value, f: document.activeElement === ci, a: ci.selectionStart, b: ci.selectionEnd } : null;
   let h = appbar() + '<div class="wrap">';
@@ -574,7 +566,7 @@ function vMemberNotice(s) {
   const ids = s.applicants || []; const caps = KEYS.filter(k => s.captains?.[k]);
   return `<h2>${fmtDate(s.date)} 경기</h2><div class="panel list2"><div><span>시간</span><b>${esc(s.time || '-')}</b></div><div><span>장소</span><b>${esc(s.venue || '-')}</b></div><div><span>진행 단계</span><b>${STAGES[stageIdx(s.stage)][1]}</b></div></div>
   ${caps.length ? `<h2>주장</h2><div class="panel list2">${caps.map(k => `<div><span>${tag(team(s, k))}</span><b>👑 ${esc(pname(s.captains[k]))}</b></div>`).join('')}</div>` : ''}
-  <h2>신청자<small>${ids.length}명</small></h2><div class="panel"><div class="chips">${byName(ids).map(id => `<span class="chip ${S.players[id]?.name === S.me ? 'sel' : ''}">${esc(pname(id))}</span>`).join('') || '<span class="muted">아직 신청자가 없어요.</span>'}</div></div>
+  <h2>신청자<small>${ids.length}명</small></h2><div class="panel"><div class="chips">${byName(ids).map(id => `<span class="chip ${id === myPid() ? 'sel' : ''}">${esc(pname(id))}</span>`).join('') || '<span class="muted">아직 신청자가 없어요.</span>'}</div></div>
   <p class="note">드래프트가 시작되면 이 화면에서 실시간으로 볼 수 있어요.</p>` + chatPanel();
 }
 
@@ -585,10 +577,9 @@ function vApply(s) {
   h += `<h2>신청자<small>신청 ${cc.sel + cc.wait}${s.capacity ? ' / ' + s.capacity : ''}명${cc.wait ? `, 대기 ${cc.wait}명` : ''}</small><span class="st st-${ast.k}">${ast.label}</span></h2>
   <p class="note" style="margin:-4px 2px 10px">${ast.k === 'open' ? `회원들이 앱에서 직접 신청하는 중이에요. ${s.applyClose ? fmtDT(s.applyClose) + '에 자동 마감돼요.' : ''}` : ast.k === 'soon' ? `${fmtDT(s.applyOpen)}에 앱 신청이 열려요.` : '앱 신청이 마감됐어요.'}</p>`;
   h += vApplyTable(s);
-  if (false && (s.waitlist || []).length) h += `<h2>대기<small>${s.waitlist.length}명, 신청자가 취소하면 자동으로 올라가요</small></h2><div class="panel"><div class="chips">${s.waitlist.map(id => `<button class="chip ${ad ? 'x' : ''}" data-act="rmwait" data-id="${id}" ${ad ? '' : 'disabled'}>${esc(pname(id))}</button>`).join('')}</div>${ad ? `<div class="pad" style="padding-top:0"><button class="btn sm" data-act="promote">대기 1번을 신청자로 올리기</button></div>` : ''}</div>`;
   if (ad && s.stage === 'apply') h += `<div class="panel pad" style="display:flex;gap:8px;margin-top:10px"><input class="inp" type="text" placeholder="한 명씩 추가 (게스트는 이름(게))" data-in="addone" id="addone"><button class="btn" data-act="addone">추가</button></div>`;
   if (ad && ast.k === 'open') h += `<div class="row" style="margin-top:10px"><button class="btn" data-act="closenow">지금 신청 마감하기</button></div>`;
-  if (s.stage !== 'apply' && ids.length % 3 && ids.length) h += `<p class="note">${ids.length}명은 3팀으로 딱 나눠지지 않아요. 한 팀이 ${Math.ceil(ids.length / 3)}명이 돼요.</p>`;
+  if (s.stage !== 'apply' && ids.length % 3 && ids.length) h += `<p class="note">${ids.length}명은 3팀으로 딱 나눠지지 않아서 ${[0, 1, 2].map(i => Math.floor(ids.length / 3) + (i < ids.length % 3 ? 1 : 0)).join('·')}명으로 나뉘어요.</p>`;
   if (ad) h += `<div style="height:14px"></div><button class="btn primary block" data-act="gostage" data-v="captain" ${(s.stage === 'apply' ? cc.sel : ids.length) < 3 ? 'disabled' : ''}>${s.stage === 'apply' ? '신청 확정하고 주장 정하기' : '다음: 주장 정하기'}</button>`;
   if (ad && s.stage !== 'apply') h += resetBar(s);
   return h;
@@ -613,9 +604,9 @@ function roomPhase(s) {
   if (!s.room?.open && s.draftStatus !== 'live') return 'closed';
   if (!allPicked(s)) return s.room?.colorOpen ? 'color' : 'lobby';
   if (s.cardgame && !s.cardgame.doneAt) return 'cards';
-  if (s.cardgame?.doneAt && Date.now() < s.cardgame.doneAt + CARD_REVEAL_MS) return 'cardsrev';
+  if (s.cardgame?.doneAt && nowS() < s.cardgame.doneAt + CARD_REVEAL_MS) return 'cardsrev';
   if (!orderDecided(s)) return 'order';
-  if (s.ladder && Date.now() < s.ladder.at + LADDER_MS) return 'ladder';
+  if (s.ladder && nowS() < s.ladder.at + LADDER_MS) return 'ladder';
   return s.draftStatus === 'live' ? 'draft' : 'order';
 }
 function joinedCount(s) { return KEYS.filter(k => s.room?.[k]?.in).length }
@@ -623,20 +614,20 @@ function makeLadder() {
   const rows = 9; const rungs = [];
   for (let r = 0; r < rows; r++) { const x = Math.random(); if (x < .4) rungs.push({ r, c: 0 }); else if (x < .8) rungs.push({ r, c: 1 }) }
   if (rungs.length < 4) return makeLadder();
-  return { rows, rungs, at: Date.now() };
+  return { rows, rungs, at: nowS() };
 }
 function rungList(L) { return (L.rungs || []).map(g => Array.isArray(g) ? { r: g[0], c: g[1] } : g) }
-function ladderPaths(L) {
+function ladderPaths(L) { let RG;
   const X = [60, 170, 280], top = 34, bot = 206; const ry = r => top + (bot - top) * (r + 1) / (L.rows + 1);
   const res = []; for (let c0 = 0; c0 < 3; c0++) { let c = c0; const pts = [[X[c], top]];
-    for (let r = 0; r < L.rows; r++) { const y = ry(r); const g0 = rungList(L).find(x => x.r === r && (x.c === c || x.c === c - 1)); const g = g0 && [g0.r, g0.c];
+    for (let r = 0; r < L.rows; r++) { const y = ry(r); const g0 = (RG ??= rungList(L)).find(x => x.r === r && (x.c === c || x.c === c - 1)); const g = g0 && [g0.r, g0.c];
       if (g) { pts.push([X[c], y]); c = g[1] === c ? c + 1 : c - 1; pts.push([X[c], y]) } }
     pts.push([X[c], bot]); res.push({ from: c0, to: c, pts }) }
   return { X, top, bot, ry, res };
 }
 function ladderOrder(L) { const { res } = ladderPaths(L); const o = []; res.forEach(p => o[p.to] = KEYS[p.from]); return o }
 function ladderSVG(s) {
-  const L = s.ladder; const P = ladderPaths(L); const el = Date.now() - L.at; const done = el >= LADDER_MS;
+  const L = s.ladder; const P = ladderPaths(L); const el = nowS() - L.at; const done = el >= LADDER_MS;
   const cols = ['#FFD21F', '#6FD3FF', '#FF7A9A'];
   const len = pts => pts.reduce((a, p, i) => i ? a + Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) : 0, 0);
   let g = `<svg viewBox="0 0 340 250" class="ladder" role="img" aria-label="사다리 타기">`;
@@ -707,6 +698,7 @@ function feltHTML(s, ph) {
 }
 function vDraft(s) {
   const ph = roomPhase(s); const my = myTeam(s); const turnK = ph === 'draft' ? pickTeamAt(s, (s.picks || []).length) : null;
+  { const mine = !!my && turnK === my; if (mine && !S.wasMyTurn) { try { navigator.vibrate?.([120, 80, 120]) } catch { } toast('내 차례예요! 선수를 골라 주세요.') } S.wasMyTurn = mine }
   const canPick = ph === 'draft' && (S.admin || (my && my === turnK && s.room?.[my]?.in));
   if (S.admin && s.room?.open && !s.room?.admin?.in && !S.adminJoin?.[S.sid]) { (S.adminJoin ??= {})[S.sid] = 1; w(() => S.store.update(sp(S.sid), { 'room.admin': { in: true, name: S.me || '운영진', at: Date.now() } })) }
   let h = '';
@@ -716,7 +708,6 @@ function vDraft(s) {
   // top: applicant buttons
   const pk = {}; (s.picks || []).forEach((x, i) => pk[x.p] = { t: x.t, n: i + 1 }); const caps = captainsOf(s);
   const inTeam = new Set(KEYS.flatMap(k => teamPlayers(s, k))); const list = byName((s.applicants || []).filter(id => !caps.includes(id) && !pk[id] && !inTeam.has(id)));
-  const hint = ph === 'draft' ? `남은 ${list.length}명 · ${canPick ? '눌러서 선택' : '내 차례에만 선택할 수 있어요'}` : ph === 'done' ? '모두 선택됐어요' : `${list.length}명`;
   S.poolHTML = ph === 'draft' ? `<div class="pool"><div class="pool-hd">남은 선수 ${list.length}명 · ${canPick ? '눌러서 선택' : '내 차례에만 선택할 수 있어요'}</div><div class="namegrid">${list.map(id => { const pend = s.pending?.p === id; const pt = pend ? team(s, s.pending.t) : null;
     return `<button class="nb ${pend ? 'pend' : ''}" ${pt ? `style="--tc:${pt.color};--ti:${inkOn(pt.color)}"` : ''} data-act="pick" data-id="${id}" ${canPick ? '' : 'disabled'}>${esc(pname(id))}</button>` }).join('')}</div></div>` : '';
   // middle: board
@@ -734,7 +725,7 @@ function vDraft(s) {
 async function openRoom() {
   const s = cur(); if (KEYS.some(k => !s.captains?.[k])) { toast('주장 3명을 먼저 정하세요.'); return }
   const tokens = { ...(s.captainTokens || {}) }; KEYS.forEach(k => { if (!tokens[k]) tokens[k] = rand() });
-  const ok = await w(() => S.store.update(sp(S.sid), { stage: 'draft', draftStatus: 'ready', picks: [], pending: null, ladder: null, order: [...KEYS], captainTokens: tokens,
+  const ok = await w(() => S.store.update(sp(S.sid), { stage: 'draft', draftStatus: 'ready', picks: [], pending: null, ladder: null, cardgame: null, order: [...KEYS], captainTokens: tokens,
     room: { open: true, A: { in: false }, B: { in: false }, C: { in: false }, admin: { in: true, name: S.me || '운영진', at: Date.now() } }, teams: Object.fromEntries(KEYS.map(k => [k, { players: [], colorName: null }])) }));
   if (ok) { sysChat('드래프트 방이 열렸어요. 주장님들 입장해 주세요!'); S.step = 'draft'; render() }
 }
@@ -759,9 +750,9 @@ async function drawCard(i) {
   let got = null, order = null;
   const ok = await w(() => S.store.txn(sp(S.sid), d => { const g = d?.cardgame; if (!g || g.doneAt) return null; g.picks = g.picks || {};
     if (g.picks[k] != null || Object.values(g.picks).includes(i)) return null; g.picks[k] = i; got = g.deck[i];
-    if (KEYS.every(t => g.picks[t] != null)) { order = [...KEYS].sort((a, b) => g.deck[g.picks[a]] - g.deck[g.picks[b]]); d.order = order; g.doneAt = Date.now(); d.draftStatus = 'live'; d.picks = []; d.pending = null }
+    if (KEYS.every(t => g.picks[t] != null)) { order = [...KEYS].sort((a, b) => g.deck[g.picks[a]] - g.deck[g.picks[b]]); d.order = order; g.doneAt = nowS(); d.draftStatus = 'live'; d.picks = []; d.pending = null }
     d.cardgame = g; return d }));
-  if (!ok) { toast('이미 뽑힌 카드예요. 다른 카드를 골라 주세요.'); return }
+  if (!ok) { if (String(S.lastErr?.message || 'aborted') === 'aborted') toast('이미 뽑힌 카드예요. 다른 카드를 골라 주세요.'); return }
   S.adminTeam = null; sysChat(`${team(s, k).name}(${pname(s.captains[k])}) ${got}번 카드!`);
   if (order) sysChat(`순번 결정: ${order.map((t, n) => `${n + 1}번 ${team(s, t).name}`).join(', ')}. 1순위부터 팀원을 골라요!`);
 }
@@ -864,8 +855,6 @@ function vMatchDay(s) {
   let sch = `<h2>경기 일정</h2>`;
   for (let r = 1; r <= 3; r++) sch += `<div class="round"><h3>${r}라운드</h3><div class="panel">${ms.filter(m => m.round === r).map(m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); const win = m.status === 'done' ? (a > b ? 'win-h' : a < b ? 'win-a' : '') : '';
     return `<button class="mrow ${m.status === 'live' ? 'is-live' : ''} ${win}" data-act="open" data-id="${m.id}"><span class="side">${bib(H.color)}<span>${esc(H.name)}</span></span><span class="mid"><span class="sc">${m.status === 'pending' ? 'vs' : a + ' : ' + b}</span><span class="st">${m.status === 'done' ? '종료' : `<span data-phase="${m.id}"></span>${m.status === 'live' ? ` <span data-clock="${m.id}"></span>` : ''}`}</span></span><span class="side r"><span>${esc(A.name)}</span>${bib(A.color)}</span></button>` }).join('')}</div></div>`;
-  const tally = {}; for (const e of Object.values(S.events)) { if (e.session !== S.sid || e.og) continue; if (e.scorer) (tally[e.scorer] ??= { g: 0, a: 0 }).g++; if (e.assist) (tally[e.assist] ??= { g: 0, a: 0 }).a++ }
-  const top = Object.entries(tally).sort((x, y) => (y[1].g + y[1].a) - (x[1].g + x[1].a) || y[1].g - x[1].g).slice(0, 10);
   if (S.admin) { const st = (key, lab, val, unit) => `<div class="stepper"><button data-act="tstep" data-key="${key}" data-d="-1" aria-label="${lab} 줄이기">−</button><span><small>${lab}</small>${val}${unit}</span><button data-act="tstep" data-key="${key}" data-d="1" aria-label="${lab} 늘리기">+</button></div>`;
     sch += `<h2>경기 시간 설정</h2><div class="grid2">${st('h1', '전반', T.h1 / 60, '분')}${st('gk', 'GK 교체', T.gk, '초')}${st('h2', '후반', T.h2 / 60, '분')}${st('rest', '쉬는 시간', T.rest / 60, '분')}</div>
     <h2>관리</h2><button class="btn primary block" data-act="pairedit" style="margin-bottom:8px">⇄ 1~9경기 대진 변경</button><button class="btn danger block" data-act="delmatches">경기 대진(1~9경기) 삭제</button><p class="note">경기 일정(대진표)과 경기 기록만 지워요. 신청자, 팀 구성, 공지는 그대로 남고, 다시 "경기 일정 만들기"로 새 대진을 만들 수 있어요. 경기일 자체 삭제는 경기관리 메뉴에서 해요.</p>` }
@@ -898,7 +887,7 @@ function viewSheet() {
   else if (sh.type === 'import') h += importSheet();
   else if (sh.type === 'duty') h += dutySheet(sh.sid);
   else if (sh.type === 'park') h += parkSheet(sh.sid);
-  else if (sh.type === 'parkapply') { const ss = S.sessions[sh.sid]; h += `<h4>🚗 주차 신청</h4><p>${fmtDate(sh.sid)} 경기 주차를 신청해요. 신청자 중 ${PARK_SLOTS}명을 추첨해요.</p><div class="panel"><div class="field"><label for="pk-car2">차량번호</label><input id="pk-car2" class="inp" type="text" maxlength="12" placeholder="예: 12가3456" value="${esc(myCar())}"></div><p class="note" style="margin:6px 0 0">내 정보에 차량번호를 저장해 두면 자동으로 채워져요.</p></div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="parksave">신청</button></div>` }
+  else if (sh.type === 'parkapply') { h += `<h4>🚗 주차 신청</h4><p>${fmtDate(sh.sid)} 경기 주차를 신청해요. 신청자 중 ${PARK_SLOTS}명을 추첨해요.</p><div class="panel"><div class="field"><label for="pk-car2">차량번호</label><input id="pk-car2" class="inp" type="text" maxlength="12" placeholder="예: 12가3456" value="${esc(myCar())}"></div><p class="note" style="margin:6px 0 0">내 정보에 차량번호를 저장해 두면 자동으로 채워져요.</p></div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="parksave">신청</button></div>` }
   else if (sh.type === 'tier') h += tierSheet(sh);
   else if (sh.type === 'inbox') h += inboxSheet();
   else if (sh.type === 'rule') h += ruleSheet();
@@ -914,8 +903,8 @@ function viewSheet() {
     h += `<h4>${fmtDate(sh.sid)} 예약자 · 운영자</h4><p>구장 예약자는 직접 참가 신청을 하면 0순위가 돼요(신청하지 않으면 명단에 나오지 않아요). 경기 운영자는 따로 신청하지 않아도 0순위로 자동 신청돼요. 여러 명은 쉼표로 구분해요.</p><div class="panel">
       <div class="field"><label>구장 예약자<input id="se-res" class="inp" type="text" list="mem-list2" value="${esc(idsToNames(ss.p0))}"></label></div>
       <div class="field"><label>경기 운영자<input id="se-ops" class="inp" type="text" list="mem-list2" value="${esc(idsToNames(ss.ops))}"></label></div>
-      <datalist id="mem-list2">${Object.values(S.players).map(p => p.name).sort((a, b) => a.localeCompare(b, 'ko')).map(n => `<option value="${esc(n)}">`).join('')}</datalist></div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="staffsave">저장</button></div>` }
-  else if (sh.type === 'appname') { const names = Object.values(S.players).map(p => p.name).sort((a, b) => a.localeCompare(b, 'ko'));
+      <datalist id="mem-list2">${memberNames().map(n => `<option value="${esc(n)}">`).join('')}</datalist></div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="staffsave">저장</button></div>` }
+  else if (sh.type === 'appname') { const names = memberNames();
     h += `<h4>신청 순번 확보 완료! 🎉</h4><p>이름과 비밀번호 4자리로 로그인하면 신청이 확정돼요. 팀 명단에 쓰이는 이름 그대로 적어 주세요.</p><div class="panel">${myPid() ? `<div class="field"><span>이름</span><b>${esc(pname(myPid()))}</b></div>` : loginFields('an', S.me)}${parkFields(S.sessions[sh.sid], myPid())}</div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="appnamego">${myPid() ? '신청 확정' : '로그인하고 신청 확정'}</button></div><p class="note">지금 닫아도 순번은 유지돼요. 나중에 홈의 "이름 입력하기"로 입력할 수 있어요.</p>` }
   else if (sh.type === 'colorpick') { const s = cur(); const cur0 = s.teams?.[sh.k]?.colorName;
     h += `<h4>${esc(team(s, sh.k).name)} 팀 색 바꾸기</h4><p>다른 팀이 쓰는 색은 고를 수 없어요.</p><div class="pick cpick">${PALETTE.map(p => { const by = KEYS.find(o => o !== sh.k && s.teams?.[o]?.colorName === p.name);
@@ -934,25 +923,15 @@ function viewSheet() {
     <div class="field"><label>메모<input id="ma-memo" class="inp" type="text"></label></div></div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="maddgo">추가</button></div>`;
   else if (sh.type === 'mbulk') h += `<h4>명단 붙여넣기</h4><p>한 줄에 한 명씩 "이름 생년월일" 또는 "이름 연락처" 형식으로 붙여넣으세요(예: 김환석 890331, 나강일 90). 생년월일·연락처는 없어도 되고, 게스트는 이름 뒤에 (게)를 붙여요. 이미 있는 이름은 정보만 보태요. 회원 명단에 있는 사람만 앱에 로그인할 수 있어요.</p>
     <textarea id="mb-txt" class="inp" style="min-height:180px" placeholder="김민혁 010-1234-5678&#10;이도형 01023456789&#10;배기문(게)"></textarea><div class="row" style="margin-top:12px"><button class="btn primary" data-act="mbulkgo">등록</button></div>`;
-  else if (sh.type === 'newsession') h += `<h4>새 경기일</h4><p>날짜와 기본 정보를 정하세요. 나중에 바꿀 수 있어요.</p><form data-form="newsession"><div class="panel">
-    <div class="field"><label for="n-date">날짜</label><input id="n-date" class="inp" type="date" name="date" value="${today()}" required></div>
-    <div class="field"><label for="n-time">시간</label><input id="n-time" class="inp" type="time" name="time" value="${esc(DEFAULTS.time)}"></div>
-    <div class="field"><label for="n-venue">장소</label><input id="n-venue" class="inp" type="text" name="venue" value="${esc(DEFAULTS.venue)}"></div>
-    <div class="field"><label for="n-cap">신청 인원 (정원)</label><input id="n-cap" class="inp" type="number" name="capacity" min="3" max="60" value="${DEFAULTS.capacity || 18}"></div>
-    <div class="field"><label for="n-open">신청 오픈</label><input id="n-open" class="inp" type="datetime-local" name="applyOpen" value=""><span class="note" style="margin:0">비워 두면 경기 ${DEFAULTS.openDays}일 전 ${DEFAULTS.openTime}</span></div>
-    <div class="field"><label for="n-close">신청 마감</label><input id="n-close" class="inp" type="datetime-local" name="applyClose" value=""><span class="note" style="margin:0">비워 두면 경기 ${DEFAULTS.closeDays}일 전 ${DEFAULTS.closeTime}로 정해져요.</span></div>
-    <div class="field"><label for="n-ev">E/V 비밀번호</label><input id="n-ev" class="inp" type="text" name="evpw" value=""></div></div>
-    <div class="row" style="margin-top:12px"><button type="button" class="btn" data-act="closesheet">취소</button><button class="btn primary" type="submit">만들기</button></div></form>`;
   else if (sh.type === 'capslot') { const s = cur(); const taken = KEYS.filter(k => k !== sh.k).map(k => s.captains?.[k]);
     h += `<h4>${esc(team(s, sh.k).name)} 주장</h4><p>신청자 중에서 고르세요.</p><div class="pick">${byName(s.applicants || []).map(id => `<button class="${s.captains?.[sh.k] === id ? 'cur' : ''}" data-act="pickcap" data-id="${id}" ${taken.includes(id) ? 'disabled' : ''}>${esc(pname(id))}</button>`).join('')}${s.captains?.[sh.k] ? '<button class="alt" data-act="pickcap" data-id="">선택 취소</button>' : ''}</div>` }
   else if (sh.type === 'goal') { const m = M(sh.match); const s = S.sessions[m.session]; const t = team(s, sh.team); const ps = teamPlayers(s, sh.team); const ci = clockInfo(m);
     if (sh.step === 'scorer') h += `<h4>${esc(t.name)} 골! 누가 넣었나요?</h4><p>${esc(ci.label)} ${esc(ci.time)} 시점으로 기록돼요.</p><div class="pick">${ps.map(id => `<button data-act="pickscorer" data-id="${id}">${captainOf(s, sh.team) === id ? '👑 ' : ''}${esc(pname(id))}</button>`).join('')}<button class="alt" data-act="pickscorer" data-id="">선수 미지정</button><button class="alt" data-act="pickog">상대 자책골</button></div>`;
     else h += `<h4>도움은 누가 했나요?</h4><p>득점 ${esc(pname(sh.scorer))}</p><div class="pick">${ps.filter(id => id !== sh.scorer).map(id => `<button data-act="pickassist" data-id="${id}">${esc(pname(id))}</button>`).join('')}<button class="alt" data-act="pickassist" data-id="">도움 없음</button></div>` }
-  else if (sh.type === 'mom') { const s = cur(); const t = team(s, sh.k); const c = s.mom?.[sh.k];
-    h += `<h4>${esc(t.name)} MOM</h4><p>주장이 고른 선수를 눌러 주세요.</p><div class="pick">${teamPlayers(s, sh.k).map(id => `<button class="${c === id ? 'cur' : ''}" data-act="pickmom" data-id="${id}">${esc(pname(id))}</button>`).join('')}${c ? '<button class="alt" data-act="pickmom" data-id="">선택 취소</button>' : ''}</div>` }
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.24', '2026.10.16', ['전체 코드를 다시 점검해 쓰지 않는 코드를 정리하고 더 가볍고 빠르게 만들었어요', '[중요] 경기 운영자가 지정되지 않은 경기에서 신청 인원이 0명으로 보이거나 신청 확정 시 명단이 비는 문제를 고쳤어요', '로그인 전에 신청한 뒤 로그인해도 내 신청이 그대로 이어져요. 이름 나중에 입력하기도 정상 동작해요', '대기자는 순위(1→2→3순위) 순서로 번호가 매겨져요. 대기 상태에서는 마감 후에도 대기 취소를 할 수 있어요', '신청자 보기 맨 위에 내 선발·대기 순번이 보여요', '드래프트에서 내 차례가 되면 진동과 안내가 떠요', '경기 타이머·휘슬·사다리를 모든 기기에서 서버 시각 기준으로 맞춰요', '경기모드에서 휘슬 켜기/끄기가 진행 중인 경기에도 바로 적용되고, 시작 버튼을 두 번 눌러도 한 번만 시작돼요', '경기모드 중에는 화면을 당겨도 새로고침되지 않아요', '사용 설명서 용량을 약 40% 줄였어요']],
   ['0.21.23', '2026.10.16', ['경기모드 크게 보기를 태블릿에서도 스마트폰 화면을 그대로 확대한 모습으로 보여 줘요']],
   ['0.21.22', '2026.10.16', ['[운영진] 주장 지정·드래프트·밸런스 조정 단계에서 "신청 단계" 또는 "주장 지정 단계"로 되돌릴 수 있어요. 신청 단계로 되돌리면 신청자 명단을 다시 고칠 수 있어요']],
   ['0.21.21', '2026.10.16', ['[운영진] 신청자 목록을 순위순과 신청순으로 바꿔 볼 수 있어요']],
@@ -1030,7 +1009,8 @@ function notiCard() { const sup = pushSupport(); const on = typeof Notification 
   const np = S.np || {}; return `<div class="panel pad"><div class="betarow"><div><b>${on ? '🔔 이 폰에서 알림 받는 중' : '🔕 알림 꺼짐'}</b><small>${on ? '아래에서 받을 알림을 고를 수 있어요.' : '켜면 신청 오픈, 선발, 팀 발표 등을 알려 드려요.'}</small></div>${on ? '<button class="btn" data-act="pushoff">끄기</button>' : '<button class="btn primary cta" data-act="pushon">알림 켜기</button>'}</div>
     ${on ? `<div class="ntypes">${NOTI_TYPES.map(([k, n, d]) => `<label class="ntype"><span><b>${n}</b><small>${d}</small></span><input type="checkbox" data-in="npref" data-k="${k}" ${np[k] !== false ? 'checked' : ''}></label>`).join('')}</div>` : ''}</div>` }
 function selSet(s0) { if (!s0) return new Set(); return new Set(s0.stage === 'apply' ? classify(s0).sel.map(r => r.pid).filter(Boolean) : (s0.applicants || [])) }
-function watchPromote(sid, before, exclude) { setTimeout(() => { const after = selSet(S.sessions[sid]); const up = [...after].filter(p0 => !before.has(p0) && !(exclude || []).includes(p0)); if (up.length) queuePush({ type: 'promote', pids: up, sid }) }, 2500) }
+function watchPromote(sid, before, exclude) { const s0 = S.sessions[sid], q0 = S.q?.[sid]; let n = 0; // 서버 반영이 늦어도 최대 12초까지 기다렸다가 확인해요
+  const chk = () => { const s1 = S.sessions[sid]; if ((s1 === s0 && S.q?.[sid] === q0) && ++n < 8) return setTimeout(chk, 1500); const after = selSet(s1); const up = [...after].filter(p0 => !before.has(p0) && !(exclude || []).includes(p0)); if (up.length) queuePush({ type: 'promote', pids: up, sid }) }; setTimeout(chk, 1500) }
 function watchInbox() { const pid = myPid(); if (!S.store || S.inboxPid === pid) return; try { S.unInbox && S.unInbox() } catch { } S.inboxPid = pid; S.inbox = []; if (!pid) return;
   S.unInbox = S.store.watchCol('inbox/' + pid + '/items', docs => { S.inbox = docs.sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 50); renderSoon() }, { order: 'at', limit: 50 }, () => { }) }
 function inboxSheet() { const L = S.inbox || []; const ico = { open: '📢', closing: '⏰', promote: '🎉', captain: '👑', team: '📣', day: '⚽', notice: '📝' };
@@ -1093,10 +1073,7 @@ function viewMHome() {
   const last = pastSids().find(id => id !== sid);
   h += `<div class="sec-lab"><span>MATCH REVIEW</span>${last ? `<small>${fmtDate(last)}</small>` : ''}</div>`;
   if (!last) h += `<div class="review empty-r">아직 지난 경기가 없어요.</div>`;
-  else { const s = S.sessions[last]; const rows = standings(last); const mt = myTeamIn(s); const top = rows[0]; const tt = team(s, top.k); const done = sessMatches(last).filter(m => m.status === 'done').length;
-    const tally = {}; for (const e of Object.values(S.events)) if (e.session === last && !e.og && e.scorer) tally[e.scorer] = (tally[e.scorer] || 0) + 1;
-    const best = Math.max(0, ...Object.values(tally)); const scorers = Object.keys(tally).filter(k => tally[k] === best && best > 0);
-    const moms = KEYS.map(k => s.mom?.[k]).filter(Boolean);
+  else { const s = S.sessions[last]; const rows = standings(last); const mt = myTeamIn(s); const done = sessMatches(last).filter(m => m.status === 'done').length;
     h += `<button class="review" data-act="result" data-id="${last}">${done < 9 ? `<div class="rv-note">${done}/9경기 기준</div>` : ''}
       <div class="rv-rows">${rows.map(r => { const t = team(s, r.k); return `<div class="rc-row ${mt === r.k ? 'mine' : ''} ${r.rank === 1 ? 'first' : ''}"><em class="rk rk${r.rank}">${r.rank === 1 ? '🏆' : r.rank}</em>${bib(t.color)}<span class="rcn"><b>${esc(t.name)}</b>${mt === r.k ? '<i class="mytag" title="내 팀">MY</i>' : ''}</span><span class="wdl"><i class="w">${r.w}승</i><i class="d">${r.d}무</i><i class="l">${r.l}패</i></span><span class="pt">${r.pts}점</span></div>` }).join('')}</div>
       <span class="more">경기 결과 자세히 보기 ›</span></button>` }
@@ -1186,18 +1163,20 @@ function viewResults() {
 }
 
 function viewApplicants() { const s = cur(); const me = myPid(); const base = isBase(s);
-  if (s.stage === 'apply') { const c = classify(s); const mine = myApp(s);
+  if (s.stage === 'apply') { const c = classify(s); const mine = myApp(s); const myR = mine && c.rows.find(r => r.k === mine.k); const myLine = myR ? `<div class="notice mypos">${myR.sel ? `✓ 나는 <b>선발</b>이에요${base ? ` · ${TIER[myR.tier]}` : ''} · ${myR.auto ? '자동 신청' : myR.n + '번째 신청'}` : `⏳ 나는 <b>대기 ${myR.wn}번</b>이에요${base ? ` · ${TIER[myR.tier]}` : ''}`}</div>` : '';
     // 신청 순서(자동 신청은 맨 앞) — 이름순이 아님
     const ord = arr => [...arr].sort((a, b) => (a.auto === b.auto ? 0 : a.auto ? -1 : 1) || ((typeof a.n === 'number' ? a.n : 1e9) - (typeof b.n === 'number' ? b.n : 1e9)));
     const chip = r => `<span class="chip ${(mine && mine.k === r.k) ? 'sel' : ''}"><small class="muted">${r.auto ? '자동' : r.n}</small> ${r.pid ? esc(pname(r.pid)) : '이름 입력 대기'}${base && r.sel ? `<b class="tb t${r.tier}">${TIER[r.tier]}</b>` : ''}</span>`;
-    return backbar('홈으로') + `<h2>선발<small>${c.sel.length}${s.capacity ? ' / ' + s.capacity : ''}명</small></h2><div class="panel"><div class="chips">${ord(c.sel).map(chip).join('') || '<span class="muted">아직 신청자가 없어요.</span>'}</div></div>
+    return backbar('홈으로') + myLine + `<h2>선발<small>${c.sel.length}${s.capacity ? ' / ' + s.capacity : ''}명</small></h2><div class="panel"><div class="chips">${ord(c.sel).map(chip).join('') || '<span class="muted">아직 신청자가 없어요.</span>'}</div></div>
     ${c.wait.length ? `<h2>대기<small>${c.wait.length}명</small></h2><div class="panel"><div class="chips">${c.wait.map(chip).join('')}</div></div>` : ''}<p class="note">${base ? '0순위: 구장예약자·경기운영자, 1순위: 직전 경기 미참여자, 2순위: 그 외 선착순, 3순위: 직전 경기 마감 후 취소자. ' : '이 구장은 순위 없이 신청한 순서대로 선발해요. '}숫자는 신청 순서예요.</p>` }
   const chip = (id, i) => `<span class="chip ${id === me ? 'sel' : ''}"><small class="muted">${i + 1}</small> ${esc(pname(id))}</span>`;
   return backbar('홈으로') + `<h2>신청자<small>${(s.applicants || []).length}${s.capacity ? ' / ' + s.capacity : ''}명</small></h2><div class="panel"><div class="chips">${(s.applicants || []).map(chip).join('') || '<span class="muted">아직 신청자가 없어요.</span>'}</div></div>
   ${(s.waitlist || []).length ? `<h2>대기<small>${s.waitlist.length}명</small></h2><div class="panel"><div class="chips">${s.waitlist.map((id, i) => chip(id, i)).join('')}</div></div>` : ''}` }
 /* ───────── admin views ───────── */
 async function deleteSessionBy(sid) { if (!confirm(fmtDate(sid) + ' 경기를 통째로 지울까요? 신청자, 경기 기록도 함께 지워지고 되돌릴 수 없어요.')) return;
-  const ok = await w(async () => { for (const [eid, ev] of Object.entries(S.events)) if (ev.session === sid) await S.store.del('events/' + eid); for (const mm of sessMatches(sid)) await S.store.del(mp(mm.id)); await S.store.del(sp(sid)) }, '삭제했어요.');
+  const ok = await w(async () => { const evs = new Set(Object.entries(S.events).filter(([, ev]) => ev.session === sid).map(([eid]) => eid)), mts = new Set(sessMatches(sid).map(m => m.id));
+    try { (await S.store.query('events', [['session', '==', sid]])).forEach(d => evs.add(d.id)); (await S.store.query('matches', [['session', '==', sid]])).forEach(d => mts.add(d.id)) } catch { } // 90일 지난 기록도 함께 지워요
+    for (const eid of evs) await S.store.del('events/' + eid); for (const id of mts) await S.store.del(mp(id)); await S.store.del(sp(sid)) }, '삭제했어요.');
   if (ok && S.sid === sid) S.sid = null; render() }
 const RUN_STEPS = [['apply', '신청접수'], ['captain', '주장지정'], ['draft', '드래프트'], ['trade', '팀원조정'], ['match', '경기진행'], ['result', '경기결과']];
 function stepDone(s, k) { if (k === 'result' || k === 'match') { const ms = sessMatches(s.date); return ms.length > 0 && ms.every(m => m.status === 'done') } if (k === 'notice') return stageIdx(s.stage) > stageIdx('notice'); return stageIdx(k) < stageIdx(s.stage) }
@@ -1212,7 +1191,7 @@ function viewManageList() {
   h += `<div class="panel sheetwrap"><table class="grid"><thead><tr><th class="stick">날짜</th><th>회차</th><th>시간</th><th>장소</th><th>정원</th><th>예약자 · 운영자</th><th>신청</th><th>공당 · 물당</th><th>주차</th><th>신청 오픈</th><th>신청 마감</th><th>상태</th><th>관리</th></tr></thead><tbody>
   ${ids.map(id => { const s = S.sessions[id]; const st = sStatus(s); const movable = !sessMatches(id).length;
     return `<tr><td class="stick"><button class="cellbtn" data-act="calmove" data-id="${id}" ${movable ? '' : 'disabled'} title="${movable ? '눌러서 날짜 변경' : '경기 기록이 있어 날짜를 바꿀 수 없어요'}"><b>${id.slice(5).replace('-', '.')}</b> <span class="dw${dow(id) === '일' ? ' sun' : dow(id) === '토' ? ' sat' : ''}">${dow(id)}</span></button></td>
-      <td><input class="cell w-num" type="number" min="1" value="${s.no || ''}" placeholder="${nextNoFor(id) || '-'}" title="비어 있으면 이전 회차 다음 번호(${nextNoFor(id) || '없음'})를 추천해요" data-in="cell" data-sid="${id}" data-f="no"></td>
+      <td><input class="cell w-num" type="number" min="1" value="${s.no || ''}" placeholder="${(s._nn = nextNoFor(id)) || '-'}" title="비어 있으면 이전 회차 다음 번호(${s._nn || '없음'})를 추천해요" data-in="cell" data-sid="${id}" data-f="no"></td>
       <td><input class="cell" type="time" value="${esc(s.time || '')}" data-in="cell" data-sid="${id}" data-f="time"></td>
       <td><input class="cell w-venue" type="text" value="${esc(s.venue || '')}" list="venue-list" data-in="cell" data-sid="${id}" data-f="venue"></td>
       <td><input class="cell w-num" type="number" min="3" max="60" value="${s.capacity || ''}" data-in="cell" data-sid="${id}" data-f="capacity"></td>
@@ -1245,7 +1224,7 @@ function calSheet() {
   <div class="field"><label>회차 ${c.sel.length > 1 ? '(첫 경기, 이후 날짜 순으로 +1)' : ''}<input class="inp w-num" type="number" min="1" placeholder="${c.sel.length ? '이전 회차가 없어요' : '날짜를 먼저 고르세요'}" value="${f.no || ''}" data-in="calf" data-f="no" data-noauto="1"></label><span class="note" style="margin:0">${f.noAuto !== false && f.no ? '이전 회차에 이어서 자동으로 넣었어요. 고칠 수 있어요.' : ''}</span></div>
   <div class="field"><label>구장 예약자 (신청하면 0순위)<input class="inp" type="text" list="mem-list" placeholder="이름 (여러 명은 쉼표로)" value="${esc(f.res || '')}" data-in="calf" data-f="res"></label></div>
   <div class="field"><label>경기 운영자 (0순위, 자동 신청)<input class="inp" type="text" list="mem-list" placeholder="이름 (여러 명은 쉼표로)" value="${esc(f.ops || '')}" data-in="calf" data-f="ops"></label></div>
-  <datalist id="mem-list">${Object.values(S.players).map(p => p.name).sort((a, b) => a.localeCompare(b, 'ko')).map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+  <datalist id="mem-list">${memberNames().map(n => `<option value="${esc(n)}">`).join('')}</datalist>
   <div class="field"><span>신청 오픈</span><div class="offs">경기 <input class="inp w-num" type="number" min="0" max="30" value="${f.openD}" data-in="calf" data-f="openD">일 전 <input class="inp" type="time" value="${esc(f.openT)}" data-in="calf" data-f="openT"></div></div>
   <div class="field"><span>신청 마감</span><div class="offs">경기 <input class="inp w-num" type="number" min="0" max="30" value="${f.closeD}" data-in="calf" data-f="closeD">일 전 <input class="inp" type="time" value="${esc(f.closeT)}" data-in="calf" data-f="closeT"></div></div></div>
   ${c.sel.length ? `<p class="note">${c.sel.slice().sort().map(id => fmtDate(id)).join(', ')}</p>` : ''}
@@ -1400,7 +1379,7 @@ async function clearSample() {
 /* ───────── member application ───────── */
 /* ───────── applications (reserve first, name later; priority tiers) ───────── */
 const TIER = ['0순위', '1순위', '2순위', '3순위'];
-const tsMs = v => v == null ? null : typeof v === 'number' ? v : v.toMillis ? v.toMillis() : v.seconds ? v.seconds * 1000 + Math.floor((v.nanoseconds || 0) / 1e6) : +v;
+const tsMs = v => v == null ? null : typeof v === 'number' ? v : v.toMillis ? v.toMillis() : v.seconds ? v.seconds * 1000 + (v.nanoseconds || 0) / 1e6 : +v;
 function queueApps(s) { const q = S.q?.[s?.date]; if (!q) return []; const open = s.applyOpen ? new Date(s.applyOpen).getTime() : null, close = s.applyClose ? new Date(s.applyClose).getTime() : null;
   return Object.entries(q).map(([id, d]) => ({ k: 'q' + id, q: id, pid: d.pid || null, uid: d.uid, at: tsMs(d.at) ?? d.tap ?? 0, srv: true })).filter(a => (!open || a.at >= open - 1500) && (!close || a.at <= close)) }
 function ensureQueues() { if (!S.store) return; S.qUn ??= {}; S.q ??= {}; const want = new Set(Object.keys(S.sessions).filter(id => ['apply', 'captain'].includes(S.sessions[id].stage) && id >= today()));
@@ -1424,14 +1403,15 @@ function classify0(s) {
   const rows = [...autos, ...apps.map((a, i) => { const t0 = !base ? 2 : a.tier != null ? a.tier : !a.pid ? 2 : staff.has(a.pid) ? 0 : late.has(a.pid) ? 3 : (played && !played.has(a.pid)) ? 1 : 2; const o = ov[a.k]; const has = base && [0, 1, 2, 3].includes(o); return { ...a, n: i + 1, tier0: t0, tierOv: has, tier: has ? o : t0 } })];
   const cap = s.capacity || Infinity; const sel = new Set();
   for (const t of [0, 1, 2, 3]) for (const r of rows) if (r.tier === t && ((t === 0 && base) || sel.size < cap)) sel.add(r.k);
-  rows.forEach(r => r.sel = sel.has(r.k)); const wait = rows.filter(r => !r.sel); wait.forEach((r, i) => r.wn = i + 1);
+  rows.forEach(r => r.sel = sel.has(r.k)); const wait = rows.filter(r => !r.sel).sort((a, b) => a.tier - b.tier || a.n - b.n); wait.forEach((r, i) => r.wn = i + 1);
   return { rows, sel: rows.filter(r => r.sel).sort((a, b) => a.tier - b.tier || a.n - b.n), wait, prev, base };
 }
 function appTotal(s) { const c = appCounts(s); return c.sel + c.wait }
-function appCounts(s) { if ((!Array.isArray(s.apps) && !autoIds(s).length) || s.stage !== 'apply') return { sel: (s.applicants || []).length, wait: (s.waitlist || []).length }; const c = classify(s); return { sel: c.sel.length, wait: c.wait.length } }
-function myApp(s) { const uid = myUid(), me = myPid(); return appsOf(s).find(a => me ? a.pid === me : (!a.pid && a.uid && a.uid === uid)) || (me && autoIds(s).includes(me) ? { k: 'auto-' + me, pid: me, auto: true } : null) }
+function hasApps(s) { return Array.isArray(s.apps) || autoIds(s).length > 0 || queueApps(s).length > 0 }
+function appCounts(s) { if (!hasApps(s) || s.stage !== 'apply') return { sel: (s.applicants || []).length, wait: (s.waitlist || []).length }; const c = classify(s); return { sel: c.sel.length, wait: c.wait.length } }
+function myApp(s) { const uid = myUid(), me = myPid(); return appsOf(s).find(a => me ? (a.pid === me || (!a.pid && a.uid && a.uid === uid)) : (!a.pid && a.uid && a.uid === uid)) || (me && autoIds(s).includes(me) ? { k: 'auto-' + me, pid: me, auto: true } : null) }
 function applyState(s) { const me0 = myPid(); if (me0 && s.stage === 'apply' && isBase(s) && autoIds(s).includes(me0)) return { k: 'in', auto: true, tier: 0, role: roleOf(s, me0) }; const a = myApp(s); if (!a) return { k: 'none' }; if (s.stage !== 'apply') { if ((s.applicants || []).includes(a.pid)) return { k: 'in', tier: null }; return { k: 'wait', n: (s.waitlist || []).indexOf(a.pid) + 1 } }
-  const r = classify(s).rows.find(x => x.k === a.k); if (!r) return { k: 'none' }; return r.sel ? { k: 'in', tier: r.tier, n: r.n, noname: !a.pid, key: a.k, auto: !!r.auto, role: roleOf(s, a.pid) } : { k: 'wait', n: r.wn, order: r.n, noname: !a.pid, key: a.k } }
+  const r = classify(s).rows.find(x => x.k === a.k); if (!r) return { k: 'none' }; return r.sel ? { k: 'in', tier: r.tier, n: r.n, noname: !a.pid, key: a.k, auto: !!r.auto, role: roleOf(s, a.pid) } : { k: 'wait', n: r.wn, order: r.n, tier: r.tier, noname: !a.pid, key: a.k } }
 function applyBox(s, compact) {
   const st = sStatus(s); const a = applyState(s); const c = appCounts(s);
   const nameBtn = a.noname ? `<button class="btn sm primary" data-act="appname" data-id="${s.date}">이름 입력하기</button>` : '';
@@ -1439,7 +1419,7 @@ function applyBox(s, compact) {
   if (a.k === 'in' && a.auto) return `<div class="applied"><span>✓ 자동 신청 · 0순위<small>${a.role}(으)로 자동 참가 신청돼 있어요. 빠지려면 운영진에게 ${a.role} 해제를 요청해 주세요.</small></span></div>${(() => { const x = parkBox(s) + dutyBox(s); return x ? `<div class="extras">${x}</div>` : '' })()}`;
   const canLate = !a.auto && st.k !== 'open' && s.draftStatus === 'ready' && ['apply', 'captain'].includes(s.stage);
   if (a.k === 'in') return `<div class="applied"><span>✓ 신청 완료${a.tier != null && isBase(s) ? ` · ${TIER[a.tier]}` : ''}<small>${a.noname ? `${a.n}번째 신청 순번을 확보했어요. 이름을 입력해 주세요!` : a.n ? `${a.n}번째로 신청했어요` : '이번 경기 참가자예요'}</small></span>${nameBtn}${st.k === 'open' ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">취소</button>` : canLate ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">참가 취소</button>` : ''}</div>${a.noname ? '' : (() => { const x = parkBox(s) + dutyBox(s); return x ? `<div class="extras">${x}</div>` : '' })()}`;
-  if (a.k === 'wait') return `<div class="applied wait"><span>대기 ${a.n}번<small>${a.noname ? '이름을 입력해 주세요!' : st.k === 'open' ? '자리가 나면 자동으로 선발돼요' : '신청이 마감됐어요'}</small></span>${nameBtn}${st.k === 'open' ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">취소</button>` : ''}</div>`;
+  if (a.k === 'wait') { const canW = st.k === 'open' || (s.draftStatus === 'ready' && ['apply', 'captain'].includes(s.stage)); return `<div class="applied wait"><span>대기 ${a.n}번${a.tier != null && isBase(s) && s.stage === 'apply' ? ` · ${TIER[a.tier]}` : ''}<small>${a.noname ? '이름을 입력해 주세요!' : st.k === 'open' ? '자리가 나면 자동으로 선발돼요' : '신청이 마감됐어요. 자리가 나면 운영진이 알려 드려요'}</small></span>${nameBtn}${canW ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">${st.k === 'open' ? '취소' : '대기 취소'}</button>` : ''}</div>` }
   if (st.k !== 'open') return '';
   const full = s.capacity && c.sel >= s.capacity;
   return `<button class="btn primary block applybtn cta" data-act="apply" data-id="${s.date}" ${S.applyBusy === s.date ? 'disabled aria-busy="true"' : ''}>${S.applyBusy === s.date ? '신청 저장 중…' : full ? `대기 신청하기 (대기 ${c.wait}명)` : '신청하기'}</button>${compact ? '' : `<p class="note" style="margin:0">버튼을 누르는 순간 신청 순번이 확보되고, 이름은 그다음에 입력해요.</p>`}`;
@@ -1468,14 +1448,18 @@ async function doApply(sid, cancel) {
   finally { S.applyBusy = null }
   render();
   if (ok) { const s2 = S.sessions[sid] || s; const cur = appsOf(s2); const mineNow = cur.find(a => pid ? a.pid === pid : a.uid === uid); const pos = mineNow ? cur.indexOf(mineNow) + 1 : appsOf0({ apps: [...cur, entry] }).findIndex(a => a.k === entry.k) + 1;
-    toast(pos > 0 ? `${pos}번째 신청 순번을 확보했어요!` : '신청했어요!'); if (!pid) { S.sheet = { type: 'appname', sid, key: entry.k }; render() } return }
+    toast(pos > 0 ? `${pos}번째 신청 순번을 확보했어요!` : '신청했어요!'); if (!pid) { S.sheet = { type: 'appname', sid, key: S.store.stamp ? 'q' + uid : entry.k }; render() } return }
   if (slow) { toast('연결이 느려서 저장을 기다리고 있어요. 앱을 닫지 말고 잠시만 기다려 주세요.'); return }
   console.error(err); toast(errMsg(err).replace(/\.$/, '') + '. 신청이 저장되지 않았어요. 다시 눌러 주세요.');
 }
 async function setAppName(sid, key, name) {
-  name = name.replace(/\(\s*게\s*\)/g, '').trim().slice(0, 20); if (!name) return false; const guest = false;
-  let pid = findPlayer(name); if (!pid && !S.admin) { toast('회원 명단에 없는 이름이에요.'); return false } if (!pid) { if (!confirm(`"${name}" 이름이 회원 명단에 없어요. 새 회원으로 등록할까요?`)) return false; pid = await S.store.add('players', { name, guest, status: 'active', createdAt: Date.now() }); S.players[pid] = { name } }
+  name = name.replace(/\(\s*게(스트)?\s*\)/g, '').trim().slice(0, 20); if (!name) return false;
+  let pid = findPlayer(name); if (!pid && !S.admin) { toast('회원 명단에 없는 이름이에요.'); return false } if (!pid) { if (!confirm(`"${name}" 이름이 회원 명단에 없어요. 새 회원으로 등록할까요?`)) return false; pid = await S.store.add('players', { name, guest: false, status: 'active', createdAt: Date.now() }); S.players[pid] = { name } }
   let merged = false;
+  if (String(key).startsWith('q') && S.q?.[sid]?.[key.slice(1)]) { const qid = key.slice(1); const all = appsOf(S.sessions[sid]); const me = all.findIndex(a => a.k === key); const j = all.findIndex(a => a.pid === pid && a.k !== key);
+    const ok = await w(async () => { if (j >= 0 && j < me) { await S.store.del(sp(sid) + '/q/' + qid); merged = true; return }
+      await S.store.update(sp(sid) + '/q/' + qid, { pid }); if (j >= 0) { const o = all[j]; if (o.q) await S.store.del(sp(sid) + '/q/' + o.q); else await S.store.patch(sp(sid), { remove: { apps: (S.sessions[sid].apps || []).filter(a => a && a.k === o.k) } }); merged = true } });
+    if (ok) { if (!S.admin) { S.me = name; save('me', name) } toast(merged ? '이미 신청된 이름이라 앞선 순번 하나로 합쳤어요.' : `${name} 이름으로 신청됐어요.`) } return ok }
   const ok = await w(() => S.store.txn(sp(sid), d => { if (!d) return null; const apps = appsOf(d); const i = apps.findIndex(a => a.k === key); if (i < 0) return null;
     const j = apps.findIndex(a => a.pid === pid && a.k !== key);
     if (j >= 0) { if (j < i) { apps.splice(i, 1) } else { apps[i] = { ...apps[i], pid }; apps.splice(j, 1) } merged = true } else apps[i] = { ...apps[i], pid };
@@ -1493,7 +1477,7 @@ async function stageBack(st) { const s = cur(); if (!s || !STAGE_BACK[st] || sta
   if (st === 'apply') Object.assign(clear, { captains: { A: null, B: null, C: null }, captainTokens: { A: null, B: null, C: null } });
   if (await w(() => S.store.update(sp(s.date), clear), `${STAGE_BACK[st]}로 되돌렸어요.`)) { if (S.adminJoin) delete S.adminJoin[s.date]; S.step = st; S.sheet = null; render(); window.scrollTo(0, 0) } }
 async function freezeApps(s) {
-  if ((!Array.isArray(s.apps) && !autoIds(s).length) || s.stage !== 'apply') return true; const c = classify(s); const nn = c.rows.filter(r => !r.pid).length;
+  if (!hasApps(s) || s.stage !== 'apply') return true; const c = classify(s); const nn = c.rows.filter(r => !r.pid).length;
   if (nn && !confirm(`이름을 입력하지 않은 신청 ${nn}건은 드래프트 명단에서 빠져요. 계속할까요?`)) return false;
   return await w(() => S.store.update(sp(s.date), { applicants: c.sel.filter(r => r.pid).map(r => r.pid), waitlist: c.wait.filter(r => r.pid).map(r => r.pid) }));
 }
@@ -1577,7 +1561,7 @@ async function cancelApp(sid, pid, key, byAdmin, force) {
   const penal = !force && closed && wasSel && pid;
   if (force ? !confirm(`${pid ? pname(pid) + ' 님의 ' : '이름 입력 전 '}신청을 삭제할까요?\n주차·공당·물당 신청도 함께 취소되고, 마감 후 취소(3순위) 기록은 남지 않아요.`) : !confirm(penal ? `${byAdmin ? pname(pid) + ' 님의 ' : ''}신청 마감 후 취소예요. 취소하면 다음 경기 신청 때 3순위가 돼요. 그래도 취소할까요?` : '신청을 취소할까요?')) return;
   const qdel = Object.entries(S.q?.[sid] || {}).filter(([qi, d]) => (pid && d.pid === pid) || (key && 'q' + qi === key)).map(([qi]) => qi);
-  if (qdel.length && !Array.isArray(s.apps)) { if (!(await w(() => Promise.all(qdel.map(qi => withTimeout(S.store.del(sp(sid) + '/q/' + qi), 10000)))))) return; if (!(s.applicants || []).includes(pid) && !appsOf0(s).some(a => a.pid === pid)) { if (pid) await clearExtras(sid, pid); toast(force ? '삭제했어요.' : '취소했어요.'); watchPromote(sid, selBefore, [pid]); render(); return } }
+  if (qdel.length && !Array.isArray(s.apps)) { if (!(await w(() => Promise.all(qdel.map(qi => withTimeout(S.store.del(sp(sid) + '/q/' + qi), 10000)))))) return; if (!(s.applicants || []).includes(pid) && !appsOf0(s).some(a => a.pid === pid)) { if (penal) await w(() => S.store.update(sp(sid), { [`late.${pid}`]: Date.now() })); if (key && s.tierOv?.[key] != null) S.store.update(sp(sid), { [`tierOv.${key}`]: null }).catch(() => { }); if (pid) await clearExtras(sid, pid); toast(force ? '삭제했어요.' : penal ? '취소했어요. 마감 후 취소로 기록됐어요.' : '취소했어요.'); watchPromote(sid, selBefore, [pid]); render(); return } }
   if (s.stage === 'apply' && Array.isArray(s.apps)) {
     const vals = s.apps.filter(a => a && ((key && a.k === key) || (pid && a.pid === pid))); const set = {};
     if (pid && s.park?.[pid]) set[`park.${pid}`] = null; if (penal) set[`late.${pid}`] = Date.now();
@@ -1624,8 +1608,7 @@ function vApplyTable(s) {
       ${mvOn ? `<td class="mv">${r.auto ? '' : `<button class="btn sm" data-act="appmove" data-k="${r.k}" data-d="-1" aria-label="위로">▲</button><button class="btn sm" data-act="appmove" data-k="${r.k}" data-d="1" aria-label="아래로">▼</button><button class="btn sm" data-act="appmoveto" data-k="${r.k}" aria-label="순번 입력">#</button>`}</td>` : ''}
       <td class="muted">${pk ? `🚗 ${esc(pk)}` : ''}</td>${['ball', 'drink'].map(k => { const fixed = r.pid && (s.duty?.[k] || []).includes(r.pid), req = r.pid && s.dutyReq?.[k]?.[r.pid]; return `<td class="num">${fixed ? '<b class="ok">✓ 지정</b>' : req ? '<span class="dreq">🙋 신청</span>' : ''}</td>` }).join('')}<td>${r.sel ? '<b class="ok">선발</b>' : `<b class="tw">대기 ${r.wn}</b>`}</td>
       <td class="num"><input type="checkbox" class="staffck" ${ad && closed && r.pid && !r.auto ? `data-in="latetoggle" data-id="${r.pid}"` : 'disabled'} aria-label="마감 후 취소"></td>
-      ${ad ? `<td class="acts">${r.pid && !r.auto ? `<button class="btn sm" data-act="p0toggle" data-id="${r.pid}">${(s.p0 || []).includes(r.pid) ? '예약자 해제' : '예약자'}</button>` : ''}${r.auto ? `<button class="btn sm" data-act="staffedit" data-id="${s.date}">변경</button>` : ''}${!r.pid ? `<button class="btn sm" data-act="appnameadmin" data-id="${r.k}">이름</button>` : ''}${closed && r.pid && !r.auto ? `<button class="btn sm danger" data-act="latecancel" data-id="${r.pid}">${r.sel ? '마감 후 취소' : '대기 취소'}</button>` : ''}${canRm && !r.auto ? `<button class="btn sm danger" data-act="apprm" data-id="${r.k}" data-pid="${r.pid || ''}" aria-label="삭제" title="신청 삭제 (3순위 기록 없음)">삭제</button>` : ''}</td>` : ''}</tr>` }).join('') : `<tr><td colspan="11" class="empty">아직 신청자가 없어요.</td></tr>`}${Object.entries(s.late || {}).filter(([, v]) => v).map(([pid, t]) => `<tr class="lrow"><td class="num">-</td><td class="stick"><b>${esc(pname(pid))}</b></td><td></td><td class="muted">신청 마감 후 취소</td><td class="num muted">${fmtTS(t)}</td><td></td><td><b class="t3">취소</b></td><td class="num"><input type="checkbox" class="staffck" checked ${ad ? `data-in="lateuntoggle" data-id="${pid}"` : 'disabled'} aria-label="마감 후 취소 해제"></td>${ad ? '<td></td>' : ''}</tr>`).join('')}</tbody></table></div>`;
-  const lc = Object.entries(s.late || {}).filter(([, v]) => v);
+      ${ad ? `<td class="acts">${r.pid && !r.auto ? `<button class="btn sm" data-act="p0toggle" data-id="${r.pid}">${(s.p0 || []).includes(r.pid) ? '예약자 해제' : '예약자'}</button>` : ''}${r.auto ? `<button class="btn sm" data-act="staffedit" data-id="${s.date}">변경</button>` : ''}${!r.pid ? `<button class="btn sm" data-act="appnameadmin" data-id="${r.k}">이름</button>` : ''}${closed && r.pid && !r.auto ? `<button class="btn sm danger" data-act="latecancel" data-id="${r.pid}">${r.sel ? '마감 후 취소' : '대기 취소'}</button>` : ''}${canRm && !r.auto ? `<button class="btn sm danger" data-act="apprm" data-id="${r.k}" data-pid="${r.pid || ''}" aria-label="삭제" title="신청 삭제 (3순위 기록 없음)">삭제</button>` : ''}</td>` : ''}</tr>` }).join('') : `<tr><td colspan="${10 + (mvOn ? 1 : 0) + (ad ? 1 : 0)}" class="empty">아직 신청자가 없어요.</td></tr>`}${Object.entries(s.late || {}).filter(([, v]) => v).map(([pid, t]) => `<tr class="lrow"><td class="num">-</td><td class="stick"><b>${esc(pname(pid))}</b></td><td></td><td class="muted">신청 마감 후 취소</td><td class="num muted">${fmtTS(t)}</td>${mvOn ? '<td></td>' : ''}<td></td><td></td><td></td><td><b class="t3">취소</b></td><td class="num"><input type="checkbox" class="staffck" checked ${ad ? `data-in="lateuntoggle" data-id="${pid}"` : 'disabled'} aria-label="마감 후 취소 해제"></td>${ad ? '<td></td>' : ''}</tr>`).join('')}</tbody></table></div>`;
   return h
     + (ad && (canTier || canRm) ? `<p class="note">🛠 운영진: ${canTier ? '순위 칸을 누르면 0~3순위를 직접 바꿀 수 있어요(✎ 표시는 직접 바꾼 순위). ' : ''}${canRm ? '“삭제”는 마감 후 취소(3순위) 기록 없이 명단에서 지워요. 다음 경기 3순위로 남기려면 “마감 후 취소”를 쓰세요.' : ''}</p>` : '')
     + `<p class="note">신청 ${c.sel.length + c.wait.length}${s.capacity ? ' / ' + s.capacity : ''}명 (선발 ${c.sel.length}명, 대기 ${c.wait.length}명). ${c.base ? '' : '<b>The Base 구장이 아니라서 순위 없이 신청 순서대로(선착순) 선발해요.</b> '}The Base 구장 순위: 0순위 구장 예약자·경기 운영자(정원 무관) → 1순위 직전 경기 미참여 → 2순위 선착순 → 3순위 직전 경기(${prevAny ? fmtDate(prevAny) : '없음'}) 신청 마감 후 취소자. 같은 순위 안에서는 신청 순서대로예요.</p>`;
@@ -1674,7 +1657,7 @@ async function shareBlob(b, name, download) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 1000); toast('이미지를 저장했어요.');
 }
 function schedPanel() {
-  const ms = monthsWithSessions(); const ym = S.schedYm || defaultMonth(); const img = S.schedImg?.[ym]; if (!img) queueMicrotask(refreshSchedule); const cf = schedCfg();
+  const ms = monthsWithSessions(); const ym = S.schedYm || defaultMonth(); const img = S.schedImg?.[ym]; if (!img && !S.schedBusy) { S.schedBusy = 1; queueMicrotask(() => refreshSchedule().catch(e => console.error(e)).finally(() => { S.schedBusy = 0 })) } const cf = schedCfg();
   const ss = Object.keys(S.sessions).filter(id => id.startsWith(ym)); const noNo = ss.filter(id => !S.sessions[id].no).length;
   return `<h2>월별 일정표<small>한 달 일정을 한 장으로</small></h2><div class="dgrid"><section>
     <img class="poster schedimg" alt="${ym} 월별 일정표 미리보기" src="${img || ''}" width="1080" height="1515">
@@ -1760,7 +1743,7 @@ async function importRecord(f) {
   }, `${fmtDate(sid)} 경기 기록을 넣었어요.`);
 }
 function importSheet() {
-  const f = S.imp || (S.imp = { date: '2026-09-29', time: '21:00', venue: '용산 7구장', capacity: 18, text: importTemplate() });
+  const f = S.imp || (S.imp = { date: Object.keys(S.sessions).filter(id => id <= today() && !sessMatches(id).length).sort().pop() || today(), time: '21:00', venue: '용산 7구장', capacity: 18, text: importTemplate() });
   return `<h4>경기 기록 붙여넣기</h4><p>정리해 둔 지난 경기 기록을 붙여넣으면 경기 기록으로 저장돼요. [팀] 칸은 "색 이름: 선수들" 형식이고, 맨 앞 이름이 주장이에요. 경기결과는 "흰 0 0 검"처럼 한 줄에 한 경기예요. 득점자는 비워 두고, 나중에 경기진행 → 경기에서 채울 수 있어요.</p>
   <div class="panel"><div class="field grid2c"><label>날짜<input class="inp" type="date" value="${esc(f.date)}" data-in="impf" data-f="date"></label><label>시간<input class="inp" type="time" value="${esc(f.time)}" data-in="impf" data-f="time"></label></div>
   <div class="field grid2c"><label>장소<input class="inp" type="text" value="${esc(f.venue)}" list="venue-list" data-in="impf" data-f="venue"></label><label>정원<input class="inp" type="number" value="${f.capacity}" data-in="impf" data-f="capacity"></label></div>
@@ -1794,7 +1777,7 @@ function loginScreen() {
     <p class="note">처음이면 지금 입력한 비밀번호로 바로 등록돼요. 비밀번호를 잊었다면 운영진에게 초기화를 요청하세요.</p>
     <button class="linkbtn" data-act="opmode">운영진이신가요? 운영모드로 들어가기 ›</button></div></div>`;
 }
-function logout() { S.auth = null; saveAuth(null); S.me = ''; save('me', ''); toast('로그아웃했어요.'); render() }
+function logout() { const pt = load('pushToken', null); if (pt) { S.store?.del('pushTokens/' + pt).catch(() => { }); save('pushToken', null) } S.auth = null; /* 이 기기의 알림 연결만 끊어요(다른 기기 설정은 그대로) */ saveAuth(null); S.me = ''; save('me', ''); toast('로그아웃했어요.'); render() }
 async function verifyAuth() { if (!S.auth) return; try { const a = await S.store.get('auth/' + S.auth.pid); if (!a || a.h !== S.auth.h || !S.players[S.auth.pid]) { S.auth = null; saveAuth(null); toast('다시 로그인해 주세요.'); render() } else { S.me = S.players[S.auth.pid].name; render() } } catch { } }
 function myCar() { const pid = myPid(); return (pid && S.contacts?.[pid]?.car) || load('car', '') || '' }
 async function adminPinOk(pin) { const h = S.meta?.admin?.h; if (h) return (await sha('wd-admin:' + pin)) === h; return pin === String(CFG.adminPin ?? '0000') }
@@ -1937,10 +1920,10 @@ function mmSid() {
 function pairsOf(s) { return (s.mm?.pairs || []).map(p => Array.isArray(p) ? p : String(p).split('')) }
 function mmReady(s) { return !!s.mm?.pairs && sessMatches(s.date).length === 9 }
 const CTL_STALE = 60000;
-function mmCtl(s) { const c = s?.mmCtl; const me = myUid(); if (!c || !c.uid) return { free: true }; return { mine: c.uid === me, stale: Date.now() - (c.beat || 0) > CTL_STALE, name: c.name || '회원' } }
+function mmCtl(s) { const c = s?.mmCtl; const me = myUid(); if (!c || !c.uid) return { free: true }; return { mine: c.uid === me, stale: nowS() - (c.beat || 0) > CTL_STALE, name: c.name || '회원' } }
 function mmIsCtl() { const s = S.sessions[S.mmSid]; return !!(s && mmCtl(s).mine) }
 async function mmTake(sid, force) { const me = myUid(); let ok = false;
-  await w(() => S.store.txn(sp(sid), d => { if (!d) return null; const c = d.mmCtl; if (c && c.uid && c.uid !== me && Date.now() - (c.beat || 0) <= CTL_STALE && !force) return null; d.mmCtl = { uid: me, pid: myPid() || null, name: S.me || '회원', at: Date.now(), beat: Date.now() }; ok = true; return d }));
+  await w(() => S.store.txn(sp(sid), d => { if (!d) return null; const c = d.mmCtl; if (c && c.uid && c.uid !== me && nowS() - (c.beat || 0) <= CTL_STALE && !force) return null; d.mmCtl = { uid: me, pid: myPid() || null, name: S.me || '회원', at: nowS(), beat: nowS() }; ok = true; return d }));
   if (ok) S.mmBeat = Date.now(); return ok }
 async function mmRelease(sid) { const me = myUid(); await w(() => S.store.txn(sp(sid), d => { if (!d || d.mmCtl?.uid !== me) return null; d.mmCtl = null; return d }), '진행을 내려놓았어요. 다른 사람이 진행할 수 있어요.') }
 function mmCtlBar(s) { const c = mmCtl(s);
@@ -1995,8 +1978,6 @@ function mmTimeView(s) {
     <button class="btn primary block mm-go cta" data-act="mmtimesave">설정 완료</button><button class="btn block mm-back" data-act="mmstage" data-v="pair">← 이전 화면</button></div>`;
 }
 /* ── 경기모드 전체화면 점수판 (가로 화면 지원) ── */
-const FS_CSS = '.fsbtn{margin-left:8px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--accent);font:inherit;font-size:12.5px;font-weight:800;cursor:pointer;vertical-align:1px}\n.mmfs{position:fixed;inset:0;z-index:1500;display:flex;flex-direction:column;background:#040b26;color:#fff;padding:max(6px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));-webkit-user-select:none;user-select:none;overflow:hidden}\n.fs-top{flex:none;display:flex;align-items:center;gap:10px;font-weight:700;font-size:clamp(12px,calc(2.6*var(--fvh,1vh)),17px);opacity:.9}\n.fs-top>span:first-child{flex:1;min-width:0;opacity:.75}\n.fs-ph{font-weight:800;padding:3px 12px;border-radius:999px;background:rgba(255,255,255,.12);white-space:nowrap}\n.fs-x{width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;font-size:18px;cursor:pointer;flex:none}\n.fs-main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;grid-template-areas:"cl cl cl" "h mid a";gap:clamp(6px,calc(1.2*var(--fvh,1vh)),12px) clamp(8px,calc(1.5*var(--fvw,1vw)),16px)}\n.fs-cl{grid-area:cl;display:flex;align-items:center;justify-content:center;min-height:0;overflow:hidden}\n.fs-clock{font-family:var(--latin);font-weight:400;line-height:.86;letter-spacing:.01em;font-variant-numeric:tabular-nums;color:#fff;white-space:nowrap;font-size:min(calc(40*var(--fvw,1vw)),calc(66*var(--fvh,1vh)))}\n.fs-clock.gk{color:#FFCF1F}.fs-clock.over{color:#FF6B5E}\n.fs-h{grid-area:h}.fs-a{grid-area:a}.fs-mid{grid-area:mid;display:flex;align-items:center;justify-content:center}\n.fs-team{display:flex;align-items:center;justify-content:space-between;gap:10px;border-radius:18px;background:var(--tc);color:var(--ti);padding:clamp(6px,calc(1.4*var(--fvh,1vh)),12px) clamp(10px,calc(1.6*var(--fvw,1vw)),18px);min-width:0;box-shadow:inset 0 0 0 2px rgba(255,255,255,.18)}\n.fs-tx{display:flex;align-items:baseline;gap:clamp(8px,calc(1.5*var(--fvw,1vw)),16px);min-width:0}\n.fs-nm{font-family:var(--latin);font-weight:400;letter-spacing:1.5px;font-size:clamp(16px,calc(4.2*var(--fvh,1vh)),30px);line-height:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n.fs-sc{font-style:normal;font-family:var(--latin);font-weight:400;line-height:.9;font-size:clamp(34px,calc(13*var(--fvh,1vh)),96px)}\n.fs-gb{display:flex;gap:6px;flex:none}\n.fs-g,.fs-ug{min-height:clamp(38px,calc(9*var(--fvh,1vh)),58px);border-radius:14px;border:0;font:inherit;font-weight:900;cursor:pointer}\n.fs-g{padding:0 clamp(12px,calc(2*var(--fvw,1vw)),22px);background:rgba(255,255,255,.92);color:#0b1640;font-size:clamp(14px,calc(3*var(--fvh,1vh)),20px)}\n.fs-ug{width:clamp(36px,calc(8*var(--fvh,1vh)),52px);background:rgba(0,0,0,.25);color:inherit;font-size:clamp(16px,calc(3*var(--fvh,1vh)),22px)}.fs-ug:disabled{opacity:.35}\n.fs-ctl{display:flex;gap:8px}.fs-b{min-height:clamp(38px,calc(9*var(--fvh,1vh)),58px);padding:0 clamp(12px,calc(1.8*var(--fvw,1vw)),20px);border-radius:14px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#fff;font:inherit;font-weight:900;font-size:clamp(14px,calc(3*var(--fvh,1vh)),20px);cursor:pointer;white-space:nowrap}.fs-b.go{background:#FFCF1F;border-color:#FFCF1F;color:#1A1400}\n@media (orientation:portrait){.fs-main{grid-template-columns:1fr 1fr;grid-template-rows:minmax(0,1fr) auto auto;grid-template-areas:"cl cl" "mid mid" "h a"}.fs-clock{font-size:min(calc(36*var(--fvw,1vw)),calc(40*var(--fvh,1vh)))}.fs-team{flex-direction:column;align-items:stretch;padding:12px}.fs-tx{flex-direction:column;align-items:center;gap:2px}.fs-sc{font-size:clamp(48px,calc(14*var(--fvh,1vh)),120px)}.fs-gb{justify-content:center}.fs-g{flex:1}}\nbody:has(.mmfs){overflow:hidden}';
-function fsStyle() { if (document.getElementById('fs-css')) return; const st = document.createElement('style'); st.id = 'fs-css'; st.textContent = FS_CSS; document.head.appendChild(st) }
 /* 시계 글자 크기를 화면 남는 공간에 꽉 차게 자동 맞춤 (글꼴·화면 방향과 상관없이) */
 function fsScale() { const el = document.querySelector('.mmfs'); if (!el) return; const W = innerWidth, H = innerHeight; const land = W >= H; const rw = land ? 844 : 390, rh = land ? 390 : 844; // 스마트폰 화면 기준 크기
   const k = Math.max(1, Math.min(W / rw, H / rh)); const vw = W / k, vh = H / k;
@@ -2004,22 +1985,20 @@ function fsScale() { const el = document.querySelector('.mmfs'); if (!el) return
 function fsFit() { fsScale(); const box = document.querySelector('.fs-cl'), el = box?.querySelector('.fs-clock'); if (!box || !el) return; const bw = box.clientWidth, bh = box.clientHeight; if (!bw || !bh) return;
   el.style.fontSize = '100px'; const w = el.scrollWidth || 1, h = el.offsetHeight || 1; const k = Math.min(bw * 0.97 / w, bh * 0.98 / h); el.style.fontSize = Math.max(40, Math.floor(100 * k)) + 'px' }
 addEventListener('resize', () => requestAnimationFrame(fsFit)); addEventListener('orientationchange', () => setTimeout(fsFit, 250)); document.fonts?.ready?.then(() => fsFit());
-async function fsEnter() { fsStyle(); S.fs = true; render(); try { const el = document.documentElement; if (!document.fullscreenElement && el.requestFullscreen) await el.requestFullscreen({ navigationUI: 'hide' }) } catch { } try { await screen.orientation?.lock?.('landscape') } catch { } }
+async function fsEnter() { S.fs = true; render(); try { const el = document.documentElement; if (!document.fullscreenElement && el.requestFullscreen) await el.requestFullscreen({ navigationUI: 'hide' }) } catch { } try { await screen.orientation?.lock?.('landscape') } catch { } }
 async function fsExit() { S.fs = false; try { screen.orientation?.unlock?.() } catch { } try { if (document.fullscreenElement) await document.exitFullscreen() } catch { } render() }
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && S.fs) { S.fs = false; try { screen.orientation?.unlock?.() } catch { } render() } });
 function fsBoard({ H, A, hs, as, clockAttr, phaseAttr, time, label, phase, ctl, goals, goal, ungoal, ctlBtns, title }) {
   const side = (T, sc, k) => `<div class="fs-team fs-${k}" style="--tc:${T.color};--ti:${inkOn(T.color)}"><div class="fs-tx"><b class="fs-nm">${esc(T.name)}</b><em class="fs-sc">${sc}</em></div>${goals ? `<div class="fs-gb"><button class="fs-g" ${goal(k)}>+ 골</button><button class="fs-ug" ${ungoal(k)} ${sc ? '' : 'disabled'} aria-label="${esc(T.name)} 골 취소">−</button></div>` : ''}</div>`;
-  fsStyle();
   return `<div class="mmfs" role="dialog" aria-label="전체화면 점수판"><div class="fs-top"><span>${title}</span><span class="fs-ph" ${phaseAttr}>${label}</span><button class="fs-x" data-act="fsoff" aria-label="전체화면 닫기">✕</button></div>
     <div class="fs-main"><div class="fs-cl"><div class="fs-clock mm-clock ${phase}" ${clockAttr}>${time}</div></div>${side(H, hs, 'h')}<div class="fs-mid">${ctl && ctlBtns ? `<div class="fs-ctl">${ctlBtns}</div>` : ''}</div>${side(A, as, 'a')}</div></div>` }
 function fsSched(s, ctl) { const ms = sessMatches(s.date); const curM = ms.find(x => x.status === 'live') || ms.find(x => x.status === 'pending') || ms[ms.length - 1]; if (!curM) return ''; const m = (ctl && S.mmSel && ms.find(x => x.id === S.mmSel)) || curM;
   const H = team(s, m.home), A = team(s, m.away); const [hs, as] = score(m); const ci = clockInfo(m); const run = !!m.timer?.running; const key = k => k === 'h' ? m.home : m.away;
   const ctlBtns = m.status === 'pending' ? `<button class="fs-b go" data-act="mmstart" data-id="${m.id}">▶ 시작</button>` : m.status === 'live' ? `${run ? `<button class="fs-b" data-act="mmpause" data-id="${m.id}">일시정지</button>` : `<button class="fs-b go" data-act="mmresume" data-id="${m.id}">▶ 재개</button>`}<button class="fs-b" data-act="mmend" data-id="${m.id}">종료</button>` : '';
-  return fsBoard({ H, A, hs, as, clockAttr: `data-bigclock="${m.id}"`, phaseAttr: `data-phase="${m.id}"`, time: ci.time, label: ci.label, phase: ci.phase, ctl, goals: ctl && m.status !== 'pending', goal: k => `data-act="mmgoal" data-id="${m.id}" data-k="${key(k)}"`, ungoal: k => `data-act="mmungoal" data-id="${m.id}" data-k="${key(k)}"`, ctlBtns, title: `${m.round}라운드 · ${m.n}경기 / 9` }) }
+  return fsBoard({ H, A, hs, as, clockAttr: `data-bigclock="${m.id}"`, phaseAttr: `data-phase="${m.id}"`, time: ci.time, label: ci.label, phase: ci.phase, ctl, goals: ctl && (m.status === 'live' || (m.status === 'done' && S.mmSel === m.id)), goal: k => `data-act="mmgoal" data-id="${m.id}" data-k="${key(k)}"`, ungoal: k => `data-act="mmungoal" data-id="${m.id}" data-k="${key(k)}"`, ctlBtns, title: `${m.round}라운드 · ${m.n}경기 / 9` }) }
 function mmPlayView(s, ctl) {
   const ms = sessMatches(s.date); const curM = ms.find(x => x.status === 'live') || ms.find(x => x.status === 'pending') || ms[ms.length - 1]; const m = (ctl && S.mmSel && ms.find(x => x.id === S.mmSel)) || curM; const editing = m.status === 'done' && m.id !== curM.id || (m.status === 'done' && S.mmSel === m.id);
   const H = team(s, m.home), A = team(s, m.away); const [hs, as] = score(m); const ci = clockInfo(m); const run = !!m.timer?.running; const T = timing(s);
-  const evs = Object.entries(S.events).filter(([, e]) => e.match === m.id).sort((a, b) => a[1].at - b[1].at);
   const allDone = ms.every(x => x.status === 'done');
   let h = `<div class="mm-play">${editing ? `<div class="mm-edit">✏️ <b>${m.n}경기(종료) 점수 수정 중</b><button class="btn sm" data-act="mmsel" data-id="">현재 경기로 ›</button></div>` : ''}<div class="mm-meta"><span>${m.round}라운드 · ${m.n}경기 <small>/ 9</small> <button class="fsbtn" data-act="fson">⛶ 크게 보기</button></span>${ctl ? `<button class="linkbtn" data-act="mmstage" data-v="time">⏱ 시간 ${T.h1 / 60}+${T.gk}″+${T.h2 / 60}</button>` : `<span class="muted">⏱ ${T.h1 / 60}+${T.gk}″+${T.h2 / 60}</span>`}</div>
     <div class="mm-board"><div class="mm-team" style="--tc:${H.color};--ti:${inkOn(H.color)}"><b>${esc(H.name)}</b><em>${hs}</em>${ctl && (m.status === 'live' || editing) ? `<button class="mm-goal" data-act="mmgoal" data-id="${m.id}" data-k="${m.home}">+ 골</button><button class="mm-ungoal" data-act="mmungoal" data-id="${m.id}" data-k="${m.home}" ${hs ? '' : 'disabled'}>− 골 취소</button>` : ''}</div>
@@ -2045,6 +2024,7 @@ async function mmSavePairs() {
 }
 function beepAt(t, freq, dur) { const ctx = AC; const nodes = []; const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = freq; const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.9, t + .01); g.gain.setValueAtTime(.9, t + dur - .03); g.gain.linearRampToValueAtTime(0, t + dur); o.connect(g); g.connect(MASTER); o.start(t); o.stop(t + dur + .02); nodes.push(o); return nodes }
 function mmCountdown(m) {
+  if (S.cdBusy && Date.now() - S.cdBusy < 5000) return; S.cdBusy = Date.now(); setTimeout(() => { S.cdBusy = 0 }, 3700);
   const ctx = audio(); keepAwake(true); if (ctx && ctx.state === 'suspended') ctx.resume();
   if (ctx && S.whistle) { const t0 = ctx.currentTime + .05; beepAt(t0, 1320, .18); beepAt(t0 + 1, 1320, .18); beepAt(t0 + 2, 1320, .18); let t = t0 + 3; blowN(t, .9) } let n = 3; const ov = document.createElement('div'); ov.className = 'mm-cd'; document.body.appendChild(ov);
   const step = () => { if (n > 0) { ov.innerHTML = `<b>${n}</b>`; try { navigator.vibrate?.(80) } catch { } n--; setTimeout(step, 1000) } else { ov.innerHTML = '<b class="go">START</b>'; setTimeout(() => ov.remove(), 600); S.startBlown[m.id] = Date.now(); if (!ctx || !S.whistle) whistle([.9]); startClock(m) } };
@@ -2072,7 +2052,7 @@ function blowN(t, d) { const ctx = AC; const nodes = []; const o1 = ctx.createOs
 function scheduleWhistles() {
   const sid = S.mmSid || S.sid; if (!sid || !S.sessions[sid]) return; let anyRun = false;
   const canBlow = mmIsCtl() || (S.admin && !!S.openMatch);
-  for (const m of sessMatches(sid)) { const run = canBlow && m.status === 'live' && m.timer?.running; const sig = run ? m.timer.startedAt + ':' + (m.timer.acc || 0) : '';
+  for (const m of sessMatches(sid)) { const run = canBlow && m.status === 'live' && m.timer?.running; const sig = run ? m.timer.startedAt + ':' + (m.timer.acc || 0) + ':' + (S.whistle ? 1 : 0) : '';
     if (run) anyRun = true; if ((S.schedSig[m.id] || '') === sig) continue;
     (SCHED[m.id] || []).forEach(n => { try { n.stop() } catch { } }); SCHED[m.id] = []; S.schedSig[m.id] = sig;
     if (CAP()?.LocalNotifications) { nativeSchedule(m, timing(S.sessions[sid]), run); continue }
@@ -2111,7 +2091,7 @@ function manSchedule(m) { MANSCHED.forEach(n => { try { n.stop() } catch { } });
 setInterval(() => { if (S.tab !== 'mm' || !S.mmManual || !S.man) return; const m = S.man.matches.find(x => x.id === S.manCur); if (!m) return; const ci = manClock(m);
   document.querySelectorAll('[data-manclock]').forEach(el => { el.textContent = ci.time; el.className = (el.classList.contains('fs-clock') ? 'fs-clock ' : '') + 'mm-clock ' + ci.phase }); document.querySelectorAll('[data-manph]').forEach(lb => lb.textContent = ci.label) }, 250);
 function viewManual() {
-  const M = manLoad();
+  const M = manLoad(); { const lm = M?.matches?.find(x => x.status === 'live' && x.timer?.running); if (lm && S.whistle && !MANSCHED.length) queueMicrotask(() => manSchedule(lm)) }
   if (!M) { const f = S.manF || (S.manF = { n: 3, cols: ['RED', 'BLUE', 'WHITE', 'BLACK'], games: 9, h1: 6, gk: 3, h2: 6 });
     const st = (k, lab, unit, step) => `<div class="mm-st"><span>${lab}</span><div class="stp"><button data-act="manadj" data-k="${k}" data-d="-${step}" aria-label="${lab} 줄이기">−</button><b>${f[k]}<small>${unit}</small></b><button data-act="manadj" data-k="${k}" data-d="${step}" aria-label="${lab} 늘리기">+</button></div></div>`;
     return `<div class="mm-card"><h3>✏️ 직접 설정</h3><p class="mm-note">일정에 없는 경기도 팀, 경기 수, 시간을 정해서 바로 진행하고 결과까지 정리해요. 이 기기에만 저장돼요.</p>
@@ -2145,7 +2125,7 @@ async function manAct(act, el) { const M = S.man; const id = el.dataset.id;
     case 'manstart': { const f = S.manF; const cols = f.cols.slice(0, f.n); if (new Set(cols).size < cols.length) { toast('팀 색이 겹쳐요. 서로 다른 색을 골라 주세요.'); return }
       const teams = cols.map((c, i) => { const p = PALETTE.find(x => x.name === c); return { k: 'ABCD'[i], name: c, color: p.color } }); const pairs = manPairs(f.n);
       S.man = { teams, timing: { h1: Math.round(f.h1 * 60), gk: +f.gk, h2: Math.round(f.h2 * 60) }, matches: Array.from({ length: f.games }, (_, i) => ({ id: 'm' + (i + 1), n: i + 1, home: pairs[i % pairs.length][0], away: pairs[i % pairs.length][1], status: 'pending', timer: { running: false, acc: 0, startedAt: 0 }, g: {} })), createdAt: Date.now() }; S.manSel = null; S.manSummary = false; break }
-    case 'mango': { const m = cur(); if (!m) return; audio(); keepAwake(true); const ctx = audio(); if (ctx && S.whistle) { const t0 = ctx.currentTime + .05; beepAt(t0, 1320, .18); beepAt(t0 + 1, 1320, .18); beepAt(t0 + 2, 1320, .18); blowN(t0 + 3, .9) }
+    case 'mango': { const m = cur(); if (!m) return; if (S.cdBusy && Date.now() - S.cdBusy < 5000) return; S.cdBusy = Date.now(); setTimeout(() => { S.cdBusy = 0 }, 3700); keepAwake(true); const ctx = audio(); if (ctx && S.whistle) { const t0 = ctx.currentTime + .05; beepAt(t0, 1320, .18); beepAt(t0 + 1, 1320, .18); beepAt(t0 + 2, 1320, .18); blowN(t0 + 3, .9) }
       const ov = document.createElement('div'); ov.className = 'mm-cd'; document.body.appendChild(ov); for (const n of [3, 2, 1]) { ov.innerHTML = `<b>${n}</b>`; try { navigator.vibrate?.(80) } catch { } await new Promise(r => setTimeout(r, 1000)) }
       ov.innerHTML = '<b class="go">START</b>'; setTimeout(() => ov.remove(), 600); m.status = 'live'; m.timer = { running: true, acc: 0, startedAt: Date.now() }; manSave(); manSchedule(m); render(); return }
     case 'manpause': { const m = cur(); m.timer = { running: false, acc: manElapsed(m) * 1000, startedAt: 0 }; manSchedule(null); break }
@@ -2166,7 +2146,8 @@ async function manAct(act, el) { const M = S.man; const id = el.dataset.id;
 /* ───────── members (admin) ───────── */
 const MSTAT = { active: '정회원', guest: '게스트', dormant: '휴면' };
 function mstatus(p) { return p.status || (p.guest ? 'guest' : 'active') }
-function watchContacts() { if (!S.admin || S.unsubContacts || !S.store) return; S.store.watchCol('auth', docs => { const o = {}; docs.forEach(d => o[d.id] = true); S.authMap = o; render() }); S.unsubContacts = S.store.watchCol('contacts', docs => { const o = {}; docs.forEach(d => { const { id, ...r } = d; o[id] = r }); S.contacts = o; render() }) }
+function stopAdminWatch() { for (const k of ['unsubAuth', 'unsubContacts', 'unRules']) { try { S[k]?.() } catch { } S[k] = null } }
+function watchContacts() { if (!S.admin || S.unsubContacts || !S.store) return; S.unsubAuth = S.store.watchCol('auth', docs => { const o = {}; docs.forEach(d => o[d.id] = true); S.authMap = o; render() }); S.unsubContacts = S.store.watchCol('contacts', docs => { const o = {}; docs.forEach(d => { const { id, ...r } = d; o[id] = r }); S.contacts = o; render() }) }
 function memberRows() {
   const st = {}; for (const r of playerStats()) st[r.id] = r;
   const last = {}; for (const [sid, s] of Object.entries(S.sessions)) { if (!sessMatches(sid).some(m => m.status === 'done')) continue; for (const k of KEYS) for (const id of teamPlayers(s, k)) if (!last[id] || last[id] < sid) last[id] = sid }
@@ -2243,8 +2224,8 @@ async function sendChat() {
   const inp = document.getElementById('chatin'); if (!inp || S.sending) return; const text = inp.value.trim(); if (!text) return;
   const mk = myTeam(cur()); let name = mk ? pname(cur().captains[mk]) : S.admin ? (S.me || '운영진') : S.me;
   if (!name) { const n = prompt('채팅에 표시할 이름을 입력하세요'); if (!n || !n.trim()) return; S.me = n.trim().slice(0, 12); save('me', S.me); name = S.me }
-  S.sending = true; inp.value = '';
-  try { await w(() => S.store.add(sp(S.sid) + '/chat', { name, uid: myUid(), team: mk || null, admin: !mk && S.admin, text: text.slice(0, 300), at: Date.now() })) } finally { S.sending = false }
+  S.sending = true; inp.value = ''; let sent = false;
+  try { sent = await w(() => S.store.add(sp(S.sid) + '/chat', { name, uid: myUid(), team: mk || null, admin: !mk && S.admin, text: text.slice(0, 300), at: Date.now() })) } finally { S.sending = false; if (!sent) { const i2 = document.getElementById('chatin'); if (i2 && !i2.value) i2.value = text } }
   document.getElementById('chatin')?.focus();
 }
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'ap-pin') { e.preventDefault(); document.querySelector('[data-act=adminpinok]')?.click(); return } if (e.key === 'Enter' && e.target.dataset?.act === 'gohome') { e.target.click(); return } if (e.key === 'Enter' && (e.target.id === 'lg-pin' || e.target.id === 'lg-name')) { e.preventDefault(); document.querySelector('[data-act=login]')?.click(); return } if (e.target.id !== 'chatin' || e.key !== 'Enter' || e.shiftKey) return; e.preventDefault();
@@ -2276,8 +2257,6 @@ document.addEventListener('input', e => { const el = e.target; const k = el.data
   if (k === 'impf' && S.imp) { S.imp[el.dataset.f] = el.value; return }
   if (k === 'schedf' && S.admin) { const f = el.dataset.f; S.meta = S.meta || {}; S.meta.sched = { ...schedCfg(), [f]: el.value }; clearTimeout(S.schedT); S.schedT = setTimeout(async () => { await w(() => S.store.set('meta/sched', S.meta.sched)); S.schedImg = {}; refreshSchedule() }, 700); return }
   if (k === 'mq') { S.mq = el.value; clearTimeout(S.mqT); S.mqT = setTimeout(() => { const pos = el.selectionStart; S.pending = false; const a = document.activeElement; a && a.blur(); render(); const n = document.getElementById('mq'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos) } catch { } } }, 250); return }
-  if (k === 'pasteApply') S.pasteApply = el.value;
-  if (k === 'me') { S.me = el.value.trim(); save('me', S.me) }
   if (k === 'sfield' && S.admin) { const f = el.dataset.f; clearTimeout(saveT[f]); saveT[f] = setTimeout(async () => { await w(() => S.store.update(sp(S.sid), { [f]: el.value })); if (f === 'evpw' || f === 'notice') refreshPoster() }, 600) } });
 document.addEventListener('change', e => { const el = e.target;
   if (el.dataset?.in === 'pairsel') { const m = M(el.dataset.id); if (!m) return; const D = (S.pairDraft ??= {}); const cur0 = D[m.id] || [m.home, m.away]; const nx = [...cur0]; const i = el.dataset.side === 'h' ? 0 : 1; nx[i] = el.value; if (nx[0] === nx[1]) nx[1 - i] = cur0[i]; D[m.id] = nx; render(); return }
@@ -2311,15 +2290,13 @@ document.addEventListener('change', e => { const el = e.target;
   if (el.dataset.in === 'msel') { (S.msel ??= {})[el.dataset.id] = el.checked; render(); return }
   if (el.dataset.in === 'mselall') { S.msel = {}; if (el.checked) document.querySelectorAll('[data-in=msel]').forEach(x => S.msel[x.dataset.id] = true); render(); return }
   if (el.dataset.in === 'staff' && S.admin) { w(() => S.store.update('players/' + el.dataset.id, { staff: el.checked }), el.checked ? '운영진(0순위)으로 표시했어요.' : '운영진 표시를 해제했어요.'); return }
-  if (el.dataset.in === 'msort') { S.msort = el.value; render(); return }
   if (el.dataset.in === 'mcell' && S.admin) { const id = el.dataset.id, f = el.dataset.f, v = el.value.trim();
     if (f === 'name') { if (!v) { render(); return } if (v !== S.players[id]?.name) { if (findPlayer(v)) { toast('같은 이름의 회원이 이미 있어요.'); render(); return } w(() => S.store.update('players/' + id, { name: v.slice(0, 20) }), '저장했어요.') } return }
     if (f === 'status') { w(() => S.store.update('players/' + id, { status: v, guest: v === 'guest' }), '저장했어요.'); return }
     const c = S.contacts?.[id] || {}; if ((c[f] || '') !== v) w(() => S.store.set('contacts/' + id, { ...c, [f]: v }), '저장했어요.'); return }
-  if (el.dataset.in === 'cell' && S.admin) { const f = el.dataset.f, sid = el.dataset.sid; const v = f === 'capacity' || f === 'no' ? (+el.value || 0) : el.value; if (S.sessions[sid]?.[f] !== v) w(() => S.store.update(sp(sid), { [f]: v }), '저장했어요.'); return } if (el.dataset.in === 'sfield2' && S.admin) { const f = el.dataset.f; w(() => S.store.update(sp(S.sid), { [f]: f === 'capacity' ? (+el.value || 0) : el.value })); return } if (el.dataset.in === 'sidpick') { S.sid = el.value; S.openMatch = null; render(); return } if (el.dataset.in === 'sfield' && el.type === 'time' && S.admin) w(() => S.store.update(sp(S.sid), { time: el.value })) });
+  if (el.dataset.in === 'cell' && S.admin) { const f = el.dataset.f, sid = el.dataset.sid; const v = f === 'capacity' || f === 'no' ? (+el.value || 0) : el.value; if (S.sessions[sid]?.[f] !== v) w(() => S.store.update(sp(sid), { [f]: v }), '저장했어요.'); return } if (el.dataset.in === 'sidpick') { S.sid = el.value; S.openMatch = null; render(); return } if (el.dataset.in === 'sfield' && el.type === 'time' && S.admin) w(() => S.store.update(sp(S.sid), { time: el.value })) });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'addone') { e.preventDefault(); document.querySelector('[data-act="addone"]').click() } if (e.key === 'Escape') { if (S.sheet) { S.sheet = null; render() } else if (S.openMatch) { S.openMatch = null; render() } } });
 document.addEventListener('submit', async e => { e.preventDefault(); const f = e.target;
-  if (f.dataset.form === 'newsession') { const d = Object.fromEntries(new FormData(f)); await createSession(d) }
   if (f.dataset.form === 'chat') await sendChat(); });
 
 document.addEventListener('click', async e => {
@@ -2331,18 +2308,10 @@ document.addEventListener('click', async e => {
   switch (act) {
     case 'tab': if (S.fs) fsExit(); S.tab = el.dataset.v; if (S.admin && S.tab === 'run') { const r = runSid(); if (r) { S.sid = r; S.step = null; watchChat() } } S.openMatch = null; S.sheet = null; S.sel = null; S.sub = null; S.detail = null; render(); window.scrollTo(0, 0); break;
     case 'home': S.sid = null; S.step = null; watchChat(); render(); break;
-    case 'opensession': S.sid = id; S.step = null; S.sel = null; watchChat(); render(); window.scrollTo(0, 0); break;
-    case 'newsession': if (!needAdmin()) break; S.sheet = { type: 'newsession' }; render(); break;
-    case 'step': S.step = el.dataset.v; S.sel = null; render(); window.scrollTo(0, 0); break;
     case 'gostage': if (!needAdmin() && el.dataset.v !== 'trade') break; if (el.dataset.v === 'captain' && !(await freezeApps(s))) break; await setStage(el.dataset.v); break;
     case 'addone': { const inp = document.getElementById('addone'); const v = inp.value.trim(); if (!v) break; inp.value = ''; inp.blur(); document.activeElement?.blur?.(); await addApplicants(v.split(/[,，\n]+/).map(x => x.trim()).filter(Boolean)); break }
-    case 'rmapply': if (!needAdmin()) break; if (s.draftStatus !== 'ready') { toast('드래프트가 시작된 뒤에는 신청자를 뺄 수 없어요.'); break }
-      await clearExtras(S.sid, id); await w(() => S.store.update(sp(S.sid), { applicants: (s.applicants || []).filter(x => x !== id), captains: Object.fromEntries(KEYS.map(k => [k, s.captains?.[k] === id ? null : (s.captains?.[k] || null)])) })); break;
     case 'capslot': S.sheet = { type: 'capslot', k: el.dataset.k }; render(); break;
     case 'pickcap': { const k = S.sheet.k; S.sheet = null; render(); await w(() => S.store.update(sp(S.sid), { [`captains.${k}`]: id || null, [`captainTokens.${k}`]: id ? rand() : null })); break }
-    case 'ord': { const o = [...(s.order || KEYS)]; const i = +el.dataset.i, j = i + (+el.dataset.d); [o[i], o[j]] = [o[j], o[i]]; await w(() => S.store.update(sp(S.sid), { order: o })); break }
-    case 'lottery': { const o = [...KEYS]; for (let i = 2; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [o[i], o[j]] = [o[j], o[i]] }
-      if (await w(() => S.store.update(sp(S.sid), { order: o }), '순번을 추첨했어요.')) sysChat(`순번 추첨 결과: ${o.map((k, i) => `${i + 1}번 ${team(s, k).name}`).join(', ')}`); break }
     case 'pick': { const s0 = cur(); if (s0?.pending?.p === id) { await w(() => S.store.update(sp(S.sid), { pending: null })); break } await setPending(id); break }
     case 'unpick': { const s0 = cur(); const k = myTeam(s0); const sid0 = S.sid;
       if (s0.pending?.p === id && (S.admin || s0.pending.t === k)) { await w(() => S.store.update(sp(sid0), { pending: null }), '선택을 취소했어요.'); break }
@@ -2426,8 +2395,8 @@ document.addEventListener('click', async e => {
     case 'mmtimesave': { const f = S.mmT; const s = S.sessions[S.mmSid]; if (await w(() => S.store.update(sp(s.date), { timing: { ...timing(s), h1: Math.round(f.h1 * 60), gk: +f.gk, h2: Math.round(f.h2 * 60) }, 'mm.timed': true }), '경기 시간을 저장했어요.')) { S.mmStage = null; S.mmT = null; render() } break }
     case 'mmstart': { const m = M(id); if (!m) break; if (sessMatches(m.session).some(x => x.status === 'live' && x.id !== id)) { toast('진행 중인 다른 경기를 먼저 끝내 주세요.'); break } mmCountdown(m); break }
     case 'mmpause': { const m = M(id); await w(() => S.store.update(mp(id), { timer: { running: false, acc: elapsed(m), startedAt: 0 } })); break }
-    case 'mmresume': { const m = M(id); audio(); await w(() => S.store.update(mp(id), { timer: { running: true, acc: m.timer?.acc || 0, startedAt: Date.now() } })); break }
-    case 'mmend': { const m = M(id); if (clockInfo(m).phase !== 'full' && !confirm('아직 시간이 남았어요. 경기를 종료할까요?')) break; const e = elapsed(m); await w(() => S.store.update(mp(id), { status: 'done', timer: { running: false, acc: e, startedAt: 0 }, endedAt: Date.now() }), `${m.n}경기를 종료했어요.`); break }
+    case 'mmresume': { const m = M(id); audio(); await w(() => S.store.update(mp(id), { timer: { running: true, acc: m.timer?.acc || 0, startedAt: nowS() } })); break }
+    case 'mmend': { const m = M(id); if (clockInfo(m).phase !== 'full' && !confirm('아직 시간이 남았어요. 경기를 종료할까요?')) break; const e = elapsed(m); await w(() => S.store.update(mp(id), { status: 'done', timer: { running: false, acc: e, startedAt: 0 }, endedAt: nowS() }), `${m.n}경기를 종료했어요.`); break }
     case 'mmsidesw': { const m = M(id); if (!m || m.status !== 'pending') break; await w(() => S.store.update(mp(id), { home: m.away, away: m.home }), '진영을 바꿨어요.'); break }
     case 'mmsel': S.mmSel = id || null; render(); break;
     case 'mmungoal': { const s = S.sessions[S.mmSid]; const m = (el.dataset.id && M(el.dataset.id)) || sessMatches(s.date).find(x => x.status === 'live'); if (!m) break; const k = el.dataset.k; const evs = Object.entries(S.events).filter(([, e]) => e.match === m.id && e.team === k).sort((a, b) => b[1].at - a[1].at); if (!evs.length) break;
@@ -2445,7 +2414,6 @@ document.addEventListener('click', async e => {
     case 'planday': S.planSel = id; if (S.sessions[id]) S.sid = id; render(); break;
     case 'planm': { const [yy, mm] = S.planM.split('-').map(Number); const d = new Date(yy, mm - 1 + (+el.dataset.d), 1); S.planM = `${d.getFullYear()}-${p2(d.getMonth() + 1)}`; S.schedYm = S.planM; render(); break }
     case 'caladdon': { if (!needAdmin()) break; const d = new Date(id + 'T00:00'); S.cal = { mode: 'add', y: d.getFullYear(), m: d.getMonth(), sel: [id], f: { time: DEFAULTS.time, venue: DEFAULTS.venue, capacity: DEFAULTS.capacity || 18, openD: DEFAULTS.openDays, openT: DEFAULTS.openTime, closeD: DEFAULTS.closeDays, closeT: DEFAULTS.closeTime, no: nextNoFor(id) } }; S.sheet = { type: 'cal' }; render(); break }
-    case 'runpick': if (!id) break; S.sid = id; S.step = null; S.sel = null; render(); window.scrollTo(0, 0); break;
     case 'fillnos': if (!needAdmin()) break; await fillNos(); break;
     case 'login': { S.tab = S.tab && !ADMIN_TABS.includes(S.tab) ? S.tab : 'mhome'; const pid = await loginFlow(document.getElementById('lg-name')?.value, document.getElementById('lg-pin')?.value, document.getElementById('lg-auto')?.checked); if (pid) { document.activeElement?.blur(); toast(`${pname(pid)} 님, 반가워요!`); render(); window.scrollTo(0, 0) } break }
     case 'logout': if (confirm('로그아웃할까요?')) logout(); break;
@@ -2517,11 +2485,8 @@ document.addEventListener('click', async e => {
     case 'joinroom': await joinRoom(el.dataset.k); break;
     case 'leaveroom': if (confirm('드래프트 채팅방에서 나갈까요?')) await leaveRoom(); break;
     case 'ladder': if (!needAdmin()) break; await runLadder(); break;
-    case 'relader': S.sheet = null; if (!needAdmin() || !confirm('사다리를 다시 탈까요?')) break; await runLadder(); break;
     case 'nextturn': { const s0 = cur(); const k = pickTeamAt(s0, (s0.picks || []).length); if (!(S.admin || (myTeam(s0) === k && s0.room?.[k]?.in))) { toast('내 차례에만 선택 완료를 누를 수 있어요.'); break } await nextTurn(); break }
     case 'resetroom': S.sheet = null; if (!needAdmin() || !confirm('드래프트를 처음(주장 입장)부터 다시 할까요? 지명 내역이 모두 지워져요.')) break; await openRoom(); break;
-    case 'rmwait': if (!needAdmin()) break; await w(() => S.store.update(sp(S.sid), { waitlist: (s.waitlist || []).filter(x => x !== id) })); break;
-    case 'promote': if (!needAdmin() || !(s.waitlist || []).length) break; await w(() => S.store.update(sp(S.sid), { applicants: [...(s.applicants || []), s.waitlist[0]], waitlist: s.waitlist.slice(1) }), '신청자로 올렸어요.'); break;
     case 'closenow': if (!needAdmin() || !confirm('지금 바로 신청을 마감할까요?')) break; await w(() => S.store.update(sp(S.sid), { applyClose: nowLocal() }), '신청을 마감했어요.'); break;
     case 'apply': await doApply(id, false); break;
     case 'applycancel': await doApply(id, true); break;
@@ -2532,7 +2497,7 @@ document.addEventListener('click', async e => {
     case 'mbulk': S.sheet = { type: 'mbulk' }; render(); break;
     case 'mcsv': await exportMembersCSV(); break;
     case 'mdel': { const p = S.players[id]; if (!p || !confirm(`${p.name} 회원을 삭제할까요? 지난 경기 기록에는 "(삭제됨)"으로 남아요. 활동을 멈춘 회원은 삭제 대신 휴면으로 바꾸는 걸 추천해요.`)) break;
-      await w(async () => { await S.store.del('players/' + id); await S.store.del('contacts/' + id) }, '삭제했어요.'); break }
+      await w(async () => { await S.store.del('players/' + id); await S.store.del('contacts/' + id); try { await S.store.del('auth/' + id) } catch { } }, '삭제했어요.'); break }
     case 'maddgo': { const n = document.getElementById('ma-name').value.trim(); if (!n) { toast('이름을 입력하세요.'); break } if (findPlayer(n)) { toast('같은 이름의 회원이 이미 있어요.'); break }
       const ph = document.getElementById('ma-phone').value.trim(), memo = document.getElementById('ma-memo').value.trim(), st = document.getElementById('ma-st').value;
       if (await w(async () => { const nid = await S.store.add('players', { name: n.slice(0, 20), guest: st === 'guest', status: st, createdAt: Date.now() }); if (ph || memo) await S.store.set('contacts/' + nid, { phone: ph, memo }) }, `${n} 회원을 추가했어요.`)) { S.sheet = null; render() } break }
@@ -2555,14 +2520,10 @@ document.addEventListener('click', async e => {
       let all = false;
       const ok = await w(() => S.store.txn(sp(S.sid), d => { if (!d) return null; if (KEYS.some(o => o !== k && d.teams?.[o]?.colorName === c)) return null; d.teams = d.teams || {}; d.teams[k] = { ...(d.teams[k] || {}), colorName: c }; all = KEYS.every(o => d.teams?.[o]?.colorName); return d }));
       if (!ok) { toast('다른 팀이 먼저 고른 색이에요.'); break } S.adminTeam = null; sysChat(`${k}팀(${pname(s.captains?.[k])} 주장)은 이제 ${c}!`); if (all && s.room?.open && !s.ladder) sysChat('팀 색이 모두 정해졌어요. 사다리로 순번을 정해요!'); break }
-    case 'capcode': { const f = findCode(document.getElementById('capcode')?.value); if (!f) { toast('맞는 주장 코드가 없어요. 운영진에게 다시 확인해 주세요.'); break }
-      S.capLinks[f.sid] = { k: f.k, t: S.sessions[f.sid].captainTokens[f.k] }; save('caplinks', S.capLinks); S.sid = f.sid; S.tab = 'draft'; document.activeElement?.blur();
-      toast(`${team(S.sessions[f.sid], f.k).name} 주장 ${pname(S.sessions[f.sid].captains[f.k])}(으)로 참여해요.`); render(); window.scrollTo(0, 0); break }
     case 'sub': S.sub = el.dataset.v || null; S.detail = el.dataset.v === '' && S.tab === 'results' ? null : S.detail; render(); window.scrollTo(0, 0); break;
     case 'applist': S.sub = 'applist'; render(); window.scrollTo(0, 0); break;
     case 'result': S.tab = 'results'; S.detail = id; S.sub = null; render(); window.scrollTo(0, 0); break;
     case 'rank': S.rankKey = el.dataset.k; render(); break;
-    case 'setname': { const v = document.getElementById('nm')?.value.trim(); if (!v) break; S.me = v.slice(0, 12); save('me', S.me); document.activeElement?.blur(); render(); break }
     case 'selswap': if (!needAdmin()) break; if (!S.sel) { S.sel = id; render(); break } if (S.sel === id) { S.sel = null; render(); break }
       { const a = S.sel; S.sel = null; if (KEYS.find(k => teamPlayers(s, k).includes(a)) === KEYS.find(k => teamPlayers(s, k).includes(id))) { S.sel = id; render(); break }
         if (confirm(`${pname(a)} ↔ ${pname(id)} 맞바꿀까요?`)) await swapPlayers(a, id); else render() } break;
@@ -2582,29 +2543,18 @@ document.addEventListener('click', async e => {
     case 'pickog': { const sh = S.sheet; S.sheet = null; render(); await addGoal(M(sh.match), sh.team, null, null, true); break }
     case 'pickassist': { const sh = S.sheet; S.sheet = null; render(); await addGoal(M(sh.match), sh.team, sh.scorer, id || null, false); break }
     case 'delev': if (confirm('이 골 기록을 지울까요?')) await w(() => S.store.del('events/' + id)); break;
-    case 'mom': if (!canMom(s, el.dataset.k)) break; S.sheet = { type: 'mom', k: el.dataset.k }; render(); break;
-    case 'pickmom': { const k = S.sheet.k; S.sheet = null; render(); await w(() => S.store.update(sp(S.sid), { [`mom.${k}`]: id || null })); break }
     case 'tstep': { const k = el.dataset.key, d = +el.dataset.d; const T = { ...timing(s) }; if (k === 'gk') T.gk = Math.min(30, Math.max(0, T.gk + d)); else T[k] = Math.min(45 * 60, Math.max(k === 'rest' ? 0 : 60, T[k] + d * 60)); await w(() => S.store.update(sp(S.sid), { timing: T })); break }
-    case 'delsession': await deleteSessionBy(S.sid); break;
     case 'delmatches': { if (!needAdmin()) break; const ms = sessMatches(S.sid); if (!ms.length) break;
       const evs = Object.entries(S.events).filter(([, e]) => e.session === S.sid); const played = ms.filter(m => m.status !== 'pending').length;
       if (!confirm(`${fmtDate(S.sid)} 경기 대진 ${ms.length}경기를 삭제할까요?${evs.length || played ? `\n진행된 경기 ${played}개와 골 기록 ${evs.length}건도 함께 지워져요.` : ''}\n신청자와 팀 구성은 그대로 남아요.`)) break;
       if (played && prompt('기록이 있는 경기가 있어요. 정말 지우려면 "삭제"라고 입력하세요.') !== '삭제') { toast('삭제를 취소했어요.'); break }
       const ok = await w(async () => { for (const [eid] of evs) await S.store.del('events/' + eid); for (const m of ms) await S.store.del(mp(m.id)); await S.store.update(sp(S.sid), { stage: 'notice' }) }, '경기 대진을 삭제했어요.');
       if (ok) { S.openMatch = null; S.tab = 'run'; S.step = 'notice'; render(); window.scrollTo(0, 0) } break }
-    case 'delsession_old': if (!confirm(fmtDate(S.sid) + ' 경기일을 통째로 지울까요? 되돌릴 수 없어요.')) break;
-      await w(async () => { for (const [eid, ev] of Object.entries(S.events)) if (ev.session === S.sid) await S.store.del('events/' + eid); for (const mm of sessMatches(S.sid)) await S.store.del(mp(mm.id)); await S.store.del(sp(S.sid)) }, '삭제했어요.'); S.sid = null; render(); break;
-    case 'sort': S.statsSort = el.dataset.k; render(); break;
-    case 'editp': { const p = S.players[id]; const nv = prompt('선수 이름 (게스트는 뒤에 (게))', pname(id)); if (nv === null || !nv.trim()) break; const guest = /\(\s*게\s*\)/.test(nv); const name = nv.replace(/\(\s*게\s*\)/g, '').trim().slice(0, 20); if (name !== p.name || guest !== !!p.guest) await w(() => S.store.update('players/' + id, { name, guest }), '수정했어요.'); break }
-    case 'opmode': if (S.admin) { if (!confirm('운영모드를 끌까요?')) break; S.adminOn = false; save('admin', false); S.tab = 'mhome'; S.sid = null; S.step = null; S.openMatch = null; render(); window.scrollTo(0, 0); break }
+    case 'opmode': if (S.admin) { if (!confirm('운영모드를 끌까요?')) break; S.adminOn = false; stopAdminWatch(); save('admin', false); S.tab = 'mhome'; S.sid = null; S.step = null; S.openMatch = null; render(); window.scrollTo(0, 0); break }
       { S.sheet = { type: 'adminpin' }; render(); setTimeout(() => document.getElementById('ap-pin')?.focus(), 60) } break;
     case 'adminpinok': { const pin = (document.getElementById('ap-pin')?.value || '').trim(); if (!(await adminPinOk(pin))) { toast('비밀번호가 달라요.'); const x = document.getElementById('ap-pin'); if (x) { x.value = ''; x.focus() } break }
         document.activeElement?.blur(); S.sheet = null; S.adminOn = true; save('admin', true); S.tab = 'manage'; S.sid = null; S.step = null; S.openMatch = null; toast('운영모드로 전환했어요.'); render(); window.scrollTo(0, 0) } break;
-    case 'caplink': { const k = el.dataset.k; let t = s.captainTokens?.[k]; if (!t) { t = rand(); if (!await w(() => S.store.update(sp(S.sid), { [`captainTokens.${k}`]: t }))) break }
-      const url = IS_ARTIFACT ? (window.WF_APP_URL || '') : capLink(S.sid, k, t); const msg = `[${CFG.club?.short || 'WF'}] ${fmtDate(S.sid)} 드래프트 ${team(s, k).name} 주장 ${pname(s.captains[k])}님\n앱 링크: ${url}\n주장 코드: ${t}\n${IS_ARTIFACT ? '앱을 열고 오른쪽 위 ⚙ 설정에서 \'주장 코드 입력\'을 눌러 주세요.' : '링크를 누르면 바로 드래프트에 참여해요.'}`;
-      if (el.dataset.how === 'share' && navigator.share) { try { await navigator.share({ text: msg }); break } catch (e) { if (e.name === 'AbortError') break } }
-      try { await navigator.clipboard.writeText(msg); toast(`${team(s, k).name} 주장 안내를 복사했어요.`) } catch { prompt('아래 내용을 복사해서 보내세요', msg.replace(/\n/g, ' / ')) } break }
-    case 'whistle': S.whistle = !S.whistle; save('whistle', S.whistle); if (S.whistle) { audio(); whistle([.35]) } render(); break;
+    case 'whistle': { S.whistle = !S.whistle; save('whistle', S.whistle); if (S.whistle) { audio(); whistle([.35]) } const lm = manLoad()?.matches?.find(x => x.status === 'live'); if (lm) manSchedule(lm); render(); break }
     case 'closesheet': document.activeElement?.blur?.(); S.sheet = null; render(); break;
   }
 });
@@ -2635,7 +2585,7 @@ function goResult(id, dir) { const ids = pastSids(); const o = ids.indexOf(S.det
 let ptr = null; const PTR_GO = 72;
 function ptrEl() { let e = document.getElementById('ptr'); if (!e) { e = document.createElement('div'); e.id = 'ptr'; e.innerHTML = '<i>↓</i><span>당겨서 새로고침</span>'; document.body.appendChild(e) } return e }
 function scrolledParent(t) { for (let el = t; el && el !== document.body; el = el.parentElement) { if (el.scrollTop > 0 && /(auto|scroll)/.test(getComputedStyle(el).overflowY)) return true } return false }
-document.addEventListener('touchstart', e => { ptr = null; if (e.touches.length !== 1 || S.sheet || window.scrollY > 0) return; const t = e.target; if (t.closest('.scrim,input,textarea,select,.mm-cd') || scrolledParent(t)) return;
+document.addEventListener('touchstart', e => { ptr = null; if (e.touches.length !== 1 || S.sheet || S.fs || window.scrollY > 0) return; if (S.tab === 'mm' && ((S.mmSid && sessMatches(S.mmSid).some(m => m.status === 'live')) || manLoad()?.matches?.some(m => m.status === 'live'))) return; const t = e.target; if (t.closest('.scrim,input,textarea,select,.mm-cd') || scrolledParent(t)) return;
   ptr = { y: e.touches[0].clientY, x: e.touches[0].clientX, d: 0 } }, { passive: true });
 document.addEventListener('touchmove', e => { if (!ptr) return; const dy = e.touches[0].clientY - ptr.y, dx = e.touches[0].clientX - ptr.x;
   if (ptr.d === 0 && (Math.abs(dx) > Math.abs(dy) || dy < 0)) { ptr = null; return } if (window.scrollY > 0) { ptr = null; return }
