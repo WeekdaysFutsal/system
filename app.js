@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.29';
+const APP_VERSION = '0.21.30';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -483,8 +483,180 @@ async function drawPoster(s, theme, font) {
   g.textBaseline = 'alphabetic';
   return c;
 }
-async function posterBlob() { const s = cur(); const c = await drawPoster(s); return new Promise(r => c.toBlob(b => r(b), 'image/png')) }
-async function refreshPoster() { const s = cur(); if (!s) return; const c = await drawPoster(s); S.poster[S.sid] = c.toDataURL('image/png'); const el = document.querySelector('img.poster:not(.schedimg)'); if (el) el.src = S.poster[S.sid]; else if (!document.querySelector('img.schedimg')) render() }
+/* ───────── 포스터 시안 엔진: 레이아웃 × 팔레트 × 글꼴 조합으로 서로 다른 시안을 만들어요 ───────── */
+const PAL = {
+  navy: { n: '네이비', bg: '#0B1E5B', bg2: '#16348F', ink: '#FFFFFF', sub: '#AFC2FF', acc: '#FFD21F', card: '#FFFFFF', cardInk: '#0B1E5B', dark: true },
+  pitch: { n: '피치', bg: '#123F22', bg2: '#1F6B38', ink: '#FFFFFF', sub: '#B8E6C4', acc: '#FDE047', card: '#F6FFF8', cardInk: '#123F22', dark: true },
+  ink: { n: '잉크', bg: '#111114', bg2: '#26262E', ink: '#F4F4F6', sub: '#9A9AA6', acc: '#FF5A36', card: '#1C1C22', cardInk: '#F4F4F6', dark: true },
+  snow: { n: '스노우', bg: '#F5F7FB', bg2: '#E3E8F2', ink: '#0B1E5B', sub: '#5D6B8A', acc: '#E11D48', card: '#FFFFFF', cardInk: '#0B1E5B', dark: false },
+  sunset: { n: '선셋', bg: '#3A0D4A', bg2: '#E2562F', ink: '#FFFFFF', sub: '#FFD9C2', acc: '#FFC93C', card: '#FFF6EE', cardInk: '#3A0D4A', dark: true },
+  mint: { n: '민트', bg: '#E4F5EE', bg2: '#BFE8D6', ink: '#063B2A', sub: '#3E7563', acc: '#0E7CC9', card: '#FFFFFF', cardInk: '#063B2A', dark: false },
+  retro: { n: '레트로', bg: '#F1E2C4', bg2: '#E3C893', ink: '#2B1B0E', sub: '#7A5C3A', acc: '#C8202F', card: '#FFF8EA', cardInk: '#2B1B0E', dark: false },
+  electric: { n: '일렉트릭', bg: '#08081F', bg2: '#2626D9', ink: '#FFFFFF', sub: '#A9B4FF', acc: '#00E5FF', card: '#12123A', cardInk: '#FFFFFF', dark: true }
+};
+const TEAM_LAYS = { stadium: '클래식', magazine: '매거진', ticket: '티켓', split: '스플릿', board: '전광판', swiss: '타이포' };
+const SCHED_LAYS = { classic: '클래식', calendar: '달력', list: '리스트', board: '전광판', swiss: '타이포' };
+const LAY_FONT = { magazine: 'scdream', ticket: 'paperlogyk', split: 'paperlogy', board: 'pretendard', swiss: 'pretendard', calendar: 'paperlogy', list: 'scdream', stadium: 'paperlogy', classic: 'pretendard' };
+const DESIGN_PRESETS = {
+  team: [{ lay: 'stadium', pal: 'navy', font: 'auto', seed: 1 }, { lay: 'magazine', pal: 'snow', font: 'auto', seed: 2 }, { lay: 'ticket', pal: 'retro', font: 'auto', seed: 3 }, { lay: 'split', pal: 'ink', font: 'auto', seed: 4 }, { lay: 'board', pal: 'electric', font: 'auto', seed: 5 }, { lay: 'swiss', pal: 'mint', font: 'auto', seed: 6 }],
+  sched: [{ lay: 'classic', pal: 'pitch', font: 'auto', seed: 1 }, { lay: 'calendar', pal: 'navy', font: 'auto', seed: 2 }, { lay: 'list', pal: 'retro', font: 'auto', seed: 3 }, { lay: 'board', pal: 'ink', font: 'auto', seed: 4 }, { lay: 'swiss', pal: 'snow', font: 'auto', seed: 5 }]
+};
+const dKey = d => `${d.lay}.${d.pal}.${d.font}.${d.seed}`;
+function dName(kind, d) { return `${(kind === 'team' ? TEAM_LAYS : SCHED_LAYS)[d.lay] || d.lay} · ${PAL[d.pal]?.n || ''}` }
+function newDesigns(kind, n) { const lays = Object.keys(kind === 'team' ? TEAM_LAYS : SCHED_LAYS).filter(l => l !== 'stadium' && l !== 'classic'), pals = Object.keys(PAL), fonts = POSTER_FONTS.map(x => x[0]).filter(k => k !== 'auto'); const out = [], seen = new Set();
+  while (out.length < n) { const seed = 1 + Math.floor(Math.random() * 99999); const lay = lays[Math.floor(Math.random() * lays.length)]; const d = { lay, pal: pals[Math.floor(Math.random() * pals.length)], font: fonts[Math.floor(Math.random() * fonts.length)], seed }; const k = d.lay + d.pal; if (seen.has(k) && seen.size < lays.length * pals.length) continue; seen.add(k); out.push(d) } return out }
+function legacyTeam(t) { return t === 'night' ? { lay: 'board', pal: 'ink', font: 'auto', seed: 5 } : t === 'clean' ? { lay: 'swiss', pal: 'snow', font: 'auto', seed: 6 } : t === 'stripe' ? { lay: 'split', pal: 'ink', font: 'auto', seed: 4 } : null }
+function teamDesign(s) { const d = s?.posterDesign || legacyTeam(s?.posterTheme) || S.meta?.poster?.design; return d && TEAM_LAYS[d.lay] && PAL[d.pal] ? d : DESIGN_PRESETS.team[0] }
+function schedDesign() { const d = S.meta?.sched?.design; return d && SCHED_LAYS[d.lay] && PAL[d.pal] ? d : DESIGN_PRESETS.sched[0] }
+const fontOf = d => (d.font && d.font !== 'auto' && POSTER_FONTS.some(x => x[0] === d.font)) ? d.font : (LAY_FONT[d.lay] || 'paperlogy');
+function seeded(seed) { let x = (seed || 1) % 2147483647; return () => (x = (x * 16807) % 2147483647) / 2147483647 }
+function teamData(s) { return KEYS.map(k => { const t = team(s, k); return { k, name: t.name, color: t.color, ink: inkOn(t.color), list: teamPlayers(s, k), cap: captainOf(s, k) } }) }
+function bgFill(g, P, W, H, rnd, mode) { const gr = g.createLinearGradient(0, 0, mode === 'diag' ? W : 0, H); gr.addColorStop(0, P.bg); gr.addColorStop(1, mode === 'flat' ? P.bg : mix(P.bg, P.bg2, .55)); g.fillStyle = gr; g.fillRect(0, 0, W, H) }
+function mix(a, b, t) { const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); const A = p(a), B = p(b); return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join('') }
+function alpha(h, a) { const p = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); return `rgba(${p.join(',')},${a})` }
+function namesGrid(g, list, cap, x, y, w, h, cols, font, ink, maxFs, top) { const rows = Math.max(1, Math.ceil(list.length / cols)); const cw = w / cols, rh = Math.min(h / rows, maxFs * 1.7); const fs0 = Math.min(maxFs, rh * .62);
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = ink;
+  list.forEach((pid, i) => { const r = Math.floor(i / cols), c = i % cols; const cx = x + cw * c + cw / 2, cy = y + rh * r + rh / 2 + (top ? 0 : (h - rh * rows) / 2); const nm = pname(pid); const f = fitFont(g, nm, font, fs0, cw - (pid === cap ? 46 : 14)); g.fillText(nm, cx - (pid === cap ? 16 : 0), cy);
+    if (pid === cap) { const nw = g.measureText(nm).width; crown(g, cx - 16 + nw / 2 + 8, cy - f * .55, f * .74) } });
+  g.textBaseline = 'alphabetic' }
+function infoBlock(g, s, PF, x, y, w, h, o) { // E/V 비밀번호 + 공지(최대 3줄, { } 강조)
+  g.save(); if (o.fill) { rr(g, x, y, w, h, o.r ?? 16); g.fillStyle = o.fill; g.fill() } if (o.line) { rr(g, x, y, w, h, o.r ?? 16); g.lineWidth = 3; g.strokeStyle = o.line; if (o.dash) g.setLineDash([12, 9]); g.stroke(); g.setLineDash([]) } g.restore();
+  const half = Math.round(h * .4); g.fillStyle = o.sep || alpha(o.ink.startsWith('#') ? o.ink : '#FFFFFF', .35); g.fillRect(x + 20, y + half - 1, w - 40, 2);
+  g.textBaseline = 'middle'; g.textAlign = 'left'; const r1 = y + half / 2, r2 = y + half + (h - half) / 2;
+  g.fillStyle = o.ink; g.font = `30px ${PF.LAT}`; const l1 = o.labels?.[0] || 'E/V PASSWORD'; g.fillText(l1, x + 34, r1 + 2); const d1 = x + 34 + g.measureText(l1).width + 26;
+  g.fillStyle = o.acc; fitFont(g, s.evpw || '-', `{s}px ${PF.LAT}`, 58, x + w - d1 - 30); g.fillText(s.evpw || '-', d1, r1 + 4);
+  g.fillStyle = o.ink; g.font = `30px ${PF.LAT}`; const l2 = o.labels?.[1] || 'NOTICE'; g.fillText(l2, x + 34, r2 + 2); const d2 = x + 34 + Math.max(g.measureText(l2).width, g.measureText(l1).width * 0) + 26;
+  const nW = x + w - d2 - 30, raw = s.notice || '', plain = raw.replace(/[{}]/g, ''); let nf = 34, lines = []; const avail = h - half - 20;
+  for (; nf >= 20; nf -= 2) { g.font = `${nf}px ${PF.KR}`; lines = wrapText(g, plain, nW, 9); if (lines.length <= 3 && lines.length * nf * 1.25 <= avail) break } lines = lines.slice(0, 3);
+  const hl = []; let on = false; for (const ch of raw) { if (ch === '{') { on = true; continue } if (ch === '}') { on = false; continue } hl.push(on) }
+  let ci0 = 0; const lh = nf * 1.25, y0 = r2 + 2 - (lines.length - 1) * lh / 2; g.font = `${nf}px ${PF.KR}`;
+  if (!plain.trim()) { g.fillStyle = alpha(o.ink.startsWith('#') ? o.ink : '#FFFFFF', .45); g.fillText('-', d2, r2 + 2) }
+  lines.forEach((ln, li) => { let nx = d2; const idx = plain.indexOf(ln, ci0); const base = idx >= 0 ? idx : ci0; for (let q = 0; q < ln.length; q++) { g.fillStyle = hl[base + q] ? o.acc : o.ink; g.fillText(ln[q], nx, y0 + li * lh); nx += g.measureText(ln[q]).width } ci0 = base + ln.length });
+  g.textBaseline = 'alphabetic' }
+async function drawTeam(s, d) {
+  d = d || teamDesign(s); const fk = fontOf(d);
+  if (d.lay === 'stadium') return drawPoster(s, 'stadium', fk);
+  const W = 1086, H = 1448, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); const P = PAL[d.pal] || PAL.navy; const rnd = seeded(d.seed);
+  const PF = await posterFonts([s.venue || '', s.notice || '', s.evpw || '', ...KEYS.flatMap(k => teamPlayers(s, k).map(pname))], fk); const img = await emblem(); const LAT = PF.LAT, KR = PF.KR;
+  const T = teamData(s); const [, mm, dd] = s.date.split('-'); const club = (CFG.club?.name || 'WEEKDAYS FUTSAL CLUB').toUpperCase(); const wd = dow(s.date) + '요일', tm = s.time || '';
+  if (d.lay === 'magazine') {
+    bgFill(g, P, W, H, rnd, 'flat'); const ang = rnd() * .5 - .25;
+    g.save(); g.globalAlpha = P.dark ? .07 : .06; g.fillStyle = P.ink; g.font = `620px ${LAT}`; g.textAlign = 'right'; g.translate(W + 40, 760); g.rotate(ang); g.fillText(dd, 0, 0); g.restore();
+    g.fillStyle = P.ink; g.textAlign = 'left'; g.font = `34px ${LAT}`; g.fillText(club, 56, 92); g.textAlign = 'right'; g.fillStyle = P.acc; g.fillText(`${s.no ? s.no + 'TH · ' : ''}MATCH DAY`, W - 56, 92);
+    g.fillStyle = P.ink; g.fillRect(56, 116, W - 112, 4);
+    g.textAlign = 'left'; const dt = `${mm}.${dd}`; fitFont(g, dt, `{s}px ${LAT}`, 320, 700); const dw = g.measureText(dt).width; g.fillText(dt, 46, 420);
+    const rx = 46 + dw + 34; g.fillStyle = P.acc; fitFont(g, wd, `{s}px ${KR}`, 70, W - 56 - rx); g.fillText(wd, rx, 250); g.fillStyle = P.ink; fitFont(g, tm, `{s}px ${LAT}`, 120, W - 56 - rx); g.fillText(tm, rx, 400);
+    g.fillStyle = P.sub; fitFont(g, s.venue || '', `{s}px ${KR}`, 50, W - 112); g.fillText(s.venue || '', 56, 500); g.fillStyle = P.ink; g.fillRect(56, 534, W - 112, 2);
+    const top = 566, bh = 196, gap = 14;
+    T.forEach((t, i) => { const y = top + i * (bh + gap); g.save(); rr(g, 56, y, W - 112, bh, 18); g.fillStyle = P.card; g.shadowColor = 'rgba(0,0,0,.18)'; g.shadowBlur = 18; g.fill(); g.restore();
+      g.save(); rr(g, 56, y, W - 112, bh, 18); g.clip(); g.fillStyle = t.color; g.fillRect(56, y, 250, bh); g.restore();
+      badge(g, img, 56 + 125, y + 66, 38); g.fillStyle = t.ink; g.textAlign = 'center'; fitFont(g, t.name, `{s}px ${LAT}`, 54, 220); g.fillText(t.name, 56 + 125, y + 160);
+      namesGrid(g, t.list, t.cap, 330, y + 14, W - 112 - 290, bh - 28, 3, `{s}px ${KR}`, P.cardInk, 46) });
+    infoBlock(g, s, PF, 56, 1212, W - 112, 196, { fill: P.ink, ink: P.bg, acc: P.acc, sep: alpha(P.bg, .3) });
+  } else if (d.lay === 'ticket') {
+    bgFill(g, P, W, H, rnd, 'diag'); g.save(); g.globalAlpha = .08; g.strokeStyle = P.ink; g.lineWidth = 14; const a = (rnd() > .5 ? 1 : -1) * (Math.PI / 5); g.translate(W / 2, H / 2); g.rotate(a); for (let i = -14; i <= 14; i++) { g.beginPath(); g.moveTo(i * 60, -H); g.lineTo(i * 60, H); g.stroke() } g.restore();
+    const tk = (x, y, w, h, notchX, fill) => { g.save(); g.beginPath(); const r = 22, n = 22; g.moveTo(x + r, y); g.lineTo(notchX - n, y); g.arc(notchX, y, n, Math.PI, 0, true); g.lineTo(x + w - r, y); g.arcTo(x + w, y, x + w, y + r, r); g.lineTo(x + w, y + h - r); g.arcTo(x + w, y + h, x + w - r, y + h, r); g.lineTo(notchX + n, y + h); g.arc(notchX, y + h, n, 0, Math.PI, true); g.lineTo(x + r, y + h); g.arcTo(x, y + h, x, y + h - r, r); g.lineTo(x, y + r); g.arcTo(x, y, x + r, y, r); g.closePath(); g.fillStyle = fill; g.shadowColor = 'rgba(0,0,0,.28)'; g.shadowBlur = 20; g.shadowOffsetY = 6; g.fill(); g.restore() };
+    tk(40, 40, W - 80, 430, W - 300, P.card); g.save(); g.setLineDash([10, 10]); g.strokeStyle = alpha(P.cardInk, .35); g.lineWidth = 3; g.beginPath(); g.moveTo(W - 300, 70); g.lineTo(W - 300, 440); g.stroke(); g.restore();
+    g.fillStyle = P.cardInk; g.textAlign = 'left'; g.font = `30px ${LAT}`; g.fillText(club, 80, 100); g.fillStyle = P.acc; fitFont(g, 'MATCH DAY', `{s}px ${LAT}`, 150, W - 420); g.fillText('MATCH DAY', 74, 250);
+    g.fillStyle = P.cardInk; fitFont(g, `${mm}.${dd} ${wd}`, `{s}px ${KR}`, 64, W - 420); g.fillText(`${mm}.${dd} ${wd}`, 80, 340); fitFont(g, s.venue || '', `{s}px ${KR}`, 40, W - 420); g.fillStyle = alpha(P.cardInk, .75); g.fillText(s.venue || '', 80, 410);
+    g.textAlign = 'center'; g.fillStyle = P.cardInk; g.font = `28px ${LAT}`; g.fillText('KICK OFF', W - 170, 150); fitFont(g, tm, `{s}px ${LAT}`, 96, 220); g.fillText(tm, W - 170, 260); badge(g, img, W - 170, 360, 46);
+    T.forEach((t, i) => { const y = 500 + i * 236, h = 220, nx = 270; tk(40, y, W - 80, h, nx, P.card); g.save(); g.beginPath(); rr(g, 40, y, nx - 40 - 22, h, 22); g.clip(); g.fillStyle = t.color; g.fillRect(40, y, nx - 40, h); g.restore();
+      g.fillStyle = t.ink; g.textAlign = 'center'; fitFont(g, t.name, `{s}px ${LAT}`, 56, 190); g.fillText(t.name, 145, y + 92); for (let b = 0; b < 26; b++) { const bw = 2 + Math.floor(rnd() * 4); g.fillStyle = alpha(t.ink === '#FFFFFF' ? '#FFFFFF' : '#000000', .65); g.fillRect(60 + b * 7, y + 130, bw, 56) }
+      g.save(); g.setLineDash([9, 9]); g.strokeStyle = alpha(P.cardInk, .35); g.lineWidth = 3; g.beginPath(); g.moveTo(nx, y + 26); g.lineTo(nx, y + h - 26); g.stroke(); g.restore();
+      namesGrid(g, t.list, t.cap, nx + 20, y + 12, W - 80 - nx - 40, h - 24, 3, `{s}px ${KR}`, P.cardInk, 44) });
+    infoBlock(g, s, PF, 40, 1216, W - 80, 192, { fill: P.dark ? alpha('#000000', .55) : P.cardInk, ink: P.dark ? P.ink : P.card, acc: P.acc, dash: true, line: P.acc });
+  } else if (d.lay === 'split') {
+    const cw = W / 3; T.forEach((t, i) => { g.fillStyle = t.color; g.fillRect(i * cw, 0, cw + 1, H) }); const sh = g.createLinearGradient(0, 0, 0, H); sh.addColorStop(0, 'rgba(0,0,0,.25)'); sh.addColorStop(.45, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.3)'); g.fillStyle = sh; g.fillRect(0, 0, W, H);
+    g.save(); g.globalAlpha = .12; T.forEach((t, i) => { g.fillStyle = t.ink; g.font = `300px ${LAT}`; g.textAlign = 'center'; g.save(); g.translate(i * cw + cw / 2, 1020); g.rotate(-Math.PI / 2); fitFont(g, t.name, `{s}px ${LAT}`, 300, 560); g.fillText(t.name, 0, 90); g.restore() }); g.restore();
+    g.save(); rr(g, 40, 40, W - 80, 470, 26); g.fillStyle = P.bg; g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 30; g.fill(); g.restore();
+    g.textAlign = 'center'; g.fillStyle = P.sub; g.font = `32px ${LAT}`; g.fillText(club, W / 2, 104); g.fillStyle = P.ink; fitFont(g, 'MATCH DAY', `{s}px ${LAT}`, 168, W - 160); g.fillText('MATCH DAY', W / 2, 270);
+    g.fillStyle = P.acc; g.fillRect(W / 2 - 60, 296, 120, 6); g.fillStyle = P.ink; fitFont(g, `${mm}.${dd} ${wd} ${tm}`, `{s}px ${KR}`, 70, W - 160); g.fillText(`${mm}.${dd} ${wd} ${tm}`, W / 2, 390); g.fillStyle = P.sub; fitFont(g, s.venue || '', `{s}px ${KR}`, 44, W - 160); g.fillText(s.venue || '', W / 2, 462);
+    T.forEach((t, i) => { const cx = i * cw + cw / 2; badge(g, img, cx, 590, 44); g.fillStyle = t.ink; g.textAlign = 'center'; fitFont(g, t.name, `{s}px ${LAT}`, 62, cw - 40); g.fillText(t.name, cx, 690); g.fillRect(cx - 40, 712, 80, 4);
+      namesGrid(g, t.list, t.cap, i * cw + 10, 736, cw - 20, 440, 1, `{s}px ${KR}`, t.ink, 50, true) });
+    infoBlock(g, s, PF, 40, 1210, W - 80, 198, { fill: P.bg, ink: P.ink, acc: P.acc, r: 26 });
+  } else if (d.lay === 'board') {
+    g.fillStyle = mix(P.bg, '#000000', P.dark ? .35 : .85); g.fillRect(0, 0, W, H); g.fillStyle = alpha(P.acc, .07); for (let y = 8; y < H; y += 16) for (let x = 8; x < W; x += 16) g.fillRect(x, y, 4, 4);
+    g.save(); rr(g, 22, 22, W - 44, H - 44, 22); g.lineWidth = 6; g.strokeStyle = P.acc; g.shadowColor = P.acc; g.shadowBlur = 22; g.stroke(); g.restore();
+    const glow = (txt, x, y, col, blur) => { g.save(); g.shadowColor = col; g.shadowBlur = blur; g.fillStyle = col; g.fillText(txt, x, y); g.restore() };
+    g.textAlign = 'center'; g.font = `30px ${LAT}`; glow(club, W / 2, 96, alpha('#FFFFFF', .8), 0); fitFont(g, 'MATCH DAY', `{s}px ${LAT}`, 170, W - 140); glow('MATCH DAY', W / 2, 262, P.acc, 30);
+    g.save(); rr(g, 120, 300, W - 240, 120, 16); g.fillStyle = 'rgba(0,0,0,.55)'; g.fill(); g.lineWidth = 3; g.strokeStyle = alpha(P.acc, .6); g.stroke(); g.restore();
+    fitFont(g, `${mm}.${dd}  ${wd}  ${tm}`, `{s}px ${KR}`, 66, W - 300); glow(`${mm}.${dd}  ${wd}  ${tm}`, W / 2, 384, '#FFFFFF', 12); g.fillStyle = alpha('#FFFFFF', .7); fitFont(g, s.venue || '', `{s}px ${KR}`, 42, W - 160); g.fillText(s.venue || '', W / 2, 486);
+    T.forEach((t, i) => { const y = 530 + i * 222; g.save(); rr(g, 60, y, W - 120, 200, 16); g.fillStyle = 'rgba(255,255,255,.04)'; g.fill(); g.lineWidth = 2; g.strokeStyle = alpha(t.color, .9); g.shadowColor = t.color; g.shadowBlur = 14; g.stroke(); g.restore();
+      g.fillStyle = t.color; g.fillRect(60, y + 22, 14, 156); g.textAlign = 'left'; g.font = `58px ${LAT}`; fitFont(g, t.name, `{s}px ${LAT}`, 58, 230); glow(t.name, 100, y + 120, '#FFFFFF', 8);
+      namesGrid(g, t.list, t.cap, 340, y + 10, W - 120 - 300, 180, 3, `{s}px ${KR}`, alpha('#FFFFFF', .92), 42) });
+    infoBlock(g, s, PF, 60, 1210, W - 120, 196, { fill: 'rgba(0,0,0,.55)', ink: '#FFFFFF', acc: P.acc, line: alpha(P.acc, .7) });
+  } else { // swiss
+    g.fillStyle = P.bg; g.fillRect(0, 0, W, H); const sw = 176; g.fillStyle = P.dark ? P.bg2 : P.ink; g.fillRect(0, 0, sw, H);
+    g.save(); g.translate(sw / 2 + 52, H - 60); g.rotate(-Math.PI / 2); g.fillStyle = P.acc; g.textAlign = 'left'; fitFont(g, 'MATCH DAY', `{s}px ${LAT}`, 200, H - 140); g.fillText('MATCH DAY', 0, 0); g.restore();
+    badge(g, img, sw / 2, 96, 52); const x0 = sw + 48, xw = W - x0 - 48;
+    g.fillStyle = P.sub; g.textAlign = 'left'; g.font = `30px ${LAT}`; g.fillText(club, x0, 92); g.fillStyle = P.ink; g.fillRect(x0, 112, xw, 3);
+    fitFont(g, `${mm}.${dd}`, `{s}px ${LAT}`, 250, xw); g.fillText(`${mm}.${dd}`, x0 - 6, 350); g.fillStyle = P.acc; fitFont(g, `${wd}  ${tm}`, `{s}px ${KR}`, 66, xw); g.fillText(`${wd}  ${tm}`, x0, 440);
+    g.fillStyle = P.sub; fitFont(g, s.venue || '', `{s}px ${KR}`, 42, xw); g.fillText(s.venue || '', x0, 506); g.fillStyle = P.ink; g.fillRect(x0, 540, xw, 2);
+    const cwid = xw / 3; T.forEach((t, i) => { const cx = x0 + i * cwid; g.fillStyle = t.color; g.fillRect(cx, 572, 40, 40); g.fillStyle = P.ink; g.textAlign = 'left'; fitFont(g, t.name, `{s}px ${LAT}`, 46, cwid - 64); g.fillText(t.name, cx + 54, 608);
+      g.fillStyle = alpha(P.ink, .25); g.fillRect(cx, 634, cwid - 22, 2); g.save(); namesGrid(g, t.list, t.cap, cx - 4, 650, cwid - 18, 520, 1, `{s}px ${KR}`, P.ink, 44, true); g.restore() });
+    infoBlock(g, s, PF, x0, 1212, xw, 196, { line: P.ink, ink: P.ink, acc: P.acc, r: 0, sep: alpha(P.ink, .25) });
+  }
+  return c;
+}
+async function drawSched(ym, d) {
+  d = d || schedDesign(); const fk = fontOf(d); if (d.lay === 'classic') return drawSchedule(ym, fk);
+  const ss = Object.keys(S.sessions).filter(id => id.startsWith(ym)).sort().map(id => S.sessions[id]); const cf = schedCfg(); const foot = cf.footer.split('\n').slice(0, 8).filter((l, i, a) => l.trim() || i < a.length - 1);
+  const PF = await posterFonts([cf.footer, cf.tag, ...ss.map(x => (x.venue || '') + idsToNames(x.p0))], fk); const img = await emblem(); const LAT = PF.LAT, KR = PF.KR; const P = PAL[d.pal] || PAL.navy; const rnd = seeded(d.seed);
+  const [y, m] = ym.split('-'); const W = 1080; const openH = [...new Set(ss.map(s => (s.applyOpen || '').slice(11, 13)).filter(Boolean))]; const fixedH = openH.length === 1 ? +openH[0] : null;
+  const vshort = v => { const t = String(v || '').split(/\s+/); return t.length > 3 ? t.slice(-3).join(' ') : (v || '') };
+  const openTxt = s => s.applyOpen ? md(s.applyOpen.slice(0, 10)) + (fixedH == null ? ' ' + s.applyOpen.slice(11, 16) : '') : '-'; const hr = s => `${+String(s.time || '00').slice(0, 2)}시`;
+  let H; const footH = foot.length * 48 + 60;
+  if (d.lay === 'calendar') { const first = new Date(+y, +m - 1, 1).getDay(), days = new Date(+y, +m, 0).getDate(); const rows = Math.ceil((first + days) / 7); H = 470 + 60 + rows * 158 + 40 + footH; }
+  else if (d.lay === 'list') H = 480 + Math.max(4, ss.length) * 150 + 30 + footH;
+  else H = 520 + 90 + Math.max(6, ss.length) * 84 + 40 + footH;
+  H = Math.max(1350, H); const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  const head = (ty, light) => { g.textAlign = 'left'; g.fillStyle = P.sub; g.font = `30px ${PF.BD}`; g.fillText(cf.tag, 56, 70); badge(g, img, W - 104, 112, 58);
+    g.fillStyle = P.acc; g.font = `150px ${LAT}`; g.fillText(`${y}.${m}`, 50, ty); g.fillStyle = P.ink; fitFont(g, 'MATCH SCHEDULE', `{s}px ${LAT}`, 96, W - 110); g.fillText('MATCH SCHEDULE', 54, ty + 104) };
+  const footer = fy => { g.textAlign = 'left'; g.fillStyle = P.ink; foot.forEach((l, i) => { fitFont(g, l, `{s}px ${PF.BD}`, 32, W - 112); g.fillText(l, 56, fy + i * 48) }) };
+  if (d.lay === 'calendar') {
+    bgFill(g, P, W, H, rnd, 'diag'); head(250); const first = new Date(+y, +m - 1, 1).getDay(), days = new Date(+y, +m, 0).getDate(); const cw = (W - 100) / 7, ch = 150, gy = 470;
+    ['일', '월', '화', '수', '목', '금', '토'].forEach((n, i) => { g.textAlign = 'center'; g.fillStyle = i === 0 ? '#FF6B6B' : i === 6 ? (P.dark ? '#8AB4FF' : '#2F5BD3') : P.sub; g.font = `30px ${PF.BD}`; g.fillText(n, 50 + cw * i + cw / 2, gy + 40) });
+    const byDay = {}; ss.forEach(s => byDay[+s.date.slice(8, 10)] = s);
+    for (let dd = 1; dd <= days; dd++) { const idx = first + dd - 1, r = Math.floor(idx / 7), col = idx % 7; const x = 50 + col * cw + 4, yy = gy + 60 + r * (ch + 8); const s = byDay[dd];
+      g.save(); rr(g, x, yy, cw - 8, ch, 14); g.fillStyle = s ? P.acc : alpha(P.dark ? '#FFFFFF' : '#000000', .05); g.fill(); g.restore();
+      g.textAlign = 'left'; g.fillStyle = s ? (P.dark ? '#111' : '#FFF') : alpha(P.ink, .6); g.font = `40px ${LAT}`; g.fillText(String(dd), x + 14, yy + 48);
+      if (s) { const ink = P.dark ? '#111' : '#FFF'; g.fillStyle = ink; fitFont(g, hr(s), `{s}px ${PF.BD}`, 30, cw - 30); g.fillText(hr(s), x + 14, yy + 90); fitFont(g, s.no ? `${s.no}회` : vshort(s.venue), `{s}px ${PF.BD}`, 24, cw - 30); g.fillText(s.no ? `${s.no}회` : vshort(s.venue), x + 14, yy + 126) } }
+    const rows = Math.ceil((first + days) / 7); const ly = gy + 60 + rows * (ch + 8) + 20; const venues = [...new Set(ss.map(s => s.venue).filter(Boolean))];
+    const vtxt = `${venues.join(' · ')}${fixedH != null ? `   ·   신청 오픈 ${fixedH}시` : ''}`; g.fillStyle = P.sub; g.textAlign = 'left'; fitFont(g, vtxt, `{s}px ${PF.BD}`, 30, W - 112); g.fillText(vtxt, 56, ly + 20);
+    footer(ly + 90);
+  } else if (d.lay === 'list') {
+    bgFill(g, P, W, H, rnd, 'flat'); head(260); g.fillStyle = P.ink; g.fillRect(56, 410, W - 112, 4);
+    ss.forEach((s, i) => { const yy = 440 + i * 150; g.save(); rr(g, 56, yy, W - 112, 132, 20); g.fillStyle = P.card; g.shadowColor = 'rgba(0,0,0,.15)'; g.shadowBlur = 14; g.fill(); g.restore();
+      g.save(); rr(g, 56, yy, 190, 132, 20); g.clip(); g.fillStyle = P.acc; g.fillRect(56, yy, 190, 132); g.restore(); const ai = P.dark ? '#111' : '#FFF';
+      g.fillStyle = ai; g.textAlign = 'center'; g.font = `70px ${LAT}`; g.fillText(s.date.slice(8, 10), 151, yy + 80); g.font = `26px ${PF.BD}`; g.fillText(`${+s.date.slice(5, 7)}월 ${dow(s.date)}`, 151, yy + 114);
+      g.textAlign = 'left'; g.fillStyle = P.cardInk; fitFont(g, `${s.no ? s.no + '회 · ' : ''}${hr(s)}`, `{s}px ${KR}`, 44, 420); g.fillText(`${s.no ? s.no + '회 · ' : ''}${hr(s)}`, 276, yy + 60); g.fillStyle = alpha(P.cardInk, .7); fitFont(g, s.venue || '', `{s}px ${PF.BD}`, 30, 440); g.fillText(s.venue || '', 276, yy + 104);
+      g.textAlign = 'right'; g.fillStyle = P.cardInk; g.font = `24px ${PF.BD}`; g.fillText('신청 오픈', W - 86, yy + 46); g.font = `34px ${PF.BD}`; g.fillText(openTxt(s), W - 86, yy + 88); const rs = idsToNames(s.p0); if (rs) { g.font = `22px ${PF.BD}`; g.fillStyle = alpha(P.cardInk, .6); fitFont(g, `예약 ${rs}`, `{s}px ${PF.BD}`, 22, 260); g.fillText(`예약 ${rs}`, W - 86, yy + 118) } });
+    footer(440 + Math.max(4, ss.length) * 150 + 40);
+  } else {
+    const dark = d.lay === 'board'; if (dark) { g.fillStyle = mix(P.bg, '#000000', P.dark ? .35 : .85); g.fillRect(0, 0, W, H); g.fillStyle = alpha(P.acc, .07); for (let yy = 8; yy < H; yy += 16) for (let x = 8; x < W; x += 16) g.fillRect(x, yy, 4, 4); g.save(); rr(g, 20, 20, W - 40, H - 40, 20); g.lineWidth = 6; g.strokeStyle = P.acc; g.shadowColor = P.acc; g.shadowBlur = 20; g.stroke(); g.restore() } else { g.fillStyle = P.bg; g.fillRect(0, 0, W, H); g.fillStyle = P.acc; g.fillRect(0, 0, 24, H) }
+    const Pk = dark ? { ...P, ink: '#FFFFFF', sub: alpha('#FFFFFF', .7) } : P; const ink = Pk.ink;
+    g.textAlign = 'left'; g.fillStyle = Pk.sub; g.font = `30px ${PF.BD}`; g.fillText(cf.tag, 60, 76); badge(g, img, W - 104, 112, 58); g.save(); if (dark) { g.shadowColor = P.acc; g.shadowBlur = 26 } g.fillStyle = P.acc; g.font = `160px ${LAT}`; g.fillText(`${y}.${m}`, 54, 270); g.restore(); g.fillStyle = ink; fitFont(g, 'MATCH SCHEDULE', `{s}px ${LAT}`, 92, W - 120); g.fillText('MATCH SCHEDULE', 58, 380);
+    const cols = [['회차', 120], ['일시', 250], ['장소', 260], [fixedH != null ? `신청(${fixedH}시)` : '신청 오픈', 190], ['예약자', 148]]; const tx = (W - cols.reduce((a, x) => a + x[1], 0)) / 2, ty = 450, rh = 84;
+    g.fillStyle = dark ? alpha(P.acc, .9) : ink; g.fillRect(tx, ty, W - 2 * tx, 64); let cx = tx; g.textAlign = 'center'; cols.forEach(([t, w0]) => { g.fillStyle = dark ? '#111' : P.bg; g.font = `28px ${PF.BD}`; g.fillText(t, cx + w0 / 2, ty + 42); cx += w0 });
+    const nr = Math.max(6, ss.length); for (let r = 0; r < nr; r++) { const yy = ty + 64 + r * rh; if (r % 2 === 0) { g.fillStyle = alpha(dark ? '#FFFFFF' : P.ink, .05); g.fillRect(tx, yy, W - 2 * tx, rh) } g.fillStyle = alpha(dark ? '#FFFFFF' : P.ink, .18); g.fillRect(tx, yy + rh - 1, W - 2 * tx, 1); const s = ss[r]; if (!s) continue; let x2 = tx;
+      [[s.no ? `${s.no}회` : '', ink], [`${md(s.date)} ${hr(s)}`, P.acc], [vshort(s.venue), ink], [openTxt(s), ink], [idsToNames(s.p0), ink]].forEach(([v, col], i) => { const w0 = cols[i][1]; g.fillStyle = col; fitFont(g, v, `{s}px ${i === 1 ? KR : PF.BD}`, 32, w0 - 16); g.fillText(v, x2 + w0 / 2, yy + rh / 2 + 11); x2 += w0 }) }
+    g.fillStyle = ink; const fy = ty + 64 + nr * rh + 70; g.textAlign = 'left'; foot.forEach((l, i) => { fitFont(g, l, `{s}px ${PF.BD}`, 32, W - 112); g.fillText(l, tx + 6, fy + i * 48) });
+  }
+  return c;
+}
+async function thumbOf(kind, d, key) { S.dthumb ??= {}; const k = `${kind}:${key}:${dKey(d)}`; if (S.dthumb[k]) return S.dthumb[k]; const big = kind === 'team' ? await drawTeam(cur(), d) : await drawSched(key, d); const t = document.createElement('canvas'); const r = big.height / big.width; t.width = 200; t.height = Math.round(200 * r); t.getContext('2d').drawImage(big, 0, 0, t.width, t.height); return (S.dthumb[k] = t.toDataURL('image/jpeg', .8)) }
+function candList(kind) { S.cand ??= {}; return S.cand[kind] || (S.cand[kind] = DESIGN_PRESETS[kind].map(x => ({ ...x }))) }
+function designPanel(kind, key, curD) { const L = candList(kind); const on = dKey(curD); const curF = curD.font || 'auto';
+  return `<h2>포스터 시안<small>마음에 드는 시안을 고르세요</small></h2><div class="pthemes dz" data-kind="${kind}">${L.map((d, i) => { const t = S.dthumb?.[`${kind}:${key}:${dKey(d)}`]; const sel = dKey(d) === on || (d.lay === curD.lay && d.pal === curD.pal && d.seed === curD.seed); return `<button class="pth ${sel ? 'on' : ''}" data-act="pdesign" data-k="${kind}" data-i="${i}" aria-pressed="${sel}">${t ? `<img src="${t}" alt="">` : `<span class="pth-ph" style="background:linear-gradient(160deg,${PAL[d.pal].bg} 0 55%,${PAL[d.pal].acc} 55%)"></span>`}<b>${dName(kind, d)}</b></button>` }).join('')}</div>
+  <div class="row" style="margin:4px 0 14px;gap:8px"><button class="btn" data-act="pnew" data-k="${kind}">🎲 새 시안 보기</button>${S.candNew?.[kind] ? `<button class="btn sm" data-act="preset" data-k="${kind}">기본 시안으로</button>` : ''}</div>
+  <h2>포스터 글꼴<small>모두 무료 글꼴이에요</small></h2><div class="pfonts">${POSTER_FONTS.map(([k, n, fam]) => `<button class="pfo ${k === curF ? 'on' : ''}" data-act="pfont" data-k="${kind}" data-v="${k}" aria-pressed="${k === curF}" ${fam ? `style="font-family:${fam.replace(/"/g, "'")},inherit"` : ''}>${n}${k === 'auto' ? `<small>${POSTER_FONTS.find(x => x[0] === fontOf({ ...curD, font: 'auto' }))?.[1] || ''}</small>` : ''}</button>`).join('')}</div>` }
+async function fillThumbs(kind, key) { if (S.thumbBusy?.[kind]) return; (S.thumbBusy ??= {})[kind] = 1; try { const L = candList(kind); for (let i = 0; i < L.length; i++) { const d = L[i]; const box = document.querySelector(`.pth[data-k="${kind}"][data-i="${i}"]`); if (!box || box.querySelector('img')) continue; const t = await thumbOf(kind, d, key); const b2 = document.querySelector(`.pth[data-k="${kind}"][data-i="${i}"]`); if (b2 && !b2.querySelector('img')) b2.insertAdjacentHTML('afterbegin', `<img src="${t}" alt="">`), b2.querySelector('.pth-ph')?.remove() } } catch (e) { console.error(e) } finally { S.thumbBusy[kind] = 0 } }
+function clearThumbs(kind, key) { for (const k in (S.dthumb || {})) if (k.startsWith(`${kind}:${key}:`)) delete S.dthumb[k] }
+async function applyDesign(kind, d) { if (kind === 'team') { const s = cur(); if (!s) return; await w(() => S.store.update(sp(S.sid), { posterDesign: d, posterTheme: null })); S.store.set('meta/poster', { ...(S.meta?.poster || {}), design: d }).catch(() => { }); const cv = await drawTeam({ ...s, posterDesign: d }, d); S.poster[S.sid] = cv.toDataURL('image/png'); const im = document.querySelector('img.poster:not(.schedimg)'); if (im) im.src = S.poster[S.sid] }
+  else { const ym = S.schedYm || defaultMonth(); S.meta = S.meta || {}; S.meta.sched = { ...schedCfg(), design: d }; await w(() => S.store.set('meta/sched', S.meta.sched)); const cv = await drawSched(ym, d); (S.schedImg ??= {})[ym] = cv.toDataURL('image/png'); const im = document.querySelector('img.schedimg'); if (im) im.src = S.schedImg[ym] } }
+
+async function posterBlob() { const s = cur(); const c = await drawTeam(s); return new Promise(r => c.toBlob(b => r(b), 'image/png')) }
+async function refreshPoster() { const s = cur(); if (!s) return; const c = await drawTeam(s); S.poster[S.sid] = c.toDataURL('image/png'); const el = document.querySelector('img.poster:not(.schedimg)'); if (el) el.src = S.poster[S.sid]; else if (!document.querySelector('img.schedimg')) render() }
 async function sharePoster(download) {
   const b = await posterBlob(); const s0 = cur(); const name = `WF_매치데이_${S.sid.slice(5).replace('-', '')}${s0?.no ? `_${s0.no}회` : ''}.png`; const file = new File([b], name, { type: 'image/png' });
   if (!download && navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: 'WF MATCH DAY' }); return } catch (e) { if (e.name === 'AbortError') return } }
@@ -856,23 +1028,20 @@ function vTrade(s) {
   return h;
 }
 function vNotice(s, inMenu) {
-  const ad = S.admin; const img = S.poster[S.sid]; const th = posterTheme(s); const ready = allPicked(s);
+  const ad = S.admin; const img = S.poster[S.sid]; const ready = allPicked(s);
   const form = ad ? `<h2>포스터에 들어갈 내용<small>입력하면 바로 반영돼요</small></h2><div class="panel pad pform">
     <div class="field"><label for="f-ev">🔒 엘리베이터(E/V) 비밀번호</label><input id="f-ev" class="inp" type="text" inputmode="text" maxlength="20" placeholder="예: 1234*" value="${esc(s.evpw || '')}" data-in="sfield" data-f="evpw"></div>
     <div class="field"><label for="f-nt">📢 공지사항 <small class="muted">최대 3줄 · { }로 감싼 글자는 강조색</small></label><textarea id="f-nt" class="inp" rows="3" maxlength="120" placeholder="예: {조끼 지참} 부탁드려요\n주차는 B2 이용" data-in="sfield" data-f="notice">${esc(s.notice || '')}</textarea></div></div>` : '';
   if (!ready) return form + `<div class="notice warn" style="margin-top:12px">아직 팀 색을 고르지 않은 팀이 있어요. 팀 색이 정해지면 포스터가 만들어져요. 위 내용은 미리 입력해 둘 수 있어요.</div>`;
   if (!img) queueMicrotask(refreshPoster);
-  const picker = ad ? `<h2>포스터 디자인<small>골라서 배포하세요</small></h2><div class="pthemes">${POSTER_THEMES.map(([k, n, c1, c2]) => { const t = S.pthumb?.[S.sid + ':' + k]; return `<button class="pth ${k === th ? 'on' : ''}" data-act="ptheme" data-v="${k}" aria-pressed="${k === th}">${t ? `<img src="${t}" alt="">` : `<span class="pth-ph" style="background:linear-gradient(160deg,${c1} 0 55%,${c2} 55%)"></span>`}<b>${n}</b></button>` }).join('')}</div>` : '';
-  const curF = s.posterFont || S.meta?.poster?.font || 'auto'; const fpick = ad ? `<h2>포스터 글꼴<small>모두 무료 글꼴이에요</small></h2><div class="pfonts">${POSTER_FONTS.map(([k, n, fam]) => `<button class="pfo ${k === curF ? 'on' : ''}" data-act="pfont" data-v="${k}" aria-pressed="${k === curF}" ${fam ? `style="font-family:${fam.replace(/"/g, "'")},inherit"` : ''}>${n}${k === 'auto' ? `<small>${POSTER_FONTS.find(x => x[0] === THEME_FONT[th])?.[1] || ''}</small>` : ''}</button>`).join('')}</div>` : '';
-  if (ad) queueMicrotask(posterThumbs);
-  let h = `<div class="dgrid"><section>${form}${picker}${fpick}</section><section><h2>공지 이미지 미리보기</h2><img class="poster" alt="매치데이 공지 이미지 미리보기" src="${img || ''}" width="1086" height="1448">
+  const picker = ad ? designPanel('team', S.sid, teamDesign(s)) : '';
+  if (ad) queueMicrotask(() => fillThumbs('team', S.sid));
+  let h = `<div class="dgrid"><section>${form}${picker}</section><section><h2>공지 이미지 미리보기</h2><img class="poster" alt="매치데이 공지 이미지 미리보기" src="${img || ''}" width="1086" height="1448">
   <div class="row" style="margin-top:10px"><button class="btn primary" data-act="share">공유하기</button><button class="btn" data-act="download">이미지 저장</button></div>
   <button class="btn block" style="margin-top:8px" data-act="copytext">공지 텍스트 복사</button>`;
   if (ad && !inMenu) h += sessMatches(s.date).length ? `<div style="height:14px"></div><button class="btn block" data-act="gorun" data-id="${s.date}" data-step="match">경기 진행 화면으로</button>` : `<div style="height:14px"></div><button class="btn primary block" data-act="mkmatches">경기 일정 만들기 (9경기)</button>`;
   return h + '</section></div>';
 }
-async function posterThumbs() { const s = cur(); if (!s || !allPicked(s) || S.pthumbBusy) return; S.pthumb ??= {}; const miss = POSTER_THEMES.map(x => x[0]).filter(k => !S.pthumb[S.sid + ':' + k]); if (!miss.length) return; S.pthumbBusy = 1;
-  try { for (const k of miss) { const big = await drawPoster(s, k); const t = document.createElement('canvas'); t.width = 217; t.height = 290; t.getContext('2d').drawImage(big, 0, 0, 217, 290); S.pthumb[S.sid + ':' + k] = t.toDataURL('image/jpeg', .82); const el = document.querySelector(`.pth[data-v="${k}"]`); if (el) el.innerHTML = `<img src="${S.pthumb[S.sid + ':' + k]}" alt=""><b>${POSTER_THEMES.find(x => x[0] === k)[1]}</b>` } } catch (e) { console.error(e) } finally { S.pthumbBusy = 0 } }
 function pairSheet() { const s = cur(); const ms = s ? sessMatches(s.date) : []; const D = S.pairDraft || {};
   const opt = (sel, mid, side) => `<select class="inp" data-in="pairsel" data-id="${mid}" data-side="${side}" aria-label="${side === 'h' ? '왼쪽' : '오른쪽'} 팀">${KEYS.map(k => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(team(s, k).name)}</option>`).join('')}</select>`;
   return `<h4>1~9경기 대진 변경</h4><p>경기마다 맞붙는 두 팀을 골라요. 좌우만 바꾸면 골 기록은 그대로예요. 끝난 경기에서 한 팀을 다른 팀으로 바꾸면, 빠진 팀의 골 기록이 새로 들어온 팀으로 옮겨져서 점수는 그대로 유지돼요.</p><div class="pairlist">${ms.map(m => { const [hh, aa] = D[m.id] || [m.home, m.away]; const bad = hh === aa; const ch = hh !== m.home || aa !== m.away; const [a, b] = (() => { const [x, y] = score(m); return hh === m.away && aa === m.home ? [y, x] : [x, y] })();
@@ -977,6 +1146,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.30', '2026.10.16', ['[운영진] 공지 포스터 시안을 완전히 새로 만들었어요: 클래식·매거진·티켓·스플릿·전광판·타이포 6가지 구성에 색 조합 8가지', '[운영진] "🎲 새 시안 보기"를 누를 때마다 구성·색·글꼴을 새로 섞은 시안 5개가 나와요', '[운영진] 월간 일정표도 클래식·달력·리스트·전광판·타이포 시안과 글꼴을 골라 만들 수 있어요']],
   ['0.21.29', '2026.10.16', ['[운영진] 회원 관리에서 운영진 체크 대신 회원 유형(운영진·특별회원·정회원·장불회원·게스트)으로 고르도록 바꿨어요', '운영모드는 운영진과 특별회원만 들어갈 수 있어요. 운영진은 지금처럼 신청 0순위예요']],
   ['0.21.28', '2026.10.16', ['[운영진] 공지 포스터 글꼴을 페이퍼로지·에스코어드림·프리텐다드·나눔고딕·나눔명조·나눔손글씨(펜·붓) 중에서 고를 수 있어요. "디자인 추천"을 고르면 디자인마다 어울리는 글꼴이 자동으로 들어가요', '포스터 글꼴은 필요한 것만 그때그때 받아서 더 빨리 그려져요']],
   ['0.21.27', '2026.10.16', ['[운영진] 공지 메뉴 맨 위에서 엘리베이터 비밀번호와 공지사항(최대 3줄)을 입력하면 포스터에 바로 반영돼요. 팀 색이 정해지기 전에도 미리 입력할 수 있어요', '[운영진] 공지 포스터 디자인을 스타디움·나이트·클린·팀 컬러 4가지 중에서 골라 배포할 수 있어요']],
@@ -1681,11 +1851,11 @@ function monthsWithSessions() { return [...new Set(Object.keys(S.sessions).map(i
 function defaultMonth() { const ms = monthsWithSessions(); const t = today().slice(0, 7); const d = new Date(); const nx = `${d.getMonth() === 11 ? d.getFullYear() + 1 : d.getFullYear()}-${p2(d.getMonth() === 11 ? 1 : d.getMonth() + 2)}`; return ms.includes(nx) ? nx : ms.includes(t) ? t : ms[ms.length - 1] || t }
 function schedCfg() { return { tag: 'WEEKDAYS FUTSAL CLUB', footer: '', ...(S.meta?.sched || {}) } }
 function md(id) { const [, m, d] = id.split('-'); return `${+m}/${+d}(${dow(id)})` }
-async function drawSchedule(ym) {
+async function drawSchedule(ym, fk) {
   const ss0 = Object.keys(S.sessions).filter(id => id.startsWith(ym)); const fl = schedCfg().footer.split('\n').filter((l, i, a) => i < 8).length;
   const W = 1080, H = Math.max(1515, 895 + 124 + 66 * Math.max(6, ss0.length) + 80 + fl * 50 + 50); const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
   const ssT = Object.keys(S.sessions).filter(id => id.startsWith(ym)).map(id => S.sessions[id]);
-  const PF = await posterFonts([schedCfg().footer, schedCfg().tag, ...ssT.map(x => (x.venue || '') + idsToNames(x.p0))]);
+  const PF = await posterFonts([schedCfg().footer, schedCfg().tag, ...ssT.map(x => (x.venue || '') + idsToNames(x.p0))], fk);
   const img = await emblem(); const LAT = PF.LAT, KR = PF.KR, BD = PF.BD;
   let gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#2A7A3B'); gr.addColorStop(1, '#2E8744'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
   g.fillStyle = '#23693A'; g.beginPath(); g.moveTo(0, 0); g.lineTo(W, 0); g.lineTo(W, 520); g.lineTo(0, 150); g.closePath(); g.fill();
@@ -1711,7 +1881,7 @@ async function drawSchedule(ym) {
   schedCfg().footer.split('\n').slice(0, 8).forEach((l, i) => { fitFont(g, l, `{s}px ${BD}`, 34, W - 2 * x0); g.fillText(l, x0 + 10, fy + i * 50) });
   return c;
 }
-async function refreshSchedule() { const ym = S.schedYm || defaultMonth(); const c = await drawSchedule(ym); (S.schedImg ??= {})[ym] = c.toDataURL('image/png'); const el = document.querySelector('img.schedimg'); if (el) el.src = S.schedImg[ym]; else render() }
+async function refreshSchedule() { const ym = S.schedYm || defaultMonth(); const c = await drawSched(ym); (S.schedImg ??= {})[ym] = c.toDataURL('image/png'); const el = document.querySelector('img.schedimg'); if (el) el.src = S.schedImg[ym]; else render() }
 async function shareBlob(b, name, download) {
   const file = new File([b], name, { type: 'image/png' });
   if (!download && navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file] }); return } catch (e) { if (e.name === 'AbortError') return } }
@@ -1720,11 +1890,11 @@ async function shareBlob(b, name, download) {
 }
 function schedPanel() {
   const ms = monthsWithSessions(); const ym = S.schedYm || defaultMonth(); const img = S.schedImg?.[ym]; if (!img && !S.schedBusy) { S.schedBusy = 1; queueMicrotask(() => refreshSchedule().catch(e => console.error(e)).finally(() => { S.schedBusy = 0 })) } const cf = schedCfg();
-  const ss = Object.keys(S.sessions).filter(id => id.startsWith(ym)); const noNo = ss.filter(id => !S.sessions[id].no).length;
+  const ss = Object.keys(S.sessions).filter(id => id.startsWith(ym)); const noNo = ss.filter(id => !S.sessions[id].no).length; if (S.admin) queueMicrotask(() => fillThumbs('sched', ym));
   return `<h2>월별 일정표<small>한 달 일정을 한 장으로</small></h2><div class="dgrid"><section>
     <img class="poster schedimg" alt="${ym} 월별 일정표 미리보기" src="${img || ''}" width="1080" height="1515">
     <div class="row" style="margin-top:10px"><button class="btn primary" data-act="schedshare">공유하기</button><button class="btn" data-act="scheddl">이미지 저장</button></div></section>
-    <section><div class="panel"><div class="field"><label for="sch-ym">월 선택</label><select id="sch-ym" class="inp" data-in="schedym">${ms.map(x => `<option value="${x}" ${x === ym ? 'selected' : ''}>${x.replace('-', '년 ')}월 (${Object.keys(S.sessions).filter(id => id.startsWith(x)).length}경기)</option>`).join('')}</select></div>
+    <section>${S.admin ? designPanel('sched', ym, schedDesign()) : ''}<div class="panel"><div class="field"><label for="sch-ym">월 선택</label><select id="sch-ym" class="inp" data-in="schedym">${ms.map(x => `<option value="${x}" ${x === ym ? 'selected' : ''}>${x.replace('-', '년 ')}월 (${Object.keys(S.sessions).filter(id => id.startsWith(x)).length}경기)</option>`).join('')}</select></div>
     <div class="field"><label for="sch-tag">왼쪽 위 문구</label><input id="sch-tag" class="inp" type="text" value="${esc(cf.tag)}" data-in="schedf" data-f="tag"></div>
     <div class="field"><label for="sch-ft">아래 안내 문구 (줄바꿈으로 여러 줄)</label><textarea id="sch-ft" class="inp" data-in="schedf" data-f="footer" placeholder="회장 홍길동 : 010-0000-0000&#10;※매달 변경 가능성 있음">${esc(cf.footer)}</textarea></div></div>
     <p class="note">경기관리에 입력한 일정(회차, 날짜·시간, 장소, 신청 오픈, 구장 예약자)으로 자동으로 만들어져요.${noNo ? ` 회차가 비어 있는 경기가 ${noNo}개 있어요. 경기관리 표의 "회차" 칸에 입력하면 표에 들어가요.` : ''}</p></section></div>`;
@@ -2316,9 +2486,9 @@ document.addEventListener('input', e => { const el = e.target; const k = el.data
   if (k === 'calf' && S.cal) { S.cal.f[el.dataset.f] = el.value; if (el.dataset.f === 'no') S.cal.f.noAuto = false; return }
   if (k === 'calfvenue' && S.cal) { if (el.value === '__custom') { S.cal.f.venueCustom = true; S.cal.f.venue = ''; render(); setTimeout(() => document.getElementById('calf-venue')?.focus(), 50) } else { S.cal.f.venueCustom = false; S.cal.f.venue = el.value } return }
   if (k === 'impf' && S.imp) { S.imp[el.dataset.f] = el.value; return }
-  if (k === 'schedf' && S.admin) { const f = el.dataset.f; S.meta = S.meta || {}; S.meta.sched = { ...schedCfg(), [f]: el.value }; clearTimeout(S.schedT); S.schedT = setTimeout(async () => { await w(() => S.store.set('meta/sched', S.meta.sched)); S.schedImg = {}; refreshSchedule() }, 700); return }
+  if (k === 'schedf' && S.admin) { const f = el.dataset.f; S.meta = S.meta || {}; S.meta.sched = { ...schedCfg(), [f]: el.value }; clearTimeout(S.schedT); S.schedT = setTimeout(async () => { await w(() => S.store.set('meta/sched', S.meta.sched)); S.schedImg = {}; const ym0 = S.schedYm || defaultMonth(); clearThumbs('sched', ym0); document.querySelectorAll('.pth[data-k="sched"] img').forEach(x => x.remove()); refreshSchedule(); fillThumbs('sched', ym0) }, 700); return }
   if (k === 'mq') { S.mq = el.value; clearTimeout(S.mqT); S.mqT = setTimeout(() => { const pos = el.selectionStart; S.pending = false; const a = document.activeElement; a && a.blur(); render(); const n = document.getElementById('mq'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos) } catch { } } }, 250); return }
-  if (k === 'sfield' && S.admin) { const f = el.dataset.f; clearTimeout(saveT[f]); saveT[f] = setTimeout(async () => { await w(() => S.store.update(sp(S.sid), { [f]: el.value })); if (f === 'evpw' || f === 'notice') { for (const k in (S.pthumb || {})) if (k.startsWith(S.sid + ':')) delete S.pthumb[k]; refreshPoster(); posterThumbs() } }, 600) } });
+  if (k === 'sfield' && S.admin) { const f = el.dataset.f; clearTimeout(saveT[f]); saveT[f] = setTimeout(async () => { await w(() => S.store.update(sp(S.sid), { [f]: el.value })); if (f === 'evpw' || f === 'notice') { clearThumbs('team', S.sid); document.querySelectorAll('.pth[data-k="team"] img').forEach(x => x.remove()); refreshPoster(); fillThumbs('team', S.sid) } }, 600) } });
 document.addEventListener('change', e => { const el = e.target;
   if (el.dataset?.in === 'pairsel') { const m = M(el.dataset.id); if (!m) return; const D = (S.pairDraft ??= {}); const cur0 = D[m.id] || [m.home, m.away]; const nx = [...cur0]; const i = el.dataset.side === 'h' ? 0 : 1; nx[i] = el.value; if (nx[0] === nx[1]) nx[1 - i] = cur0[i]; D[m.id] = nx; render(); return }
   if (el.dataset.in === 'schedym') { S.schedYm = el.value; render(); return }
@@ -2493,7 +2663,7 @@ document.addEventListener('click', async e => {
     case 'impopen': if (!needAdmin()) break; S.sheet = { type: 'import' }; render(); break;
     case 'impgo': { if (!needAdmin()) break; el.disabled = true; const ok = await importRecord(S.imp); el.disabled = false; if (ok) { S.sheet = null; S.imp = null; render() } break }
     case 'latecancel': if (!needAdmin()) break; await cancelApp(S.sid, id, null, true); break;
-    case 'schedshare': case 'scheddl': { const ym = S.schedYm || defaultMonth(); const c = await drawSchedule(ym); const b = await new Promise(r => c.toBlob(r, 'image/png')); await shareBlob(b, `WF_일정_${ym.slice(0, 4)}년${+ym.slice(5)}월.png`, act === 'scheddl'); break }
+    case 'schedshare': case 'scheddl': { const ym = S.schedYm || defaultMonth(); const c = await drawSched(ym); const b = await new Promise(r => c.toBlob(r, 'image/png')); await shareBlob(b, `WF_일정_${ym.slice(0, 4)}년${+ym.slice(5)}월.png`, act === 'scheddl'); break }
     case 'dutyedit': if (!needAdmin()) break; S.sheet = { type: 'duty', sid: id }; render(); break;
     case 'dutytog': { const sid = S.sheet?.sid; const ss = S.sessions[sid]; const kind = el.dataset.kind; const cur1 = new Set(ss.duty?.[kind] || []); cur1.has(id) ? cur1.delete(id) : cur1.add(id); await w(() => S.store.update(sp(sid), { [`duty.${kind}`]: [...cur1] })); break }
     case 'parkedit': if (!needAdmin()) break; S.sheet = { type: 'park', sid: id }; render(); break;
@@ -2534,9 +2704,11 @@ document.addEventListener('click', async e => {
     case 'calgoo': S.sheet = null; render(); window.open(calGoogle(id), '_blank', 'noopener'); break;
     case 'rejguest': { const L = S.rejNames || []; S.rejNames = null; if (L.length) await addApplicants(L.map(n => n + '(게)')); else render(); break }
     case 'rejclose': S.rejNames = null; render(); break;
-    case 'ptheme': { if (!needAdmin()) break; const v = el.dataset.v; if (!POSTER_THEMES.some(x => x[0] === v)) break; document.querySelectorAll('.pth').forEach(b => b.classList.toggle('on', b.dataset.v === v)); await w(() => S.store.update(sp(S.sid), { posterTheme: v })); S.store.set('meta/poster', { ...(S.meta?.poster || {}), theme: v }).catch(() => { }); const ss = { ...cur(), posterTheme: v }; const cv = await drawPoster(ss, v); S.poster[S.sid] = cv.toDataURL('image/png'); const im = document.querySelector('img.poster:not(.schedimg)'); if (im) im.src = S.poster[S.sid]; toast(`${POSTER_THEMES.find(x => x[0] === v)[1]} 디자인으로 바꿨어요.`); break }
-    case 'pfont': { if (!needAdmin()) break; const v = el.dataset.v; if (!POSTER_FONTS.some(x => x[0] === v)) break; document.querySelectorAll('.pfo').forEach(b => b.classList.toggle('on', b.dataset.v === v)); toast('글꼴을 불러오는 중이에요…'); await w(() => S.store.update(sp(S.sid), { posterFont: v })); S.store.set('meta/poster', { ...(S.meta?.poster || {}), font: v }).catch(() => { });
-      for (const k in (S.pthumb || {})) if (k.startsWith(S.sid + ':')) delete S.pthumb[k]; const ss = { ...cur(), posterFont: v }; const cv = await drawPoster(ss); S.poster[S.sid] = cv.toDataURL('image/png'); const im = document.querySelector('img.poster:not(.schedimg)'); if (im) im.src = S.poster[S.sid]; posterThumbs(); toast(`${POSTER_FONTS.find(x => x[0] === v)[1]} 글꼴로 바꿨어요.`); break }
+    case 'pdesign': { if (!needAdmin()) break; const kind = el.dataset.k, d = candList(kind)[+el.dataset.i]; if (!d) break; document.querySelectorAll(`.pth[data-k="${kind}"]`).forEach(b => b.classList.toggle('on', b === el)); toast('시안을 적용하는 중이에요…'); await applyDesign(kind, { ...d }); toast(`${dName(kind, d)} 시안으로 바꿨어요.`); render(); break }
+    case 'pnew': { const kind = el.dataset.k; S.cand ??= {}; (S.candNew ??= {})[kind] = 1; const cd = kind === 'team' ? teamDesign(cur()) : schedDesign(); S.cand[kind] = [{ ...cd }, ...newDesigns(kind, 5)]; render(); break }
+    case 'preset': { const kind = el.dataset.k; S.cand[kind] = DESIGN_PRESETS[kind].map(x => ({ ...x })); S.candNew[kind] = 0; render(); break }
+    case 'pfont': { if (!needAdmin()) break; const kind = el.dataset.k || 'team', v = el.dataset.v; if (!POSTER_FONTS.some(x => x[0] === v)) break; document.querySelectorAll(`.pfo[data-k="${kind}"]`).forEach(b => b.classList.toggle('on', b.dataset.v === v)); toast('글꼴을 불러오는 중이에요…');
+      const base = kind === 'team' ? teamDesign(cur()) : schedDesign(); const d = { ...base, font: v }; S.cand[kind] = candList(kind).map(x => ({ ...x, font: v })); await applyDesign(kind, d); toast(`${POSTER_FONTS.find(x => x[0] === v)[1]} 글꼴로 바꿨어요.`); render(); break }
     case 'aview': S.aview = el.dataset.v === 'time' ? 'time' : 'rank'; render(); break;
     case 'pairedit': { if (!needAdmin()) break; S.pairDraft = {}; S.sheet = { type: 'pairs' }; render(); break }
     case 'pairswap': { const m = M(id); if (!m) break; const D = (S.pairDraft ??= {}); const [hh, aa] = D[id] || [m.home, m.away]; D[id] = [aa, hh]; render(); break }
