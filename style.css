@@ -255,4 +255,15 @@ table.grid.aptbl{min-width:0!important;width:100%;table-layout:fixed}table.grid.
 .planwrap .schdetail{height:auto!important;overflow:visible!important;position:sticky;top:calc(var(--abh,70px) + 60px)}
 .planwrap .pside{min-height:0}
 }
-:root{--cssv:"0.21.48"}
+/* 0.21.49 선수 목록 박스 고정 + 아이콘 고정 크기 (팀 안 아이콘보다 살짝 크게) */
+.felt .pool .namegrid:has(.pfb){display:flex!important;flex-wrap:wrap;justify-content:center;align-content:flex-start;gap:6px 6px!important;grid-template-columns:none!important}
+.jf.pfb{--fw:70px}
+.dmroot .jf.pfb{--fw:52px}
+.jf.pfb b.pfn{font-size:min(calc(var(--fw)*.23),calc(var(--fw)*.76/var(--nl,3)))!important}
+.felt .pool{display:flex;flex-direction:column}
+.felt .pool .namegrid:has(.pfb){flex:1;min-height:0;overflow-y:auto;padding:4px 2px}
+.board-table:not(.dmbt) .felt .pool{height:300px}
+.board-table:not(.dmbt) .felt .pool .namegrid:has(.pfb){overflow-y:auto!important}
+.dmroot .felt .pool{flex:1;min-height:0;overflow:hidden!important}
+.dmroot .felt .pool .namegrid:has(.pfb){overflow-y:auto!important}
+:root{--cssv:"0.21.49"}

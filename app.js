@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.48';
+const APP_VERSION = '0.21.49';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -707,11 +707,8 @@ function draftFly() { const snap = S.flySnap; S.flySnap = null; if (!snap || mat
     const dx = to.left + to.width / 2 - (from.x + from.w / 2), dy = to.top + to.height / 2 - (from.y + from.h / 2), sc = Math.max(.45, Math.min(1.2, to.height / from.h)), lift = -Math.min(140, 60 + Math.abs(dx) * .15);
     const an = f.animate([{ transform: 'translate(0,0) scale(1) rotate(0deg)', offset: 0 }, { transform: `translate(${dx * .5}px,${dy * .5 + lift}px) scale(1.18) rotate(${dx > 0 ? 8 : -8}deg)`, offset: .45 }, { transform: `translate(${dx}px,${dy}px) scale(${sc}) rotate(0deg)`, offset: 1 }], { duration: 720, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'forwards' });
     const done = () => { f.remove(); el.style.visibility = ''; el.animate?.([{ transform: 'scale(1.35)' }, { transform: 'scale(1)' }], { duration: 260, easing: 'ease-out' }) }; an.onfinish = done; setTimeout(() => { if (f.isConnected) done() }, 1200) }) }
-function fitPool() { const sr = document.querySelector('.dmroot .seatrow'); if (sr) { const hd = sr.querySelector('.seat .sv2'); if (hd) sr.style.setProperty('--seatmin', Math.ceil(hd.offsetHeight + 62) + 'px') }
-  const g = document.querySelector('.felt .pool .namegrid'); if (!g) return; const n = g.children.length; if (!n) return; const pool = g.closest('.pool'); const hd = pool.querySelector('.pool-hd');
-  const W = g.clientWidth || pool.clientWidth, H = S.dm ? pool.clientHeight - (hd ? hd.offsetHeight : 0) - 8 : 1e4, gap = 6; let best = 0, bc = 4;
-  for (let cols = 2; cols <= 8; cols++) { const rows = Math.ceil(n / cols); const w = Math.min(S.dm ? 104 : 92, (W - (cols - 1) * gap) / cols, (H - (rows - 1) * gap) / rows * 80 / 74); if (w >= best - .5) { best = Math.max(best, w); bc = cols } if (cols >= n) break }
-  const fw = Math.max(42, Math.floor(best)); g.style.setProperty('--gfw', fw + 'px'); g.style.setProperty('--cols', bc) }
+function fitPool() { const sr = document.querySelector('.dmroot .seatrow'); if (sr) { const hd = sr.querySelector('.seat .sv2'); if (hd) sr.style.setProperty('--seatmin', Math.ceil(hd.offsetHeight + 100) + 'px') }
+}
 function render() {
   if (isTyping()) { S.pending = true; return } S.pending = false; draftSnap();
   S.dm = !isDesk();
@@ -1180,6 +1177,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.49', '2026.10.16', ['드래프트 선수 목록 박스 크기를 고정했어요. 남은 인원이 바뀌어도 박스 크기는 그대로예요', '선수 아이콘은 팀에 들어간 아이콘보다 살짝 큰 고정 크기로 보여요']],
   ['0.21.48', '2026.10.16', ['PC 운영모드 일정 메뉴의 달력이 화면 아래까지 길게 늘어나지 않고 적당한 크기로 보여요', '경기 상세의 회차·시간·신청 날짜 입력칸이 좁게 찌그러지던 문제를 고쳤어요']],
   ['0.21.47', '2026.10.16', ['PC 드래프트 화면에서 주장 카드에 들어간 선수 이름을 크게 키웠어요. 유니폼 위로 넘쳐도 테두리 글씨라 잘 보여요']],
   ['0.21.46', '2026.10.16', ['드래프트 선수 아이콘을 머리 없는 반팔 유니폼 모양으로 단순하게 바꿨어요. 안 뽑힌 선수는 흰 유니폼, 뽑히면 팀색 유니폼이에요', '이름이 길어도 잘리지 않게 글자 크기가 자동으로 맞춰져요']],
