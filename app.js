@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.52';
+const APP_VERSION = '0.21.53';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -715,7 +715,19 @@ function placeBubbles() { const vw = innerWidth, top0 = (document.querySelector(
     const w = b.offsetWidth, h = b.offsetHeight, cx = r.left + r.width / 2, left = Math.max(8, Math.min(vw - w - 8, cx - w / 2)); let top = r.top - h - 10; const below = top < top0; if (below) top = r.bottom + 10;
     for (let k = 0; k < 6; k++) { const hit = placed.find(q => left < q.l + q.w + 4 && left + w + 4 > q.l && top < q.t + q.h + 4 && top + h + 4 > q.t); if (!hit) break; top = below ? hit.t + hit.h + 6 : hit.t - h - 6 } placed.push({ l: left, t: top, w, h });
     b.classList.toggle('below', below); b.style.left = left + 'px'; b.style.top = top + 'px'; b.style.setProperty('--ax', Math.max(16, Math.min(w - 16, cx - left)) + 'px') }) }
-window.addEventListener('scroll', () => { if (S.bubA?.length) placeBubbles() }, { passive: true, capture: true });
+window.addEventListener('scroll', () => { if (S.bubA?.length) placeBubbles(); if (S.ballK) placeBall() }, { passive: true, capture: true });
+/* 차례 축구공: 차례인 팀 카드 위에서 통통 튀고, 차례가 넘어가면 다음 팀으로 패스 */
+const BALL_SVG = '<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18.5" fill="#fff" stroke="#131C2B" stroke-width="2"/><path d="M20 12.5l7 5.1-2.7 8.2h-8.6L13 17.6z" fill="#131C2B"/><path d="M20 12.5V3.2M27 17.6l8.6-2.9M24.3 25.8l5.4 7.4M15.7 25.8l-5.4 7.4M13 17.6l-8.6-2.9" stroke="#131C2B" stroke-width="2" fill="none"/><path d="M14.5 2.6L20 3.2l5.5-.6M35.6 14.7l2 5.3-.9 5.6M29.7 33.2l-4.7 3-5.4.9M10.3 33.2l4.7 3M4.4 14.7l-2 5.3.9 5.6" stroke="#131C2B" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
+function placeBall() { const seat = document.querySelector('.board-table .seat.balltgt'); let el = document.getElementById('turnBall');
+  if (!seat) { if (el) el.remove(); S.ballK = null; S.ballPos = null; return }
+  if (!el) { el = document.createElement('div'); el.id = 'turnBall'; el.innerHTML = `<i class="tb-sh"></i><b class="tb-b">${BALL_SVG}</b>`; document.body.appendChild(el) }
+  const r = seat.getBoundingClientRect(); const sz = S.dm ? 26 : 32; const x = r.left + r.width / 2 - sz / 2, y = r.top - sz + 5; const k = seat.dataset.k;
+  el.style.width = el.style.height = sz + 'px'; el.style.left = x + 'px'; el.style.top = y + 'px';
+  if (S.ballK && S.ballK !== k && S.ballPos && !matchMedia('(prefers-reduced-motion: reduce)').matches) { const dx = S.ballPos.x - x, dy = S.ballPos.y - y, lift = -Math.min(140, 50 + Math.abs(dx) * .35);
+    el.classList.add('passing'); S.ballAn?.cancel(); S.ballAn = el.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: `translate(${dx * .5}px,${dy * .5 + lift}px)`, offset: .5 }, { transform: 'translate(0,0)' }], { duration: 620, easing: 'cubic-bezier(.3,.1,.4,1)' });
+    el.querySelector('.tb-b').animate([{ rotate: '0deg' }, { rotate: (dx > 0 ? '-' : '') + '540deg' }], { duration: 620, easing: 'cubic-bezier(.3,.1,.4,1)' });
+    S.ballAn.onfinish = () => el.classList.remove('passing') }
+  S.ballK = k; S.ballPos = { x, y } }
 function fitPool() { const short = innerHeight < 760; const sr = document.querySelector('.dmroot .seatrow'); if (sr) { const hd = sr.querySelector('.seat .sv2'); if (hd) sr.style.setProperty('--seatmin', Math.ceil(hd.offsetHeight + (short ? 52 : 100)) + 'px') }
   const g = document.querySelector('.dmroot .felt .pool .namegrid'); if (g && g.children.length) { let fw = 52; g.style.setProperty('--pfw', fw + 'px'); while (fw > 34 && g.scrollHeight > g.clientHeight + 1) { fw -= 3; g.style.setProperty('--pfw', fw + 'px') } }
 }
@@ -755,7 +767,7 @@ function render() {
   h += '</div>' + tabs();
   if (S.openMatch && S.matches[S.openMatch]) h += viewMatch();
   if (S.sheet) h += viewSheet();
-  document.getElementById('app').innerHTML = h + (S.admin ? venueList() : ''); fitPool(); liftBubbles(); if (S.flySnap) requestAnimationFrame(draftFly);
+  document.getElementById('app').innerHTML = h + (S.admin ? venueList() : ''); fitPool(); liftBubbles(); placeBall(); if (S.flySnap) requestAnimationFrame(draftFly);
   if (S.slideDir) { const wr = document.querySelector('.wrap'); if (wr) { wr.classList.add('tabslide-' + S.slideDir) } }
   const nNow = S.chat.length; const grew = nNow !== S.lastChatN; S.lastChatN = nNow; if (grew) S.chatUp = false;
   const toBottom = () => document.querySelectorAll('.msgs').forEach(nb => { if (!S.chatUp) nb.scrollTop = nb.scrollHeight });
@@ -882,9 +894,9 @@ function seatHTML(s, k, ph) {
   const cap = s.captains?.[k]; const t = team(s, k); const o = (s.order || []).indexOf(k); const inRoom = !!s.room?.[k]?.in;
   const turn = ph === 'draft' && !allIn(s) && (s.picks || []).length < draftTotal(s) && pickTeamAt(s, (s.picks || []).length) === k; const cturn = ph === 'color' && !t.picked && inRoom; const me = myTeam(s) === k;
   const ps = byName(teamPlayers(s, k).slice(1));
-  return `<div class="seat ${t.picked ? 'picked' : ''} ${turn || cturn ? 'onturn' : ''} ${me ? 'me' : ''} ${inkOn(t.color) === '#131C2B' ? 'light' : ''}" style="--tc:${t.color};--ti:${inkOn(t.color)}">
+  return `<div class="seat ${t.picked ? 'picked' : ''} ${turn || cturn ? 'onturn' : ''} ${turn ? 'balltgt' : ''} ${me ? 'me' : ''} ${inkOn(t.color) === '#131C2B' ? 'light' : ''}" data-k="${k}" style="--tc:${t.color};--ti:${inkOn(t.color)}">
     ${bubbleFor(m => m.team === k)}
-    <div class="sv2 shd">${turn || cturn ? '<em class="nowb">NOW</em>' : ''}<div class="snm">${orderDecided(s) && o >= 0 && ph !== 'ladder' && ph !== 'cards' ? `<em class="ord2">${o + 1}</em>` : ''}<b>${esc(pname(cap) || '미정')}</b><i class="dot ${inRoom ? 'on' : ''}" title="${inRoom ? '입장' : '대기'}"></i>${me ? '<span class="meb">나</span>' : ''}</div>
+    <div class="sv2 shd"><div class="snm">${orderDecided(s) && o >= 0 && ph !== 'ladder' && ph !== 'cards' ? `<em class="ord2">${o + 1}</em>` : ''}<b>${esc(pname(cap) || '미정')}</b><i class="dot ${inRoom ? 'on' : ''}" title="${inRoom ? '입장' : '대기'}"></i>${me ? '<span class="meb">나</span>' : ''}</div>
       <div class="sinfo"><span class="tok">${esc(t.name)}</span><b class="cnt2">${cap ? ps.length + 1 : 0}<small>명</small></b></div></div>
     ${(() => { const mine = me || S.admin; const adm = S.admin; const pend = s.pending && s.pending.t === k ? s.pending.p : null; const last = (s.picks || []).slice(-1)[0]; const seen = (S.seenStk ??= new Set());
       const items = ps.map(id => { const key = s.date + ':' + id; const nw = !seen.has(key); seen.add(key); const can = adm && last && last.p === id && last.t === k;
@@ -1187,6 +1199,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.53', '2026.10.16', ['차례 표시 NOW 대신, 차례인 팀 카드 위에서 축구공이 통통 튀어요. 차례가 넘어가면 공이 다음 팀으로 패스돼요']],
   ['0.21.52', '2026.10.16', ['드래프트 중 축구장 안의 검은 박스를 없애서 순번·선수 목록·선택 버튼이 축구장 위에 바로 보여요']],
   ['0.21.51', '2026.10.16', ['차례 표시를 \'차례 · 내 차례!\' 대신 주장 카드 오른쪽 위에 깜빡이는 NOW로 바꿨어요', '주장 카드에서 위쪽 정보와 선택된 선수 사이 구분선을 더 선명하게 했어요', '모바일 드래프트 화면에서 채팅 내용 칸을 없애고(💬 아이콘으로 보기) 그만큼 화면을 넓혀, 스크롤 없이 한 화면에 모두 보여요']],
   ['0.21.50', '2026.10.16', ['채팅 말풍선이 항상 맨 위에 떠서 축구장·카드·채팅창 등 다른 요소에 가려지지 않아요']],
@@ -2931,7 +2944,7 @@ function resumeCaptain() {
   if (S.admin) return; for (const [sid, l] of Object.entries(S.capLinks || {})) { const s = S.sessions[sid]; if (!s || s.draftStatus === 'done' && s.stage !== 'trade') continue;
     if (s.captainTokens?.[l.k] === l.t && (s.room?.open || s.draftStatus === 'live' || s.draftStatus === 'done') && sid >= today()) { if (S.tab !== 'settings') { S.sid = sid; S.tab = 'draft' } return } }
 }
-let lastDesk = null; window.addEventListener('resize', () => { const d = isDesk(); if (d !== lastDesk) { lastDesk = d; render() } else if (document.querySelector('.dmroot')) { fitPool(); placeBubbles(); const ab = document.querySelector('.appbar'); if (ab) document.documentElement.style.setProperty('--abh', ab.offsetHeight + 'px') } });
+let lastDesk = null; window.addEventListener('resize', () => { placeBall(); const d = isDesk(); if (d !== lastDesk) { lastDesk = d; render() } else if (document.querySelector('.dmroot')) { fitPool(); placeBubbles(); placeBall(); const ab = document.querySelector('.appbar'); if (ab) document.documentElement.style.setProperty('--abh', ab.offsetHeight + 'px') } });
 document.addEventListener('gesturestart', e => e.preventDefault()); document.addEventListener('dblclick', e => { if (!isDesk()) e.preventDefault() }, { passive: false });
 function goResult(id, dir) { const ids = pastSids(); const o = ids.indexOf(S.detail), n = ids.indexOf(id); S.rdAnim = dir || (n < o ? 'fromR' : 'fromL'); S.detail = id; render(); window.scrollTo(0, 0); setTimeout(() => { S.rdAnim = '' }, 350) }
 /* pull-to-refresh (home-screen apps have no browser refresh) */

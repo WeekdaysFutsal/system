@@ -303,4 +303,15 @@ table.grid.aptbl{min-width:0!important;width:100%;table-layout:fixed}table.grid.
 .felt .fx-draft .pool-hd{text-shadow:0 1px 2px rgba(0,0,0,.6)}
 .felt .fx-draft .flow2 small,.felt .fx-draft .flow2 em{text-shadow:0 1px 2px rgba(0,0,0,.6)}
 .dmroot .nowb{top:-15px;right:-6px}
-:root{--cssv:"0.21.52"}
+/* 0.21.53 차례 축구공 */
+.nowb{display:none!important}
+#turnBall{position:fixed;z-index:4000;pointer-events:none;will-change:transform}
+#turnBall .tb-b{position:absolute;inset:0;display:block;animation:tbBounce .42s cubic-bezier(.45,0,.9,.6) infinite alternate;transform-origin:50% 100%}
+#turnBall .tb-b svg{display:block;width:100%;height:100%;filter:drop-shadow(0 2px 2px rgba(0,0,0,.25))}
+#turnBall .tb-sh{position:absolute;left:50%;bottom:-3px;width:80%;height:6px;margin-left:-40%;border-radius:50%;background:rgba(0,0,0,.35);animation:tbShadow .42s cubic-bezier(.45,0,.9,.6) infinite alternate}
+@keyframes tbBounce{0%{transform:translateY(-18px) scale(1,1)}88%{transform:translateY(0) scale(1,1)}100%{transform:translateY(0) scale(1.14,.86)}}
+@keyframes tbShadow{0%{transform:scale(.45);opacity:.35}100%{transform:scale(1);opacity:.9}}
+#turnBall.passing .tb-b{animation:none}
+#turnBall.passing .tb-sh{opacity:0;animation:none}
+@media (prefers-reduced-motion:reduce){#turnBall .tb-b,#turnBall .tb-sh{animation-duration:1.2s}}
+:root{--cssv:"0.21.53"}
