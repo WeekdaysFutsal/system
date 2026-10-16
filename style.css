@@ -132,4 +132,39 @@ table.grid.aptbl{min-width:0!important;width:100%;table-layout:fixed}table.grid.
 .flytag{gap:6px;padding:0 10px 0 5px}.flytag .pico{background:rgba(0,0,0,.25)}
 .redobar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px;border:2px solid color-mix(in srgb,var(--accent) 35%,var(--line))}
 .dupbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 12px;border:2px solid #F5B800;background:color-mix(in srgb,#F5B800 8%,var(--surface))}
-:root{--cssv:"0.21.42"}
+/* 드래프트 이름표: 상체 실루엣 + 몸통 이름, 뽑히면 팀색 조끼 (0.21.43) */
+.fig{--shirt:#E9EDF5;--sink:#131C2B;display:inline-flex;flex-direction:column;align-items:center;gap:0;font-family:inherit}
+.fig .fh{display:block;width:26px;height:26px;border-radius:50%;background:var(--shirt);margin-bottom:-3px;position:relative;z-index:1;box-shadow:0 2px 3px rgba(0,0,0,.25)}
+.fig .fb{position:relative;display:block;min-width:62px;padding:9px 10px 7px;border-radius:22px 22px 8px 8px;background:var(--shirt);color:var(--sink);font-weight:800;font-size:15px;line-height:1.1;text-align:center;white-space:nowrap;box-shadow:0 3px 6px rgba(0,0,0,.28)}
+.fig.vest .fb{background:var(--tc);color:var(--ti)}
+.fig.vest .fb::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-top:10px solid var(--shirt)}
+.fig.vest .fb::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 2px rgba(255,255,255,.35);pointer-events:none}
+.nb.fig{padding:2px 3px 0!important;background:transparent!important;border:0!important;box-shadow:none!important;min-height:0!important;border-radius:0!important;animation:none!important}
+.nb.fig:not(:disabled):hover{transform:translateY(-2px)}
+.nb.fig:disabled{opacity:.92;cursor:default}
+.nb.fig.pend{filter:drop-shadow(0 0 6px rgba(255,210,31,.9))}
+.namegrid:has(.nb.fig){gap:8px 6px!important}
+.fig.mini{background:none;border:0;padding:0 1px;cursor:pointer}
+.fig.mini .fh{width:14px;height:14px;margin-bottom:-2px}
+.fig.mini .fb{min-width:34px;padding:5px 5px 3px;font-size:11px;border-radius:13px 13px 5px 5px;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.fig.mini.vest .fb::before{border-left-width:5px;border-right-width:5px;border-top-width:6px}
+.fig.mini.pendstk{opacity:.85}.fig.mini.pendstk .fb{outline:2px dashed var(--shirt);outline-offset:1px}
+.stk.figs{gap:4px 3px;align-items:flex-end}
+.seat .fig{--shirt:#F4F6FA}
+.flytag.fig{background:none!important;box-shadow:none!important;padding:0!important;flex-direction:column}
+.flytag.fig .fb{transition:background .25s,color .25s}
+.fig.vest .fb{padding-top:12px}
+.fig.mini.vest .fb{padding-top:8px}
+.seat .fig.mini .fb{box-shadow:0 0 0 1.5px rgba(255,255,255,.9),0 1px 3px rgba(0,0,0,.3)}
+.seat .fig.mini .fh{box-shadow:0 0 0 1.5px rgba(255,255,255,.9)}
+.seat[style*="--ti:#131C2B"] .fig.mini .fb,.seat[style*="--ti:#131C2B"] .fig.mini .fh{box-shadow:0 0 0 1.5px rgba(19,28,43,.85)}
+@media (max-width:640px){.fig .fh{width:19px;height:19px;margin-bottom:-2px}.fig .fb{min-width:52px;padding:6px 6px 5px;font-size:14px;border-radius:17px 17px 7px 7px}.fig.vest .fb{padding-top:10px}.fig.vest .fb::before{border-left-width:7px;border-right-width:7px;border-top-width:8px}.namegrid:has(.nb.fig){gap:5px 3px!important}.nb.fig{padding:1px 1px 0!important}.fig.mini .fh{width:12px;height:12px}.fig.mini .fb{min-width:30px;font-size:10.5px;padding:4px 4px 3px}.fig.mini.vest .fb{padding-top:7px}}
+.stk.figs .fig{display:inline-flex!important;flex-direction:column;align-items:center;padding:0 1px!important;background:none!important;box-shadow:none!important;border:0!important;border-radius:0!important;font-size:inherit;color:inherit}
+.stk.figs .fig .nbn{all:unset!important}
+.stk.figs .fig .fb{display:block;min-width:34px;padding:8px 5px 3px;font-size:11px;font-weight:800;border-radius:13px 13px 5px 5px;background:var(--tc)!important;color:var(--ti)!important;box-shadow:0 0 0 1.5px rgba(255,255,255,.9),0 1px 3px rgba(0,0,0,.3);animation:none}
+.stk.figs .fig .fh{display:block;width:14px;height:14px;margin:0 auto -2px;background:#F4F6FA!important;border-radius:50%;box-shadow:0 0 0 1.5px rgba(255,255,255,.9)}
+.seat[style*="--ti:#131C2B"] .stk.figs .fig .fb{box-shadow:0 0 0 1.5px rgba(19,28,43,.85),0 1px 3px rgba(0,0,0,.3)}
+.stk.figs .pendstk .fb{outline:2px dashed #fff;outline-offset:1px;opacity:.9}
+.stk.figs .fig.undo .fb{box-shadow:0 0 0 2px #FF4D4F}
+@media (max-width:640px){.stk.figs .fig .fb{min-width:30px;font-size:10.5px;padding:7px 4px 3px}.stk.figs .fig .fh{width:12px;height:12px}}
+:root{--cssv:"0.21.43"}

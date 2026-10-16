@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.42';
+const APP_VERSION = '0.21.43';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -107,6 +107,7 @@ function allPicked(s) { return KEYS.every(k => team(s, k).picked) }
 const memberNames = () => Object.values(S.players).map(p => p.name).sort((a, b) => a.localeCompare(b, 'ko'));
 const DEV_NAMES = ['박종현']; // 개발자: 운영진이 아니어도 운영모드 버튼이 보여요
 const canOp = () => S.admin || !S.auth || ['staff', 'special'].includes(mstatus(S.players[myPid()])) || DEV_NAMES.includes(S.players[myPid()]?.name);
+const figHTML = n => `<i class="fh" aria-hidden="true"></i><span class="fb"><span class="nbn">${esc(n)}</span></span>`; // 상체 실루엣 + 몸통에 이름
 const PICO = '<i class="pico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="4.3"/><path d="M3.6 21.5c0-4.6 3.8-8 8.4-8s8.4 3.4 8.4 8z"/></svg></i>'; // 드래프트 이름표의 사람 아이콘
 function bib(c) { return `<span class="bib" style="background:${c}"></span>` }
 function tag(t) { return `<span class="teamtag" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}</span>` }
@@ -699,10 +700,10 @@ function draftSnap() { if (S.flySnap && Date.now() - S.flySnap.at < 600) return;
   const r = {}; pool.forEach(b => { const q = b.getBoundingClientRect(); if (q.width) r[b.dataset.id] = { x: q.left, y: q.top, w: q.width, h: q.height, cs: getComputedStyle(b) } }); S.flySnap = { at: Date.now(), pool: r, had: new Set([...stk].map(e => e.dataset.pid)) } }
 function draftFly() { const snap = S.flySnap; S.flySnap = null; if (!snap || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   document.querySelectorAll('.seat [data-pid]').forEach(el => { const pid = el.dataset.pid, from = snap.pool[pid]; if (snap.had.has(pid) || !from) return; const to = el.getBoundingClientRect(); if (!to.width) return;
-    const f = document.createElement('div'); f.className = 'flytag'; f.innerHTML = PICO + `<span>${esc(pname(pid))}</span>`; Object.assign(f.style, { left: from.x + 'px', top: from.y + 'px', width: from.w + 'px', height: from.h + 'px', background: from.cs.backgroundColor, color: from.cs.color, borderRadius: from.cs.borderRadius, fontSize: from.cs.fontSize });
-    const seat = el.closest('.seat'); const tc = seat ? getComputedStyle(seat).getPropertyValue('--tc').trim() : ''; document.body.appendChild(f); el.style.visibility = 'hidden';
+    const f = document.createElement('div'); f.className = 'flytag fig'; f.innerHTML = figHTML(pname(pid)); Object.assign(f.style, { left: from.x + 'px', top: from.y + 'px', width: from.w + 'px', height: from.h + 'px' });
+    const seat = el.closest('.seat'); const tc = seat ? getComputedStyle(seat).getPropertyValue('--tc').trim() : ''; const ti = seat ? getComputedStyle(seat).getPropertyValue('--ti').trim() : ''; if (tc) { f.style.setProperty('--tc', tc); f.style.setProperty('--ti', ti || '#fff') } document.body.appendChild(f); setTimeout(() => f.classList.add('vest'), 280); el.style.visibility = 'hidden';
     const dx = to.left + to.width / 2 - (from.x + from.w / 2), dy = to.top + to.height / 2 - (from.y + from.h / 2), sc = Math.max(.45, Math.min(1.2, to.height / from.h)), lift = -Math.min(140, 60 + Math.abs(dx) * .15);
-    const an = f.animate([{ transform: 'translate(0,0) scale(1) rotate(0deg)', offset: 0 }, { transform: `translate(${dx * .5}px,${dy * .5 + lift}px) scale(1.18) rotate(${dx > 0 ? 8 : -8}deg)`, boxShadow: '0 18px 30px rgba(0,0,0,.35)', offset: .45 }, { transform: `translate(${dx}px,${dy}px) scale(${sc}) rotate(0deg)`, background: tc || from.cs.backgroundColor, offset: 1 }], { duration: 720, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'forwards' });
+    const an = f.animate([{ transform: 'translate(0,0) scale(1) rotate(0deg)', offset: 0 }, { transform: `translate(${dx * .5}px,${dy * .5 + lift}px) scale(1.18) rotate(${dx > 0 ? 8 : -8}deg)`, offset: .45 }, { transform: `translate(${dx}px,${dy}px) scale(${sc}) rotate(0deg)`, offset: 1 }], { duration: 720, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'forwards' });
     const done = () => { f.remove(); el.style.visibility = ''; el.animate?.([{ transform: 'scale(1.35)' }, { transform: 'scale(1)' }], { duration: 260, easing: 'ease-out' }) }; an.onfinish = done; setTimeout(() => { if (f.isConnected) done() }, 1200) }) }
 function render() {
   if (isTyping()) { S.pending = true; return } S.pending = false; draftSnap();
@@ -873,9 +874,9 @@ function seatHTML(s, k, ph) {
       <div class="sinfo"><span class="tok">${esc(t.name)}</span><b class="cnt2">${cap ? ps.length + 1 : 0}<small>명</small></b></div></div>
     ${(() => { const mine = me || S.admin; const pend = s.pending && s.pending.t === k ? s.pending.p : null; const last = (s.picks || []).slice(-1)[0]; const seen = (S.seenStk ??= new Set());
       const items = ps.map(id => { const key = s.date + ':' + id; const nw = !seen.has(key); seen.add(key); const can = mine && last && last.p === id && last.t === k;
-        return mine ? `<button class="stkb ${nw ? 'new' : ''} ${can ? 'undo' : ''}" data-act="unpick" data-id="${id}" data-pid="${id}" title="${can ? '눌러서 선택 취소' : ''}">${esc(pname(id))}${can ? ' ✕' : ''}</button>` : `<span class="${nw ? 'new' : ''}" data-pid="${id}">${esc(pname(id))}</span>` });
-      if (pend) items.push(mine ? `<button class="stkb pendstk" data-act="unpick" data-id="${pend}" data-pid="${pend}">${esc(pname(pend))} ✕</button>` : `<span class="pendstk" data-pid="${pend}">${esc(pname(pend))}</span>`);
-      return items.length ? `<div class="stk">${items.join('')}</div>` : '' })()}
+        return mine ? `<button class="fig mini vest ${nw ? 'new' : ''} ${can ? 'undo' : ''}" data-act="unpick" data-id="${id}" data-pid="${id}" title="${can ? '눌러서 선택 취소' : ''}">${figHTML(pname(id) + (can ? ' ✕' : ''))}</button>` : `<span class="fig mini vest ${nw ? 'new' : ''}" data-pid="${id}">${figHTML(pname(id))}</span>` });
+      if (pend) items.push(mine ? `<button class="fig mini vest pendstk" data-act="unpick" data-id="${pend}" data-pid="${pend}">${figHTML(pname(pend) + ' ✕')}</button>` : `<span class="fig mini vest pendstk" data-pid="${pend}">${figHTML(pname(pend))}</span>`);
+      return items.length ? `<div class="stk figs">${items.join('')}</div>` : '' })()}
     ${me && !inRoom && ph !== 'done' ? `<button class="btn sm primary cta" data-act="joinroom" data-k="${k}">입장하기</button>` : ''}</div>`;
 }
 const BUBBLE_MS = 9000;
@@ -933,7 +934,7 @@ function vDraft(s) {
   const pk = {}; (s.picks || []).forEach((x, i) => pk[x.p] = { t: x.t, n: i + 1 }); const caps = captainsOf(s);
   const inTeam = new Set(KEYS.flatMap(k => teamPlayers(s, k))); const list = byName((s.applicants || []).filter(id => !caps.includes(id) && !pk[id] && !inTeam.has(id)));
   S.poolHTML = ph === 'draft' ? `<div class="pool"><div class="pool-hd">남은 선수 ${list.length}명 · ${canPick ? '눌러서 선택' : '내 차례에만 선택할 수 있어요'}</div><div class="namegrid">${list.map(id => { const pend = s.pending?.p === id; const pt = pend ? team(s, s.pending.t) : null;
-    return `<button class="nb ${pend ? 'pend' : ''}" ${pt ? `style="--tc:${pt.color};--ti:${inkOn(pt.color)}"` : ''} data-act="pick" data-id="${id}" ${canPick ? '' : 'disabled'}>${PICO}<span class="nbn">${esc(pname(id))}</span></button>` }).join('')}</div></div>` : '';
+    return `<button class="nb fig ${pend ? 'pend vest' : ''}" ${pt ? `style="--tc:${pt.color};--ti:${inkOn(pt.color)}"` : ''} data-act="pick" data-id="${id}" ${canPick ? '' : 'disabled'}>${figHTML(pname(id))}</button>` }).join('')}</div></div>` : '';
   // middle: board
   const o = s.order && orderDecided(s) && ph !== 'ladder' && ph !== 'cards' ? s.order : KEYS; const [L, B, R] = o;
   const hostH = `<div class="seat host ${s.room?.admin?.in ? '' : 'off'}">${bubbleFor(m => m.admin)}<div class="sv"><span class="av on hostav">운영</span></div><div class="sn">운영진${s.room?.admin?.name && s.room.admin.name !== '운영진' ? ' ' + esc(s.room.admin.name) : ''}</div><div class="st2"><small>${s.room?.admin?.in ? '진행 중' : '대기 중'}</small></div>${S.admin && S.dm && ph !== 'closed' ? '<button class="btn sm hostmenu" data-act="roommenu" aria-label="진행 메뉴">⋯</button>' : ''}</div>`;
@@ -1164,6 +1165,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.43', '2026.10.16', ['드래프트 이름표가 사람 상체 모양으로 바뀌고 몸통에 이름이 적혀요. 팀에 뽑히면 그 팀 색 조끼를 입은 모습으로 바뀌어요']],
   ['0.21.42', '2026.10.16', ['[운영진] 회원 관리에 같은 이름 회원이 있으면 "한 사람으로 합치기"가 떠요. 신청·팀·경기 기록·골/도움·연락처·로그인 비밀번호까지 한 사람으로 합쳐져요', '앞으로는 띄어쓰기나 (게) 표시만 다른 이름도 같은 회원으로 찾아서 중복이 생기지 않아요']],
   ['0.21.41', '2026.10.16', ['[운영진] 드래프트가 끝난 뒤 "드래프트 다시하기"로 주장·팀 색은 그대로 두고 순번 정하기부터 다시 할 수 있어요', '[운영진] 월간 일정표 화면을 팀 공지 화면과 같은 배치(왼쪽 입력·시안·글꼴, 오른쪽 미리보기)로 맞췄어요']],
   ['0.21.40', '2026.10.16', ['드래프트 남은 선수 이름표에 사람 아이콘이 붙어요(이름 글자 크기는 그대로)']],
