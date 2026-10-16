@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.19';
+const APP_VERSION = '0.21.20';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -547,7 +547,7 @@ function adminBar() {
   const flow = RUN_STEPS.map(([k, n], j) => { const done = stepDone(s, k); const now = cur0 ? cur0 === k : (!done && RUN_STEPS.slice(0, j).every(([kk]) => stepDone(s, kk)));
     return `<li class="${done ? 'done' : ''} ${now ? 'now' : ''}"><button data-act="flowgo" data-v="${k}"><i>${done ? '✓' : j + 1}</i><span>${n}</span></button></li>` }).join('');
   return `<div class="abar"><div class="actx"><button class="navb sm" data-act="ctxgo" data-id="${ids[i - 1] || ''}" ${ids[i - 1] ? '' : 'disabled'} aria-label="이전 경기">‹</button>
-    <label class="actx-t"><b>${fmtDate(sid)} ${esc(s.time || '')}${s.no ? ` · ${s.no}회` : ''}</b><small>📍 ${esc(s.venue || '-')} · <span class="st st-${st.k}">${st.label}</span> 선발 ${c.sel}${s.capacity ? '/' + s.capacity : ''}${c.wait ? ` · 대기 ${c.wait}` : ''}</small>
+    <label class="actx-t"><b>${fmtDate(sid)} ${esc(s.time || '')}${s.no ? ` · ${s.no}회` : ''}</b><small>📍 ${esc(s.venue || '-')} · <span class="st st-${st.k}">${st.label}</span> 신청 ${c.sel + c.wait}${s.capacity ? '/' + s.capacity : ''}${c.wait ? ` · 대기 ${c.wait}` : ''}</small>
       <select data-in="ctxpick" aria-label="경기 선택">${ids.slice().reverse().map(id => `<option value="${id}" ${id === sid ? 'selected' : ''}>${fmtDate(id)} ${esc(S.sessions[id].time || '')}${S.sessions[id].no ? ` · ${S.sessions[id].no}회` : ''} · ${esc(S.sessions[id].venue || '')}</option>`).join('')}</select><em class="actx-dd">▾</em></label>
     <button class="navb sm" data-act="ctxgo" data-id="${ids[i + 1] || ''}" ${ids[i + 1] ? '' : 'disabled'} aria-label="다음 경기">›</button></div>
     <ol class="aflow">${flow}</ol></div>`;
@@ -582,7 +582,7 @@ function vApply(s) {
   const ad = S.admin; const ids = s.applicants || [];
   let h = `<h2>신청 조건<small>수정은 일정 메뉴에서</small></h2><div class="panel apinfo ro">${[['정원', s.capacity ? s.capacity + '명' : '-'], ['신청 오픈', s.applyOpen ? fmtDT(s.applyOpen) : '-'], ['신청 마감', s.applyClose ? fmtDT(s.applyClose) : '-'], ['순위 규칙', isBase(s) ? 'The Base 0~3순위' : '선착순'], ['구장 예약자', idsToNames(s.p0) || '-'], ['경기 운영자', idsToNames(s.ops) || '-']].map(([k, v]) => `<div class="field"><span>${k}</span><b>${esc(v)}</b></div>`).join('')}</div>`;
   const ast = sStatus(s); const cc = appCounts(s);
-  h += `<h2>신청자<small>선발 ${cc.sel}${s.capacity ? ' / ' + s.capacity : ''}명${cc.wait ? `, 대기 ${cc.wait}명` : ''}</small><span class="st st-${ast.k}">${ast.label}</span></h2>
+  h += `<h2>신청자<small>신청 ${cc.sel + cc.wait}${s.capacity ? ' / ' + s.capacity : ''}명${cc.wait ? `, 대기 ${cc.wait}명` : ''}</small><span class="st st-${ast.k}">${ast.label}</span></h2>
   <p class="note" style="margin:-4px 2px 10px">${ast.k === 'open' ? `회원들이 앱에서 직접 신청하는 중이에요. ${s.applyClose ? fmtDT(s.applyClose) + '에 자동 마감돼요.' : ''}` : ast.k === 'soon' ? `${fmtDT(s.applyOpen)}에 앱 신청이 열려요.` : '앱 신청이 마감됐어요.'}</p>`;
   h += vApplyTable(s);
   if (false && (s.waitlist || []).length) h += `<h2>대기<small>${s.waitlist.length}명, 신청자가 취소하면 자동으로 올라가요</small></h2><div class="panel"><div class="chips">${s.waitlist.map(id => `<button class="chip ${ad ? 'x' : ''}" data-act="rmwait" data-id="${id}" ${ad ? '' : 'disabled'}>${esc(pname(id))}</button>`).join('')}</div>${ad ? `<div class="pad" style="padding-top:0"><button class="btn sm" data-act="promote">대기 1번을 신청자로 올리기</button></div>` : ''}</div>`;
@@ -951,6 +951,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.20', '2026.10.16', ['신청 인원을 "전체 신청 인원 / 정원"으로 보여 줘요. 정원이 차도 대기자까지 합친 전체 인원이 보여요']],
   ['0.21.19', '2026.10.15', ['[운영진] 경기진행 화면에서 1~9경기 대진(맞붙는 팀)을 경기마다 바꿀 수 있어요. 끝난 경기는 골 기록도 함께 옮겨져요']],
   ['0.21.18', '2026.10.15', ['[운영진] 드래프트에서 사다리·카드로 정해진 순번을 첫 지명 전까지 직접 바꿀 수 있어요']],
   ['0.21.17', '2026.10.15', ['구장 예약자는 직접 참가 신청을 해야 0순위로 들어가요. 신청하지 않으면 신청자 명단에 나오지 않아요']],
@@ -1099,7 +1100,7 @@ function viewMHome() {
   h += `<div class="sec-lab"><span>NEXT MATCH</span></div>`;
   h += '<div class="nextwrap">';
   if (!sid) h += `<div class="hero"><div class="hero-empty">예정된 경기가 없어요</div><p>새 경기일이 열리면 여기에 보여요.</p></div>`;
-  else { S.sid = sid; const s = S.sessions[sid]; const st = sStatus(s); const n = appCounts(s).sel; const cap = s.capacity || 0; const [, m, d] = sid.split('-');
+  else { S.sid = sid; const s = S.sessions[sid]; const st = sStatus(s); const n = appTotal(s); const cap = s.capacity || 0; const [, m, d] = sid.split('-');
     h += `<div class="hero"><div class="hero-top"><span class="st st-${st.k}">${st.label}</span><span class="dday">${dday(sid)}</span></div>
       <div class="hero-date">${m}.${d}<small>${dow(sid)}요일</small></div><div class="hero-time">${esc(s.time || '')}</div>
       <div class="hero-venue">📍 ${esc(s.venue || '장소 미정')}</div>
@@ -1133,7 +1134,7 @@ function schedCard(id, noApply) { let h = '';
     const curI = steps.findIndex(x => !x[2]);
     h += `<div class="panel sched"><div class="sched-hd"><div><b>${fmtDate(id)} ${esc(s.time || '')}</b><span>📍 ${esc(s.venue || '')}</span></div><span class="dday sm">${dday(id)}</span></div>
       <ol class="tl">${steps.map(([l, v, done], i) => `<li class="${done ? 'done' : i === curI ? 'now' : ''}"><i></i><span>${l}</span><em>${v ? fmtDT(v) : done ? '완료' : i === 2 ? '신청 마감 후' : '-'}</em></li>`).join('')}</ol>
-      <div class="sched-ft"><span class="st st-${st.k}">${st.label}</span><span>신청 ${appCounts(s).sel}${s.capacity ? ' / ' + s.capacity : ''}명${appCounts(s).wait ? `, 대기 ${appCounts(s).wait}` : ''}</span></div>${noApply ? '' : (st.k === 'open' || applyState(s)?.k === 'in' ? `<div style="margin-top:10px">${applyBox(s, true)}</div>` : '')}</div>` }
+      <div class="sched-ft"><span class="st st-${st.k}">${st.label}</span><span>신청 ${appTotal(s)}${s.capacity ? ' / ' + s.capacity : ''}명${appCounts(s).wait ? `, 대기 ${appCounts(s).wait}` : ''}</span></div>${noApply ? '' : (st.k === 'open' || applyState(s)?.k === 'in' ? `<div style="margin-top:10px">${applyBox(s, true)}</div>` : '')}</div>` }
   return h }
 function viewSchedule() {
   const all = Object.keys(S.sessions).sort(); const nx = nextSid(); const fit = S.dm;
@@ -1211,7 +1212,7 @@ function viewManageList() {
       <td><input class="cell w-venue" type="text" value="${esc(s.venue || '')}" list="venue-list" data-in="cell" data-sid="${id}" data-f="venue"></td>
       <td><input class="cell w-num" type="number" min="3" max="60" value="${s.capacity || ''}" data-in="cell" data-sid="${id}" data-f="capacity"></td>
       <td><button class="cellbtn staffcell" data-act="staffedit" data-id="${id}">${(s.p0 || []).length || (s.ops || []).length ? `<span>예약 ${esc(idsToNames(s.p0) || '-')}</span><span>운영 ${esc(idsToNames(s.ops) || '-')}</span>` : '<span class="muted">+ 지정</span>'}</button></td>
-      <td class="num"><b>${appCounts(s).sel}</b>${appCounts(s).wait ? `<small class="muted"> +${appCounts(s).wait}</small>` : ''}</td>
+      <td class="num"><b>${appTotal(s)}</b>${s.capacity ? `<small class="muted"> / ${s.capacity}</small>` : ''}</td>
       <td><button class="cellbtn staffcell" data-act="dutyedit" data-id="${id}">${(s.duty?.ball || []).length || (s.duty?.drink || []).length ? `<span>공 ${esc(idsToNames(s.duty?.ball) || '-')}</span><span>물 ${esc(idsToNames(s.duty?.drink) || '-')}</span>` : `<span class="muted">${dutyReqLabel(s) || (applyClosed(s) ? '+ 지정' : '신청 없음')}</span>`}</button></td>
       <td><button class="cellbtn staffcell" data-act="parkedit" data-id="${id}"><span>신청 ${parkApps(s).length}명</span><span>${(s.parkWin || []).length ? '당첨 ' + esc(idsToNames(s.parkWin)) : '<span class="muted">추첨 전</span>'}</span></button></td>
       <td><input class="cell w-dt" type="datetime-local" value="${esc(s.applyOpen || '')}" data-in="cell" data-sid="${id}" data-f="applyOpen"></td>
@@ -1421,6 +1422,7 @@ function classify0(s) {
   rows.forEach(r => r.sel = sel.has(r.k)); const wait = rows.filter(r => !r.sel); wait.forEach((r, i) => r.wn = i + 1);
   return { rows, sel: rows.filter(r => r.sel).sort((a, b) => a.tier - b.tier || a.n - b.n), wait, prev, base };
 }
+function appTotal(s) { const c = appCounts(s); return c.sel + c.wait }
 function appCounts(s) { if ((!Array.isArray(s.apps) && !autoIds(s).length) || s.stage !== 'apply') return { sel: (s.applicants || []).length, wait: (s.waitlist || []).length }; const c = classify(s); return { sel: c.sel.length, wait: c.wait.length } }
 function myApp(s) { const uid = myUid(), me = myPid(); return appsOf(s).find(a => me ? a.pid === me : (!a.pid && a.uid && a.uid === uid)) || (me && autoIds(s).includes(me) ? { k: 'auto-' + me, pid: me, auto: true } : null) }
 function applyState(s) { const me0 = myPid(); if (me0 && s.stage === 'apply' && isBase(s) && autoIds(s).includes(me0)) return { k: 'in', auto: true, tier: 0, role: roleOf(s, me0) }; const a = myApp(s); if (!a) return { k: 'none' }; if (s.stage !== 'apply') { if ((s.applicants || []).includes(a.pid)) return { k: 'in', tier: null }; return { k: 'wait', n: (s.waitlist || []).indexOf(a.pid) + 1 } }
@@ -1609,7 +1611,7 @@ function vApplyTable(s) {
   const lc = Object.entries(s.late || {}).filter(([, v]) => v);
   return h
     + (ad && (canTier || canRm) ? `<p class="note">🛠 운영진: ${canTier ? '순위 칸을 누르면 0~3순위를 직접 바꿀 수 있어요(✎ 표시는 직접 바꾼 순위). ' : ''}${canRm ? '“삭제”는 마감 후 취소(3순위) 기록 없이 명단에서 지워요. 다음 경기 3순위로 남기려면 “마감 후 취소”를 쓰세요.' : ''}</p>` : '')
-    + `<p class="note">선발 ${c.sel.length}${s.capacity ? ' / ' + s.capacity : ''}명, 대기 ${c.wait.length}명. ${c.base ? '' : '<b>The Base 구장이 아니라서 순위 없이 신청 순서대로(선착순) 선발해요.</b> '}The Base 구장 순위: 0순위 구장 예약자·경기 운영자(정원 무관) → 1순위 직전 경기 미참여 → 2순위 선착순 → 3순위 직전 경기(${prevAny ? fmtDate(prevAny) : '없음'}) 신청 마감 후 취소자. 같은 순위 안에서는 신청 순서대로예요.</p>`;
+    + `<p class="note">신청 ${c.sel.length + c.wait.length}${s.capacity ? ' / ' + s.capacity : ''}명 (선발 ${c.sel.length}명, 대기 ${c.wait.length}명). ${c.base ? '' : '<b>The Base 구장이 아니라서 순위 없이 신청 순서대로(선착순) 선발해요.</b> '}The Base 구장 순위: 0순위 구장 예약자·경기 운영자(정원 무관) → 1순위 직전 경기 미참여 → 2순위 선착순 → 3순위 직전 경기(${prevAny ? fmtDate(prevAny) : '없음'}) 신청 마감 후 취소자. 같은 순위 안에서는 신청 순서대로예요.</p>`;
 }
 
 /* ───────── monthly schedule poster ───────── */
@@ -1894,7 +1896,7 @@ function planSide(id) {
   if (!s) return `<div class="panel sched pside"><div class="sched-hd"><div><b>${fmtDate(id)}</b><span>경기가 없는 날이에요</span></div></div><div class="pad0"><button class="btn primary block" data-act="caladdon" data-id="${id}">＋ 이 날 경기 추가</button></div></div>`;
   const st = sStatus(s); const movable = !sessMatches(id).length; const c = appCounts(s);
   const f = (lab, fld, type, extra = '') => `<label class="pf"><span>${lab}</span><input class="inp" type="${type}" value="${esc(s[fld] ?? '')}" data-in="cell" data-sid="${id}" data-f="${fld}" ${extra}></label>`;
-  return `<div class="panel sched pside"><div class="sched-hd"><div><b>${fmtDate(id)}${s.no ? ` · ${s.no}회` : ''}</b><span><span class="st st-${st.k}">${st.label}</span> 선발 ${c.sel}${s.capacity ? '/' + s.capacity : ''}명${c.wait ? `, 대기 ${c.wait}` : ''}</span></div><span class="dday sm">${dday(id)}</span></div>
+  return `<div class="panel sched pside"><div class="sched-hd"><div><b>${fmtDate(id)}${s.no ? ` · ${s.no}회` : ''}</b><span><span class="st st-${st.k}">${st.label}</span> 신청 ${c.sel + c.wait}${s.capacity ? '/' + s.capacity : ''}명${c.wait ? `, 대기 ${c.wait}` : ''}</span></div><span class="dday sm">${dday(id)}</span></div>
     <button class="btn primary block" data-act="gorun" data-id="${id}">이 경기 진행 화면 열기 →</button>
     <div class="pgrid">${f('회차', 'no', 'number', 'min="1"')}${f('시간', 'time', 'time')}<label class="pf"><span>장소</span>${venuePicker((S.venueCustom ??= {})[id] ? (s.venue && !VENUES.includes(s.venue) ? s.venue : '__custom') : s.venue, `data-in="venuesel" data-sid="${id}"`, `data-in="cell" data-sid="${id}" data-f="venue"`)}</label>${f('정원', 'capacity', 'number', 'min="3"')}${f('신청 오픈', 'applyOpen', 'datetime-local')}${f('신청 마감', 'applyClose', 'datetime-local')}</div>
     <div class="plinks">
