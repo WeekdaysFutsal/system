@@ -266,4 +266,13 @@ table.grid.aptbl{min-width:0!important;width:100%;table-layout:fixed}table.grid.
 .board-table:not(.dmbt) .felt .pool .namegrid:has(.pfb){overflow-y:auto!important}
 .dmroot .felt .pool{flex:1;min-height:0;overflow:hidden!important}
 .dmroot .felt .pool .namegrid:has(.pfb){overflow-y:auto!important}
-:root{--cssv:"0.21.49"}
+/* 0.21.50 말풍선 최상위 레이어 */
+#bubLayer{position:fixed;inset:0;pointer-events:none;z-index:5000}
+#bubLayer .bubble{position:fixed!important;bottom:auto!important;right:auto!important;transform:none!important;margin:0!important;z-index:1}
+#bubLayer .bubble::before,#bubLayer .bubble::after{left:var(--ax,50%)!important;right:auto!important;transform:translateX(-50%)!important}
+#bubLayer .bubble.below::after{top:auto!important;bottom:100%!important;border-top-color:transparent!important;border-bottom-color:#1A1400!important}
+#bubLayer .bubble.below::before{top:auto!important;bottom:calc(100% - 3px)!important;border-top-color:transparent!important;border-bottom-color:#FFE14D!important}
+#bubLayer .bubble.new{animation:bubLift .28s cubic-bezier(.3,1.4,.5,1)!important}
+@keyframes bubLift{from{opacity:0;translate:0 6px;scale:.85}to{opacity:1;translate:0 0;scale:1}}
+.dm-on #bubLayer .bubble{max-width:min(200px,calc(100vw - 24px))!important}
+:root{--cssv:"0.21.50"}

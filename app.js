@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.49';
+const APP_VERSION = '0.21.50';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -707,6 +707,15 @@ function draftFly() { const snap = S.flySnap; S.flySnap = null; if (!snap || mat
     const dx = to.left + to.width / 2 - (from.x + from.w / 2), dy = to.top + to.height / 2 - (from.y + from.h / 2), sc = Math.max(.45, Math.min(1.2, to.height / from.h)), lift = -Math.min(140, 60 + Math.abs(dx) * .15);
     const an = f.animate([{ transform: 'translate(0,0) scale(1) rotate(0deg)', offset: 0 }, { transform: `translate(${dx * .5}px,${dy * .5 + lift}px) scale(1.18) rotate(${dx > 0 ? 8 : -8}deg)`, offset: .45 }, { transform: `translate(${dx}px,${dy}px) scale(${sc}) rotate(0deg)`, offset: 1 }], { duration: 720, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'forwards' });
     const done = () => { f.remove(); el.style.visibility = ''; el.animate?.([{ transform: 'scale(1.35)' }, { transform: 'scale(1)' }], { duration: 260, easing: 'ease-out' }) }; an.onfinish = done; setTimeout(() => { if (f.isConnected) done() }, 1200) }) }
+/* 채팅 말풍선: 최상위 레이어로 옮겨서 다른 요소에 가려지지 않게 */
+function liftBubbles() { let L = document.getElementById('bubLayer'); if (!L) { L = document.createElement('div'); L.id = 'bubLayer'; L.setAttribute('aria-live', 'polite'); document.body.appendChild(L) } L.innerHTML = ''; S.bubA = [];
+  document.querySelectorAll('#app .bubble').forEach(b => { const a = b.parentElement; b.remove(); L.appendChild(b); S.bubA.push({ a, b }) }); placeBubbles() }
+function placeBubbles() { const vw = innerWidth, top0 = (document.querySelector('.appbar')?.offsetHeight || 0) + 4, placed = [];
+  (S.bubA || []).forEach(({ a, b }) => { if (!a.isConnected) { b.remove(); return } const r = a.getBoundingClientRect(); if (!r.width) { b.style.display = 'none'; return } b.style.display = '';
+    const w = b.offsetWidth, h = b.offsetHeight, cx = r.left + r.width / 2, left = Math.max(8, Math.min(vw - w - 8, cx - w / 2)); let top = r.top - h - 10; const below = top < top0; if (below) top = r.bottom + 10;
+    for (let k = 0; k < 6; k++) { const hit = placed.find(q => left < q.l + q.w + 4 && left + w + 4 > q.l && top < q.t + q.h + 4 && top + h + 4 > q.t); if (!hit) break; top = below ? hit.t + hit.h + 6 : hit.t - h - 6 } placed.push({ l: left, t: top, w, h });
+    b.classList.toggle('below', below); b.style.left = left + 'px'; b.style.top = top + 'px'; b.style.setProperty('--ax', Math.max(16, Math.min(w - 16, cx - left)) + 'px') }) }
+window.addEventListener('scroll', () => { if (S.bubA?.length) placeBubbles() }, { passive: true, capture: true });
 function fitPool() { const sr = document.querySelector('.dmroot .seatrow'); if (sr) { const hd = sr.querySelector('.seat .sv2'); if (hd) sr.style.setProperty('--seatmin', Math.ceil(hd.offsetHeight + 100) + 'px') }
 }
 function render() {
@@ -745,7 +754,7 @@ function render() {
   h += '</div>' + tabs();
   if (S.openMatch && S.matches[S.openMatch]) h += viewMatch();
   if (S.sheet) h += viewSheet();
-  document.getElementById('app').innerHTML = h + (S.admin ? venueList() : ''); fitPool(); if (S.flySnap) requestAnimationFrame(draftFly);
+  document.getElementById('app').innerHTML = h + (S.admin ? venueList() : ''); fitPool(); liftBubbles(); if (S.flySnap) requestAnimationFrame(draftFly);
   if (S.slideDir) { const wr = document.querySelector('.wrap'); if (wr) { wr.classList.add('tabslide-' + S.slideDir) } }
   const nNow = S.chat.length; const grew = nNow !== S.lastChatN; S.lastChatN = nNow; if (grew) S.chatUp = false;
   const toBottom = () => document.querySelectorAll('.msgs').forEach(nb => { if (!S.chatUp) nb.scrollTop = nb.scrollHeight });
@@ -1177,6 +1186,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.50', '2026.10.16', ['채팅 말풍선이 항상 맨 위에 떠서 축구장·카드·채팅창 등 다른 요소에 가려지지 않아요']],
   ['0.21.49', '2026.10.16', ['드래프트 선수 목록 박스 크기를 고정했어요. 남은 인원이 바뀌어도 박스 크기는 그대로예요', '선수 아이콘은 팀에 들어간 아이콘보다 살짝 큰 고정 크기로 보여요']],
   ['0.21.48', '2026.10.16', ['PC 운영모드 일정 메뉴의 달력이 화면 아래까지 길게 늘어나지 않고 적당한 크기로 보여요', '경기 상세의 회차·시간·신청 날짜 입력칸이 좁게 찌그러지던 문제를 고쳤어요']],
   ['0.21.47', '2026.10.16', ['PC 드래프트 화면에서 주장 카드에 들어간 선수 이름을 크게 키웠어요. 유니폼 위로 넘쳐도 테두리 글씨라 잘 보여요']],
@@ -2918,7 +2928,7 @@ function resumeCaptain() {
   if (S.admin) return; for (const [sid, l] of Object.entries(S.capLinks || {})) { const s = S.sessions[sid]; if (!s || s.draftStatus === 'done' && s.stage !== 'trade') continue;
     if (s.captainTokens?.[l.k] === l.t && (s.room?.open || s.draftStatus === 'live' || s.draftStatus === 'done') && sid >= today()) { if (S.tab !== 'settings') { S.sid = sid; S.tab = 'draft' } return } }
 }
-let lastDesk = null; window.addEventListener('resize', () => { const d = isDesk(); if (d !== lastDesk) { lastDesk = d; render() } else if (document.querySelector('.dmroot')) { fitPool(); const ab = document.querySelector('.appbar'); if (ab) document.documentElement.style.setProperty('--abh', ab.offsetHeight + 'px') } });
+let lastDesk = null; window.addEventListener('resize', () => { const d = isDesk(); if (d !== lastDesk) { lastDesk = d; render() } else if (document.querySelector('.dmroot')) { fitPool(); placeBubbles(); const ab = document.querySelector('.appbar'); if (ab) document.documentElement.style.setProperty('--abh', ab.offsetHeight + 'px') } });
 document.addEventListener('gesturestart', e => e.preventDefault()); document.addEventListener('dblclick', e => { if (!isDesk()) e.preventDefault() }, { passive: false });
 function goResult(id, dir) { const ids = pastSids(); const o = ids.indexOf(S.detail), n = ids.indexOf(id); S.rdAnim = dir || (n < o ? 'fromR' : 'fromL'); S.detail = id; render(); window.scrollTo(0, 0); setTimeout(() => { S.rdAnim = '' }, 350) }
 /* pull-to-refresh (home-screen apps have no browser refresh) */
