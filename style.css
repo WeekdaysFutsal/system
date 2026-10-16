@@ -220,4 +220,23 @@ table.grid.aptbl{min-width:0!important;width:100%;table-layout:fixed}table.grid.
 .dmroot .felt .flow2 i.cur b{font-size:13px}
 .dmroot .felt .done-btn{min-height:40px!important}
 .dmroot .chatdock .cd-log{height:52px!important}
-:root{--cssv:"0.21.45"}
+/* 0.21.46 유니폼형 아이콘: 머리 없이 반팔 유니폼, 무늬 없이 색만 */
+.pf{--shirt:#FFFFFF;--trim:#C5CCD8;--jst:#24314F}
+.pf .pfs{filter:none}
+.pf .pf-body{fill:var(--shirt);stroke:var(--jst);stroke-width:2;stroke-linejoin:round;transition:fill .25s}
+.pf .pf-cuff{fill:var(--trim);stroke:var(--jst);stroke-width:1.6;stroke-linejoin:round;transition:fill .25s}
+.pf .pf-seam{stroke:var(--jst);stroke-width:1.4;stroke-linecap:round;opacity:.55;fill:none}
+.pf .pf-colw{fill:none;stroke:var(--trim);stroke-width:5;stroke-linecap:round;transition:stroke .25s}
+.pf .pf-coll{fill:none;stroke:var(--jst);stroke-width:1.6;stroke-linecap:round}
+.pf.vest{--shirt:var(--tc,#1E46C8);--trim:color-mix(in srgb,var(--tc,#1E46C8) 68%,#000)}
+.pf b.pfn,.pf b.pfn.l4,.pf b.pfn.l2{top:56%!important;font-size:min(calc(var(--fw)*.2),calc(var(--fw)*.6/var(--nl,3)))!important;letter-spacing:-.05em!important}
+.pf.vest b.pfn{text-shadow:none!important}
+.stk .pf.mini b.pfn,.stk .pf.mini b.pfn.l4{top:56%!important;font-size:min(10px,calc(var(--fw)*.62/var(--nl,3)))!important;letter-spacing:-.06em!important}
+.stk .pf.mini .pfs,.seat[style*="--ti:#131C2B"] .stk .pf.mini .pfs{filter:none}
+.stk .pf.mini{--fw:40px}
+.dmroot .stk .pf.mini{--fw:38px}
+.stk .pf.mini.pendstk .pf-body{stroke-dasharray:4 3}
+.stk .pf.mini.undo .pf-body{stroke:#FF4D4F;stroke-width:3}
+.pfb.pend .pfs{filter:drop-shadow(0 0 6px rgba(255,210,31,.95))}
+.felt .pool .namegrid:has(.pfb){row-gap:6px!important}
+:root{--cssv:"0.21.46"}

@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.45';
+const APP_VERSION = '0.21.46';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -107,9 +107,8 @@ function allPicked(s) { return KEYS.every(k => team(s, k).picked) }
 const memberNames = () => Object.values(S.players).map(p => p.name).sort((a, b) => a.localeCompare(b, 'ko'));
 const DEV_NAMES = ['박종현']; // 개발자: 운영진이 아니어도 운영모드 버튼이 보여요
 const canOp = () => S.admin || !S.auth || ['staff', 'special'].includes(mstatus(S.players[myPid()])) || DEV_NAMES.includes(S.players[myPid()]?.name);
-const FIG_SVG = '<svg class="pfs" viewBox="0 0 80 92" aria-hidden="true"><path class="pf-skin" d="M9 60Q7.5 76 10 92H18V62ZM71 60Q72.5 76 70 92H62V62Z"/><path class="pf-skin" d="M35 26h10v8H35z"/><circle class="pf-skin" cx="40" cy="17.5" r="12"/><path class="pf-hair" d="M28 18C27.5 9 33.5 4.5 40 4.5S52.5 9 52 17C49 13 45 11.8 40 12.3 35 11.8 31 14 28 18Z"/><path class="pf-shirt" d="M8 61L13 41Q16 35 26 33L33 31Q40 38 47 31L54 33Q64 35 67 41L72 61L63 64V92H17V64Z"/><path class="pf-col" d="M33 31Q40 38 47 31"/><g class="pf-vest"><path class="pf-vb" d="M23.5 34.5L33 31.5L40 46L47 31.5L56.5 34.5Q57.5 46 64 52V92H16V52Q22.5 46 23.5 34.5Z"/><path class="pf-mesh" d="M23.5 34.5L33 31.5L40 46L47 31.5L56.5 34.5Q57.5 46 64 52V92H16V52Q22.5 46 23.5 34.5Z"/><path class="pf-hem" d="M16 87H64"/></g></svg>';
-const figHTML = n => { const L = [...String(n).replace(' ✕', '')].length; return `${FIG_SVG}<b class="pfn ${L >= 4 ? 'l4' : L <= 2 ? 'l2' : ''}">${esc(n)}</b>` }; // 사람 상반신 + 몸통 이름, 뽑히면 팀색 조끼
-function figDefs() { if (document.getElementById('pfMesh')) return; document.body.insertAdjacentHTML('beforeend', '<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><pattern id="pfMesh" width="3.2" height="3.2" patternUnits="userSpaceOnUse"><circle cx="1.6" cy="1.6" r=".75" fill="rgba(0,0,0,.2)"/></pattern></defs></svg>') }
+const FIG_SVG = '<svg class="pfs" viewBox="0 0 80 72" aria-hidden="true"><path class="pf-body" d="M27 4Q40 11 53 4L66 7Q73 9 76 17L79 33L65 35L64 67Q40 71 16 67L15 35L1 33L4 17Q7 9 14 7Z"/><path class="pf-cuff" d="M1.9 28.6L15 30.6V35L1 33ZM78.1 28.6L65 30.6V35L79 33Z"/><path class="pf-seam" d="M15 31V21M65 31V21"/><path class="pf-colw" d="M27 4Q40 12.5 53 4"/><path class="pf-coll" d="M27 4Q40 11 53 4M25.5 5.4Q40 15.5 54.5 5.4"/></svg>';
+const figHTML = n => { const L = Math.max(2, [...String(n)].length); return `${FIG_SVG}<b class="pfn" style="--nl:${L}">${esc(n)}</b>` }; // 반팔 유니폼 아이콘 + 가슴에 전체 이름 (글자 수에 맞춰 크기 자동 조절)
 const PICO = '<i class="pico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="4.3"/><path d="M3.6 21.5c0-4.6 3.8-8 8.4-8s8.4 3.4 8.4 8z"/></svg></i>'; // 드래프트 이름표의 사람 아이콘
 function bib(c) { return `<span class="bib" style="background:${c}"></span>` }
 function tag(t) { return `<span class="teamtag" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}</span>` }
@@ -711,11 +710,11 @@ function draftFly() { const snap = S.flySnap; S.flySnap = null; if (!snap || mat
 function fitPool() { const sr = document.querySelector('.dmroot .seatrow'); if (sr) { const hd = sr.querySelector('.seat .sv2'); if (hd) sr.style.setProperty('--seatmin', Math.ceil(hd.offsetHeight + 62) + 'px') }
   const g = document.querySelector('.felt .pool .namegrid'); if (!g) return; const n = g.children.length; if (!n) return; const pool = g.closest('.pool'); const hd = pool.querySelector('.pool-hd');
   const W = g.clientWidth || pool.clientWidth, H = S.dm ? pool.clientHeight - (hd ? hd.offsetHeight : 0) - 8 : 1e4, gap = 6; let best = 0, bc = 4;
-  for (let cols = 2; cols <= 8; cols++) { const rows = Math.ceil(n / cols); const w = Math.min(S.dm ? 104 : 92, (W - (cols - 1) * gap) / cols, H / (rows * .92 + .08) * 80 / 92); if (w >= best - .5) { best = Math.max(best, w); bc = cols } if (cols >= n) break }
-  const fw = Math.max(40, Math.floor(best)); g.style.setProperty('--gfw', fw + 'px'); g.style.setProperty('--cols', bc) }
+  for (let cols = 2; cols <= 8; cols++) { const rows = Math.ceil(n / cols); const w = Math.min(S.dm ? 104 : 92, (W - (cols - 1) * gap) / cols, (H - (rows - 1) * gap) / rows * 80 / 74); if (w >= best - .5) { best = Math.max(best, w); bc = cols } if (cols >= n) break }
+  const fw = Math.max(42, Math.floor(best)); g.style.setProperty('--gfw', fw + 'px'); g.style.setProperty('--cols', bc) }
 function render() {
   if (isTyping()) { S.pending = true; return } S.pending = false; draftSnap();
-  S.dm = !isDesk(); figDefs();
+  S.dm = !isDesk();
   if (S.ready >= 3 || S.err) hideBoot();
   if (S.ready >= 3) ensureQueues();
   if (S.fs) requestAnimationFrame(() => { fsFit(); setTimeout(fsFit, 120) });
@@ -1181,6 +1180,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.46', '2026.10.16', ['드래프트 선수 아이콘을 머리 없는 반팔 유니폼 모양으로 단순하게 바꿨어요. 안 뽑힌 선수는 흰 유니폼, 뽑히면 팀색 유니폼이에요', '이름이 길어도 잘리지 않게 글자 크기가 자동으로 맞춰져요']],
   ['0.21.45', '2026.10.16', ['드래프트 선수 아이콘을 사람 상반신 모양으로 바꾸고, 뽑히면 팀색 훈련 조끼를 입어요. 남은 인원에 맞춰 축구장을 꽉 채우는 크기로 보여요', '확정된 지명 되돌리기는 운영진만 할 수 있어요', '축구장 위에 운영진 박스를 주장 카드처럼 두고, 그 안에 되돌리기·확정·진행 메뉴 버튼을 모았어요', '마지막 선수가 배치돼도 자동으로 넘어가지 않고 그대로 멈춰요. 운영진이 드래프트 확정을 눌러야 끝나요']],
   ['0.21.44', '2026.10.16', ['주장으로 지정되면 주장 코드 없이 내 이름으로 로그인만 해도 화면 위에 👑 드래프트 입장 버튼이 보여요', '띄어쓰기 등으로 이름이 조금 달라도 같은 사람이면 주장으로 알아봐요']],
   ['0.21.43', '2026.10.16', ['드래프트 이름표가 사람 상체 모양으로 바뀌고 몸통에 이름이 적혀요. 팀에 뽑히면 그 팀 색 조끼를 입은 모습으로 바뀌어요']],
