@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.53';
+const APP_VERSION = '0.21.54';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -723,10 +723,12 @@ function placeBall() { const seat = document.querySelector('.board-table .seat.b
   if (!el) { el = document.createElement('div'); el.id = 'turnBall'; el.innerHTML = `<i class="tb-sh"></i><b class="tb-b">${BALL_SVG}</b>`; document.body.appendChild(el) }
   const r = seat.getBoundingClientRect(); const sz = S.dm ? 26 : 32; const x = r.left + r.width / 2 - sz / 2, y = r.top - sz + 5; const k = seat.dataset.k;
   el.style.width = el.style.height = sz + 'px'; el.style.left = x + 'px'; el.style.top = y + 'px';
-  if (S.ballK && S.ballK !== k && S.ballPos && !matchMedia('(prefers-reduced-motion: reduce)').matches) { const dx = S.ballPos.x - x, dy = S.ballPos.y - y, lift = -Math.min(140, 50 + Math.abs(dx) * .35);
-    el.classList.add('passing'); S.ballAn?.cancel(); S.ballAn = el.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: `translate(${dx * .5}px,${dy * .5 + lift}px)`, offset: .5 }, { transform: 'translate(0,0)' }], { duration: 620, easing: 'cubic-bezier(.3,.1,.4,1)' });
-    el.querySelector('.tb-b').animate([{ rotate: '0deg' }, { rotate: (dx > 0 ? '-' : '') + '540deg' }], { duration: 620, easing: 'cubic-bezier(.3,.1,.4,1)' });
-    S.ballAn.onfinish = () => el.classList.remove('passing') }
+  if (S.ballK && S.ballK !== k && S.ballPos && !matchMedia('(prefers-reduced-motion: reduce)').matches) { const dx = S.ballPos.x - x, dy = S.ballPos.y - y, lift = -Math.min(150, 70 + Math.abs(dx) * .3);
+    const N = 18, D = 760, kf = []; for (let i = 0; i <= N; i++) { const t = i / N; kf.push({ transform: `translate(${dx * (1 - t)}px,${dy * (1 - t) + lift * 4 * t * (1 - t)}px)` }) }
+    el.classList.add('passing'); S.ballAn?.cancel(); S.ballSpin?.cancel();
+    S.ballAn = el.animate(kf, { duration: D, easing: 'linear' });
+    S.ballSpin = el.querySelector('.tb-b').animate([{ transform: 'scale(1.15,.85)', rotate: '0deg', offset: 0 }, { transform: 'scale(1,1)', offset: .08 }, { transform: 'scale(1,1)', rotate: (dx > 0 ? '-' : '') + '360deg', offset: .92 }, { transform: 'scale(1.18,.82)', rotate: (dx > 0 ? '-' : '') + '360deg', offset: 1 }], { duration: D, easing: 'linear' });
+    S.ballAn.onfinish = () => { el.classList.remove('passing'); el.querySelectorAll('.tb-b,.tb-sh').forEach(n => { n.style.animation = 'none'; void n.offsetWidth; n.style.animation = ''; n.style.animationDelay = '-.42s' }) } }
   S.ballK = k; S.ballPos = { x, y } }
 function fitPool() { const short = innerHeight < 760; const sr = document.querySelector('.dmroot .seatrow'); if (sr) { const hd = sr.querySelector('.seat .sv2'); if (hd) sr.style.setProperty('--seatmin', Math.ceil(hd.offsetHeight + (short ? 52 : 100)) + 'px') }
   const g = document.querySelector('.dmroot .felt .pool .namegrid'); if (g && g.children.length) { let fw = 52; g.style.setProperty('--pfw', fw + 'px'); while (fw > 34 && g.scrollHeight > g.clientHeight + 1) { fw -= 3; g.style.setProperty('--pfw', fw + 'px') } }
@@ -954,9 +956,7 @@ function vDraft(s) {
   const canPick = ph === 'draft' && (S.admin || (my && my === turnK && s.room?.[my]?.in));
   if (S.admin && s.room?.open && !s.room?.admin?.in && !S.adminJoin?.[S.sid]) { (S.adminJoin ??= {})[S.sid] = 1; w(() => S.store.update(sp(S.sid), { 'room.admin': { in: true, name: S.me || '운영진', at: Date.now() } })) }
   let h = '';
-  if (my) { const si = { closed: 0, lobby: 0, color: 0, order: 1, ladder: 1, cards: 1, cardsrev: 1, draft: 2, done: 3 }[ph]; const tm = team(s, my);
-    h += `<div class="capbar"><ol class="dstg">${['팀색 선택', '순번 정하기', '팀원 선택'].map((n, i) => `<li class="${i < si ? 'done' : i === si ? 'now' : ''}"><i>${i < si ? '✓' : i + 1}</i><span>${n}</span></li>`).join('')}</ol>
-      <div class="capinfo" style="--tc:${tm.color};--ti:${inkOn(tm.color)}"><span class="tok2">${esc(tm.name)}</span><span class="cn"><b>${esc(pname(s.captains?.[my]))}</b> 주장<small>참여 중</small></span></div></div>` }
+  // (0.21.54) 상단 단계·주장 정보 바는 없앰 — 아래 영역을 여유롭게
   // top: applicant buttons
   const pk = {}; (s.picks || []).forEach((x, i) => pk[x.p] = { t: x.t, n: i + 1 }); const caps = captainsOf(s);
   const inTeam = new Set(KEYS.flatMap(k => teamPlayers(s, k))); const list = byName((s.applicants || []).filter(id => !caps.includes(id) && !pk[id] && !inTeam.has(id)));
@@ -1199,6 +1199,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.54', '2026.10.16', ['차례가 넘어갈 때 축구공이 땅을 차고 포물선으로 날아가 다음 팀 카드 가운데에 착지한 뒤 다시 통통 튀도록 자연스럽게 바꿨어요', '드래프트 화면 위쪽의 단계·주장 정보 바를 없애고 그만큼 축구장과 카드를 여유롭게 배치했어요']],
   ['0.21.53', '2026.10.16', ['차례 표시 NOW 대신, 차례인 팀 카드 위에서 축구공이 통통 튀어요. 차례가 넘어가면 공이 다음 팀으로 패스돼요']],
   ['0.21.52', '2026.10.16', ['드래프트 중 축구장 안의 검은 박스를 없애서 순번·선수 목록·선택 버튼이 축구장 위에 바로 보여요']],
   ['0.21.51', '2026.10.16', ['차례 표시를 \'차례 · 내 차례!\' 대신 주장 카드 오른쪽 위에 깜빡이는 NOW로 바꿨어요', '주장 카드에서 위쪽 정보와 선택된 선수 사이 구분선을 더 선명하게 했어요', '모바일 드래프트 화면에서 채팅 내용 칸을 없애고(💬 아이콘으로 보기) 그만큼 화면을 넓혀, 스크롤 없이 한 화면에 모두 보여요']],

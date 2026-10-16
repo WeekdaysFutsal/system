@@ -314,4 +314,10 @@ table.grid.aptbl{min-width:0!important;width:100%;table-layout:fixed}table.grid.
 #turnBall.passing .tb-b{animation:none}
 #turnBall.passing .tb-sh{opacity:0;animation:none}
 @media (prefers-reduced-motion:reduce){#turnBall .tb-b,#turnBall .tb-sh{animation-duration:1.2s}}
-:root{--cssv:"0.21.53"}
+/* 0.21.54 상단 바 제거 후 여유 배치 */
+.dmroot{gap:10px!important;padding-top:10px!important}
+.dmroot .seatrow{gap:8px}
+.dmroot .felt>.fx.fx-draft{padding-top:12px!important;padding-bottom:12px!important}
+.dmroot .felt .pool .namegrid:has(.pfb){gap:10px 8px!important}
+#turnBall.passing .tb-b{animation:none!important}
+:root{--cssv:"0.21.54"}
