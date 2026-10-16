@@ -131,4 +131,5 @@ table.grid.aptbl{min-width:0!important;width:100%;table-layout:fixed}table.grid.
 .nb .nbn{white-space:nowrap}
 .flytag{gap:6px;padding:0 10px 0 5px}.flytag .pico{background:rgba(0,0,0,.25)}
 .redobar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px;border:2px solid color-mix(in srgb,var(--accent) 35%,var(--line))}
-:root{--cssv:"0.21.41"}
+.dupbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 12px;border:2px solid #F5B800;background:color-mix(in srgb,#F5B800 8%,var(--surface))}
+:root{--cssv:"0.21.42"}

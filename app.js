@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.41';
+const APP_VERSION = '0.21.42';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -315,7 +315,7 @@ function watchPhases() {
 }
 
 /* ───────── actions ───────── */
-function findPlayer(name) { const n = name.trim(); return Object.entries(S.players).find(([, p]) => p.name === n)?.[0] || null }
+function findPlayer(name) { const n = name.trim(), k = normName(n); const E = Object.entries(S.players); return E.find(([, p]) => p.name === n)?.[0] || (k ? E.find(([, p]) => normName(p.name) === k)?.[0] : null) || null } // 띄어쓰기·(게) 차이도 같은 사람으로 봐요
 async function ensurePlayer(raw) {
   const guest = /\(\s*게(스트)?\s*\)/.test(raw); const name = raw.replace(/\(\s*게(스트)?\s*\)/g, '').trim().slice(0, 20); if (!name) return null;
   const ex = findPlayer(name); if (ex) return ex;
@@ -1164,6 +1164,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.42', '2026.10.16', ['[운영진] 회원 관리에 같은 이름 회원이 있으면 "한 사람으로 합치기"가 떠요. 신청·팀·경기 기록·골/도움·연락처·로그인 비밀번호까지 한 사람으로 합쳐져요', '앞으로는 띄어쓰기나 (게) 표시만 다른 이름도 같은 회원으로 찾아서 중복이 생기지 않아요']],
   ['0.21.41', '2026.10.16', ['[운영진] 드래프트가 끝난 뒤 "드래프트 다시하기"로 주장·팀 색은 그대로 두고 순번 정하기부터 다시 할 수 있어요', '[운영진] 월간 일정표 화면을 팀 공지 화면과 같은 배치(왼쪽 입력·시안·글꼴, 오른쪽 미리보기)로 맞췄어요']],
   ['0.21.40', '2026.10.16', ['드래프트 남은 선수 이름표에 사람 아이콘이 붙어요(이름 글자 크기는 그대로)']],
   ['0.21.39', '2026.10.16', ['드래프트 화면을 간단하게: "○○ 주장 차례"·"직전 지명" 안내를 없애고, 지명 순서를 팀 색 동그라미로 보여 줘요. 지금 차례 동그라미가 크게 빛나요']],
@@ -2415,6 +2416,41 @@ async function manAct(act, el) { const M = S.man; const id = el.dataset.id;
 }
 
 /* ───────── members (admin) ───────── */
+/* ───────── 같은 이름 회원 합치기 (기록 데이터까지 한 사람으로) ───────── */
+function dupGroups() { const g = {}; for (const [id, p] of Object.entries(S.players)) { const k = normName(p.name); if (k) (g[k] ??= []).push(id) } return Object.values(g).filter(a => a.length > 1) }
+function refCount(id) { let n = 0; for (const s of Object.values(S.sessions)) { if (JSON.stringify(s).includes('"' + id + '"')) n++ } for (const e of Object.values(S.events)) if (e.scorer === id || e.assist === id) n++; return n }
+function pickCanon(ids) { const rank = id => [S.authMap?.[id] ? 1 : 0, S.contacts?.[id]?.phone ? 1 : 0, refCount(id), -(S.players[id]?.createdAt || 9e15)]; return [...ids].sort((a, b) => { const A = rank(a), B = rank(b); for (let i = 0; i < A.length; i++) if (A[i] !== B[i]) return B[i] - A[i]; return 0 })[0] }
+function remapSession(s, map) { const R = id => map[id] || id; const arr = a => Array.isArray(a) ? [...new Set(a.map(R))] : a; const keys = o => { if (!o || typeof o !== 'object') return o; const r = {}; for (const [k, v] of Object.entries(o)) { const nk = R(k); if (!(nk in r) || (v && (!r[nk] || (typeof v === 'number' && v < r[nk])))) r[nk] = v } return r };
+  const out = {}; const put = (f, v) => { if (JSON.stringify(v) !== JSON.stringify(s[f])) out[f] = v };
+  for (const f of ['applicants', 'waitlist', 'p0', 'ops', 'viewers', 'parkWin']) if (s[f]) put(f, arr(s[f]));
+  if (s.captains) put('captains', Object.fromEntries(Object.entries(s.captains).map(([k, v]) => [k, v ? R(v) : v])));
+  if (s.mom) put('mom', Object.fromEntries(Object.entries(s.mom).map(([k, v]) => [k, v ? R(v) : v])));
+  if (s.teams) put('teams', Object.fromEntries(Object.entries(s.teams).map(([k, t]) => [k, { ...t, players: arr(t?.players || []) }])));
+  if (Array.isArray(s.picks)) put('picks', s.picks.map(x => ({ ...x, p: R(x.p) })));
+  if (s.pending?.p) put('pending', { ...s.pending, p: R(s.pending.p) });
+  if (Array.isArray(s.apps)) { const seen = new Set(); put('apps', s.apps.filter(a => a).map(a => a.pid ? { ...a, pid: R(a.pid) } : a).sort((a, b) => (a.at || 0) - (b.at || 0)).filter(a => { if (!a.pid) return true; if (seen.has(a.pid)) return false; seen.add(a.pid); return true })) }
+  for (const f of ['park', 'late', 'cancels']) if (s[f]) put(f, keys(s[f]));
+  if (s.duty) put('duty', Object.fromEntries(Object.entries(s.duty).map(([k, v]) => [k, arr(v || [])])));
+  if (s.dutyReq) put('dutyReq', Object.fromEntries(Object.entries(s.dutyReq).map(([k, v]) => [k, keys(v)])));
+  if (s.mmCtl?.pid && map[s.mmCtl.pid]) put('mmCtl', { ...s.mmCtl, pid: R(s.mmCtl.pid) });
+  return out }
+async function mergeDups() { const groups = dupGroups(); if (!groups.length) { toast('같은 이름의 회원이 없어요.'); return }
+  const plan = groups.map(ids => { const c = pickCanon(ids); return { canon: c, dups: ids.filter(x => x !== c) } }); const map = {}; plan.forEach(g => g.dups.forEach(d => map[d] = g.canon));
+  if (!confirm(`같은 이름 회원 ${plan.length}명을 한 사람으로 합칠까요?\n${plan.map(g => `· ${S.players[g.canon].name} (${g.dups.length + 1}개 → 1개)`).join('\n')}\n\n신청·팀·경기 기록·골/도움·연락처가 모두 합쳐지고, 되돌릴 수 없어요.`)) return;
+  S.merging = true; toast('합치는 중이에요… 잠시만 기다려 주세요.');
+  const ok = await w(async () => {
+    for (const [sid, ss] of Object.entries(S.sessions)) { const up = remapSession(ss, map); if (Object.keys(up).length) await S.store.update(sp(sid), up);
+      const q = S.q?.[sid]; if (q) for (const [qid, d] of Object.entries(q)) { const np = d.pid && map[d.pid]; if (!np) continue; if (q[np] || Object.values(q).some(x => x.pid === np)) { await S.store.del(sp(sid) + '/q/' + qid) } else if (qid === d.pid) { await S.store.set(sp(sid) + '/q/' + np, { ...d, pid: np }); await S.store.del(sp(sid) + '/q/' + qid) } else await S.store.update(sp(sid) + '/q/' + qid, { pid: np }) } }
+    for (const d of Object.keys(map)) { const evs = new Map(); Object.entries(S.events).forEach(([id, e]) => { if (e.scorer === d || e.assist === d) evs.set(id, e) });
+      for (const f of ['scorer', 'assist']) { try { (await S.store.query('events', [[f, '==', d]])).forEach(e => evs.set(e.id, e)) } catch { } }
+      for (const [id, e] of evs) { const up = {}; if (e.scorer === d) up.scorer = map[d]; if (e.assist === d) up.assist = map[d]; if (Object.keys(up).length) await S.store.update('events/' + id, up) }
+      const c = map[d]; const P = S.players[c] || {}, D = S.players[d] || {}; const order = ['staff', 'special', 'active', 'guest', 'dormant']; const st = [mstatus(P), mstatus(D)].sort((a, b) => order.indexOf(a) - order.indexOf(b))[0];
+      await S.store.update('players/' + c, { status: st, staff: st === 'staff', guest: st === 'guest', createdAt: Math.min(P.createdAt || 9e15, D.createdAt || 9e15) });
+      const cc = S.contacts?.[c] || {}, dc = S.contacts?.[d]; if (dc) { const m = { ...dc, ...Object.fromEntries(Object.entries(cc).filter(([, v]) => v)) }; await S.store.set('contacts/' + c, m); await S.store.del('contacts/' + d) }
+      for (const col of ['auth', 'notifPrefs']) { try { const dv = await S.store.get(col + '/' + d); if (dv) { const cv = await S.store.get(col + '/' + c); if (!cv) await S.store.set(col + '/' + c, dv); await S.store.del(col + '/' + d) } } catch { } }
+      try { for (const t of await S.store.query('pushTokens', [['pid', '==', d]])) await S.store.update('pushTokens/' + t.id, { pid: c }) } catch { }
+      await S.store.del('players/' + d) } });
+  S.merging = false; if (ok) toast(`${plan.length}명의 중복 회원을 합쳤어요.`); render() }
 const MSTAT = { staff: '운영진', special: '특별회원', active: '정회원', dormant: '장불회원', guest: '게스트' }; // 운영진·특별회원은 운영모드에 들어갈 수 있어요. (신청 0순위는 경기별 구장 예약자·경기 운영자만)
 function mstatus(p) { const st = p?.status || (p?.guest ? 'guest' : 'active'); return st === 'active' && p?.staff ? 'staff' : st }
 function stopAdminWatch() { for (const k of ['unsubAuth', 'unsubContacts', 'unRules']) { try { S[k]?.() } catch { } S[k] = null } }
@@ -2452,6 +2488,7 @@ function viewMembers() {
   <div class="mtools"><input class="inp" type="search" id="mq" placeholder="이름, 연락처, 메모 검색" value="${esc(q)}" data-in="mq">
   <div class="seg">${[['all', `전체 ${Object.keys(S.players).length}`], ...Object.entries(MSTAT).map(([k, n]) => [k, `${n} ${cnt(k)}`])].map(([k, n]) => `<button role="tab" data-act="mstat" data-k="${k}" aria-selected="${f === k}">${n}</button>`).join('')}</div>
 </div>${fk.length || S.colSort ? `<div class="cf-bar">${fk.map(k => `<button class="chip sel" data-act="colclear" data-k="${k}">${mcol(k)[1]}: ${S.colF[k].length > 2 ? S.colF[k].slice(0, 2).map(v => esc(v || '(빈칸)')).join(', ') + ` 외 ${S.colF[k].length - 2}` : S.colF[k].map(v => esc(v || '(빈칸)')).join(', ')} ✕</button>`).join('')}${S.colSort ? `<span class="chip">정렬: ${mcol(S.colSort.k)[1]} ${S.colSort.d > 0 ? '▲' : '▼'}</span>` : ''}<button class="linkbtn" data-act="colreset">모두 초기화</button><span class="muted">${rows.length}명 표시</span></div>` : ''}`;
+  { const dg = dupGroups(); if (dg.length) h += `<div class="panel pad dupbar"><div><b>⚠️ 같은 이름 회원 ${dg.length}명</b><p class="note" style="margin:4px 0 0">${dg.map(ids => esc(S.players[ids[0]].name) + ` ×${ids.length}`).join(', ')} · 한 사람으로 합치면 신청·팀·경기 기록·골/도움·연락처가 모두 합쳐져요.</p></div><button class="btn primary" data-act="mergedups" ${S.merging ? 'disabled' : ''}>${S.merging ? '합치는 중…' : '한 사람으로 합치기'}</button></div>` }
   const nsel = Object.values(S.msel || {}).filter(Boolean).length;
   if (nsel) h += `<div class="bulkbar"><b>${nsel}명 선택</b><button class="btn sm" data-act="mselclear">선택 해제</button><button class="btn sm danger" data-act="mbulkdel">선택 삭제</button></div>`;
   if (!rows.length) return h + `<div class="panel"><p class="empty">${q || fk.length ? '조건에 맞는 회원이 없어요.' : '회원이 없어요. 회원 추가나 명단 붙여넣기로 등록하세요.'}</p></div>`;
@@ -2750,6 +2787,7 @@ document.addEventListener('click', async e => {
       const base = kind === 'team' ? teamDesign(cur()) : schedDesign(); const d = { ...base, font: v }; S.cand[kind] = candList(kind).map(x => ({ ...x, font: v })); await applyDesign(kind, d); toast(`${POSTER_FONTS.find(x => x[0] === v)[1]} 글꼴로 바꿨어요.`); render(); break }
     case 'apord': S.apord = el.dataset.v === 'time' ? 'time' : 'rank'; render(); break;
     case 'redodraft': if (!needAdmin()) break; await redoDraft(); break;
+    case 'mergedups': if (!needAdmin()) break; await mergeDups(); break;
     case 'aview': S.aview = el.dataset.v === 'time' ? 'time' : 'rank'; render(); break;
     case 'pairedit': { if (!needAdmin()) break; S.pairDraft = {}; S.sheet = { type: 'pairs' }; render(); break }
     case 'pairswap': { const m = M(id); if (!m) break; const D = (S.pairDraft ??= {}); const [hh, aa] = D[id] || [m.home, m.away]; D[id] = [aa, hh]; render(); break }
