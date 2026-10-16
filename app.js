@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.20';
+const APP_VERSION = '0.21.21';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -951,6 +951,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.21', '2026.10.16', ['[운영진] 신청자 목록을 순위순과 신청순으로 바꿔 볼 수 있어요']],
   ['0.21.20', '2026.10.16', ['신청 인원을 "전체 신청 인원 / 정원"으로 보여 줘요. 정원이 차도 대기자까지 합친 전체 인원이 보여요']],
   ['0.21.19', '2026.10.15', ['[운영진] 경기진행 화면에서 1~9경기 대진(맞붙는 팀)을 경기마다 바꿀 수 있어요. 끝난 경기는 골 기록도 함께 옮겨져요']],
   ['0.21.18', '2026.10.15', ['[운영진] 드래프트에서 사다리·카드로 정해진 순번을 첫 지명 전까지 직접 바꿀 수 있어요']],
@@ -1590,6 +1591,8 @@ function tierSheet(sh) { const ss = S.sessions[sh.sid]; const r = ss && classify
 function vApplyTable(s) {
   const ad = S.admin; const c = classify(s); const frozen = s.stage !== 'apply'; const closed = applyClosed(s); const late = lateSet(s); const prevAny = prevAnyId(s);
   let rows = [...c.sel, ...c.wait];
+  const byTime = ad && !frozen && S.aview === 'time'; if (byTime) rows = rows.slice().sort((a, b) => (a.auto ? 0 : 1) - (b.auto ? 0 : 1) || (a.n || 0) - (b.n || 0));
+  const mvOn = ad && !frozen && betaOn() && !byTime;
   if (frozen) { const A = s.applicants || [], W = s.waitlist || []; rows = [...A.map(pid => ({ ...(c.rows.find(r => r.pid === pid) || { k: 'f' + pid, pid, tier: 2, n: '-' }), sel: true })), ...W.map((pid, i) => ({ ...(c.rows.find(r => r.pid === pid) || { k: 'w' + pid, pid, tier: 2, n: '-' }), sel: false, wn: i + 1 }))] }
   const tb = t => c.base ? `<b class="t${t}">${TIER[t]}</b>` : '<b class="t2">선착순</b>';
   const canTier = ad && !frozen && c.base; const canRm = ad && s.draftStatus === 'ready' && ['apply', 'captain'].includes(s.stage);
@@ -1599,12 +1602,13 @@ function vApplyTable(s) {
   const stale = ad ? staleExtraPids(s) : [];
   const dsum = `<div class="panel dsum">${dline('ball', '⚽', '공당')}${dline('drink', '🥤', '물당')}${stale.length ? `<div class="dsum-row stale"><b>⚠️ 정리</b><span>신청자가 아닌 ${stale.map(p => esc(pname(p))).join(', ')} 님의 주차·공당·물당 기록이 남아 있어요.</span><span></span><button class="btn sm danger" data-act="stalefix">정리하기</button></div>` : ''}</div>`;
   const betaNote = ad && !frozen && betaOn() ? `<div class="betatools"><button class="btn sm primary" data-act="kakaopaste">📷 카톡 투표 명단 반영</button>${Array.isArray(s.appOrder) && s.appOrder.length ? '<button class="btn sm" data-act="orderreset">↺ 실제 신청 순서로 되돌리기</button>' : ''}</div><p class="note betanote">🧪 베타테스트 기간이라 신청 순번을 바꿀 수 있어요. ▲▼로 한 칸씩, #으로 원하는 자리로 옮겨요. 0~3순위 규칙은 그대로라 같은 순위 안에서만 옮겨져요. (설정에서 정식 오픈하면 잠겨요)</p>` : '';
-  const h = dsum + betaNote + `<div class="panel sheetwrap"><table class="grid atbl"><thead><tr><th>신청순</th><th class="stick">이름</th><th>순위</th><th>구분</th><th>신청 시각</th>${ad && !frozen && betaOn() ? '<th>순번 변경</th>' : ''}<th>주차</th><th>공당</th><th>물당</th><th>상태</th><th>마감 후 취소</th>${ad ? '<th>관리</th>' : ''}</tr></thead><tbody>
+  const vtog = ad && !frozen ? `<div class="vtog" role="group" aria-label="정렬"><button class="btn sm${byTime ? '' : ' primary'}" data-act="aview" data-v="rank">순위순</button><button class="btn sm${byTime ? ' primary' : ''}" data-act="aview" data-v="time">신청순</button><small>${byTime ? `신청이 들어온 순서대로 보여요. 상태 칸에서 선발·대기를 확인하세요.${betaOn() ? ' (▲▼ 순번 변경은 순위순에서 할 수 있어요)' : ''}` : '순위(0~3순위)에 따라 선발 → 대기 순으로 보여요.'}</small></div>` : '';
+  const h = dsum + betaNote + vtog + `<div class="panel sheetwrap"><table class="grid atbl"><thead><tr><th>신청순</th><th class="stick">이름</th><th>순위</th><th>구분</th><th>신청 시각</th>${mvOn ? '<th>순번 변경</th>' : ''}<th>주차</th><th>공당</th><th>물당</th><th>상태</th><th>마감 후 취소</th>${ad ? '<th>관리</th>' : ''}</tr></thead><tbody>
   ${rows.length ? rows.map(r => { const pk = r.pid && s.park?.[r.pid]?.car;
     return `<tr class="${r.sel ? '' : 'wrow'}"><td class="num">${r.auto ? '자동' : r.n}</td><td class="stick"><b>${r.pid ? esc(pname(r.pid)) : '<i class="nn">이름 입력 대기</i>'}</b>${(() => { const [k, t] = appSrc(s, r); return k === 'auto' ? '' : `<span class="src src-${k}">${t}</span>` })()}</td><td>${tcell(r)}</td>
       <td class="muted">${r.auto ? roleOf(s, r.pid) + ' (자동)' : r.pid ? (roleOf(s, r.pid) || (late.has(r.pid) ? '지난 경기 마감 후 취소' : '')) : ''}</td>
       <td class="num muted">${r.at ? fmtTS(r.at) : '-'}</td>
-      ${ad && !frozen && betaOn() ? `<td class="mv">${r.auto ? '' : `<button class="btn sm" data-act="appmove" data-k="${r.k}" data-d="-1" aria-label="위로">▲</button><button class="btn sm" data-act="appmove" data-k="${r.k}" data-d="1" aria-label="아래로">▼</button><button class="btn sm" data-act="appmoveto" data-k="${r.k}" aria-label="순번 입력">#</button>`}</td>` : ''}
+      ${mvOn ? `<td class="mv">${r.auto ? '' : `<button class="btn sm" data-act="appmove" data-k="${r.k}" data-d="-1" aria-label="위로">▲</button><button class="btn sm" data-act="appmove" data-k="${r.k}" data-d="1" aria-label="아래로">▼</button><button class="btn sm" data-act="appmoveto" data-k="${r.k}" aria-label="순번 입력">#</button>`}</td>` : ''}
       <td class="muted">${pk ? `🚗 ${esc(pk)}` : ''}</td>${['ball', 'drink'].map(k => { const fixed = r.pid && (s.duty?.[k] || []).includes(r.pid), req = r.pid && s.dutyReq?.[k]?.[r.pid]; return `<td class="num">${fixed ? '<b class="ok">✓ 지정</b>' : req ? '<span class="dreq">🙋 신청</span>' : ''}</td>` }).join('')}<td>${r.sel ? '<b class="ok">선발</b>' : `<b class="tw">대기 ${r.wn}</b>`}</td>
       <td class="num"><input type="checkbox" class="staffck" ${ad && closed && r.pid && !r.auto ? `data-in="latetoggle" data-id="${r.pid}"` : 'disabled'} aria-label="마감 후 취소"></td>
       ${ad ? `<td class="acts">${r.pid && !r.auto ? `<button class="btn sm" data-act="p0toggle" data-id="${r.pid}">${(s.p0 || []).includes(r.pid) ? '예약자 해제' : '예약자'}</button>` : ''}${r.auto ? `<button class="btn sm" data-act="staffedit" data-id="${s.date}">변경</button>` : ''}${!r.pid ? `<button class="btn sm" data-act="appnameadmin" data-id="${r.k}">이름</button>` : ''}${closed && r.pid && !r.auto ? `<button class="btn sm danger" data-act="latecancel" data-id="${r.pid}">${r.sel ? '마감 후 취소' : '대기 취소'}</button>` : ''}${canRm && !r.auto ? `<button class="btn sm danger" data-act="apprm" data-id="${r.k}" data-pid="${r.pid || ''}" aria-label="삭제" title="신청 삭제 (3순위 기록 없음)">삭제</button>` : ''}</td>` : ''}</tr>` }).join('') : `<tr><td colspan="11" class="empty">아직 신청자가 없어요.</td></tr>`}${Object.entries(s.late || {}).filter(([, v]) => v).map(([pid, t]) => `<tr class="lrow"><td class="num">-</td><td class="stick"><b>${esc(pname(pid))}</b></td><td></td><td class="muted">신청 마감 후 취소</td><td class="num muted">${fmtTS(t)}</td><td></td><td><b class="t3">취소</b></td><td class="num"><input type="checkbox" class="staffck" checked ${ad ? `data-in="lateuntoggle" data-id="${pid}"` : 'disabled'} aria-label="마감 후 취소 해제"></td>${ad ? '<td></td>' : ''}</tr>`).join('')}</tbody></table></div>`;
@@ -2480,6 +2484,7 @@ document.addEventListener('click', async e => {
     case 'coloropen': if (!needAdmin()) break; if (joinedCount(s) < 3 && !confirm('아직 모든 주장이 입장하지 않았어요. 그래도 색 선택을 시작할까요?')) break;
       if (await w(() => S.store.update(sp(S.sid), { 'room.colorOpen': true }))) sysChat('색 선택을 시작합니다. 주장님들 팀 색을 골라 주세요!'); break;
     case 'roommenu': S.sheet = { type: 'roommenu' }; render(); break;
+    case 'aview': S.aview = el.dataset.v === 'time' ? 'time' : 'rank'; render(); break;
     case 'pairedit': { if (!needAdmin()) break; S.pairDraft = {}; S.sheet = { type: 'pairs' }; render(); break }
     case 'pairswap': { const m = M(id); if (!m) break; const D = (S.pairDraft ??= {}); const [hh, aa] = D[id] || [m.home, m.away]; D[id] = [aa, hh]; render(); break }
     case 'pairsave': { if (!needAdmin()) break; await pairSave(); break }
