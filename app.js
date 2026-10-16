@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.25';
+const APP_VERSION = '0.21.26';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -550,7 +550,7 @@ function appbar() {
   const s = S.sid ? S.sessions[S.sid] : null; const back = false;
   return `<header class="appbar"><div class="in">${back ? '<button class="back" data-act="home" aria-label="경기일 목록">‹</button>' : `<img src="${EMBLEM_SRC}" alt="홈으로" data-act="gohome" style="cursor:pointer">`}
   <div class="ttl" data-act="gohome" role="button" tabindex="0" aria-label="홈으로"><b>${esc(CFG.club?.name || 'WEEKDAYS FUTSAL CLUB')}</b><span></span></div>
-  ${!S.dm && !S.admin && S.auth ? `<button class="mmtop ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" aria-label="${S.tab === 'mm' ? '일반모드로 돌아가기' : '경기모드 열기'}"><span class="mmball">⚽</span><b>${S.tab === 'mm' ? '일반모드' : '경기모드'}</b>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : ''}${S.auth && !S.admin ? (() => { const n = (S.inbox || []).filter(x => !x.read).length; return `<button class="bell" data-act="inbox" aria-label="받은 알림${n ? ' ' + n + '개 안 읽음' : ''}">🔔${n ? `<i>${n > 9 ? '9+' : n}</i>` : ''}</button>` })() : ''}<button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">운영모드</button></div>${capStrip()}</header>`;
+  ${!S.dm && !S.admin && S.auth ? `<button class="mmtop ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" aria-label="${S.tab === 'mm' ? '일반모드로 돌아가기' : '경기모드 열기'}"><span class="mmball">⚽</span><b>${S.tab === 'mm' ? '일반모드' : '경기모드'}</b>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : ''}${S.auth && !S.admin ? (() => { const n = (S.inbox || []).filter(x => !x.read).length; return `<button class="bell" data-act="inbox" aria-label="받은 알림${n ? ' ' + n + '개 안 읽음' : ''}">🔔${n ? `<i>${n > 9 ? '9+' : n}</i>` : ''}</button>` })() : ''}${S.admin || !S.auth || S.players[myPid()]?.staff ? `<button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">운영모드</button>` : ''}</div>${capStrip()}</header>`;
 }
 function tabs() {
   const t = S.admin ? [['manage', '일정'], ['run', '경기'], ['notice', '공지'], ['members', '회원'], ['settings', '설정']] : [['mhome', '홈'], ['sched', '일정'], ...(isDesk() ? [] : [['mm', '경기모드']]), ['results', '경기결과'], capSid() ? ['draft', '팀 선정'] : viewSid() ? ['draft', '드래프트 참관'] : ['settings', '내 정보']];
@@ -933,6 +933,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.26', '2026.10.16', ['디자인 다듬기: 운영모드 버튼은 운영진에게만 보이고, 회원은 내 정보 맨 아래에서 들어갈 수 있어요', 'PC 홈의 MATCH REVIEW에 지난 경기 9경기 결과가 한눈에 보여요', '신청자 보기에서 내 상태가 색으로 구분되고, 대기자는 대기 순번과 순위로 보여요', '경기모드에서 고를 경기가 없을 때 불필요한 선택 칸을 숨겼어요', '[운영진] 신청자 표의 순위 규칙 설명을 접어 두고, 당번 요약과 달력 범례가 휴대폰에서 깔끔하게 보여요']],
   ['0.21.25', '2026.10.16', ['일정 카드의 "📅 캘린더에 추가"로 경기 일정을 아이폰·구글 캘린더에 넣을 수 있어요(경기 2시간 전 알림)', '[운영진] 신청자 직접 추가 때 회원 명단에 없는 이름은 "게스트로 추가" 버튼으로 바로 넣을 수 있어요', '공지 이미지 저장 파일명에 날짜와 회차가 들어가요']],
   ['0.21.24', '2026.10.16', ['전체 코드를 다시 점검해 쓰지 않는 코드를 정리하고 더 가볍고 빠르게 만들었어요', '[중요] 경기 운영자가 지정되지 않은 경기에서 신청 인원이 0명으로 보이거나 신청 확정 시 명단이 비는 문제를 고쳤어요', '로그인 전에 신청한 뒤 로그인해도 내 신청이 그대로 이어져요. 이름 나중에 입력하기도 정상 동작해요', '대기자는 순위(1→2→3순위) 순서로 번호가 매겨져요. 대기 상태에서는 마감 후에도 대기 취소를 할 수 있어요', '신청자 보기 맨 위에 내 선발·대기 순번이 보여요', '드래프트에서 내 차례가 되면 진동과 안내가 떠요', '경기 타이머·휘슬·사다리를 모든 기기에서 서버 시각 기준으로 맞춰요', '경기모드에서 휘슬 켜기/끄기가 진행 중인 경기에도 바로 적용되고, 시작 버튼을 두 번 눌러도 한 번만 시작돼요', '경기모드 중에는 화면을 당겨도 새로고침되지 않아요', '사용 설명서 용량을 약 40% 줄였어요']],
   ['0.21.23', '2026.10.16', ['경기모드 크게 보기를 태블릿에서도 스마트폰 화면을 그대로 확대한 모습으로 보여 줘요']],
@@ -1022,7 +1023,7 @@ function inboxSheet() { const L = S.inbox || []; const ico = { open: '📢', clo
 async function markInboxRead() { const pid = myPid(); const un = (S.inbox || []).filter(x => !x.read && x.id); un.forEach(x => x.read = true); for (const x of un) { try { await S.store.update(`inbox/${pid}/items/${x.id}`, { read: true }) } catch { } } }
 async function queuePush(doc) { try { await S.store.add('pushQueue', { ...doc, by: myPid() || (S.admin ? 'admin' : ''), at: Date.now() }) } catch (e) { console.warn('push queue', e) } }
 function viewSettings() {
-  return `<h2>내 정보<small>이름 + 비밀번호 4자리로 로그인해요</small></h2>${loginCard()}
+  return `<div class="setwrap"><h2>내 정보<small>이름 + 비밀번호 4자리로 로그인해요</small></h2>${loginCard()}
   ${S.auth && !S.admin ? `<h2>알림</h2>${notiCard()}` : ''}
   <h2>휘슬</h2><div class="panel pad"><button class="btn block" data-act="whistle">${S.whistle ? '🔊 이 폰에서 휘슬 켜짐' : '🔇 이 폰에서 휘슬 꺼짐'}</button><p class="note">웹에서는 휘슬이 울리려면 경기 화면을 켜 두어야 해요.</p></div>
     ${S.admin ? `<h2>서비스 상태</h2><div class="panel pad"><div class="betarow"><div><b>${betaOn() ? '🧪 베타테스트 중' : '✅ 정식 서비스'}</b><small>${betaOn() ? '운영진이 신청자 순번을 바꿀 수 있어요(카톡 투표 결과 반영용).' : '신청 순번은 서버 도착 시각으로만 정해지고, 바꿀 수 없어요.'}</small></div><button class="btn ${betaOn() ? 'primary' : ''}" data-act="betatoggle">${betaOn() ? '정식 오픈하기' : '베타로 되돌리기'}</button></div></div>` : ''}
@@ -1037,7 +1038,7 @@ function viewSettings() {
     <button class="btn danger block" style="margin-top:10px" data-act="clrpractice">연습 데이터 모두 지우기${Object.values(S.sessions).filter(x => x.practice).length ? ` (${Object.values(S.sessions).filter(x => x.practice).length}개)` : ''}</button></div>` : ''}
   ${S.admin ? `<h2>샘플 데이터</h2><div class="panel pad"><p class="muted" style="margin:0 0 10px">화면 확인용 가상 회원, 지난 경기 2개, 다음 경기 1개를 넣거나 지워요. 직접 입력한 데이터는 건드리지 않아요.</p><div class="row"><button class="btn" data-act="addsample">샘플 데이터 넣기</button><button class="btn danger" data-act="clearsample">샘플 데이터 모두 지우기</button></div></div>` : ''}
   <div class="verbox"><div><span>앱 버전</span><b>${APP_VERSION}</b></div><div class="verbtns"><button class="btn sm" data-act="changelog">업데이트 내용</button><button class="btn sm" data-act="appreload">최신 버전 확인</button></div></div>
-  <p class="note" style="text-align:center;margin:8px 0 0">새 기능이 안 보이면 "최신 버전 확인"을 눌러 주세요.</p>`;
+  <p class="note" style="text-align:center;margin:8px 0 0">새 기능이 안 보이면 "최신 버전 확인"을 눌러 주세요.</p>${!S.admin && !S.players[myPid()]?.staff ? '<p style="text-align:center;margin:14px 0 0"><button class="linkbtn opentry" data-act="opmode">운영진 모드로 들어가기</button></p>' : ''}</div>`;
 }
 /* ───────── member views ───────── */
 function dt(str) { return str ? new Date(str) : null }
@@ -1079,6 +1080,7 @@ function viewMHome() {
   else { const s = S.sessions[last]; const rows = standings(last); const mt = myTeamIn(s); const done = sessMatches(last).filter(m => m.status === 'done').length;
     h += `<button class="review" data-act="result" data-id="${last}">${done < 9 ? `<div class="rv-note">${done}/9경기 기준</div>` : ''}
       <div class="rv-rows">${rows.map(r => { const t = team(s, r.k); return `<div class="rc-row ${mt === r.k ? 'mine' : ''} ${r.rank === 1 ? 'first' : ''}"><em class="rk rk${r.rank}">${r.rank === 1 ? '🏆' : r.rank}</em>${bib(t.color)}<span class="rcn"><b>${esc(t.name)}</b>${mt === r.k ? '<i class="mytag" title="내 팀">MY</i>' : ''}</span><span class="wdl"><i class="w">${r.w}승</i><i class="d">${r.d}무</i><i class="l">${r.l}패</i></span><span class="pt">${r.pts}점</span></div>` }).join('')}</div>
+      ${(() => { const ms = sessMatches(last); if (!ms.length) return ''; return `<div class="rv-games">${ms.map(m => { const [a, b] = score(m); const H = team(s, m.home), A = team(s, m.away); return `<span class="rg ${m.status === 'done' ? '' : 'pend'}"><em>${m.n}</em>${bib(H.color)}<b>${m.status === 'pending' ? '-' : a}</b><i>:</i><b>${m.status === 'pending' ? '-' : b}</b>${bib(A.color)}</span>` }).join('')}</div>` })()}
       <span class="more">경기 결과 자세히 보기 ›</span></button>` }
   h += '</section><section>';
   // ── NEXT MATCH ──
@@ -1176,12 +1178,12 @@ function viewResults() {
 }
 
 function viewApplicants() { const s = cur(); const me = myPid(); const base = isBase(s);
-  if (s.stage === 'apply') { const c = classify(s); const mine = myApp(s); const myR = mine && c.rows.find(r => r.k === mine.k); const myLine = myR ? `<div class="notice mypos">${myR.sel ? `✓ 나는 <b>선발</b>이에요${base ? ` · ${TIER[myR.tier]}` : ''} · ${myR.auto ? '자동 신청' : myR.n + '번째 신청'}` : `⏳ 나는 <b>대기 ${myR.wn}번</b>이에요${base ? ` · ${TIER[myR.tier]}` : ''}`}</div>` : '';
+  if (s.stage === 'apply') { const c = classify(s); const mine = myApp(s); const myR = mine && c.rows.find(r => r.k === mine.k); const myLine = myR ? `<div class="mypos ${myR.sel ? 'in' : 'wt'}">${myR.sel ? `✓ 나는 <b>선발</b>이에요${base ? ` · ${TIER[myR.tier]}` : ''} · ${myR.auto ? '자동 신청' : myR.n + '번째 신청'}` : `⏳ 나는 <b>대기 ${myR.wn}번</b>이에요${base ? ` · ${TIER[myR.tier]}` : ''}`}</div>` : '';
     // 신청 순서(자동 신청은 맨 앞) — 이름순이 아님
     const ord = arr => [...arr].sort((a, b) => (a.auto === b.auto ? 0 : a.auto ? -1 : 1) || ((typeof a.n === 'number' ? a.n : 1e9) - (typeof b.n === 'number' ? b.n : 1e9)));
     const chip = r => `<span class="chip ${(mine && mine.k === r.k) ? 'sel' : ''}"><small class="muted">${r.auto ? '자동' : r.n}</small> ${r.pid ? esc(pname(r.pid)) : '이름 입력 대기'}${base && r.sel ? `<b class="tb t${r.tier}">${TIER[r.tier]}</b>` : ''}</span>`;
     return backbar('홈으로') + myLine + `<h2>선발<small>${c.sel.length}${s.capacity ? ' / ' + s.capacity : ''}명</small></h2><div class="panel"><div class="chips">${ord(c.sel).map(chip).join('') || '<span class="muted">아직 신청자가 없어요.</span>'}</div></div>
-    ${c.wait.length ? `<h2>대기<small>${c.wait.length}명</small></h2><div class="panel"><div class="chips">${c.wait.map(chip).join('')}</div></div>` : ''}<p class="note">${base ? '0순위: 구장예약자·경기운영자, 1순위: 직전 경기 미참여자, 2순위: 그 외 선착순, 3순위: 직전 경기 마감 후 취소자. ' : '이 구장은 순위 없이 신청한 순서대로 선발해요. '}숫자는 신청 순서예요.</p>` }
+    ${c.wait.length ? `<h2>대기<small>${c.wait.length}명 · 자리가 나면 이 순서대로 선발돼요</small></h2><div class="panel"><div class="chips">${c.wait.map(r => `<span class="chip ${(mine && mine.k === r.k) ? 'sel' : ''}"><small class="muted">대기 ${r.wn}</small> ${r.pid ? esc(pname(r.pid)) : '이름 입력 대기'}${base ? `<b class="tb t${r.tier}">${TIER[r.tier]}</b>` : ''}</span>`).join('')}</div></div>` : ''}<p class="note">${base ? '0순위: 구장예약자·경기운영자, 1순위: 직전 경기 미참여자, 2순위: 그 외 선착순, 3순위: 직전 경기 마감 후 취소자. ' : '이 구장은 순위 없이 신청한 순서대로 선발해요. '}선발 칸의 숫자는 신청 순서예요.</p>` }
   const chip = (id, i) => `<span class="chip ${id === me ? 'sel' : ''}"><small class="muted">${i + 1}</small> ${esc(pname(id))}</span>`;
   return backbar('홈으로') + `<h2>신청자<small>${(s.applicants || []).length}${s.capacity ? ' / ' + s.capacity : ''}명</small></h2><div class="panel"><div class="chips">${(s.applicants || []).map(chip).join('') || '<span class="muted">아직 신청자가 없어요.</span>'}</div></div>
   ${(s.waitlist || []).length ? `<h2>대기<small>${s.waitlist.length}명</small></h2><div class="panel"><div class="chips">${s.waitlist.map((id, i) => chip(id, i)).join('')}</div></div>` : ''}` }
@@ -1624,7 +1626,7 @@ function vApplyTable(s) {
       ${ad ? `<td class="acts">${r.pid && !r.auto ? `<button class="btn sm" data-act="p0toggle" data-id="${r.pid}">${(s.p0 || []).includes(r.pid) ? '예약자 해제' : '예약자'}</button>` : ''}${r.auto ? `<button class="btn sm" data-act="staffedit" data-id="${s.date}">변경</button>` : ''}${!r.pid ? `<button class="btn sm" data-act="appnameadmin" data-id="${r.k}">이름</button>` : ''}${closed && r.pid && !r.auto ? `<button class="btn sm danger" data-act="latecancel" data-id="${r.pid}">${r.sel ? '마감 후 취소' : '대기 취소'}</button>` : ''}${canRm && !r.auto ? `<button class="btn sm danger" data-act="apprm" data-id="${r.k}" data-pid="${r.pid || ''}" aria-label="삭제" title="신청 삭제 (3순위 기록 없음)">삭제</button>` : ''}</td>` : ''}</tr>` }).join('') : `<tr><td colspan="${10 + (mvOn ? 1 : 0) + (ad ? 1 : 0)}" class="empty">아직 신청자가 없어요.</td></tr>`}${Object.entries(s.late || {}).filter(([, v]) => v).map(([pid, t]) => `<tr class="lrow"><td class="num">-</td><td class="stick"><b>${esc(pname(pid))}</b></td><td></td><td class="muted">신청 마감 후 취소</td><td class="num muted">${fmtTS(t)}</td>${mvOn ? '<td></td>' : ''}<td></td><td></td><td></td><td><b class="t3">취소</b></td><td class="num"><input type="checkbox" class="staffck" checked ${ad ? `data-in="lateuntoggle" data-id="${pid}"` : 'disabled'} aria-label="마감 후 취소 해제"></td>${ad ? '<td></td>' : ''}</tr>`).join('')}</tbody></table></div>`;
   return h
     + (ad && (canTier || canRm) ? `<p class="note">🛠 운영진: ${canTier ? '순위 칸을 누르면 0~3순위를 직접 바꿀 수 있어요(✎ 표시는 직접 바꾼 순위). ' : ''}${canRm ? '“삭제”는 마감 후 취소(3순위) 기록 없이 명단에서 지워요. 다음 경기 3순위로 남기려면 “마감 후 취소”를 쓰세요.' : ''}</p>` : '')
-    + `<p class="note">신청 ${c.sel.length + c.wait.length}${s.capacity ? ' / ' + s.capacity : ''}명 (선발 ${c.sel.length}명, 대기 ${c.wait.length}명). ${c.base ? '' : '<b>The Base 구장이 아니라서 순위 없이 신청 순서대로(선착순) 선발해요.</b> '}The Base 구장 순위: 0순위 구장 예약자·경기 운영자(정원 무관) → 1순위 직전 경기 미참여 → 2순위 선착순 → 3순위 직전 경기(${prevAny ? fmtDate(prevAny) : '없음'}) 신청 마감 후 취소자. 같은 순위 안에서는 신청 순서대로예요.</p>`;
+    + `<p class="note">신청 ${c.sel.length + c.wait.length}${s.capacity ? ' / ' + s.capacity : ''}명 (선발 ${c.sel.length}명, 대기 ${c.wait.length}명). ${c.base ? '' : '<b>The Base 구장이 아니라서 순위 없이 신청 순서대로(선착순) 선발해요.</b>'}</p><details class="rules-d"><summary>순위 규칙 보기</summary><p>0순위 구장 예약자·경기 운영자(정원 무관) → 1순위 직전 경기 미참여 → 2순위 선착순 → 3순위 직전 경기(${prevAny ? fmtDate(prevAny) : '없음'}) 신청 마감 후 취소자. 같은 순위 안에서는 신청 순서대로예요. (The Base 구장에만 적용)</p></details>`;
 }
 
 /* ───────── monthly schedule poster ───────── */
@@ -1901,7 +1903,7 @@ function viewPlan() {
   const cal = `<div class="scal panel"><div class="cal-hd"><button data-act="planm" data-d="-1" aria-label="이전 달">‹</button><b>${y}년 ${m}월<small>${cnt ? ` · 경기 ${cnt}회` : ''}</small></b><button data-act="planm" data-d="1" aria-label="다음 달">›</button></div>
     <div class="scw">${'일월화수목금토'.split('').map((x, i) => `<span class="${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${x}</span>`).join('')}</div>
     <div class="scgrid" style="grid-template-rows:repeat(${rows},minmax(0,1fr))">${cells}</div>
-    <div class="cal-leg"><span><i class="lg-open"></i>신청 중</span><span><i class="lg-game"></i>경기</span><span><i class="lg-done"></i>종료</span><span>빈 날짜를 누르면 경기를 추가할 수 있어요</span></div></div>`;
+    <div class="cal-leg"><span><i class="lg-open"></i>신청 중</span><span><i class="lg-game"></i>경기</span><span><i class="lg-done"></i>종료</span><span class="leg-hint">빈 날짜를 누르면 경기를 추가할 수 있어요</span></div></div>`;
   return h + `<div class="schwrap planwrap">${cal}<div class="schdetail">${planSide(S.planSel)}</div></div>`;
 }
 function planSide(id) {
@@ -1955,7 +1957,7 @@ function viewMatchModeSched(sw) {
   const optLabel = id => { const a = mmAvail(id); const x = S.sessions[id]; return `${fmtDate(id)} ${esc(x.time || '')}${x.practice ? ' · 연습' : ''}${a === 'soon' ? ' · 1시간 전부터' : a === 'past' ? ' · 종료' : ''}` };
   const picker = cur => all.length ? `<select class="inp mm-pick" data-in="mmpick" aria-label="경기 일정 선택">${cur ? '' : '<option value="" selected>경기 일정 선택</option>'}${all.slice().reverse().map(id => `<option value="${id}" ${id === cur ? 'selected' : ''} ${mmAvail(id) === 'ok' ? '' : 'disabled'}>${optLabel(id)}</option>`).join('')}</select>` : '';
   if (!sid) { const next = all.find(id => mmAvail(id) === 'soon'); const nw = next && mmWindow(S.sessions[next]);
-    return `<div class="mm">${sw}<div class="mm-hd"><div><b>⚽ 경기모드</b><small>일정 경기</small></div>${picker(null)}</div><div class="mm-empty">⚽<b>${all.length ? '지금 고를 수 있는 경기가 없어요' : '일정 경기 없음'}</b><p>${next ? `다음 경기 <b>${fmtDate(next)} ${esc(S.sessions[next].time || '')}</b>는<br><b>${p2(new Date(nw.open).getHours())}:${p2(new Date(nw.open).getMinutes())}</b>부터(시작 1시간 전) 고를 수 있어요.` : all.length ? '지난 경기는 끝나고 1시간이 지나면 고를 수 없어요.' : '팀 구성이 끝난 경기가 아직 없어요.'}<br>바로 해야 하면 위의 <b>✏️ 직접 설정</b>을 써 주세요.</p></div></div>` }
+    return `<div class="mm">${sw}${all.some(id => mmAvail(id) === 'ok') ? `<div class="mm-hd"><div><b>⚽ 경기모드</b><small>일정 경기</small></div>${picker(null)}</div>` : ''}<div class="mm-empty">⚽<b>${all.length ? '지금 고를 수 있는 경기가 없어요' : '일정 경기 없음'}</b><p>${next ? `다음 경기 <b>${fmtDate(next)} ${esc(S.sessions[next].time || '')}</b>는<br><b>${p2(new Date(nw.open).getHours())}:${p2(new Date(nw.open).getMinutes())}</b>부터(시작 1시간 전) 고를 수 있어요.` : all.length ? '지난 경기는 끝나고 1시간이 지나면 고를 수 없어요.' : '팀 구성이 끝난 경기가 아직 없어요.'}<br>바로 해야 하면 직접 설정으로 시작하세요.</p><button class="btn primary" style="margin-top:14px" data-act="mmmode" data-v="1">✏️ 직접 설정으로 시작</button></div></div>` }
   S.mmSid = sid; const s = S.sessions[sid]; const ids = all;
   const head = sw + `<div class="mm-hd"><div><b>⚽ 경기모드${s.practice ? ' <span class="prac">연습</span>' : ''}</b><small>${esc(s.venue || '')}</small></div>${picker(sid)}</div>`;
   const ctl = mmCtl(s).mine; const cb = mmCtlBar(s);
