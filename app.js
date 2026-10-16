@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.30';
+const APP_VERSION = '0.21.31';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1146,6 +1146,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.31', '2026.10.16', ['PC 화면에서 메뉴가 위쪽 가로 메뉴로 바뀌고, 내용은 화면 가운데에 보여요']],
   ['0.21.30', '2026.10.16', ['[운영진] 공지 포스터 시안을 완전히 새로 만들었어요: 클래식·매거진·티켓·스플릿·전광판·타이포 6가지 구성에 색 조합 8가지', '[운영진] "🎲 새 시안 보기"를 누를 때마다 구성·색·글꼴을 새로 섞은 시안 5개가 나와요', '[운영진] 월간 일정표도 클래식·달력·리스트·전광판·타이포 시안과 글꼴을 골라 만들 수 있어요']],
   ['0.21.29', '2026.10.16', ['[운영진] 회원 관리에서 운영진 체크 대신 회원 유형(운영진·특별회원·정회원·장불회원·게스트)으로 고르도록 바꿨어요', '운영모드는 운영진과 특별회원만 들어갈 수 있어요. 운영진은 지금처럼 신청 0순위예요']],
   ['0.21.28', '2026.10.16', ['[운영진] 공지 포스터 글꼴을 페이퍼로지·에스코어드림·프리텐다드·나눔고딕·나눔명조·나눔손글씨(펜·붓) 중에서 고를 수 있어요. "디자인 추천"을 고르면 디자인마다 어울리는 글꼴이 자동으로 들어가요', '포스터 글꼴은 필요한 것만 그때그때 받아서 더 빨리 그려져요']],
