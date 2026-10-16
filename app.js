@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.40';
+const APP_VERSION = '0.21.41';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -946,6 +946,12 @@ function vDraft(s) {
   h += chatPanel(true);
   return h;
 }
+async function redoDraft() { const s = cur(); if (!s) return; if (sessMatches(s.date).some(m => m.status !== 'pending')) { toast('이미 진행된 경기가 있어서 드래프트를 다시 할 수 없어요.'); return }
+  if (!confirm('드래프트를 다시 할까요?\n주장과 팀 색은 그대로 두고, 순번 정하기부터 팀원 선택까지 다시 해요. 지금 팀 구성은 지워져요.')) return;
+  const teams = Object.fromEntries(KEYS.map(k => [k, { ...(s.teams?.[k] || {}), players: [] }]));
+  const ok = await w(() => S.store.update(sp(S.sid), { stage: 'draft', draftStatus: 'ready', picks: [], pending: null, ladder: null, cardgame: null, order: [...KEYS], teams,
+    room: { open: true, A: { in: false }, B: { in: false }, C: { in: false }, admin: { in: true, name: S.me || '운영진', at: Date.now() } } }));
+  if (ok) { sysChat('드래프트를 다시 해요. 주장님들 다시 입장해 주세요! 순번부터 새로 정해요.'); toast('드래프트를 다시 시작했어요.'); S.step = 'draft'; render(); window.scrollTo(0, 0) } }
 async function openRoom() {
   const s = cur(); if (KEYS.some(k => !s.captains?.[k])) { toast('주장 3명을 먼저 정하세요.'); return }
   const tokens = { ...(s.captainTokens || {}) }; KEYS.forEach(k => { if (!tokens[k]) tokens[k] = rand() });
@@ -1035,6 +1041,7 @@ function vTrade(s) {
         : `<li class="${S.sel === id ? 'swap' : ''}">${ad ? `<button data-act="selswap" data-id="${id}"><span>${esc(pname(id))}</span></button>` : `<span>${esc(pname(id))}</span>`}</li>`).join('')}</ol></div>` }).join('')}</div>`;
   if (ad) h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="goposter" data-id="${s.date}" ${allPicked(s) ? '' : 'disabled'}>👥 팀 공지 이미지 (공지 메뉴)</button><button class="btn primary" data-act="mkmatches" ${allPicked(s) ? '' : 'disabled'}>${sessMatches(s.date).length ? '경기진행으로 →' : '팀 확정하고 경기 일정 만들기 →'}</button></div>`;
   h += chatPanel(!!(my || S.admin));
+  if (ad) h += `<div class="panel pad redobar"><div><b>↺ 드래프트 다시하기</b><p class="note" style="margin:4px 0 0">주장과 팀 색은 그대로 두고, 순번 정하기부터 팀원 선택까지 다시 해요. 지금 팀 구성은 지워져요.</p></div><button class="btn primary" data-act="redodraft">드래프트 다시하기</button></div>`;
   if (S.admin) h += resetBar(s);
   return h;
 }
@@ -1047,7 +1054,7 @@ function vNotice(s, inMenu) {
   if (!img) queueMicrotask(refreshPoster);
   const picker = ad ? designPanel('team', S.sid, teamDesign(s)) : '';
   if (ad) queueMicrotask(() => fillThumbs('team', S.sid));
-  let h = `<div class="dgrid"><section>${form}${picker}</section><section><h2>공지 이미지 미리보기</h2><img class="poster" alt="매치데이 공지 이미지 미리보기" src="${img || ''}" width="1086" height="1448">
+  let h = `<div class="dgrid"><section>${form}${picker}</section><section><h2>포스터 미리보기</h2><img class="poster" alt="매치데이 공지 이미지 미리보기" src="${img || ''}" width="1086" height="1448">
   <div class="row" style="margin-top:10px"><button class="btn primary" data-act="share">공유하기</button><button class="btn" data-act="download">이미지 저장</button></div>
   <button class="btn block" style="margin-top:8px" data-act="copytext">공지 텍스트 복사</button>`;
   if (ad && !inMenu) h += sessMatches(s.date).length ? `<div style="height:14px"></div><button class="btn block" data-act="gorun" data-id="${s.date}" data-step="match">경기 진행 화면으로</button>` : `<div style="height:14px"></div><button class="btn primary block" data-act="mkmatches">경기 일정 만들기 (9경기)</button>`;
@@ -1157,6 +1164,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.41', '2026.10.16', ['[운영진] 드래프트가 끝난 뒤 "드래프트 다시하기"로 주장·팀 색은 그대로 두고 순번 정하기부터 다시 할 수 있어요', '[운영진] 월간 일정표 화면을 팀 공지 화면과 같은 배치(왼쪽 입력·시안·글꼴, 오른쪽 미리보기)로 맞췄어요']],
   ['0.21.40', '2026.10.16', ['드래프트 남은 선수 이름표에 사람 아이콘이 붙어요(이름 글자 크기는 그대로)']],
   ['0.21.39', '2026.10.16', ['드래프트 화면을 간단하게: "○○ 주장 차례"·"직전 지명" 안내를 없애고, 지명 순서를 팀 색 동그라미로 보여 줘요. 지금 차례 동그라미가 크게 빛나요']],
   ['0.21.38', '2026.10.16', ['드래프트에서 차례인 팀 카드가 굵은 노란 테두리와 깜빡이는 빛으로 크게 강조되고, 다른 팀 카드는 흐리게 보여요']],
@@ -1921,13 +1929,14 @@ async function shareBlob(b, name, download) {
 function schedPanel() {
   const ms = monthsWithSessions(); const ym = S.schedYm || defaultMonth(); const img = S.schedImg?.[ym]; if (!img && !S.schedBusy) { S.schedBusy = 1; queueMicrotask(() => refreshSchedule().catch(e => console.error(e)).finally(() => { S.schedBusy = 0 })) } const cf = schedCfg();
   const ss = Object.keys(S.sessions).filter(id => id.startsWith(ym)); const noNo = ss.filter(id => !S.sessions[id].no).length; if (S.admin) queueMicrotask(() => fillThumbs('sched', ym));
-  return `<h2>월별 일정표<small>한 달 일정을 한 장으로</small></h2><div class="dgrid"><section>
+  const monthSel = `<select id="sch-ym" class="inp" style="margin-top:12px;max-width:460px" data-in="schedym">${ms.map(x => `<option value="${x}" ${x === ym ? 'selected' : ''}>${x.replace('-', '년 ')}월 (${Object.keys(S.sessions).filter(id => id.startsWith(x)).length}경기)</option>`).join('')}</select>`;
+  const form = `<h2>포스터에 들어갈 내용<small>입력하면 바로 반영돼요</small></h2><div class="panel pad pform">
+    <div class="field"><label for="sch-tag">🏷️ 왼쪽 위 문구</label><input id="sch-tag" class="inp" type="text" value="${esc(cf.tag)}" data-in="schedf" data-f="tag"></div>
+    <div class="field"><label for="sch-ft">📢 아래 안내 문구 <small class="muted">줄바꿈으로 여러 줄</small></label><textarea id="sch-ft" class="inp" rows="3" data-in="schedf" data-f="footer" placeholder="회장 홍길동 : 010-0000-0000&#10;※매달 변경 가능성 있음">${esc(cf.footer)}</textarea></div>
+    <p class="note" style="margin:6px 0 0">경기관리에 입력한 일정(회차, 날짜·시간, 장소, 신청 오픈, 구장 예약자)으로 자동으로 만들어져요.${noNo ? ` 회차가 비어 있는 경기가 ${noNo}개 있어요. 경기관리 표의 "회차" 칸에 입력하면 표에 들어가요.` : ''}</p></div>`;
+  return monthSel + `<div class="dgrid"><section>${S.admin ? form + designPanel('sched', ym, schedDesign()) : ''}</section><section><h2>포스터 미리보기</h2>
     <img class="poster schedimg" alt="${ym} 월별 일정표 미리보기" src="${img || ''}" width="1080" height="1515">
-    <div class="row" style="margin-top:10px"><button class="btn primary" data-act="schedshare">공유하기</button><button class="btn" data-act="scheddl">이미지 저장</button></div></section>
-    <section>${S.admin ? designPanel('sched', ym, schedDesign()) : ''}<div class="panel"><div class="field"><label for="sch-ym">월 선택</label><select id="sch-ym" class="inp" data-in="schedym">${ms.map(x => `<option value="${x}" ${x === ym ? 'selected' : ''}>${x.replace('-', '년 ')}월 (${Object.keys(S.sessions).filter(id => id.startsWith(x)).length}경기)</option>`).join('')}</select></div>
-    <div class="field"><label for="sch-tag">왼쪽 위 문구</label><input id="sch-tag" class="inp" type="text" value="${esc(cf.tag)}" data-in="schedf" data-f="tag"></div>
-    <div class="field"><label for="sch-ft">아래 안내 문구 (줄바꿈으로 여러 줄)</label><textarea id="sch-ft" class="inp" data-in="schedf" data-f="footer" placeholder="회장 홍길동 : 010-0000-0000&#10;※매달 변경 가능성 있음">${esc(cf.footer)}</textarea></div></div>
-    <p class="note">경기관리에 입력한 일정(회차, 날짜·시간, 장소, 신청 오픈, 구장 예약자)으로 자동으로 만들어져요.${noNo ? ` 회차가 비어 있는 경기가 ${noNo}개 있어요. 경기관리 표의 "회차" 칸에 입력하면 표에 들어가요.` : ''}</p></section></div>`;
+    <div class="row" style="margin-top:10px"><button class="btn primary" data-act="schedshare">공유하기</button><button class="btn" data-act="scheddl">이미지 저장</button></div></section></div>`;
 }
 
 /* ───────── record import (paste) ───────── */
@@ -2740,6 +2749,7 @@ document.addEventListener('click', async e => {
     case 'pfont': { if (!needAdmin()) break; const kind = el.dataset.k || 'team', v = el.dataset.v; if (!POSTER_FONTS.some(x => x[0] === v)) break; document.querySelectorAll(`.pfo[data-k="${kind}"]`).forEach(b => b.classList.toggle('on', b.dataset.v === v)); toast('글꼴을 불러오는 중이에요…');
       const base = kind === 'team' ? teamDesign(cur()) : schedDesign(); const d = { ...base, font: v }; S.cand[kind] = candList(kind).map(x => ({ ...x, font: v })); await applyDesign(kind, d); toast(`${POSTER_FONTS.find(x => x[0] === v)[1]} 글꼴로 바꿨어요.`); render(); break }
     case 'apord': S.apord = el.dataset.v === 'time' ? 'time' : 'rank'; render(); break;
+    case 'redodraft': if (!needAdmin()) break; await redoDraft(); break;
     case 'aview': S.aview = el.dataset.v === 'time' ? 'time' : 'rank'; render(); break;
     case 'pairedit': { if (!needAdmin()) break; S.pairDraft = {}; S.sheet = { type: 'pairs' }; render(); break }
     case 'pairswap': { const m = M(id); if (!m) break; const D = (S.pairDraft ??= {}); const [hh, aa] = D[id] || [m.home, m.away]; D[id] = [aa, hh]; render(); break }
