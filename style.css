@@ -125,51 +125,99 @@ table.grid.aptbl{min-width:0!important;width:100%;table-layout:fixed}table.grid.
 .flow2 small{margin-left:6px;font-size:12px;font-weight:800;color:rgba(255,255,255,.85);font-variant-numeric:tabular-nums}
 @media (prefers-reduced-motion:reduce){.flow2 i.cur{animation:none}}
 .nb{display:inline-flex!important;align-items:center;gap:6px;padding-left:5px!important}
-.nb .pico,.flytag .pico{flex:none;width:24px;height:24px;border-radius:50%;background:linear-gradient(160deg,#1E46C8,#0B1E5B);display:inline-flex;align-items:flex-end;justify-content:center;overflow:hidden;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55)}
-.nb .pico svg,.flytag .pico svg{width:19px;height:19px;fill:#fff;margin-bottom:-1px}
-.nb.pend .pico{background:var(--tc)}
-.nb .nbn{white-space:nowrap}
-.flytag{gap:6px;padding:0 10px 0 5px}.flytag .pico{background:rgba(0,0,0,.25)}
+.flytag{gap:6px;padding:0 10px 0 5px}
 .redobar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px;border:2px solid color-mix(in srgb,var(--accent) 35%,var(--line))}
 .dupbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 12px;border:2px solid #F5B800;background:color-mix(in srgb,#F5B800 8%,var(--surface))}
-/* 드래프트 이름표: 상체 실루엣 + 몸통 이름, 뽑히면 팀색 조끼 (0.21.43) */
-.fig{--shirt:#E9EDF5;--sink:#131C2B;display:inline-flex;flex-direction:column;align-items:center;gap:0;font-family:inherit}
-.fig .fh{display:block;width:26px;height:26px;border-radius:50%;background:var(--shirt);margin-bottom:-3px;position:relative;z-index:1;box-shadow:0 2px 3px rgba(0,0,0,.25)}
-.fig .fb{position:relative;display:block;min-width:62px;padding:9px 10px 7px;border-radius:22px 22px 8px 8px;background:var(--shirt);color:var(--sink);font-weight:800;font-size:15px;line-height:1.1;text-align:center;white-space:nowrap;box-shadow:0 3px 6px rgba(0,0,0,.28)}
-.fig.vest .fb{background:var(--tc);color:var(--ti)}
-.fig.vest .fb::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-top:10px solid var(--shirt)}
-.fig.vest .fb::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 2px rgba(255,255,255,.35);pointer-events:none}
-.nb.fig{padding:2px 3px 0!important;background:transparent!important;border:0!important;box-shadow:none!important;min-height:0!important;border-radius:0!important;animation:none!important}
-.nb.fig:not(:disabled):hover{transform:translateY(-2px)}
-.nb.fig:disabled{opacity:.92;cursor:default}
-.nb.fig.pend{filter:drop-shadow(0 0 6px rgba(255,210,31,.9))}
-.namegrid:has(.nb.fig){gap:8px 6px!important}
-.fig.mini{background:none;border:0;padding:0 1px;cursor:pointer}
-.fig.mini .fh{width:14px;height:14px;margin-bottom:-2px}
-.fig.mini .fb{min-width:34px;padding:5px 5px 3px;font-size:11px;border-radius:13px 13px 5px 5px;box-shadow:0 1px 3px rgba(0,0,0,.25)}
-.fig.mini.vest .fb::before{border-left-width:5px;border-right-width:5px;border-top-width:6px}
-.fig.mini.pendstk{opacity:.85}.fig.mini.pendstk .fb{outline:2px dashed var(--shirt);outline-offset:1px}
-.stk.figs{gap:4px 3px;align-items:flex-end}
-.seat .fig{--shirt:#F4F6FA}
-.flytag.fig{background:none!important;box-shadow:none!important;padding:0!important;flex-direction:column}
-.flytag.fig .fb{transition:background .25s,color .25s}
-.fig.vest .fb{padding-top:12px}
-.fig.mini.vest .fb{padding-top:8px}
-.seat .fig.mini .fb{box-shadow:0 0 0 1.5px rgba(255,255,255,.9),0 1px 3px rgba(0,0,0,.3)}
-.seat .fig.mini .fh{box-shadow:0 0 0 1.5px rgba(255,255,255,.9)}
-.seat[style*="--ti:#131C2B"] .fig.mini .fb,.seat[style*="--ti:#131C2B"] .fig.mini .fh{box-shadow:0 0 0 1.5px rgba(19,28,43,.85)}
-@media (max-width:640px){.fig .fh{width:19px;height:19px;margin-bottom:-2px}.fig .fb{min-width:52px;padding:6px 6px 5px;font-size:14px;border-radius:17px 17px 7px 7px}.fig.vest .fb{padding-top:10px}.fig.vest .fb::before{border-left-width:7px;border-right-width:7px;border-top-width:8px}.namegrid:has(.nb.fig){gap:5px 3px!important}.nb.fig{padding:1px 1px 0!important}.fig.mini .fh{width:12px;height:12px}.fig.mini .fb{min-width:30px;font-size:10.5px;padding:4px 4px 3px}.fig.mini.vest .fb{padding-top:7px}}
-.stk.figs .fig{display:inline-flex!important;flex-direction:column;align-items:center;padding:0 1px!important;background:none!important;box-shadow:none!important;border:0!important;border-radius:0!important;font-size:inherit;color:inherit}
-.stk.figs .fig .nbn{all:unset!important}
-.stk.figs .fig .fb{display:block;min-width:34px;padding:8px 5px 3px;font-size:11px;font-weight:800;border-radius:13px 13px 5px 5px;background:var(--tc)!important;color:var(--ti)!important;box-shadow:0 0 0 1.5px rgba(255,255,255,.9),0 1px 3px rgba(0,0,0,.3);animation:none}
-.stk.figs .fig .fh{display:block;width:14px;height:14px;margin:0 auto -2px;background:#F4F6FA!important;border-radius:50%;box-shadow:0 0 0 1.5px rgba(255,255,255,.9)}
-.seat[style*="--ti:#131C2B"] .stk.figs .fig .fb{box-shadow:0 0 0 1.5px rgba(19,28,43,.85),0 1px 3px rgba(0,0,0,.3)}
-.stk.figs .pendstk .fb{outline:2px dashed #fff;outline-offset:1px;opacity:.9}
-.stk.figs .fig.undo .fb{box-shadow:0 0 0 2px #FF4D4F}
-@media (max-width:640px){.stk.figs .fig .fb{min-width:30px;font-size:10.5px;padding:7px 4px 3px}.stk.figs .fig .fh{width:12px;height:12px}}
+@media (max-width:640px){}
+@media (max-width:640px){}
 @keyframes capBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
 .capico{display:inline-flex;align-items:center;gap:5px;height:40px;padding:0 12px 0 10px;margin-right:6px;border-radius:999px;background:linear-gradient(180deg,#FFE25A,#FFC21A);color:#1A1400;font-weight:900;font-size:13px;box-shadow:0 0 0 2px rgba(255,255,255,.35),0 4px 12px rgba(255,190,0,.45);animation:capBob 1.6s ease-in-out infinite;white-space:nowrap}
 .capico b{font-weight:900}
 @media (max-width:380px){.capico b{display:none}.capico{padding:0 10px}}
 @media (prefers-reduced-motion:reduce){.capico{animation:none}}
-:root{--cssv:"0.21.44"}
+
+/* 드래프트 이름표 v2: 사람 상반신 SVG + 몸통 이름, 뽑히면 팀색 훈련 조끼 (0.21.45) */
+.pf{--fw:76px;--skin:#F2CBA5;--hair:#2A2F3A;--shirt:#F4F6FA;--sline:rgba(19,28,43,.28);position:relative;display:inline-block;width:var(--fw);flex:none;padding:0;margin:0;border:0;background:none;color:#131C2B;font-family:inherit;line-height:1;vertical-align:top;-webkit-tap-highlight-color:transparent}
+.pf .pfs{display:block;width:100%;height:auto;overflow:visible;filter:drop-shadow(0 2px 2px rgba(0,0,0,.28))}
+.pf .pf-skin{fill:var(--skin)}
+.pf .pf-hair{fill:var(--hair)}
+.pf .pf-shirt{fill:var(--shirt);stroke:var(--sline);stroke-width:1;stroke-linejoin:round}
+.pf .pf-col{fill:none;stroke:rgba(19,28,43,.22);stroke-width:2;stroke-linecap:round}
+.pf .pf-vest{opacity:0;transition:opacity .25s}
+.pf .pf-vb{fill:var(--tc,#1E46C8);stroke:rgba(255,255,255,.75);stroke-width:1.4;stroke-linejoin:round}
+.pf .pf-mesh{fill:url(#pfMesh)}
+.pf .pf-hem{stroke:rgba(0,0,0,.18);stroke-width:2}
+.pf.vest .pf-vest{opacity:1}
+.pf .pfn{position:absolute;left:50%;top:73%;transform:translate(-50%,-50%);font-weight:900;font-size:calc(var(--fw)*.2);letter-spacing:-.04em;white-space:nowrap;color:#131C2B;pointer-events:none}
+.pf .pfn.l4{font-size:calc(var(--fw)*.16);letter-spacing:-.07em}
+.pf .pfn.l2{font-size:calc(var(--fw)*.22)}
+.pf.vest .pfn{color:var(--ti,#fff);text-shadow:0 1px 1px rgba(0,0,0,.18)}
+.pf.vest[style*="--ti:#131C2B"] .pfn,.seat[style*="--ti:#131C2B"] .pf.vest .pfn{text-shadow:0 1px 0 rgba(255,255,255,.35)}
+/* 선수 풀: 축구장 영역을 꽉 채우는 그리드 */
+.felt .pool .namegrid:has(.pfb){display:grid!important;grid-template-columns:repeat(var(--cols,4),var(--gfw,76px));justify-content:center;align-content:start;gap:6px!important;max-height:none!important;overflow:visible!important}
+.pfb{cursor:pointer;transition:transform .12s}
+.pf.pfb{--fw:var(--gfw,76px)}
+.pfb:not(:disabled):hover{transform:translateY(-3px)}
+.pfb:not(:disabled):active{transform:scale(.95)}
+.pfb:disabled{cursor:default}
+.pfb.pend .pfs{filter:drop-shadow(0 0 5px rgba(255,210,31,.95)) drop-shadow(0 2px 2px rgba(0,0,0,.3))}
+.pfb.pend{animation:pfBob 1s ease-in-out infinite}
+@keyframes pfBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.dmroot .felt .pool-hd{font-size:11.5px;margin-bottom:4px}
+/* 주장 카드 안 작은 사람 */
+.stk.pfs-row{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:3px 2px}
+.stk .pf.mini{--fw:38px;cursor:default}
+.stk button.pf.mini{cursor:pointer}
+.stk .pf.mini .pfs{filter:drop-shadow(0 0 1px rgba(255,255,255,.95)) drop-shadow(0 1px 1px rgba(0,0,0,.3))}
+.seat[style*="--ti:#131C2B"] .stk .pf.mini .pfs{filter:drop-shadow(0 0 1px rgba(19,28,43,.7)) drop-shadow(0 1px 1px rgba(0,0,0,.25))}
+.stk .pf.mini .pfn{font-size:9.5px;top:74%}
+.stk .pf.mini .pfn.l4{font-size:8px}
+.stk .pf.mini.new{animation:stickin .28s ease-out}
+.stk .pf.mini.pendstk{opacity:.8}
+.stk .pf.mini.pendstk .pf-vb{stroke:#fff;stroke-dasharray:3 2;stroke-width:2}
+.stk .pf.mini.undo .pfs{filter:drop-shadow(0 0 2px #FF4D4F) drop-shadow(0 0 2px #FF4D4F)}
+.dmroot .stk .pf.mini{--fw:34px}
+.flytag.pf{position:fixed!important;z-index:3000;display:block;background:none!important;box-shadow:none!important;padding:0!important}
+.flytag.pf .pf-vest{transition:opacity .25s}
+/* 운영진 박스: 주장 카드와 같은 형태 + 진행 버튼 */
+.seat.hostbox{--tc:#FFD21F;display:flex!important;align-items:center;justify-content:space-between;gap:8px;width:100%;min-width:0;padding:7px 8px 7px 10px!important;border-radius:12px!important;background:linear-gradient(135deg,#0E1C38,#1B2F5C)!important;color:#fff;box-shadow:0 0 0 2px #FFD21F inset,0 4px 10px rgba(11,30,91,.25);opacity:1!important;filter:none!important;justify-self:stretch;align-self:stretch!important;text-align:left}
+.seat.hostbox.off{opacity:.75!important}
+.board-table .seat.hostbox{grid-column:1/-1}
+.hb-id{display:flex;align-items:center;gap:8px;min-width:0}
+.hb-av{flex:none;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:#FFD21F;color:#0E1C38;font-size:11px;font-weight:900}
+.hb-nm{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.hb-nm b{font-size:14px;font-weight:900;color:#FFD21F}
+.hb-nm small{font-size:11px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hostbox .dot{width:9px;height:9px;background:#9AA3AF;animation:none;flex:none}
+.hostbox .dot.on{background:#22C55E}
+.hb-st{font-size:12px;opacity:.8;white-space:nowrap}
+.hb-act{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.hbtn{min-height:32px;padding:0 11px;border-radius:9px;background:rgba(255,255,255,.12);color:#fff;font-size:12.5px;font-weight:800;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
+.hbtn:hover{background:rgba(255,255,255,.2)}
+.hbtn.undo{background:#FFD21F;color:#0E1C38;box-shadow:none}
+.hostbox .bubble{--tc:#FFD21F}
+.dmroot .seat.hostbox{display:flex!important;flex:none}
+.fx-allin{display:flex!important;flex-direction:column;align-items:center;justify-content:center!important;gap:8px!important;text-align:center;color:#fff}
+.fx-allin .ai-ico{font-size:34px;line-height:1}
+.fx-allin b{font-size:18px!important}
+.fx-allin .ai-sub{font-size:12.5px;opacity:.9;max-width:260px;line-height:1.45}
+.fx-allin .ai-wait{margin-top:4px;padding:8px 14px;border-radius:99px;background:rgba(0,0,0,.28);font-size:13px;font-weight:800;animation:pulse 1.6s ease-in-out infinite}
+.fx-allin .done-btn{margin-top:4px;min-width:200px}
+.hbtn.ok{background:#22C55E;color:#fff;box-shadow:none}
+.pf b.pfn{position:absolute!important;display:block!important;margin:0!important;color:#131C2B!important;font-weight:900!important;font-size:calc(var(--fw)*.2)!important;line-height:1!important;text-shadow:none!important;background:none!important;padding:0!important}
+.pf b.pfn.l4{font-size:calc(var(--fw)*.175)!important;letter-spacing:-.08em!important}
+.pf b.pfn.l2{font-size:calc(var(--fw)*.22)!important}
+.pf.vest b.pfn{color:var(--ti,#fff)!important;text-shadow:0 1px 1px rgba(0,0,0,.2)!important}
+.stk .pf.mini b.pfn{font-size:9.5px!important}
+.stk .pf.mini b.pfn.l4{font-size:8px!important}
+.felt .pool .namegrid:has(.pfb){row-gap:calc(var(--gfw,76px)*-.08)!important}
+.dmroot .felt .pool-hd{display:none}
+.dmroot .felt .pool{padding:4px 2px!important}
+.dmroot .seatrow .seat{min-height:var(--seatmin,0px)}
+.dmroot .felt .flow2{padding:3px 6px;margin:0 0 2px;gap:5px}
+.dmroot .felt .flow2 i{width:13px;height:13px}
+.dmroot .felt .flow2 i.cur{width:28px;height:28px;margin:0 3px}
+.dmroot .felt .flow2 i.cur b{font-size:13px}
+.dmroot .felt .done-btn{min-height:40px!important}
+.dmroot .chatdock .cd-log{height:52px!important}
+:root{--cssv:"0.21.45"}

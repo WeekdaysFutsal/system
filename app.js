@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.44';
+const APP_VERSION = '0.21.45';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -107,7 +107,9 @@ function allPicked(s) { return KEYS.every(k => team(s, k).picked) }
 const memberNames = () => Object.values(S.players).map(p => p.name).sort((a, b) => a.localeCompare(b, 'ko'));
 const DEV_NAMES = ['박종현']; // 개발자: 운영진이 아니어도 운영모드 버튼이 보여요
 const canOp = () => S.admin || !S.auth || ['staff', 'special'].includes(mstatus(S.players[myPid()])) || DEV_NAMES.includes(S.players[myPid()]?.name);
-const figHTML = n => `<i class="fh" aria-hidden="true"></i><span class="fb"><span class="nbn">${esc(n)}</span></span>`; // 상체 실루엣 + 몸통에 이름
+const FIG_SVG = '<svg class="pfs" viewBox="0 0 80 92" aria-hidden="true"><path class="pf-skin" d="M9 60Q7.5 76 10 92H18V62ZM71 60Q72.5 76 70 92H62V62Z"/><path class="pf-skin" d="M35 26h10v8H35z"/><circle class="pf-skin" cx="40" cy="17.5" r="12"/><path class="pf-hair" d="M28 18C27.5 9 33.5 4.5 40 4.5S52.5 9 52 17C49 13 45 11.8 40 12.3 35 11.8 31 14 28 18Z"/><path class="pf-shirt" d="M8 61L13 41Q16 35 26 33L33 31Q40 38 47 31L54 33Q64 35 67 41L72 61L63 64V92H17V64Z"/><path class="pf-col" d="M33 31Q40 38 47 31"/><g class="pf-vest"><path class="pf-vb" d="M23.5 34.5L33 31.5L40 46L47 31.5L56.5 34.5Q57.5 46 64 52V92H16V52Q22.5 46 23.5 34.5Z"/><path class="pf-mesh" d="M23.5 34.5L33 31.5L40 46L47 31.5L56.5 34.5Q57.5 46 64 52V92H16V52Q22.5 46 23.5 34.5Z"/><path class="pf-hem" d="M16 87H64"/></g></svg>';
+const figHTML = n => { const L = [...String(n).replace(' ✕', '')].length; return `${FIG_SVG}<b class="pfn ${L >= 4 ? 'l4' : L <= 2 ? 'l2' : ''}">${esc(n)}</b>` }; // 사람 상반신 + 몸통 이름, 뽑히면 팀색 조끼
+function figDefs() { if (document.getElementById('pfMesh')) return; document.body.insertAdjacentHTML('beforeend', '<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><pattern id="pfMesh" width="3.2" height="3.2" patternUnits="userSpaceOnUse"><circle cx="1.6" cy="1.6" r=".75" fill="rgba(0,0,0,.2)"/></pattern></defs></svg>') }
 const PICO = '<i class="pico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="4.3"/><path d="M3.6 21.5c0-4.6 3.8-8 8.4-8s8.4 3.4 8.4 8z"/></svg></i>'; // 드래프트 이름표의 사람 아이콘
 function bib(c) { return `<span class="bib" style="background:${c}"></span>` }
 function tag(t) { return `<span class="teamtag" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}</span>` }
@@ -697,18 +699,23 @@ function hideBoot() { const b = document.getElementById('boot'); if (!b || b.dat
 (() => { const im = document.querySelector('#boot img'); if (im) im.src = EMBLEM_SRC })();
 let RENDER_Q = 0; function renderSoon() { if (RENDER_Q) return; RENDER_Q = requestAnimationFrame(() => { RENDER_Q = 0; render() }) }
 /* 드래프트: 이름표가 주장 카드 안으로 날아 들어가는 애니메이션 */
-function draftSnap() { if (S.flySnap && Date.now() - S.flySnap.at < 600) return; const pool = document.querySelectorAll('.namegrid .nb[data-id]'); const stk = document.querySelectorAll('.seat [data-pid]'); if (!pool.length && !stk.length) { S.flySnap = null; return }
+function draftSnap() { if (S.flySnap && Date.now() - S.flySnap.at < 600) return; const pool = document.querySelectorAll('.namegrid [data-id]'); const stk = document.querySelectorAll('.seat [data-pid]'); if (!pool.length && !stk.length) { S.flySnap = null; return }
   const r = {}; pool.forEach(b => { const q = b.getBoundingClientRect(); if (q.width) r[b.dataset.id] = { x: q.left, y: q.top, w: q.width, h: q.height, cs: getComputedStyle(b) } }); S.flySnap = { at: Date.now(), pool: r, had: new Set([...stk].map(e => e.dataset.pid)) } }
 function draftFly() { const snap = S.flySnap; S.flySnap = null; if (!snap || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   document.querySelectorAll('.seat [data-pid]').forEach(el => { const pid = el.dataset.pid, from = snap.pool[pid]; if (snap.had.has(pid) || !from) return; const to = el.getBoundingClientRect(); if (!to.width) return;
-    const f = document.createElement('div'); f.className = 'flytag fig'; f.innerHTML = figHTML(pname(pid)); Object.assign(f.style, { left: from.x + 'px', top: from.y + 'px', width: from.w + 'px', height: from.h + 'px' });
+    const f = document.createElement('div'); f.className = 'flytag pf'; f.innerHTML = figHTML(pname(pid)); Object.assign(f.style, { left: from.x + 'px', top: from.y + 'px', width: from.w + 'px', height: from.h + 'px' });
     const seat = el.closest('.seat'); const tc = seat ? getComputedStyle(seat).getPropertyValue('--tc').trim() : ''; const ti = seat ? getComputedStyle(seat).getPropertyValue('--ti').trim() : ''; if (tc) { f.style.setProperty('--tc', tc); f.style.setProperty('--ti', ti || '#fff') } document.body.appendChild(f); setTimeout(() => f.classList.add('vest'), 280); el.style.visibility = 'hidden';
     const dx = to.left + to.width / 2 - (from.x + from.w / 2), dy = to.top + to.height / 2 - (from.y + from.h / 2), sc = Math.max(.45, Math.min(1.2, to.height / from.h)), lift = -Math.min(140, 60 + Math.abs(dx) * .15);
     const an = f.animate([{ transform: 'translate(0,0) scale(1) rotate(0deg)', offset: 0 }, { transform: `translate(${dx * .5}px,${dy * .5 + lift}px) scale(1.18) rotate(${dx > 0 ? 8 : -8}deg)`, offset: .45 }, { transform: `translate(${dx}px,${dy}px) scale(${sc}) rotate(0deg)`, offset: 1 }], { duration: 720, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'forwards' });
     const done = () => { f.remove(); el.style.visibility = ''; el.animate?.([{ transform: 'scale(1.35)' }, { transform: 'scale(1)' }], { duration: 260, easing: 'ease-out' }) }; an.onfinish = done; setTimeout(() => { if (f.isConnected) done() }, 1200) }) }
+function fitPool() { const sr = document.querySelector('.dmroot .seatrow'); if (sr) { const hd = sr.querySelector('.seat .sv2'); if (hd) sr.style.setProperty('--seatmin', Math.ceil(hd.offsetHeight + 62) + 'px') }
+  const g = document.querySelector('.felt .pool .namegrid'); if (!g) return; const n = g.children.length; if (!n) return; const pool = g.closest('.pool'); const hd = pool.querySelector('.pool-hd');
+  const W = g.clientWidth || pool.clientWidth, H = S.dm ? pool.clientHeight - (hd ? hd.offsetHeight : 0) - 8 : 1e4, gap = 6; let best = 0, bc = 4;
+  for (let cols = 2; cols <= 8; cols++) { const rows = Math.ceil(n / cols); const w = Math.min(S.dm ? 104 : 92, (W - (cols - 1) * gap) / cols, H / (rows * .92 + .08) * 80 / 92); if (w >= best - .5) { best = Math.max(best, w); bc = cols } if (cols >= n) break }
+  const fw = Math.max(40, Math.floor(best)); g.style.setProperty('--gfw', fw + 'px'); g.style.setProperty('--cols', bc) }
 function render() {
   if (isTyping()) { S.pending = true; return } S.pending = false; draftSnap();
-  S.dm = !isDesk();
+  S.dm = !isDesk(); figDefs();
   if (S.ready >= 3 || S.err) hideBoot();
   if (S.ready >= 3) ensureQueues();
   if (S.fs) requestAnimationFrame(() => { fsFit(); setTimeout(fsFit, 120) });
@@ -742,7 +749,7 @@ function render() {
   h += '</div>' + tabs();
   if (S.openMatch && S.matches[S.openMatch]) h += viewMatch();
   if (S.sheet) h += viewSheet();
-  document.getElementById('app').innerHTML = h + (S.admin ? venueList() : ''); if (S.flySnap) requestAnimationFrame(draftFly);
+  document.getElementById('app').innerHTML = h + (S.admin ? venueList() : ''); fitPool(); if (S.flySnap) requestAnimationFrame(draftFly);
   if (S.slideDir) { const wr = document.querySelector('.wrap'); if (wr) { wr.classList.add('tabslide-' + S.slideDir) } }
   const nNow = S.chat.length; const grew = nNow !== S.lastChatN; S.lastChatN = nNow; if (grew) S.chatUp = false;
   const toBottom = () => document.querySelectorAll('.msgs').forEach(nb => { if (!S.chatUp) nb.scrollTop = nb.scrollHeight });
@@ -867,17 +874,17 @@ function ladderSVG(s) {
 }
 function seatHTML(s, k, ph) {
   const cap = s.captains?.[k]; const t = team(s, k); const o = (s.order || []).indexOf(k); const inRoom = !!s.room?.[k]?.in;
-  const turn = ph === 'draft' && pickTeamAt(s, (s.picks || []).length) === k; const cturn = ph === 'color' && !t.picked && inRoom; const me = myTeam(s) === k;
+  const turn = ph === 'draft' && !allIn(s) && (s.picks || []).length < draftTotal(s) && pickTeamAt(s, (s.picks || []).length) === k; const cturn = ph === 'color' && !t.picked && inRoom; const me = myTeam(s) === k;
   const ps = byName(teamPlayers(s, k).slice(1));
   return `<div class="seat ${t.picked ? 'picked' : ''} ${turn || cturn ? 'onturn' : ''} ${me ? 'me' : ''}" style="--tc:${t.color};--ti:${inkOn(t.color)}">
     ${bubbleFor(m => m.team === k)}${turn ? '<span class="turnb">차례</span>' : ''}
     <div class="sv2"><div class="snm">${orderDecided(s) && o >= 0 && ph !== 'ladder' && ph !== 'cards' ? `<em class="ord2">${o + 1}</em>` : ''}<b>${esc(pname(cap) || '미정')}</b><i class="dot ${inRoom ? 'on' : ''}" title="${inRoom ? '입장' : '대기'}"></i>${me ? '<span class="meb">나</span>' : ''}</div>
       <div class="sinfo"><span class="tok">${esc(t.name)}</span><b class="cnt2">${cap ? ps.length + 1 : 0}<small>명</small></b></div></div>
-    ${(() => { const mine = me || S.admin; const pend = s.pending && s.pending.t === k ? s.pending.p : null; const last = (s.picks || []).slice(-1)[0]; const seen = (S.seenStk ??= new Set());
-      const items = ps.map(id => { const key = s.date + ':' + id; const nw = !seen.has(key); seen.add(key); const can = mine && last && last.p === id && last.t === k;
-        return mine ? `<button class="fig mini vest ${nw ? 'new' : ''} ${can ? 'undo' : ''}" data-act="unpick" data-id="${id}" data-pid="${id}" title="${can ? '눌러서 선택 취소' : ''}">${figHTML(pname(id) + (can ? ' ✕' : ''))}</button>` : `<span class="fig mini vest ${nw ? 'new' : ''}" data-pid="${id}">${figHTML(pname(id))}</span>` });
-      if (pend) items.push(mine ? `<button class="fig mini vest pendstk" data-act="unpick" data-id="${pend}" data-pid="${pend}">${figHTML(pname(pend) + ' ✕')}</button>` : `<span class="fig mini vest pendstk" data-pid="${pend}">${figHTML(pname(pend))}</span>`);
-      return items.length ? `<div class="stk figs">${items.join('')}</div>` : '' })()}
+    ${(() => { const mine = me || S.admin; const adm = S.admin; const pend = s.pending && s.pending.t === k ? s.pending.p : null; const last = (s.picks || []).slice(-1)[0]; const seen = (S.seenStk ??= new Set());
+      const items = ps.map(id => { const key = s.date + ':' + id; const nw = !seen.has(key); seen.add(key); const can = adm && last && last.p === id && last.t === k;
+        return can ? `<button class="pf mini vest ${nw ? 'new' : ''} ${can ? 'undo' : ''}" data-act="unpick" data-id="${id}" data-pid="${id}" title="${can ? '눌러서 선택 취소' : ''}">${figHTML(pname(id) + (can ? ' ✕' : ''))}</button>` : `<div class="pf mini vest ${nw ? 'new' : ''}" data-pid="${id}">${figHTML(pname(id))}</div>` });
+      if (pend) items.push(mine ? `<button class="pf mini vest pendstk" data-act="unpick" data-id="${pend}" data-pid="${pend}">${figHTML(pname(pend) + ' ✕')}</button>` : `<div class="pf mini vest pendstk" data-pid="${pend}">${figHTML(pname(pend))}</div>`);
+      return items.length ? `<div class="stk pfs-row">${items.join('')}</div>` : '' })()}
     ${me && !inRoom && ph !== 'done' ? `<button class="btn sm primary cta" data-act="joinroom" data-k="${k}">입장하기</button>` : ''}</div>`;
 }
 const BUBBLE_MS = 9000;
@@ -913,17 +920,18 @@ function feltHTML(s, ph) {
   if (ph === 'cardsrev') { if (!S.revT) S.revT = setTimeout(() => { S.revT = null; render() }, Math.max(50, s.cardgame.doneAt + CARD_REVEAL_MS - Date.now() + 60)); const g = s.cardgame;
     return `<div class="fx"><div class="rnd">STEP 2 · 순번 결정</div><div class="ocards">${(s.order || KEYS).map(k => { const t = team(s, k); return `<div class="ocard up big2" style="--tc:${t.color};--ti:${inkOn(t.color)}"><em>${g.deck[g.picks[k]]}</em><small>${esc(t.name)}</small></div>` }).join('')}</div><b>곧 팀원 선택을 시작해요!</b></div>` }
   if (ph === 'ladder') { if (!S.ladderT) S.ladderT = setTimeout(() => { S.ladderT = null; render() }, Math.max(50, s.ladder.at + LADDER_MS - Date.now() + 60)); return `<div class="fx"><div class="rnd">STEP 2 · 순번 정하기</div>${ladderSVG(s)}<p>순번을 정하는 중…</p></div>` }
+  if (ph === 'draft' && allIn(s)) return `<div class="fx fx-allin"><div class="ai-ico">🏁</div><b>모든 선수 배치 완료!</b><div class="ai-sub">${S.admin ? '배치를 확인하고 확정하면 드래프트가 끝나요. 고칠 게 있으면 되돌리기를 눌러 주세요.' : '운영진이 확정하면 드래프트가 끝나요. 잠시만 기다려 주세요.'}</div>${S.admin ? '<button class="btn primary cta done-btn" data-act="finishdraft">✅ 드래프트 확정</button>' : '<div class="ai-wait">운영진 확정 대기 중…</div>'}</div>`;
   if (ph === 'draft') { const i = (s.picks || []).length, tot = draftTotal(s); const k = pickTeamAt(s, i); const pd = s.pending && s.pending.t === k ? s.pending.p : null;
     const from = Math.max(0, i - 3), to = Math.min(tot, from + 10);
     const flow = `<div class="flow2" aria-label="지명 순서 ${i + 1} / ${tot}">${from > 0 ? '<em>…</em>' : ''}${Array.from({ length: to - from }, (_, x) => { const j = from + x; const tt = team(s, pickTeamAt(s, j));
       return `<i class="${j < i ? 'past' : j === i ? 'cur' : ''}" style="--tc:${tt.color}" title="${j + 1}번째 · ${esc(tt.name)}">${j === i ? `<b>${j + 1}</b>` : ''}</i>` }).join('')}${to < tot ? '<em>…</em>' : ''}<small>${i + 1}/${tot}</small></div>`;
     return `<div class="fx fx-draft">${flow}
       ${S.poolHTML || ''}
-      ${my === k || S.admin ? `<div class="row" style="justify-content:center"><button class="btn primary cta done-btn" data-act="nextturn" ${pd ? '' : 'disabled'}>${pd ? `${esc(pname(pd))} 선택 완료 ▶` : '선수를 고르세요'}</button>${S.admin && i ? '<button class="btn sm" data-act="undo">↶ 되돌리기</button>' : ''}</div>` : ''}</div>` }
+      ${my === k || S.admin ? `<div class="row" style="justify-content:center"><button class="btn primary cta done-btn" data-act="nextturn" ${pd ? '' : 'disabled'}>${pd ? `${esc(pname(pd))} 선택 완료 ▶` : '선수를 고르세요'}</button></div>` : ''}</div>` }
   return `<div class="fx"><b>드래프트 완료! 🎉</b><p>팀원조정 단계에서 밸런스를 맞춰요.</p></div>`;
 }
 function vDraft(s) {
-  const ph = roomPhase(s); const my = myTeam(s); const turnK = ph === 'draft' ? pickTeamAt(s, (s.picks || []).length) : null;
+  const ph = roomPhase(s); const my = myTeam(s); const turnK = ph === 'draft' && pool(s).length ? pickTeamAt(s, (s.picks || []).length) : null;
   { const mine = !!my && turnK === my; if (mine && !S.wasMyTurn) { try { navigator.vibrate?.([120, 80, 120]) } catch { } toast('내 차례예요! 선수를 골라 주세요.') } S.wasMyTurn = mine }
   const canPick = ph === 'draft' && (S.admin || (my && my === turnK && s.room?.[my]?.in));
   if (S.admin && s.room?.open && !s.room?.admin?.in && !S.adminJoin?.[S.sid]) { (S.adminJoin ??= {})[S.sid] = 1; w(() => S.store.update(sp(S.sid), { 'room.admin': { in: true, name: S.me || '운영진', at: Date.now() } })) }
@@ -935,14 +943,15 @@ function vDraft(s) {
   const pk = {}; (s.picks || []).forEach((x, i) => pk[x.p] = { t: x.t, n: i + 1 }); const caps = captainsOf(s);
   const inTeam = new Set(KEYS.flatMap(k => teamPlayers(s, k))); const list = byName((s.applicants || []).filter(id => !caps.includes(id) && !pk[id] && !inTeam.has(id)));
   S.poolHTML = ph === 'draft' ? `<div class="pool"><div class="pool-hd">남은 선수 ${list.length}명 · ${canPick ? '눌러서 선택' : '내 차례에만 선택할 수 있어요'}</div><div class="namegrid">${list.map(id => { const pend = s.pending?.p === id; const pt = pend ? team(s, s.pending.t) : null;
-    return `<button class="nb fig ${pend ? 'pend vest' : ''}" ${pt ? `style="--tc:${pt.color};--ti:${inkOn(pt.color)}"` : ''} data-act="pick" data-id="${id}" ${canPick ? '' : 'disabled'}>${figHTML(pname(id))}</button>` }).join('')}</div></div>` : '';
+    return `<button class="pf pfb ${pend ? 'pend vest' : ''}" ${pt ? `style="--tc:${pt.color};--ti:${inkOn(pt.color)}"` : ''} data-act="pick" data-id="${id}" ${canPick ? '' : 'disabled'}>${figHTML(pname(id))}</button>` }).join('')}</div></div>` : '';
   // middle: board
   const o = s.order && orderDecided(s) && ph !== 'ladder' && ph !== 'cards' ? s.order : KEYS; const [L, B, R] = o;
-  const hostH = `<div class="seat host ${s.room?.admin?.in ? '' : 'off'}">${bubbleFor(m => m.admin)}<div class="sv"><span class="av on hostav">운영</span></div><div class="sn">운영진${s.room?.admin?.name && s.room.admin.name !== '운영진' ? ' ' + esc(s.room.admin.name) : ''}</div><div class="st2"><small>${s.room?.admin?.in ? '진행 중' : '대기 중'}</small></div>${S.admin && S.dm && ph !== 'closed' ? '<button class="btn sm hostmenu" data-act="roommenu" aria-label="진행 메뉴">⋯</button>' : ''}</div>`;
+  const hIn = !!s.room?.admin?.in, hNm = s.room?.admin?.name && s.room.admin.name !== '운영진' ? s.room.admin.name : '', np = (s.picks || []).length;
+  const hostH = `<div class="seat host hostbox ${hIn ? '' : 'off'}">${bubbleFor(m => m.admin)}<div class="hb-id"><span class="hb-av">운영</span><span class="hb-nm"><b>운영진</b>${hNm ? `<small>${esc(hNm)}</small>` : ''}</span><i class="dot ${hIn ? 'on' : ''}" title="${hIn ? '진행 중' : '대기 중'}"></i></div>
+    ${S.admin && ph !== 'closed' ? `<div class="hb-act">${ph === 'draft' && allIn(s) ? '<button class="hbtn ok" data-act="finishdraft">✅ 확정</button>' : ''}${ph === 'draft' && np ? '<button class="hbtn undo" data-act="undo">↶ 되돌리기</button>' : ''}${ph === 'draft' && !np ? '<button class="hbtn" data-act="ordedit">✎ 순번 바꾸기</button>' : ''}<button class="hbtn more" data-act="roommenu" aria-label="진행 메뉴">⋯ 메뉴</button></div>` : `<span class="hb-st">${hIn ? '진행 중' : '대기 중'}</span>`}</div>`;
   h += S.dm ? `<div class="board-table dmbt">${hostH}<div class="felt">${feltHTML(s, ph)}</div><div class="seatrow"><div class="pos-l">${seatHTML(s, L, ph)}</div><div class="pos-b">${seatHTML(s, B, ph)}</div><div class="pos-r">${seatHTML(s, R, ph)}</div></div></div>`
     : `<h2>드래프트 테이블</h2><div class="board-table">${hostH}
     <div class="pos-l">${seatHTML(s, L, ph)}</div><div class="felt">${feltHTML(s, ph)}</div><div class="pos-r">${seatHTML(s, R, ph)}</div><div class="pos-b">${seatHTML(s, B, ph)}</div></div>`;
-  if (S.admin && ph !== 'closed' && !S.dm) h += `<div class="row" style="margin-top:10px">${ph === 'draft' && !(s.picks || []).length ? '<button class="btn sm primary" data-act="ordedit">✎ 순번 직접 바꾸기</button>' : ''}${(ph === 'draft' || ph === 'cards') && !(s.picks || []).length ? '<button class="btn sm" data-act="reorder">순번 다시 정하기</button>' : ''}<button class="btn sm danger" data-act="resetroom">드래프트 처음부터</button><button class="btn sm" data-act="stageback" data-v="captain">↺ 주장 지정 단계로</button><button class="btn sm" data-act="stageback" data-v="apply">↺ 신청 단계로</button></div>`;
   if ((S.chatSeen ??= {})[S.sid] === undefined && S.chatSid === S.sid && S.chat.length) S.chatSeen[S.sid] = S.chat.length;
   // bottom: chat
   h += chatPanel(true);
@@ -1009,10 +1018,16 @@ async function nextTurn() {
   const ok = await w(() => S.store.txn(sp(S.sid), d => { if (!d || d.draftStatus !== 'live' || !d.pending) return null; const k = pickTeamAt(d, (d.picks || []).length);
     if (d.pending.t !== k || !pool(d).includes(d.pending.p)) return null; info = { ...d.pending, n: (d.picks || []).length + 1 };
     d.picks = [...(d.picks || []), { t: k, p: d.pending.p, at: Date.now() }]; d.pending = null;
-    if (!pool(d).length) { d.draftStatus = 'done'; d.stage = 'trade'; KEYS.forEach(t => { d.teams[t] = { ...(d.teams[t] || {}), players: [d.captains[t], ...d.picks.filter(x => x.t === t).map(x => x.p)] } }); done = true }
+    if (!pool(d).length) done = true; // 마지막 선수까지 배치돼도 자동 종료하지 않고 운영진 확정을 기다림
     return d }));
-  if (ok && info) { sysChat(`${info.n}순위 ${team(s, info.t).name}: ${pname(info.p)}`); if (done) sysChat('드래프트 완료! 🎉') }
+  if (ok && info) { sysChat(`${info.n}순위 ${team(s, info.t).name}: ${pname(info.p)}`); if (done) sysChat('모든 선수 배치 완료! 운영진이 확정하면 드래프트가 끝나요.') }
 }
+function allIn(s) { return !!s && s.draftStatus === 'live' && (s.picks || []).length > 0 && !pool(s).length && !s.pending }
+async function finishDraft() { if (!needAdmin()) return; const s = cur(); if (!allIn(s)) { toast('아직 배치되지 않은 선수가 있어요.'); return }
+  if (!confirm('이 팀 구성으로 드래프트를 확정할까요?\n확정하면 팀원조정 단계로 넘어가요.')) return;
+  const ok = await w(() => S.store.txn(sp(S.sid), d => { if (!d || d.draftStatus !== 'live' || pool(d).length || d.pending) return null; d.draftStatus = 'done'; d.stage = 'trade'; d.teams = d.teams || {};
+    KEYS.forEach(t => { d.teams[t] = { ...(d.teams[t] || {}), players: [d.captains[t], ...(d.picks || []).filter(x => x.t === t).map(x => x.p)] } }); return d }));
+  if (ok) { sysChat('드래프트 완료! 🎉'); toast('드래프트를 확정했어요.') } }
 
 function myUid() { return load('uid', null) || (() => { const u = Math.random().toString(36).slice(2, 10); save('uid', u); return u })() }
 function chatMsgs() { const uid = myUid();
@@ -1166,6 +1181,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.45', '2026.10.16', ['드래프트 선수 아이콘을 사람 상반신 모양으로 바꾸고, 뽑히면 팀색 훈련 조끼를 입어요. 남은 인원에 맞춰 축구장을 꽉 채우는 크기로 보여요', '확정된 지명 되돌리기는 운영진만 할 수 있어요', '축구장 위에 운영진 박스를 주장 카드처럼 두고, 그 안에 되돌리기·확정·진행 메뉴 버튼을 모았어요', '마지막 선수가 배치돼도 자동으로 넘어가지 않고 그대로 멈춰요. 운영진이 드래프트 확정을 눌러야 끝나요']],
   ['0.21.44', '2026.10.16', ['주장으로 지정되면 주장 코드 없이 내 이름으로 로그인만 해도 화면 위에 👑 드래프트 입장 버튼이 보여요', '띄어쓰기 등으로 이름이 조금 달라도 같은 사람이면 주장으로 알아봐요']],
   ['0.21.43', '2026.10.16', ['드래프트 이름표가 사람 상체 모양으로 바뀌고 몸통에 이름이 적혀요. 팀에 뽑히면 그 팀 색 조끼를 입은 모습으로 바뀌어요']],
   ['0.21.42', '2026.10.16', ['[운영진] 회원 관리에 같은 이름 회원이 있으면 "한 사람으로 합치기"가 떠요. 신청·팀·경기 기록·골/도움·연락처·로그인 비밀번호까지 한 사람으로 합쳐져요', '앞으로는 띄어쓰기나 (게) 표시만 다른 이름도 같은 회원으로 찾아서 중복이 생기지 않아요']],
@@ -2627,9 +2643,9 @@ document.addEventListener('click', async e => {
       if (s0.pending?.p === id && (S.admin || s0.pending.t === k)) { await w(() => S.store.update(sp(sid0), { pending: null }), '선택을 취소했어요.'); break }
       const last = (s0.picks || []).slice(-1)[0];
       if (!last || last.p !== id) { toast('이미 다음 순번이 진행돼서 취소할 수 없어요. 운영진에게 요청해 주세요.'); break }
-      if (!(S.admin || last.t === k)) break;
-      if (!confirm(`${pname(id)} 선택을 취소할까요? 다시 내 차례가 돼요.`)) break; await undoPick(!S.admin); sysChat(`${team(s0, last.t).name} 주장이 ${pname(id)} 선택을 취소했어요`); break }
-    case 'undo': S.sheet = null; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
+      if (!S.admin) { toast('확정된 지명 되돌리기는 운영진만 할 수 있어요.'); break }
+      if (!confirm(`${pname(id)} 지명을 되돌릴까요? ${team(s0, last.t).name} 차례로 돌아가요.`)) break; await undoPick(); break }
+    case 'undo': S.sheet = null; if (!needAdmin()) break; if (confirm('마지막 지명을 되돌릴까요?')) await undoPick(); else render(); break;
     case 'noop': break;
     case 'fson': await fsEnter(); break;
     case 'fsoff': await fsExit(); break;
@@ -2790,6 +2806,7 @@ document.addEventListener('click', async e => {
     case 'pfont': { if (!needAdmin()) break; const kind = el.dataset.k || 'team', v = el.dataset.v; if (!POSTER_FONTS.some(x => x[0] === v)) break; document.querySelectorAll(`.pfo[data-k="${kind}"]`).forEach(b => b.classList.toggle('on', b.dataset.v === v)); toast('글꼴을 불러오는 중이에요…');
       const base = kind === 'team' ? teamDesign(cur()) : schedDesign(); const d = { ...base, font: v }; S.cand[kind] = candList(kind).map(x => ({ ...x, font: v })); await applyDesign(kind, d); toast(`${POSTER_FONTS.find(x => x[0] === v)[1]} 글꼴로 바꿨어요.`); render(); break }
     case 'apord': S.apord = el.dataset.v === 'time' ? 'time' : 'rank'; render(); break;
+    case 'finishdraft': await finishDraft(); break;
     case 'redodraft': if (!needAdmin()) break; await redoDraft(); break;
     case 'mergedups': if (!needAdmin()) break; await mergeDups(); break;
     case 'aview': S.aview = el.dataset.v === 'time' ? 'time' : 'rank'; render(); break;
@@ -2901,7 +2918,7 @@ function resumeCaptain() {
   if (S.admin) return; for (const [sid, l] of Object.entries(S.capLinks || {})) { const s = S.sessions[sid]; if (!s || s.draftStatus === 'done' && s.stage !== 'trade') continue;
     if (s.captainTokens?.[l.k] === l.t && (s.room?.open || s.draftStatus === 'live' || s.draftStatus === 'done') && sid >= today()) { if (S.tab !== 'settings') { S.sid = sid; S.tab = 'draft' } return } }
 }
-let lastDesk = null; window.addEventListener('resize', () => { const d = isDesk(); if (d !== lastDesk) { lastDesk = d; render() } else if (document.querySelector('.dmroot')) { const ab = document.querySelector('.appbar'); if (ab) document.documentElement.style.setProperty('--abh', ab.offsetHeight + 'px') } });
+let lastDesk = null; window.addEventListener('resize', () => { const d = isDesk(); if (d !== lastDesk) { lastDesk = d; render() } else if (document.querySelector('.dmroot')) { fitPool(); const ab = document.querySelector('.appbar'); if (ab) document.documentElement.style.setProperty('--abh', ab.offsetHeight + 'px') } });
 document.addEventListener('gesturestart', e => e.preventDefault()); document.addEventListener('dblclick', e => { if (!isDesk()) e.preventDefault() }, { passive: false });
 function goResult(id, dir) { const ids = pastSids(); const o = ids.indexOf(S.detail), n = ids.indexOf(id); S.rdAnim = dir || (n < o ? 'fromR' : 'fromL'); S.detail = id; render(); window.scrollTo(0, 0); setTimeout(() => { S.rdAnim = '' }, 350) }
 /* pull-to-refresh (home-screen apps have no browser refresh) */
