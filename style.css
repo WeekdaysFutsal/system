@@ -320,4 +320,5 @@ table.grid.aptbl{min-width:0!important;width:100%;table-layout:fixed}table.grid.
 .dmroot .felt>.fx.fx-draft{padding-top:12px!important;padding-bottom:12px!important}
 .dmroot .felt .pool .namegrid:has(.pfb){gap:10px 8px!important}
 #turnBall.passing .tb-b{animation:none!important}
-:root{--cssv:"0.21.54"}
+.capico.view{background:linear-gradient(180deg,#FFFFFF,#E3E9F5);box-shadow:0 0 0 2px rgba(255,255,255,.35),0 4px 12px rgba(0,0,0,.25);animation:none}
+:root{--cssv:"0.21.55"}
