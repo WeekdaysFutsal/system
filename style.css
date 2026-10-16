@@ -297,4 +297,10 @@ table.grid.aptbl{min-width:0!important;width:100%;table-layout:fixed}table.grid.
 .dmroot .stk .jf.mini{--fw:32px}
 .dmroot .felt .flow2{padding:2px 6px}
 }
-:root{--cssv:"0.21.51"}
+/* 0.21.52 드래프트 중 축구장 안 검은 박스 제거 — 축구장 위에 바로 */
+.felt>.fx.fx-draft{background:none!important;box-shadow:none!important;max-width:100%!important;width:100%}
+.felt .fx-draft .pool{background:none!important;padding:0!important}
+.felt .fx-draft .pool-hd{text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.felt .fx-draft .flow2 small,.felt .fx-draft .flow2 em{text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.dmroot .nowb{top:-15px;right:-6px}
+:root{--cssv:"0.21.52"}

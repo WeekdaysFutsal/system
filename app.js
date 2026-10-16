@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.51';
+const APP_VERSION = '0.21.52';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1187,6 +1187,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.52', '2026.10.16', ['드래프트 중 축구장 안의 검은 박스를 없애서 순번·선수 목록·선택 버튼이 축구장 위에 바로 보여요']],
   ['0.21.51', '2026.10.16', ['차례 표시를 \'차례 · 내 차례!\' 대신 주장 카드 오른쪽 위에 깜빡이는 NOW로 바꿨어요', '주장 카드에서 위쪽 정보와 선택된 선수 사이 구분선을 더 선명하게 했어요', '모바일 드래프트 화면에서 채팅 내용 칸을 없애고(💬 아이콘으로 보기) 그만큼 화면을 넓혀, 스크롤 없이 한 화면에 모두 보여요']],
   ['0.21.50', '2026.10.16', ['채팅 말풍선이 항상 맨 위에 떠서 축구장·카드·채팅창 등 다른 요소에 가려지지 않아요']],
   ['0.21.49', '2026.10.16', ['드래프트 선수 목록 박스 크기를 고정했어요. 남은 인원이 바뀌어도 박스 크기는 그대로예요', '선수 아이콘은 팀에 들어간 아이콘보다 살짝 큰 고정 크기로 보여요']],
