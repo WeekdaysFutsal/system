@@ -97,4 +97,5 @@ body:has(.mmfs){overflow:hidden}
 .chatdock .cd-log,.chatdock .cd-bar{max-width:1180px;margin:0 auto}
 .abar{top:calc(var(--abh,60px) + 50px)!important}.bulkbar{top:calc(var(--abh,60px) + 56px)!important}.pnright{top:calc(var(--abh,60px) + 62px)!important}.split .side{top:calc(var(--abh,60px) + 64px)!important}
 }
-:root{--cssv:"0.21.32"}
+.capbtn{cursor:pointer;-webkit-tap-highlight-color:transparent}.capbtn:active{opacity:.8}.capbtn:focus-visible{outline:2px solid #FFD21F;outline-offset:4px}.capbtn em.caplink{font-style:normal;font-weight:800;color:#FFD21F;margin-left:4px}.appcnt{font-weight:700;color:var(--ink);text-decoration:none}.appcnt:hover{color:var(--accent)}
+:root{--cssv:"0.21.33"}

@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.32';
+const APP_VERSION = '0.21.33';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1146,6 +1146,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.33', '2026.10.16', ['홈 경기 카드의 "신청 인원"이나 일정 카드의 신청 인원을 누르면 지금 신청 현황(선발·대기)을 볼 수 있어요']],
   ['0.21.32', '2026.10.16', ['팀 운영진은 신청 0순위가 아니에요. 0순위는 그 경기의 구장 예약자(신청 시)와 경기 운영자만이에요']],
   ['0.21.31', '2026.10.16', ['PC 화면에서 메뉴가 위쪽 가로 메뉴로 바뀌고, 내용은 화면 가운데에 보여요']],
   ['0.21.30', '2026.10.16', ['[운영진] 공지 포스터 시안을 완전히 새로 만들었어요: 클래식·매거진·티켓·스플릿·전광판·타이포 6가지 구성에 색 조합 8가지', '[운영진] "🎲 새 시안 보기"를 누를 때마다 구성·색·글꼴을 새로 섞은 시안 5개가 나와요', '[운영진] 월간 일정표도 클래식·달력·리스트·전광판·타이포 시안과 글꼴을 골라 만들 수 있어요']],
@@ -1311,7 +1312,7 @@ function viewMHome() {
       <div class="hero-date">${m}.${d}<small>${dow(sid)}요일</small></div><div class="hero-time">${esc(s.time || '')}</div>
       <div class="hero-venue">📍 ${esc(s.venue || '장소 미정')}</div>
       ${st.k === 'open' && s.applyClose ? `<div class="hero-status"><span>${fmtDT(s.applyClose)} 신청 마감</span></div>` : st.k === 'soon' && s.applyOpen ? `<div class="hero-status"><span>${fmtDT(s.applyOpen)} 신청 오픈</span></div>` : ''}
-      <div class="cap"><div class="cap-row"><span>신청 인원${fit && (st.k === 'open' || st.k === 'closed') ? ` <button class="linkbtn caplink" data-act="applist">신청자 보기 ›</button>` : ''}${fit && st.k === 'open' && appCounts(s).wait ? ` · 대기 ${appCounts(s).wait}` : ''}</span><b>${n}<small> / ${cap || '-'}명</small></b></div>${cap ? `<div class="bar"><i style="width:${Math.min(100, n / cap * 100)}%"></i></div>` : ''}</div></div>`;
+      <div class="cap capbtn" role="button" tabindex="0" data-act="applist" data-id="${sid}" aria-label="신청 현황 보기"><div class="cap-row"><span>신청 인원 <em class="caplink">현황 보기 ›</em>${appCounts(s).wait ? ` · 대기 ${appCounts(s).wait}` : ''}</span><b>${n}<small> / ${cap || '-'}명</small></b></div>${cap ? `<div class="bar"><i style="width:${Math.min(100, n / cap * 100)}%"></i></div>` : ''}</div></div>`;
     h += homeAction(s, st, fit);
     if (fit) { const a = applyState(s); if (st.k === 'open' || st.k === 'soon' || (st.k === 'closed' && a.k !== 'none' && s.stage !== 'match')) { const ab = applyBox(s, true); if (ab) h += `<div class="inline-apply">${ab}</div>` } }
   }
@@ -1350,7 +1351,7 @@ function schedCard(id, noApply) { let h = '';
     const curI = steps.findIndex(x => !x[2]);
     h += `<div class="panel sched"><div class="sched-hd"><div><b>${fmtDate(id)} ${esc(s.time || '')}</b><span>📍 ${esc(s.venue || '')}</span></div><span class="dday sm">${dday(id)}</span></div>
       <ol class="tl">${steps.map(([l, v, done], i) => `<li class="${done ? 'done' : i === curI ? 'now' : ''}"><i></i><span>${l}</span><em>${v ? fmtDT(v) : done ? '완료' : i === 2 ? '신청 마감 후' : '-'}</em></li>`).join('')}</ol>
-      <div class="sched-ft"><span class="st st-${st.k}">${st.label}</span><span>신청 ${appTotal(s)}${s.capacity ? ' / ' + s.capacity : ''}명${appCounts(s).wait ? `, 대기 ${appCounts(s).wait}` : ''}</span>${id >= today() ? `<button class="btn sm calbtn" data-act="caladd2" data-id="${id}">📅 캘린더에 추가</button>` : ''}</div>${noApply ? '' : (st.k === 'open' || applyState(s)?.k === 'in' ? `<div style="margin-top:10px">${applyBox(s, true)}</div>` : '')}</div>` }
+      <div class="sched-ft"><span class="st st-${st.k}">${st.label}</span><button class="linkbtn appcnt" data-act="applist" data-id="${id}">신청 ${appTotal(s)}${s.capacity ? ' / ' + s.capacity : ''}명${appCounts(s).wait ? `, 대기 ${appCounts(s).wait}` : ''} ›</button>${id >= today() ? `<button class="btn sm calbtn" data-act="caladd2" data-id="${id}">📅 캘린더에 추가</button>` : ''}</div>${noApply ? '' : (st.k === 'open' || applyState(s)?.k === 'in' ? `<div style="margin-top:10px">${applyBox(s, true)}</div>` : '')}</div>` }
   return h }
 function viewSchedule() {
   const all = Object.keys(S.sessions).sort(); const nx = nextSid(); const fit = S.dm;
@@ -2763,7 +2764,7 @@ document.addEventListener('click', async e => {
       const ok = await w(() => S.store.txn(sp(S.sid), d => { if (!d) return null; if (KEYS.some(o => o !== k && d.teams?.[o]?.colorName === c)) return null; d.teams = d.teams || {}; d.teams[k] = { ...(d.teams[k] || {}), colorName: c }; all = KEYS.every(o => d.teams?.[o]?.colorName); return d }));
       if (!ok) { toast('다른 팀이 먼저 고른 색이에요.'); break } S.adminTeam = null; sysChat(`${k}팀(${pname(s.captains?.[k])} 주장)은 이제 ${c}!`); if (all && s.room?.open && !s.ladder) sysChat('팀 색이 모두 정해졌어요. 사다리로 순번을 정해요!'); break }
     case 'sub': S.sub = el.dataset.v || null; S.detail = el.dataset.v === '' && S.tab === 'results' ? null : S.detail; render(); window.scrollTo(0, 0); break;
-    case 'applist': S.sub = 'applist'; render(); window.scrollTo(0, 0); break;
+    case 'applist': if (el.dataset.id && S.sessions[el.dataset.id]) S.sid = el.dataset.id; S.tab = 'mhome'; S.sub = 'applist'; render(); window.scrollTo(0, 0); break;
     case 'result': S.tab = 'results'; S.detail = id; S.sub = null; render(); window.scrollTo(0, 0); break;
     case 'rank': S.rankKey = el.dataset.k; render(); break;
     case 'selswap': if (!needAdmin()) break; if (!S.sel) { S.sel = id; render(); break } if (S.sel === id) { S.sel = null; render(); break }
