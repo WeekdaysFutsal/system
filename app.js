@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.35';
+const APP_VERSION = '0.21.36';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1146,6 +1146,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.36', '2026.10.16', ['신청 현황 표를 순위순과 신청순으로 바꿔 볼 수 있어요']],
   ['0.21.35', '2026.10.16', ['신청 현황 표의 제목과 내용 칸 정렬을 맞췄어요(PC에서는 표 폭도 알맞게 줄였어요)']],
   ['0.21.34', '2026.10.16', ['신청 현황을 표로 보여 줘요: 신청순 · 이름 · 신청 시각 · 순위 · 상태(선발/대기). 취소한 사람과 마감 후 취소한 사람은 표 아래에 따로 보여요']],
   ['0.21.33', '2026.10.16', ['홈 경기 카드의 "신청 인원"이나 일정 카드의 신청 인원을 누르면 지금 신청 현황(선발·대기)을 볼 수 있어요']],
@@ -1402,6 +1403,7 @@ function viewResults() {
 function viewApplicants() { const s = cur(); const me = myPid(); const base = isBase(s); const c = classify(s); const frozen = s.stage !== 'apply';
   let rows = [...c.sel, ...c.wait];
   if (frozen) { const find = pid => c.rows.find(r => r.pid === pid) || { pid, n: '-', tier: 2 }; rows = [...(s.applicants || []).map(pid => ({ ...find(pid), sel: true })), ...(s.waitlist || []).map((pid, i) => ({ ...find(pid), sel: false, wn: i + 1 }))] }
+  const byTime = S.apord === 'time'; if (byTime) rows = rows.slice().sort((a, b) => (a.auto ? 0 : 1) - (b.auto ? 0 : 1) || ((typeof a.n === 'number' ? a.n : 1e9) - (typeof b.n === 'number' ? b.n : 1e9)));
   const inList = new Set(rows.map(r => r.pid).filter(Boolean)); const late = Object.entries(s.late || {}).filter(([, v]) => v);
   const lateSet = new Set(late.map(([p0]) => p0)); const canc = Object.entries(s.cancels || {}).filter(([p0, v]) => v && !inList.has(p0) && !lateSet.has(p0));
   const off = [...late.map(([p0, t]) => ({ pid: p0, t, k: 'late' })), ...canc.map(([p0, t]) => ({ pid: p0, t, k: 'cancel' }))].filter(x => S.players[x.pid]).sort((a, b) => a.t - b.t);
@@ -1410,7 +1412,7 @@ function viewApplicants() { const s = cur(); const me = myPid(); const base = is
   const tr = r => `<tr class="${r.sel ? '' : 'wrow'} ${mine && r === mine ? 'me' : ''}"><td class="num">${r.auto ? '자동' : r.n}</td><td class="nm"><b>${r.pid ? esc(pname(r.pid)) : '<i class="muted">이름 입력 대기</i>'}</b>${mine && r === mine ? '<i class="metag">나</i>' : ''}</td><td class="num muted">${r.at ? fmtTS(r.at).replace(/\.\d{3}$/, '') : '-'}</td>${base ? `<td><b class="tb t${r.tier}">${TIER[r.tier]}</b></td>` : ''}<td>${r.sel ? '<b class="ok">선발</b>' : `<b class="tw">대기 ${r.wn}</b>`}</td></tr>`;
   const cols = base ? 5 : 4;
   return '<div class="apwrap">' + backbar('홈으로') + myLine + `<h2>신청 현황<small>신청 ${rows.length}${s.capacity ? ' / ' + s.capacity : ''}명 · 선발 ${rows.filter(r => r.sel).length} · 대기 ${rows.filter(r => !r.sel).length}</small></h2>
-  <div class="panel sheetwrap"><table class="grid aptbl"><colgroup><col class="c-n"><col class="c-nm"><col class="c-t">${base ? '<col class="c-r">' : ''}<col class="c-s"></colgroup><thead><tr><th>신청순</th><th>이름</th><th>신청 시각</th>${base ? '<th>순위</th>' : ''}<th>상태</th></tr></thead><tbody>
+  <div class="vtog" role="group" aria-label="정렬"><button class="btn sm${byTime ? '' : ' primary'}" data-act="apord" data-v="rank">순위순</button><button class="btn sm${byTime ? ' primary' : ''}" data-act="apord" data-v="time">신청순</button><small>${byTime ? '신청이 들어온 순서대로 보여요.' : '선발 → 대기 순서로 보여요.'}</small></div><div class="panel sheetwrap"><table class="grid aptbl"><colgroup><col class="c-n"><col class="c-nm"><col class="c-t">${base ? '<col class="c-r">' : ''}<col class="c-s"></colgroup><thead><tr><th>신청순</th><th>이름</th><th>신청 시각</th>${base ? '<th>순위</th>' : ''}<th>상태</th></tr></thead><tbody>
   ${rows.length ? rows.map(tr).join('') : `<tr><td colspan="${cols}" class="empty">아직 신청자가 없어요.</td></tr>`}
   ${off.length ? `<tr class="offhd"><td colspan="${cols}">취소 ${off.length}명</td></tr>${off.map(x => `<tr class="offrow"><td class="num">-</td><td class="nm">${esc(pname(x.pid))}${x.pid === me ? '<i class="metag">나</i>' : ''}</td><td class="num muted">${fmtTS(x.t).replace(/\.\d{3}$/, '')}</td>${base ? '<td></td>' : ''}<td>${x.k === 'late' ? '<b class="t3">마감 후 취소</b>' : '<b class="muted">취소</b>'}</td></tr>`).join('')}` : ''}
   </tbody></table></div>
@@ -2722,6 +2724,7 @@ document.addEventListener('click', async e => {
     case 'preset': { const kind = el.dataset.k; S.cand[kind] = DESIGN_PRESETS[kind].map(x => ({ ...x })); S.candNew[kind] = 0; render(); break }
     case 'pfont': { if (!needAdmin()) break; const kind = el.dataset.k || 'team', v = el.dataset.v; if (!POSTER_FONTS.some(x => x[0] === v)) break; document.querySelectorAll(`.pfo[data-k="${kind}"]`).forEach(b => b.classList.toggle('on', b.dataset.v === v)); toast('글꼴을 불러오는 중이에요…');
       const base = kind === 'team' ? teamDesign(cur()) : schedDesign(); const d = { ...base, font: v }; S.cand[kind] = candList(kind).map(x => ({ ...x, font: v })); await applyDesign(kind, d); toast(`${POSTER_FONTS.find(x => x[0] === v)[1]} 글꼴로 바꿨어요.`); render(); break }
+    case 'apord': S.apord = el.dataset.v === 'time' ? 'time' : 'rank'; render(); break;
     case 'aview': S.aview = el.dataset.v === 'time' ? 'time' : 'rank'; render(); break;
     case 'pairedit': { if (!needAdmin()) break; S.pairDraft = {}; S.sheet = { type: 'pairs' }; render(); break }
     case 'pairswap': { const m = M(id); if (!m) break; const D = (S.pairDraft ??= {}); const [hh, aa] = D[id] || [m.home, m.away]; D[id] = [aa, hh]; render(); break }
