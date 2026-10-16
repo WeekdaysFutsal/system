@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.31';
+const APP_VERSION = '0.21.32';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1146,6 +1146,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.32', '2026.10.16', ['팀 운영진은 신청 0순위가 아니에요. 0순위는 그 경기의 구장 예약자(신청 시)와 경기 운영자만이에요']],
   ['0.21.31', '2026.10.16', ['PC 화면에서 메뉴가 위쪽 가로 메뉴로 바뀌고, 내용은 화면 가운데에 보여요']],
   ['0.21.30', '2026.10.16', ['[운영진] 공지 포스터 시안을 완전히 새로 만들었어요: 클래식·매거진·티켓·스플릿·전광판·타이포 6가지 구성에 색 조합 8가지', '[운영진] "🎲 새 시안 보기"를 누를 때마다 구성·색·글꼴을 새로 섞은 시안 5개가 나와요', '[운영진] 월간 일정표도 클래식·달력·리스트·전광판·타이포 시안과 글꼴을 골라 만들 수 있어요']],
   ['0.21.29', '2026.10.16', ['[운영진] 회원 관리에서 운영진 체크 대신 회원 유형(운영진·특별회원·정회원·장불회원·게스트)으로 고르도록 바꿨어요', '운영모드는 운영진과 특별회원만 들어갈 수 있어요. 운영진은 지금처럼 신청 0순위예요']],
@@ -1621,9 +1622,9 @@ function ensureQueues() { if (!S.store) return; S.qUn ??= {}; S.q ??= {}; const 
 function appsOf(s) { const qa = queueApps(s); if (qa.length) { const base = Array.isArray(s.apps) ? s.apps : appsOf0(s); return appsOf0({ ...s, apps: [...base, ...qa] }) } return appsOf0(s) }
 function appsOf0(s) { if (Array.isArray(s.apps)) { const seen = new Set(); return s.apps.filter(a => a && typeof a === 'object').map((a, i) => ({ a, i })).sort((x, y) => ((x.a.at || 0) - (y.a.at || 0)) || (x.i - y.i)).map(x => x.a).filter(a => { if (!a.pid) return true; if (seen.has(a.pid)) return false; seen.add(a.pid); return true }).map((a, i) => ({ a, i })).sort((x, y) => { const O = s.appOrder; if (!Array.isArray(O) || !O.length) return x.i - y.i; const rx = O.indexOf(x.a.k), ry = O.indexOf(y.a.k); return (rx < 0 ? O.length + x.i : rx) - (ry < 0 ? O.length + y.i : ry) }).map(x => x.a) } return [...(s.applicants || []), ...(s.waitlist || [])].map((pid, i) => ({ k: 'L' + i, pid, at: 0 })) }
 function prevSessionId(s) { const ids = Object.keys(S.sessions).filter(id => id < s.date).sort().reverse(); return ids.find(id => KEYS.some(k => teamPlayers(S.sessions[id], k).length)) || null }
-function staffSet(s) { return new Set([...(s.p0 || []), ...(s.ops || []), ...Object.entries(S.players).filter(([, p]) => p.staff).map(([id]) => id)]) }
+function staffSet(s) { return new Set([...(s.p0 || []), ...(s.ops || [])]) } // 0순위: 그 경기의 구장 예약자·경기 운영자만 (팀 운영진은 해당 없음)
 function autoIds(s) { return [...new Set([...(s.ops || [])])].filter(id => S.players[id]) } // 구장 예약자는 직접 신청해야 0순위(0.21.17)
-function roleOf(s, id) { return (s.p0 || []).includes(id) ? '구장 예약자' : (s.ops || []).includes(id) ? '경기 운영자' : S.players[id]?.staff ? '운영진' : '' }
+function roleOf(s, id) { return (s.p0 || []).includes(id) ? '구장 예약자' : (s.ops || []).includes(id) ? '경기 운영자' : '' }
 async function namesToIds(txt) { const out = []; for (const nm of (txt || '').split(/[,，、\n]+/).map(x => x.trim()).filter(Boolean)) { const id = await ensurePlayer(nm); if (id && !out.includes(id)) out.push(id) } return out }
 function idsToNames(ids) { return (ids || []).map(id => S.players[id]?.name).filter(Boolean).join(', ') }
 const CL_CACHE = new WeakMap();
@@ -2377,7 +2378,7 @@ async function manAct(act, el) { const M = S.man; const id = el.dataset.id;
 }
 
 /* ───────── members (admin) ───────── */
-const MSTAT = { staff: '운영진', special: '특별회원', active: '정회원', dormant: '장불회원', guest: '게스트' }; // 운영진·특별회원은 운영모드에 들어갈 수 있어요. 운영진은 신청 0순위
+const MSTAT = { staff: '운영진', special: '특별회원', active: '정회원', dormant: '장불회원', guest: '게스트' }; // 운영진·특별회원은 운영모드에 들어갈 수 있어요. (신청 0순위는 경기별 구장 예약자·경기 운영자만)
 function mstatus(p) { const st = p?.status || (p?.guest ? 'guest' : 'active'); return st === 'active' && p?.staff ? 'staff' : st }
 function stopAdminWatch() { for (const k of ['unsubAuth', 'unsubContacts', 'unRules']) { try { S[k]?.() } catch { } S[k] = null } }
 function watchContacts() { if (!S.admin || S.unsubContacts || !S.store) return; S.unsubAuth = S.store.watchCol('auth', docs => { const o = {}; docs.forEach(d => o[d.id] = true); S.authMap = o; render() }); S.unsubContacts = S.store.watchCol('contacts', docs => { const o = {}; docs.forEach(d => { const { id, ...r } = d; o[id] = r }); S.contacts = o; render() }) }
@@ -2426,7 +2427,7 @@ function viewMembers() {
     <td><input class="cell w-memo" type="text" value="${esc(r.memo)}" placeholder="메모" data-in="mcell" data-id="${r.id}" data-f="memo"></td>
     <td class="num">${r.days}</td><td class="num">${r.last ? r.last.slice(5).replace('-', '.') : '-'}</td>
     <td class="acts"><button class="btn sm danger" data-act="mdel" data-id="${r.id}">삭제</button></td></tr>`).join('')}</tbody></table></div>
-  <p class="note">칸을 눌러 바로 고치면 저장돼요. 회원 유형: 운영진(운영모드 + 신청 0순위) · 특별회원(운영모드) · 정회원 · 장불회원(쉬는 회원, 신청·명단에서 빠져요) · 게스트. 장불회원으로 바꿔도 지난 기록은 그대로 남아요. 연락처와 메모는 운영모드에서만 보여요.</p>`;
+  <p class="note">칸을 눌러 바로 고치면 저장돼요. 회원 유형: 운영진(운영모드) · 특별회원(운영모드) · 정회원 · 장불회원(쉬는 회원, 신청·명단에서 빠져요) · 게스트. 장불회원으로 바꿔도 지난 기록은 그대로 남아요. 연락처와 메모는 운영모드에서만 보여요.</p>`;
   return h;
 }
 function parseMemberLines(txt) {

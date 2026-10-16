@@ -97,4 +97,4 @@ body:has(.mmfs){overflow:hidden}
 .chatdock .cd-log,.chatdock .cd-bar{max-width:1180px;margin:0 auto}
 .abar{top:calc(var(--abh,60px) + 50px)!important}.bulkbar{top:calc(var(--abh,60px) + 56px)!important}.pnright{top:calc(var(--abh,60px) + 62px)!important}.split .side{top:calc(var(--abh,60px) + 64px)!important}
 }
-:root{--cssv:"0.21.31"}
+:root{--cssv:"0.21.32"}
