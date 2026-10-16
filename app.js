@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.37';
+const APP_VERSION = '0.21.38';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1157,6 +1157,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.38', '2026.10.16', ['드래프트에서 차례인 팀 카드가 굵은 노란 테두리와 깜빡이는 빛으로 크게 강조되고, 다른 팀 카드는 흐리게 보여요']],
   ['0.21.37', '2026.10.16', ['드래프트에서 주장이 선수를 고르면 이름표가 남은 선수 명단에서 날아와 그 팀 카드 안으로 쏙 들어가요', '드래프트 참관자로 지정된 회원이 PC에서도 드래프트를 실시간으로 볼 수 있어요']],
   ['0.21.36', '2026.10.16', ['신청 현황 표를 순위순과 신청순으로 바꿔 볼 수 있어요']],
   ['0.21.35', '2026.10.16', ['신청 현황 표의 제목과 내용 칸 정렬을 맞췄어요(PC에서는 표 폭도 알맞게 줄였어요)']],

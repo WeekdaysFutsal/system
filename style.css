@@ -107,4 +107,12 @@ table.grid.aptbl{min-width:0!important;width:100%;table-layout:fixed}table.grid.
 @media (min-width:1024px){.apwrap{max-width:860px;margin:0 auto}}
 @media (max-width:480px){table.grid.aptbl th,table.grid.aptbl td{padding:9px 3px;font-size:13px}table.grid.aptbl th{font-size:12px;white-space:normal;line-height:1.25}table.grid.aptbl td.num.muted{font-size:11.5px;letter-spacing:-.2px}table.grid.aptbl td:last-child{white-space:normal;overflow:visible}table.grid.aptbl col.c-n{width:13%}table.grid.aptbl col.c-nm{width:22%}table.grid.aptbl col.c-t{width:29%}table.grid.aptbl col.c-r{width:16%}table.grid.aptbl col.c-s{width:20%}table.grid.aptbl .t3{white-space:nowrap;font-size:11px;padding:1px 5px}}
 .flytag{position:fixed;z-index:3000;display:flex;align-items:center;justify-content:center;font-weight:800;pointer-events:none;white-space:nowrap;box-shadow:0 6px 14px rgba(0,0,0,.25);will-change:transform}
-:root{--cssv:"0.21.37"}
+/* 드래프트 차례 강조 (0.21.38) */
+@keyframes turnGlow{0%,100%{box-shadow:0 0 0 4px #FFD21F,0 0 0 9px rgba(255,210,31,.35),0 12px 28px rgba(255,190,0,.45)}50%{box-shadow:0 0 0 4px #FFD21F,0 0 0 16px rgba(255,210,31,0),0 12px 34px rgba(255,190,0,.65)}}
+@keyframes turnBadge{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.12)}}
+.seat.onturn{border-color:#FFD21F!important;animation:turnGlow 1.3s ease-in-out infinite;transform:translateY(-5px) scale(1.04);z-index:3;position:relative}
+.board-table:has(.seat.onturn) .seat:not(.onturn):not(.host){opacity:.55;filter:saturate(.7)}
+.turnb{top:-14px!important;right:auto!important;left:50%;transform:translateX(-50%);font-size:13px!important;padding:4px 12px!important;letter-spacing:1px!important;animation:turnBadge 1.3s ease-in-out infinite;box-shadow:0 3px 10px rgba(0,0,0,.3)!important;white-space:nowrap}
+.seat.onturn.me .turnb::after{content:" · 내 차례!"}
+@media (prefers-reduced-motion:reduce){.seat.onturn,.turnb{animation:none}}
+:root{--cssv:"0.21.38"}
