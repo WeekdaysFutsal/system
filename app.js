@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.24';
+const APP_VERSION = '0.21.25';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -324,7 +324,7 @@ async function addApplicants(names) {
   for (const nm of names) { const guest = /\(\s*게(스트)?\s*\)/.test(nm); const name = nm.replace(/\(\s*게(스트)?\s*\)/g, '').trim(); if (!name) continue;
     const ex = findPlayer(name); if (ex) { ids.push(ex); continue }
     if (!guest) { rejected.push(name); continue } const id = await ensurePlayer(nm); if (id) ids.push(id) }
-  if (rejected.length) toast(`회원 명단에 없는 이름이에요: ${rejected.join(', ')}. 이름을 확인하거나, 게스트면 이름 뒤에 (게)를 붙여 주세요.`);
+  S.rejNames = rejected.length ? rejected : null; if (rejected.length) toast(`회원 명단에 없는 이름이에요: ${rejected.join(', ')}. 오타가 아니라면 아래 "게스트로 추가"를 눌러 주세요.`);
   if (!ids.length) { render(); return }
   if (s.stage === 'apply') { let n = 0; if (await w(() => S.store.txn(sp(S.sid), d => { const apps = appsOf(d); n = 0; for (const id of ids) if (!apps.some(a => a.pid === id)) { apps.push({ k: rand() + rand(), pid: id, uid: 'admin', at: nowS() }); n++ } d.apps = apps; return d })) && !rejected.length) toast(n === ids.length ? `${n}명을 반영했어요.` : n ? `${n}명을 반영했어요. (${ids.length - n}명은 이미 신청돼 있어요)` : '이미 모두 신청돼 있어요.'); render(); return }
   const cur0 = [...(s.applicants || [])]; let n = 0; for (const id of ids) if (!cur0.includes(id)) { cur0.push(id); n++ }
@@ -446,7 +446,7 @@ async function drawPoster(s) {
 async function posterBlob() { const s = cur(); const c = await drawPoster(s); return new Promise(r => c.toBlob(b => r(b), 'image/png')) }
 async function refreshPoster() { const s = cur(); if (!s) return; const c = await drawPoster(s); S.poster[S.sid] = c.toDataURL('image/png'); const el = document.querySelector('img.poster:not(.schedimg)'); if (el) el.src = S.poster[S.sid]; else if (!document.querySelector('img.schedimg')) render() }
 async function sharePoster(download) {
-  const b = await posterBlob(); const name = `WF_MATCHDAY_${S.sid.replace(/-/g, '')}.png`; const file = new File([b], name, { type: 'image/png' });
+  const b = await posterBlob(); const s0 = cur(); const name = `WF_매치데이_${S.sid.slice(5).replace('-', '')}${s0?.no ? `_${s0.no}회` : ''}.png`; const file = new File([b], name, { type: 'image/png' });
   if (!download && navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: 'WF MATCH DAY' }); return } catch (e) { if (e.name === 'AbortError') return } }
   if (S.store?.dl) { try { await S.store.dl.save({ filename: name, data: b }); toast('이미지를 저장했어요.') } catch (e) { if (e?.code !== 'declined') toast('이 화면에서는 저장할 수 없어요.') } return }
   const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 1000); toast('이미지를 저장했어요.');
@@ -578,6 +578,7 @@ function vApply(s) {
   <p class="note" style="margin:-4px 2px 10px">${ast.k === 'open' ? `회원들이 앱에서 직접 신청하는 중이에요. ${s.applyClose ? fmtDT(s.applyClose) + '에 자동 마감돼요.' : ''}` : ast.k === 'soon' ? `${fmtDT(s.applyOpen)}에 앱 신청이 열려요.` : '앱 신청이 마감됐어요.'}</p>`;
   h += vApplyTable(s);
   if (ad && s.stage === 'apply') h += `<div class="panel pad" style="display:flex;gap:8px;margin-top:10px"><input class="inp" type="text" placeholder="한 명씩 추가 (게스트는 이름(게))" data-in="addone" id="addone"><button class="btn" data-act="addone">추가</button></div>`;
+  if (ad && S.rejNames?.length && ['apply', 'captain'].includes(s.stage)) h += `<div class="panel pad rejbox"><span>명단에 없는 이름: <b>${S.rejNames.map(esc).join(', ')}</b></span><div class="row"><button class="btn sm primary" data-act="rejguest">게스트로 추가</button><button class="btn sm" data-act="rejclose">닫기</button></div></div>`;
   if (ad && ast.k === 'open') h += `<div class="row" style="margin-top:10px"><button class="btn" data-act="closenow">지금 신청 마감하기</button></div>`;
   if (s.stage !== 'apply' && ids.length % 3 && ids.length) h += `<p class="note">${ids.length}명은 3팀으로 딱 나눠지지 않아서 ${[0, 1, 2].map(i => Math.floor(ids.length / 3) + (i < ids.length % 3 ? 1 : 0)).join('·')}명으로 나뉘어요.</p>`;
   if (ad) h += `<div style="height:14px"></div><button class="btn primary block" data-act="gostage" data-v="captain" ${(s.stage === 'apply' ? cc.sel : ids.length) < 3 ? 'disabled' : ''}>${s.stage === 'apply' ? '신청 확정하고 주장 정하기' : '다음: 주장 정하기'}</button>`;
@@ -889,6 +890,7 @@ function viewSheet() {
   else if (sh.type === 'park') h += parkSheet(sh.sid);
   else if (sh.type === 'parkapply') { h += `<h4>🚗 주차 신청</h4><p>${fmtDate(sh.sid)} 경기 주차를 신청해요. 신청자 중 ${PARK_SLOTS}명을 추첨해요.</p><div class="panel"><div class="field"><label for="pk-car2">차량번호</label><input id="pk-car2" class="inp" type="text" maxlength="12" placeholder="예: 12가3456" value="${esc(myCar())}"></div><p class="note" style="margin:6px 0 0">내 정보에 차량번호를 저장해 두면 자동으로 채워져요.</p></div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="parksave">신청</button></div>` }
   else if (sh.type === 'tier') h += tierSheet(sh);
+  else if (sh.type === 'calpick') h += `<h4>📅 캘린더에 추가</h4><p>${fmtDate(sh.id)} ${esc(S.sessions[sh.id]?.time || '')} 경기를 내 캘린더에 넣어요. 경기 2시간 전에 알림이 와요.</p><div class="pick" style="grid-template-columns:1fr"><button data-act="calics" data-id="${sh.id}">🍎 아이폰·기본 캘린더 (일정 파일)</button><button data-act="calgoo" data-id="${sh.id}">📆 구글 캘린더</button></div>`;
   else if (sh.type === 'inbox') h += inboxSheet();
   else if (sh.type === 'rule') h += ruleSheet();
   else if (sh.type === 'kakao') { const L = S.kk || null;
@@ -931,6 +933,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.25', '2026.10.16', ['일정 카드의 "📅 캘린더에 추가"로 경기 일정을 아이폰·구글 캘린더에 넣을 수 있어요(경기 2시간 전 알림)', '[운영진] 신청자 직접 추가 때 회원 명단에 없는 이름은 "게스트로 추가" 버튼으로 바로 넣을 수 있어요', '공지 이미지 저장 파일명에 날짜와 회차가 들어가요']],
   ['0.21.24', '2026.10.16', ['전체 코드를 다시 점검해 쓰지 않는 코드를 정리하고 더 가볍고 빠르게 만들었어요', '[중요] 경기 운영자가 지정되지 않은 경기에서 신청 인원이 0명으로 보이거나 신청 확정 시 명단이 비는 문제를 고쳤어요', '로그인 전에 신청한 뒤 로그인해도 내 신청이 그대로 이어져요. 이름 나중에 입력하기도 정상 동작해요', '대기자는 순위(1→2→3순위) 순서로 번호가 매겨져요. 대기 상태에서는 마감 후에도 대기 취소를 할 수 있어요', '신청자 보기 맨 위에 내 선발·대기 순번이 보여요', '드래프트에서 내 차례가 되면 진동과 안내가 떠요', '경기 타이머·휘슬·사다리를 모든 기기에서 서버 시각 기준으로 맞춰요', '경기모드에서 휘슬 켜기/끄기가 진행 중인 경기에도 바로 적용되고, 시작 버튼을 두 번 눌러도 한 번만 시작돼요', '경기모드 중에는 화면을 당겨도 새로고침되지 않아요', '사용 설명서 용량을 약 40% 줄였어요']],
   ['0.21.23', '2026.10.16', ['경기모드 크게 보기를 태블릿에서도 스마트폰 화면을 그대로 확대한 모습으로 보여 줘요']],
   ['0.21.22', '2026.10.16', ['[운영진] 주장 지정·드래프트·밸런스 조정 단계에서 "신청 단계" 또는 "주장 지정 단계"로 되돌릴 수 있어요. 신청 단계로 되돌리면 신청자 명단을 다시 고칠 수 있어요']],
@@ -1109,6 +1112,16 @@ function homeAction(s, st, fit) {
 function capsLine(s) { const ks = KEYS.filter(k => s.captains?.[k]); return ks.length ? `<div class="caps">${ks.map(k => `${tag(team(s, k))}<span>👑 ${esc(pname(s.captains[k]))}</span>`).join('')}</div>` : '' }
 function rostersMini(s) { const me = myPid(); return `<div class="rosters">${KEYS.map(k => { const t = team(s, k); return `<div><div class="rh" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}</div><ul>${teamPlayers(s, k).map((id, i) => `<li class="${id === me ? 'me' : ''}">${i === 0 && captainOf(s, k) === id ? '👑' : ''}${esc(pname(id))}</li>`).join('')}</ul></div>` }).join('')}</div>` }
 
+function calEvent(id) { const s = S.sessions[id] || {}; const st = new Date(`${id}T${s.time || '21:00'}:00+09:00`), en = new Date(st.getTime() + 2 * 3600e3);
+  const z = d => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, ''); const club = CFG.club?.short || 'WF';
+  return { title: `${club} 풋살${s.no ? ` ${s.no}회` : ''}`, loc: s.venue || '', desc: `${CFG.club?.name || 'WEEKDAYS FUTSAL CLUB'} 경기${s.applyClose ? `\n신청 마감: ${fmtDT(s.applyClose)}` : ''}\n${location.origin + location.pathname}`, start: z(st), end: z(en) } }
+function calIcs(id) { const e = calEvent(id); const x = t => String(t).replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n');
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//WD_FUTSAL//KO', 'CALSCALE:GREGORIAN', 'BEGIN:VEVENT', `UID:wf-${id}@weekdaysfutsal`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`, `DTSTART:${e.start}`, `DTEND:${e.end}`, `SUMMARY:${x(e.title)}`, `LOCATION:${x(e.loc)}`, `DESCRIPTION:${x(e.desc)}`, 'BEGIN:VALARM', 'TRIGGER:-PT2H', 'ACTION:DISPLAY', `DESCRIPTION:${x(e.title)}`, 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n') }
+function calGoogle(id) { const e = calEvent(id); return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(e.title)}&dates=${e.start}/${e.end}&location=${encodeURIComponent(e.loc)}&details=${encodeURIComponent(e.desc)}` }
+async function calDownload(id) { const b = new Blob([calIcs(id)], { type: 'text/calendar' }); const name = `WF_경기_${id.slice(5).replace('-', '')}.ics`;
+  if (S.store?.dl) { try { await S.store.dl.save({ filename: name, data: b }); return } catch { } }
+  const file = new File([b], name, { type: 'text/calendar' }); if (isIOS() && navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file] }); return } catch (e) { if (e.name === 'AbortError') return } }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 1500); toast('일정 파일을 받았어요. 파일을 열면 캘린더에 추가돼요.') }
 function schedCard(id, noApply) { let h = '';
   const ids = [id];
   for (const id of ids) { const s = S.sessions[id]; const st = sStatus(s); const now = Date.now();
@@ -1116,7 +1129,7 @@ function schedCard(id, noApply) { let h = '';
     const curI = steps.findIndex(x => !x[2]);
     h += `<div class="panel sched"><div class="sched-hd"><div><b>${fmtDate(id)} ${esc(s.time || '')}</b><span>📍 ${esc(s.venue || '')}</span></div><span class="dday sm">${dday(id)}</span></div>
       <ol class="tl">${steps.map(([l, v, done], i) => `<li class="${done ? 'done' : i === curI ? 'now' : ''}"><i></i><span>${l}</span><em>${v ? fmtDT(v) : done ? '완료' : i === 2 ? '신청 마감 후' : '-'}</em></li>`).join('')}</ol>
-      <div class="sched-ft"><span class="st st-${st.k}">${st.label}</span><span>신청 ${appTotal(s)}${s.capacity ? ' / ' + s.capacity : ''}명${appCounts(s).wait ? `, 대기 ${appCounts(s).wait}` : ''}</span></div>${noApply ? '' : (st.k === 'open' || applyState(s)?.k === 'in' ? `<div style="margin-top:10px">${applyBox(s, true)}</div>` : '')}</div>` }
+      <div class="sched-ft"><span class="st st-${st.k}">${st.label}</span><span>신청 ${appTotal(s)}${s.capacity ? ' / ' + s.capacity : ''}명${appCounts(s).wait ? `, 대기 ${appCounts(s).wait}` : ''}</span>${id >= today() ? `<button class="btn sm calbtn" data-act="caladd2" data-id="${id}">📅 캘린더에 추가</button>` : ''}</div>${noApply ? '' : (st.k === 'open' || applyState(s)?.k === 'in' ? `<div style="margin-top:10px">${applyBox(s, true)}</div>` : '')}</div>` }
   return h }
 function viewSchedule() {
   const all = Object.keys(S.sessions).sort(); const nx = nextSid(); const fit = S.dm;
@@ -2433,7 +2446,7 @@ document.addEventListener('click', async e => {
     case 'impopen': if (!needAdmin()) break; S.sheet = { type: 'import' }; render(); break;
     case 'impgo': { if (!needAdmin()) break; el.disabled = true; const ok = await importRecord(S.imp); el.disabled = false; if (ok) { S.sheet = null; S.imp = null; render() } break }
     case 'latecancel': if (!needAdmin()) break; await cancelApp(S.sid, id, null, true); break;
-    case 'schedshare': case 'scheddl': { const ym = S.schedYm || defaultMonth(); const c = await drawSchedule(ym); const b = await new Promise(r => c.toBlob(r, 'image/png')); await shareBlob(b, `WF_SCHEDULE_${ym.replace('-', '')}.png`, act === 'scheddl'); break }
+    case 'schedshare': case 'scheddl': { const ym = S.schedYm || defaultMonth(); const c = await drawSchedule(ym); const b = await new Promise(r => c.toBlob(r, 'image/png')); await shareBlob(b, `WF_일정_${ym.slice(0, 4)}년${+ym.slice(5)}월.png`, act === 'scheddl'); break }
     case 'dutyedit': if (!needAdmin()) break; S.sheet = { type: 'duty', sid: id }; render(); break;
     case 'dutytog': { const sid = S.sheet?.sid; const ss = S.sessions[sid]; const kind = el.dataset.kind; const cur1 = new Set(ss.duty?.[kind] || []); cur1.has(id) ? cur1.delete(id) : cur1.add(id); await w(() => S.store.update(sp(sid), { [`duty.${kind}`]: [...cur1] })); break }
     case 'parkedit': if (!needAdmin()) break; S.sheet = { type: 'park', sid: id }; render(); break;
@@ -2469,6 +2482,11 @@ document.addEventListener('click', async e => {
       if (await w(() => S.store.update(sp(S.sid), { 'room.colorOpen': true }))) sysChat('색 선택을 시작합니다. 주장님들 팀 색을 골라 주세요!'); break;
     case 'roommenu': S.sheet = { type: 'roommenu' }; render(); break;
     case 'stageback': if (!needAdmin()) break; await stageBack(el.dataset.v); break;
+    case 'caladd2': S.sheet = { type: 'calpick', id }; render(); break;
+    case 'calics': S.sheet = null; render(); await calDownload(id); break;
+    case 'calgoo': S.sheet = null; render(); window.open(calGoogle(id), '_blank', 'noopener'); break;
+    case 'rejguest': { const L = S.rejNames || []; S.rejNames = null; if (L.length) await addApplicants(L.map(n => n + '(게)')); else render(); break }
+    case 'rejclose': S.rejNames = null; render(); break;
     case 'aview': S.aview = el.dataset.v === 'time' ? 'time' : 'rank'; render(); break;
     case 'pairedit': { if (!needAdmin()) break; S.pairDraft = {}; S.sheet = { type: 'pairs' }; render(); break }
     case 'pairswap': { const m = M(id); if (!m) break; const D = (S.pairDraft ??= {}); const [hh, aa] = D[id] || [m.home, m.away]; D[id] = [aa, hh]; render(); break }

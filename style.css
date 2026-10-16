@@ -58,4 +58,5 @@ body:has(.mmfs){overflow:hidden}
 @media (max-width:440px){.pairrow{grid-template-columns:50px 1fr auto 1fr;gap:5px;padding:6px}.pairrow .bib{display:none}.pairrow select.inp{padding:6px 4px;font-size:14px}}
 .vtog{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:10px 0 8px}.vtog small{color:var(--muted);font-size:12px;margin-left:4px}
 .resetbar{margin-top:16px;border-style:dashed}.resetbar .row{flex-wrap:wrap;gap:8px}
-:root{--cssv:"0.21.24"}
+.calbtn{margin-left:auto}.sched-ft{flex-wrap:wrap;gap:6px}.rejbox{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:8px;border-color:var(--amber)}.rejbox .row{gap:6px}
+:root{--cssv:"0.21.25"}
