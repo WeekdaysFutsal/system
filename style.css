@@ -115,4 +115,13 @@ table.grid.aptbl{min-width:0!important;width:100%;table-layout:fixed}table.grid.
 .turnb{top:-14px!important;right:auto!important;left:50%;transform:translateX(-50%);font-size:13px!important;padding:4px 12px!important;letter-spacing:1px!important;animation:turnBadge 1.3s ease-in-out infinite;box-shadow:0 3px 10px rgba(0,0,0,.3)!important;white-space:nowrap}
 .seat.onturn.me .turnb::after{content:" · 내 차례!"}
 @media (prefers-reduced-motion:reduce){.seat.onturn,.turnb{animation:none}}
-:root{--cssv:"0.21.38"}
+@keyframes curPulse{0%,100%{box-shadow:0 0 0 3px #FFD21F,0 0 0 6px rgba(255,210,31,.35)}50%{box-shadow:0 0 0 3px #FFD21F,0 0 0 11px rgba(255,210,31,0)}}
+.flow2{display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;margin:2px 0 8px}
+.flow2 i{width:16px;height:16px;border-radius:50%;background:var(--tc);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55),0 1px 3px rgba(0,0,0,.35);display:inline-flex;align-items:center;justify-content:center;flex:none}
+.flow2 i.past{opacity:.3;transform:scale(.8)}
+.flow2 i.cur{width:38px;height:38px;margin:0 4px;animation:curPulse 1.2s ease-in-out infinite}
+.flow2 i.cur b{font-family:var(--latin);font-size:16px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+.flow2 em{color:rgba(255,255,255,.7);font-style:normal}
+.flow2 small{margin-left:6px;font-size:12px;font-weight:800;color:rgba(255,255,255,.85);font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){.flow2 i.cur{animation:none}}
+:root{--cssv:"0.21.39"}

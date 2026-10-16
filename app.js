@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.38';
+const APP_VERSION = '0.21.39';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -910,14 +910,13 @@ function feltHTML(s, ph) {
   if (ph === 'cardsrev') { if (!S.revT) S.revT = setTimeout(() => { S.revT = null; render() }, Math.max(50, s.cardgame.doneAt + CARD_REVEAL_MS - Date.now() + 60)); const g = s.cardgame;
     return `<div class="fx"><div class="rnd">STEP 2 · 순번 결정</div><div class="ocards">${(s.order || KEYS).map(k => { const t = team(s, k); return `<div class="ocard up big2" style="--tc:${t.color};--ti:${inkOn(t.color)}"><em>${g.deck[g.picks[k]]}</em><small>${esc(t.name)}</small></div>` }).join('')}</div><b>곧 팀원 선택을 시작해요!</b></div>` }
   if (ph === 'ladder') { if (!S.ladderT) S.ladderT = setTimeout(() => { S.ladderT = null; render() }, Math.max(50, s.ladder.at + LADDER_MS - Date.now() + 60)); return `<div class="fx"><div class="rnd">STEP 2 · 순번 정하기</div>${ladderSVG(s)}<p>순번을 정하는 중…</p></div>` }
-  if (ph === 'draft') { const i = (s.picks || []).length, tot = draftTotal(s); const k = pickTeamAt(s, i); const t = team(s, k); const pd = s.pending && s.pending.t === k ? s.pending.p : null;
-    const from = Math.max(0, i - 3), to = Math.min(tot, from + 12); const ord = s.order || KEYS;
-    const flow = `<div class="flow" aria-label="지명 순서">${Array.from({ length: to - from }, (_, x) => { const j = from + x; const kk = pickTeamAt(s, j); const tt = team(s, kk);
-      return `<span class="${j < i ? 'past' : j === i ? 'cur' : ''}" style="--tc:${tt.color};--ti:${inkOn(tt.color)}" title="${j + 1}순위 ${esc(tt.name)}">${ord.indexOf(kk) + 1}</span>` }).join('')}${to < tot ? '<em>…</em>' : ''}</div>`;
-    return `<div class="fx"><div class="rnd">STEP 3 · 팀원 선택 ${i + 1} / ${tot}</div>${flow}<b><span class="tok" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}</span> ${esc(pname(s.captains[k]))} 주장 차례${my === k ? ', 내 차례!' : ''}</b>
-      ${i ? (() => { const lp = s.picks[i - 1]; const lt = team(s, lp.t); return `<div class="lastpick">직전 지명 <span class="tok" style="background:${lt.color};color:${inkOn(lt.color)}">${esc(lt.name)}</span> <b>${esc(pname(lp.p))}</b></div>` })() : ''}
-      ${S.poolHTML || ''}<p>${pd ? `<b>${esc(pname(pd))}</b> 선택 · ${my === k || S.admin ? '선택 완료를 누르면 다음 주장에게 넘어가요.' : '주장이 선택 완료를 누르면 확정돼요.'}` : my === k ? '명단에서 선수를 눌러 고른 뒤 선택 완료를 누르세요.' : '선수를 고르는 중…'}</p>
-      ${my === k || S.admin ? `<div class="row" style="justify-content:center"><button class="btn primary cta done-btn" data-act="nextturn" ${pd ? '' : 'disabled'}>선택 완료 ▶</button>${S.admin && i ? '<button class="btn sm" data-act="undo">↶ 되돌리기</button>' : ''}</div>` : ''}</div>` }
+  if (ph === 'draft') { const i = (s.picks || []).length, tot = draftTotal(s); const k = pickTeamAt(s, i); const pd = s.pending && s.pending.t === k ? s.pending.p : null;
+    const from = Math.max(0, i - 4), to = Math.min(tot, from + 13);
+    const flow = `<div class="flow2" aria-label="지명 순서 ${i + 1} / ${tot}">${from > 0 ? '<em>…</em>' : ''}${Array.from({ length: to - from }, (_, x) => { const j = from + x; const tt = team(s, pickTeamAt(s, j));
+      return `<i class="${j < i ? 'past' : j === i ? 'cur' : ''}" style="--tc:${tt.color}" title="${j + 1}번째 · ${esc(tt.name)}">${j === i ? `<b>${j + 1}</b>` : ''}</i>` }).join('')}${to < tot ? '<em>…</em>' : ''}<small>${i + 1}/${tot}</small></div>`;
+    return `<div class="fx fx-draft">${flow}
+      ${S.poolHTML || ''}
+      ${my === k || S.admin ? `<div class="row" style="justify-content:center"><button class="btn primary cta done-btn" data-act="nextturn" ${pd ? '' : 'disabled'}>${pd ? `${esc(pname(pd))} 선택 완료 ▶` : '선수를 고르세요'}</button>${S.admin && i ? '<button class="btn sm" data-act="undo">↶ 되돌리기</button>' : ''}</div>` : ''}</div>` }
   return `<div class="fx"><b>드래프트 완료! 🎉</b><p>팀원조정 단계에서 밸런스를 맞춰요.</p></div>`;
 }
 function vDraft(s) {
@@ -1157,6 +1156,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.39', '2026.10.16', ['드래프트 화면을 간단하게: "○○ 주장 차례"·"직전 지명" 안내를 없애고, 지명 순서를 팀 색 동그라미로 보여 줘요. 지금 차례 동그라미가 크게 빛나요']],
   ['0.21.38', '2026.10.16', ['드래프트에서 차례인 팀 카드가 굵은 노란 테두리와 깜빡이는 빛으로 크게 강조되고, 다른 팀 카드는 흐리게 보여요']],
   ['0.21.37', '2026.10.16', ['드래프트에서 주장이 선수를 고르면 이름표가 남은 선수 명단에서 날아와 그 팀 카드 안으로 쏙 들어가요', '드래프트 참관자로 지정된 회원이 PC에서도 드래프트를 실시간으로 볼 수 있어요']],
   ['0.21.36', '2026.10.16', ['신청 현황 표를 순위순과 신청순으로 바꿔 볼 수 있어요']],
