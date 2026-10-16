@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.27';
+const APP_VERSION = '0.21.28';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -105,6 +105,8 @@ function team(s, k) { const t = s?.teams?.[k] || {}; const p = PALETTE.find(x =>
   return { name: k + '팀', color: NEUTRAL[k], picked: false } }
 function allPicked(s) { return KEYS.every(k => team(s, k).picked) }
 const memberNames = () => Object.values(S.players).map(p => p.name).sort((a, b) => a.localeCompare(b, 'ko'));
+const DEV_NAMES = ['박종현']; // 개발자: 운영진이 아니어도 운영모드 버튼이 보여요
+const canOp = () => S.admin || !S.auth || !!S.players[myPid()]?.staff || DEV_NAMES.includes(S.players[myPid()]?.name);
 function bib(c) { return `<span class="bib" style="background:${c}"></span>` }
 function tag(t) { return `<span class="teamtag" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}</span>` }
 function timing(s) { return { ...DEF_TIMING, ...(s?.timing || {}) } }
@@ -370,28 +372,32 @@ const FONT_FILES = [
   ['Pretendard', '400', 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-Regular.woff2'],
   ['Pretendard', '600', 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-SemiBold.woff2'],
   ['Pretendard', '800', 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-ExtraBold.woff2'],
-  ['PretendardH', '100 900', 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-ExtraBold.woff2']];
-function loadWebFonts() {
-  if (S.wfonts) return S.wfonts;
-  S.wfonts = (async () => { const ok = {};
-    await Promise.all(FONT_FILES.map(async ([fam, wt, url]) => { try { const f = new FontFace(fam, `url(${url}) format('woff2')`, { weight: wt, display: 'block' }); await Promise.race([f.load(), new Promise((_, rej) => setTimeout(() => rej('timeout'), 6000))]); document.fonts.add(f); ok[fam] = true } catch { } }));
-    return ok })();
-  return S.wfonts;
-}
-async function posterFonts(texts) {
-  const ok = await loadWebFonts(); const fb = '"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif';
-  const H = ok.PaperlogyH ? '"PaperlogyH"' : ok.PretendardH ? '"PretendardH"' : '"Black Han Sans"', B = ok.Pretendard ? '"Pretendard"' : '"IBM Plex Sans KR"';
+  ['PretendardH', '100 900', 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-ExtraBold.woff2'],
+  ['PaperlogyK', '100 900', 'https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-9Black.woff2'],
+  ['SCDreamH', '100 900', 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-8Heavy.woff', 'woff'],
+  ['SCDreamM', '100 900', 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-6Bold.woff', 'woff']];
+// 포스터 글꼴 (모두 무료 폰트). 'auto'는 디자인마다 어울리는 글꼴을 골라요.
+const POSTER_FONTS = [['auto', '디자인 추천', ''], ['paperlogy', '페이퍼로지', '"PaperlogyH"'], ['paperlogyk', '페이퍼로지 블랙', '"PaperlogyK"'], ['scdream', '에스코어드림', '"SCDreamH"'], ['pretendard', '프리텐다드', '"PretendardH"'], ['nanumgothic', '나눔고딕', '"Nanum Gothic"'], ['nanummyeongjo', '나눔명조', '"Nanum Myeongjo"'], ['nanumpen', '나눔손글씨 펜', '"Nanum Pen Script"'], ['nanumbrush', '나눔손글씨 붓', '"Nanum Brush Script"']];
+const THEME_FONT = { stadium: 'paperlogy', night: 'scdream', clean: 'pretendard', stripe: 'paperlogyk' };
+function posterFontOf(s, th) { const f = s?.posterFont || S.meta?.poster?.font || 'auto'; const k = POSTER_FONTS.some(x => x[0] === f) ? f : 'auto'; return k === 'auto' ? THEME_FONT[th] || 'paperlogy' : k }
+function loadNanum() { if (S.nanumCss) return S.nanumCss; S.nanumCss = new Promise(res => { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Nanum+Brush+Script&family=Nanum+Gothic:wght@800&family=Nanum+Myeongjo:wght@800&family=Nanum+Pen+Script&display=block'; l.onload = () => res(true); l.onerror = () => res(false); document.head.appendChild(l); setTimeout(() => res(false), 6000) }); return S.nanumCss }
+function loadFam(fam) { S.wf ??= {}; if (S.wf[fam]) return S.wf[fam]; // 필요한 글꼴만 그때그때 받아요
+  return (S.wf[fam] = Promise.all(FONT_FILES.filter(f => f[0] === fam).map(async ([f0, wt, url, fmt]) => { const f = new FontFace(f0, `url(${url}) format('${fmt || 'woff2'}')`, { weight: wt, display: 'block' }); await Promise.race([f.load(), new Promise((_, rej) => setTimeout(() => rej('timeout'), 8000))]); document.fonts.add(f) })).then(() => true, () => false)) }
+async function loadWebFonts(extra) { const fams = ['PaperlogyH', 'Pretendard', ...(extra || [])]; const r = await Promise.all(fams.map(loadFam)); const ok = {}; fams.forEach((f, i) => { if (r[i]) ok[f] = true }); return ok }
+async function posterFonts(texts, fontKey) {
+  const pick = POSTER_FONTS.find(x => x[0] === fontKey); const fam = pick?.[2]?.replace(/"/g, ''); const ok = await loadWebFonts(fam && FONT_FILES.some(f => f[0] === fam) ? [fam] : []); const fb = '"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif'; if (pick && fontKey.startsWith('nanum')) await loadNanum();
+  const base = ok.PaperlogyH ? '"PaperlogyH"' : ok.PretendardH ? '"PretendardH"' : '"Black Han Sans"'; const H = pick && pick[2] && (fontKey.startsWith('nanum') || ok[pick[2].replace(/"/g, '')]) ? `${pick[2]},${base}` : base, B = ok.Pretendard ? '"Pretendard"' : '"IBM Plex Sans KR"';
   const all = [...new Set((texts || []).join(' ') + ' 0123456789월화수목금토일요일회차일시장소신청예약자구장비밀번호공지')].join('');
-  try { await Promise.all([`900 80px ${H}`, `800 60px ${H}`, `400 40px ${B}`, `700 40px ${B}`, `80px "Anton"`].map(f => document.fonts.load(f, all))) } catch { }
+  try { await Promise.all([`900 80px ${H}`, `800 60px ${H}`, `80px ${H}`, `400 40px ${B}`, `700 40px ${B}`, `80px "Anton"`].map(f => document.fonts.load(f, all))) } catch { }
   return { LAT: `"Anton",${H},Impact,sans-serif`, KR: `${H},${fb}`, BD: `${B},${fb}`, H, B };
 }
 const POSTER_THEMES = [['stadium', '스타디움', '#1B4AA8', '#23692C'], ['night', '나이트', '#05070F', '#FFD21F'], ['clean', '클린', '#F4F6FA', '#0B1E5B'], ['stripe', '팀 컬러', '#D7263D', '#1E46C8']];
 function posterTheme(s) { const t = s?.posterTheme || S.meta?.poster?.theme; return POSTER_THEMES.some(x => x[0] === t) ? t : 'stadium' }
 function wrapText(g, text, maxW, maxLines) { const out = []; for (const para of String(text || '').split('\n')) { let line = ''; for (const ch of para) { if (g.measureText(line + ch).width > maxW && line) { out.push(line); line = ch } else line += ch } out.push(line) } return out.filter((l, i, a) => l.trim() || (i > 0 && i < a.length - 1)).slice(0, maxLines) }
-async function drawPoster(s, theme) {
-  const th = theme || posterTheme(s);
+async function drawPoster(s, theme, font) {
+  const th = theme || posterTheme(s); const fk = font || posterFontOf(s, th);
   const W = 1086, H = 1448; const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
-  const PF = await posterFonts([s.venue || '', s.notice || '', s.evpw || '', ...KEYS.flatMap(k => teamPlayers(s, k).map(pname)), ...KEYS.map(k => team(s, k).name)]);
+  const PF = await posterFonts([s.venue || '', s.notice || '', s.evpw || '', ...KEYS.flatMap(k => teamPlayers(s, k).map(pname)), ...KEYS.map(k => team(s, k).name)], fk);
   const img = await emblem(); const LAT = PF.LAT, KR = PF.KR;
   const light = th === 'clean';
   const T = { stadium: { head: '#fff', stroke: '#0A0F1E', acc: '#FFD600', card: 'solid', bar: 'rgba(8,10,16,.93)', barInk: '#fff', barLine: 'rgba(255,255,255,.9)' },
@@ -584,7 +590,7 @@ function appbar() {
   const s = S.sid ? S.sessions[S.sid] : null; const back = false;
   return `<header class="appbar"><div class="in">${back ? '<button class="back" data-act="home" aria-label="경기일 목록">‹</button>' : `<img src="${EMBLEM_SRC}" alt="홈으로" data-act="gohome" style="cursor:pointer">`}
   <div class="ttl" data-act="gohome" role="button" tabindex="0" aria-label="홈으로"><b>${esc(CFG.club?.name || 'WEEKDAYS FUTSAL CLUB')}</b><span></span></div>
-  ${!S.dm && !S.admin && S.auth ? `<button class="mmtop ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" aria-label="${S.tab === 'mm' ? '일반모드로 돌아가기' : '경기모드 열기'}"><span class="mmball">⚽</span><b>${S.tab === 'mm' ? '일반모드' : '경기모드'}</b>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : ''}${S.auth && !S.admin ? (() => { const n = (S.inbox || []).filter(x => !x.read).length; return `<button class="bell" data-act="inbox" aria-label="받은 알림${n ? ' ' + n + '개 안 읽음' : ''}">🔔${n ? `<i>${n > 9 ? '9+' : n}</i>` : ''}</button>` })() : ''}${S.admin || !S.auth || S.players[myPid()]?.staff ? `<button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">운영모드</button>` : ''}</div>${capStrip()}</header>`;
+  ${!S.dm && !S.admin && S.auth ? `<button class="mmtop ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" aria-label="${S.tab === 'mm' ? '일반모드로 돌아가기' : '경기모드 열기'}"><span class="mmball">⚽</span><b>${S.tab === 'mm' ? '일반모드' : '경기모드'}</b>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : ''}${S.auth && !S.admin ? (() => { const n = (S.inbox || []).filter(x => !x.read).length; return `<button class="bell" data-act="inbox" aria-label="받은 알림${n ? ' ' + n + '개 안 읽음' : ''}">🔔${n ? `<i>${n > 9 ? '9+' : n}</i>` : ''}</button>` })() : ''}${canOp() ? `<button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">운영모드</button>` : ''}</div>${capStrip()}</header>`;
 }
 function tabs() {
   const t = S.admin ? [['manage', '일정'], ['run', '경기'], ['notice', '공지'], ['members', '회원'], ['settings', '설정']] : [['mhome', '홈'], ['sched', '일정'], ...(isDesk() ? [] : [['mm', '경기모드']]), ['results', '경기결과'], capSid() ? ['draft', '팀 선정'] : viewSid() ? ['draft', '드래프트 참관'] : ['settings', '내 정보']];
@@ -857,8 +863,9 @@ function vNotice(s, inMenu) {
   if (!ready) return form + `<div class="notice warn" style="margin-top:12px">아직 팀 색을 고르지 않은 팀이 있어요. 팀 색이 정해지면 포스터가 만들어져요. 위 내용은 미리 입력해 둘 수 있어요.</div>`;
   if (!img) queueMicrotask(refreshPoster);
   const picker = ad ? `<h2>포스터 디자인<small>골라서 배포하세요</small></h2><div class="pthemes">${POSTER_THEMES.map(([k, n, c1, c2]) => { const t = S.pthumb?.[S.sid + ':' + k]; return `<button class="pth ${k === th ? 'on' : ''}" data-act="ptheme" data-v="${k}" aria-pressed="${k === th}">${t ? `<img src="${t}" alt="">` : `<span class="pth-ph" style="background:linear-gradient(160deg,${c1} 0 55%,${c2} 55%)"></span>`}<b>${n}</b></button>` }).join('')}</div>` : '';
+  const curF = s.posterFont || S.meta?.poster?.font || 'auto'; const fpick = ad ? `<h2>포스터 글꼴<small>모두 무료 글꼴이에요</small></h2><div class="pfonts">${POSTER_FONTS.map(([k, n, fam]) => `<button class="pfo ${k === curF ? 'on' : ''}" data-act="pfont" data-v="${k}" aria-pressed="${k === curF}" ${fam ? `style="font-family:${fam.replace(/"/g, "'")},inherit"` : ''}>${n}${k === 'auto' ? `<small>${POSTER_FONTS.find(x => x[0] === THEME_FONT[th])?.[1] || ''}</small>` : ''}</button>`).join('')}</div>` : '';
   if (ad) queueMicrotask(posterThumbs);
-  let h = `<div class="dgrid"><section>${form}${picker}</section><section><h2>공지 이미지 미리보기</h2><img class="poster" alt="매치데이 공지 이미지 미리보기" src="${img || ''}" width="1086" height="1448">
+  let h = `<div class="dgrid"><section>${form}${picker}${fpick}</section><section><h2>공지 이미지 미리보기</h2><img class="poster" alt="매치데이 공지 이미지 미리보기" src="${img || ''}" width="1086" height="1448">
   <div class="row" style="margin-top:10px"><button class="btn primary" data-act="share">공유하기</button><button class="btn" data-act="download">이미지 저장</button></div>
   <button class="btn block" style="margin-top:8px" data-act="copytext">공지 텍스트 복사</button>`;
   if (ad && !inMenu) h += sessMatches(s.date).length ? `<div style="height:14px"></div><button class="btn block" data-act="gorun" data-id="${s.date}" data-step="match">경기 진행 화면으로</button>` : `<div style="height:14px"></div><button class="btn primary block" data-act="mkmatches">경기 일정 만들기 (9경기)</button>`;
@@ -970,6 +977,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.28', '2026.10.16', ['[운영진] 공지 포스터 글꼴을 페이퍼로지·에스코어드림·프리텐다드·나눔고딕·나눔명조·나눔손글씨(펜·붓) 중에서 고를 수 있어요. "디자인 추천"을 고르면 디자인마다 어울리는 글꼴이 자동으로 들어가요', '포스터 글꼴은 필요한 것만 그때그때 받아서 더 빨리 그려져요']],
   ['0.21.27', '2026.10.16', ['[운영진] 공지 메뉴 맨 위에서 엘리베이터 비밀번호와 공지사항(최대 3줄)을 입력하면 포스터에 바로 반영돼요. 팀 색이 정해지기 전에도 미리 입력할 수 있어요', '[운영진] 공지 포스터 디자인을 스타디움·나이트·클린·팀 컬러 4가지 중에서 골라 배포할 수 있어요']],
   ['0.21.26', '2026.10.16', ['디자인 다듬기: 운영모드 버튼은 운영진에게만 보이고, 회원은 내 정보 맨 아래에서 들어갈 수 있어요', 'PC 홈의 MATCH REVIEW에 지난 경기 9경기 결과가 한눈에 보여요', '신청자 보기에서 내 상태가 색으로 구분되고, 대기자는 대기 순번과 순위로 보여요', '경기모드에서 고를 경기가 없을 때 불필요한 선택 칸을 숨겼어요', '[운영진] 신청자 표의 순위 규칙 설명을 접어 두고, 당번 요약과 달력 범례가 휴대폰에서 깔끔하게 보여요']],
   ['0.21.25', '2026.10.16', ['일정 카드의 "📅 캘린더에 추가"로 경기 일정을 아이폰·구글 캘린더에 넣을 수 있어요(경기 2시간 전 알림)', '[운영진] 신청자 직접 추가 때 회원 명단에 없는 이름은 "게스트로 추가" 버튼으로 바로 넣을 수 있어요', '공지 이미지 저장 파일명에 날짜와 회차가 들어가요']],
@@ -1076,7 +1084,7 @@ function viewSettings() {
     <button class="btn danger block" style="margin-top:10px" data-act="clrpractice">연습 데이터 모두 지우기${Object.values(S.sessions).filter(x => x.practice).length ? ` (${Object.values(S.sessions).filter(x => x.practice).length}개)` : ''}</button></div>` : ''}
   ${S.admin ? `<h2>샘플 데이터</h2><div class="panel pad"><p class="muted" style="margin:0 0 10px">화면 확인용 가상 회원, 지난 경기 2개, 다음 경기 1개를 넣거나 지워요. 직접 입력한 데이터는 건드리지 않아요.</p><div class="row"><button class="btn" data-act="addsample">샘플 데이터 넣기</button><button class="btn danger" data-act="clearsample">샘플 데이터 모두 지우기</button></div></div>` : ''}
   <div class="verbox"><div><span>앱 버전</span><b>${APP_VERSION}</b></div><div class="verbtns"><button class="btn sm" data-act="changelog">업데이트 내용</button><button class="btn sm" data-act="appreload">최신 버전 확인</button></div></div>
-  <p class="note" style="text-align:center;margin:8px 0 0">새 기능이 안 보이면 "최신 버전 확인"을 눌러 주세요.</p>${!S.admin && !S.players[myPid()]?.staff ? '<p style="text-align:center;margin:14px 0 0"><button class="linkbtn opentry" data-act="opmode">운영진 모드로 들어가기</button></p>' : ''}</div>`;
+  <p class="note" style="text-align:center;margin:8px 0 0">새 기능이 안 보이면 "최신 버전 확인"을 눌러 주세요.</p>${!canOp() ? '<p style="text-align:center;margin:14px 0 0"><button class="linkbtn opentry" data-act="opmode">운영진 모드로 들어가기</button></p>' : ''}</div>`;
 }
 /* ───────── member views ───────── */
 function dt(str) { return str ? new Date(str) : null }
@@ -2527,7 +2535,9 @@ document.addEventListener('click', async e => {
     case 'calgoo': S.sheet = null; render(); window.open(calGoogle(id), '_blank', 'noopener'); break;
     case 'rejguest': { const L = S.rejNames || []; S.rejNames = null; if (L.length) await addApplicants(L.map(n => n + '(게)')); else render(); break }
     case 'rejclose': S.rejNames = null; render(); break;
-    case 'ptheme': { if (!needAdmin()) break; const v = el.dataset.v; if (!POSTER_THEMES.some(x => x[0] === v)) break; document.querySelectorAll('.pth').forEach(b => b.classList.toggle('on', b.dataset.v === v)); await w(() => S.store.update(sp(S.sid), { posterTheme: v })); S.store.set('meta/poster', { theme: v }).catch(() => { }); const ss = { ...cur(), posterTheme: v }; const cv = await drawPoster(ss, v); S.poster[S.sid] = cv.toDataURL('image/png'); const im = document.querySelector('img.poster:not(.schedimg)'); if (im) im.src = S.poster[S.sid]; toast(`${POSTER_THEMES.find(x => x[0] === v)[1]} 디자인으로 바꿨어요.`); break }
+    case 'ptheme': { if (!needAdmin()) break; const v = el.dataset.v; if (!POSTER_THEMES.some(x => x[0] === v)) break; document.querySelectorAll('.pth').forEach(b => b.classList.toggle('on', b.dataset.v === v)); await w(() => S.store.update(sp(S.sid), { posterTheme: v })); S.store.set('meta/poster', { ...(S.meta?.poster || {}), theme: v }).catch(() => { }); const ss = { ...cur(), posterTheme: v }; const cv = await drawPoster(ss, v); S.poster[S.sid] = cv.toDataURL('image/png'); const im = document.querySelector('img.poster:not(.schedimg)'); if (im) im.src = S.poster[S.sid]; toast(`${POSTER_THEMES.find(x => x[0] === v)[1]} 디자인으로 바꿨어요.`); break }
+    case 'pfont': { if (!needAdmin()) break; const v = el.dataset.v; if (!POSTER_FONTS.some(x => x[0] === v)) break; document.querySelectorAll('.pfo').forEach(b => b.classList.toggle('on', b.dataset.v === v)); toast('글꼴을 불러오는 중이에요…'); await w(() => S.store.update(sp(S.sid), { posterFont: v })); S.store.set('meta/poster', { ...(S.meta?.poster || {}), font: v }).catch(() => { });
+      for (const k in (S.pthumb || {})) if (k.startsWith(S.sid + ':')) delete S.pthumb[k]; const ss = { ...cur(), posterFont: v }; const cv = await drawPoster(ss); S.poster[S.sid] = cv.toDataURL('image/png'); const im = document.querySelector('img.poster:not(.schedimg)'); if (im) im.src = S.poster[S.sid]; posterThumbs(); toast(`${POSTER_FONTS.find(x => x[0] === v)[1]} 글꼴로 바꿨어요.`); break }
     case 'aview': S.aview = el.dataset.v === 'time' ? 'time' : 'rank'; render(); break;
     case 'pairedit': { if (!needAdmin()) break; S.pairDraft = {}; S.sheet = { type: 'pairs' }; render(); break }
     case 'pairswap': { const m = M(id); if (!m) break; const D = (S.pairDraft ??= {}); const [hh, aa] = D[id] || [m.home, m.away]; D[id] = [aa, hh]; render(); break }
