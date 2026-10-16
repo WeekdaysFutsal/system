@@ -116,7 +116,7 @@ table.grid.aptbl{min-width:0!important;width:100%;table-layout:fixed}table.grid.
 .seat.onturn.me .turnb::after{content:" · 내 차례!"}
 @media (prefers-reduced-motion:reduce){.seat.onturn,.turnb{animation:none}}
 @keyframes curPulse{0%,100%{box-shadow:0 0 0 3px #FFD21F,0 0 0 6px rgba(255,210,31,.35)}50%{box-shadow:0 0 0 3px #FFD21F,0 0 0 11px rgba(255,210,31,0)}}
-.flow2{display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;margin:2px 0 8px}
+.flow2{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:nowrap;margin:0 0 4px;padding:10px 8px;overflow:hidden}
 .flow2 i{width:16px;height:16px;border-radius:50%;background:var(--tc);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55),0 1px 3px rgba(0,0,0,.35);display:inline-flex;align-items:center;justify-content:center;flex:none}
 .flow2 i.past{opacity:.3;transform:scale(.8)}
 .flow2 i.cur{width:38px;height:38px;margin:0 4px;animation:curPulse 1.2s ease-in-out infinite}
@@ -124,4 +124,10 @@ table.grid.aptbl{min-width:0!important;width:100%;table-layout:fixed}table.grid.
 .flow2 em{color:rgba(255,255,255,.7);font-style:normal}
 .flow2 small{margin-left:6px;font-size:12px;font-weight:800;color:rgba(255,255,255,.85);font-variant-numeric:tabular-nums}
 @media (prefers-reduced-motion:reduce){.flow2 i.cur{animation:none}}
-:root{--cssv:"0.21.39"}
+.nb{display:inline-flex!important;align-items:center;gap:6px;padding-left:5px!important}
+.nb .pico,.flytag .pico{flex:none;width:24px;height:24px;border-radius:50%;background:linear-gradient(160deg,#1E46C8,#0B1E5B);display:inline-flex;align-items:flex-end;justify-content:center;overflow:hidden;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55)}
+.nb .pico svg,.flytag .pico svg{width:19px;height:19px;fill:#fff;margin-bottom:-1px}
+.nb.pend .pico{background:var(--tc)}
+.nb .nbn{white-space:nowrap}
+.flytag{gap:6px;padding:0 10px 0 5px}.flytag .pico{background:rgba(0,0,0,.25)}
+:root{--cssv:"0.21.40"}
