@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.47';
+const APP_VERSION = '0.21.48';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -702,7 +702,7 @@ function draftSnap() { if (S.flySnap && Date.now() - S.flySnap.at < 600) return;
   const r = {}; pool.forEach(b => { const q = b.getBoundingClientRect(); if (q.width) r[b.dataset.id] = { x: q.left, y: q.top, w: q.width, h: q.height, cs: getComputedStyle(b) } }); S.flySnap = { at: Date.now(), pool: r, had: new Set([...stk].map(e => e.dataset.pid)) } }
 function draftFly() { const snap = S.flySnap; S.flySnap = null; if (!snap || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   document.querySelectorAll('.seat [data-pid]').forEach(el => { const pid = el.dataset.pid, from = snap.pool[pid]; if (snap.had.has(pid) || !from) return; const to = el.getBoundingClientRect(); if (!to.width) return;
-    const f = document.createElement('div'); f.className = 'flytag pf'; f.innerHTML = figHTML(pname(pid)); Object.assign(f.style, { left: from.x + 'px', top: from.y + 'px', width: from.w + 'px', height: from.h + 'px' });
+    const f = document.createElement('div'); f.className = 'flytag jf'; f.innerHTML = figHTML(pname(pid)); Object.assign(f.style, { left: from.x + 'px', top: from.y + 'px', width: from.w + 'px', height: from.h + 'px' });
     const seat = el.closest('.seat'); const tc = seat ? getComputedStyle(seat).getPropertyValue('--tc').trim() : ''; const ti = seat ? getComputedStyle(seat).getPropertyValue('--ti').trim() : ''; if (tc) { f.style.setProperty('--tc', tc); f.style.setProperty('--ti', ti || '#fff') } document.body.appendChild(f); setTimeout(() => f.classList.add('vest'), 280); el.style.visibility = 'hidden';
     const dx = to.left + to.width / 2 - (from.x + from.w / 2), dy = to.top + to.height / 2 - (from.y + from.h / 2), sc = Math.max(.45, Math.min(1.2, to.height / from.h)), lift = -Math.min(140, 60 + Math.abs(dx) * .15);
     const an = f.animate([{ transform: 'translate(0,0) scale(1) rotate(0deg)', offset: 0 }, { transform: `translate(${dx * .5}px,${dy * .5 + lift}px) scale(1.18) rotate(${dx > 0 ? 8 : -8}deg)`, offset: .45 }, { transform: `translate(${dx}px,${dy}px) scale(${sc}) rotate(0deg)`, offset: 1 }], { duration: 720, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'forwards' });
@@ -881,8 +881,8 @@ function seatHTML(s, k, ph) {
       <div class="sinfo"><span class="tok">${esc(t.name)}</span><b class="cnt2">${cap ? ps.length + 1 : 0}<small>명</small></b></div></div>
     ${(() => { const mine = me || S.admin; const adm = S.admin; const pend = s.pending && s.pending.t === k ? s.pending.p : null; const last = (s.picks || []).slice(-1)[0]; const seen = (S.seenStk ??= new Set());
       const items = ps.map(id => { const key = s.date + ':' + id; const nw = !seen.has(key); seen.add(key); const can = adm && last && last.p === id && last.t === k;
-        return can ? `<button class="pf mini vest ${nw ? 'new' : ''} ${can ? 'undo' : ''}" data-act="unpick" data-id="${id}" data-pid="${id}" title="${can ? '눌러서 선택 취소' : ''}">${figHTML(pname(id) + (can ? ' ✕' : ''))}</button>` : `<div class="pf mini vest ${nw ? 'new' : ''}" data-pid="${id}">${figHTML(pname(id))}</div>` });
-      if (pend) items.push(mine ? `<button class="pf mini vest pendstk" data-act="unpick" data-id="${pend}" data-pid="${pend}">${figHTML(pname(pend) + ' ✕')}</button>` : `<div class="pf mini vest pendstk" data-pid="${pend}">${figHTML(pname(pend))}</div>`);
+        return can ? `<button class="jf mini vest ${nw ? 'new' : ''} ${can ? 'undo' : ''}" data-act="unpick" data-id="${id}" data-pid="${id}" title="${can ? '눌러서 선택 취소' : ''}">${figHTML(pname(id) + (can ? ' ✕' : ''))}</button>` : `<div class="jf mini vest ${nw ? 'new' : ''}" data-pid="${id}">${figHTML(pname(id))}</div>` });
+      if (pend) items.push(mine ? `<button class="jf mini vest pendstk" data-act="unpick" data-id="${pend}" data-pid="${pend}">${figHTML(pname(pend) + ' ✕')}</button>` : `<div class="jf mini vest pendstk" data-pid="${pend}">${figHTML(pname(pend))}</div>`);
       return items.length ? `<div class="stk pfs-row">${items.join('')}</div>` : '' })()}
     ${me && !inRoom && ph !== 'done' ? `<button class="btn sm primary cta" data-act="joinroom" data-k="${k}">입장하기</button>` : ''}</div>`;
 }
@@ -942,7 +942,7 @@ function vDraft(s) {
   const pk = {}; (s.picks || []).forEach((x, i) => pk[x.p] = { t: x.t, n: i + 1 }); const caps = captainsOf(s);
   const inTeam = new Set(KEYS.flatMap(k => teamPlayers(s, k))); const list = byName((s.applicants || []).filter(id => !caps.includes(id) && !pk[id] && !inTeam.has(id)));
   S.poolHTML = ph === 'draft' ? `<div class="pool"><div class="pool-hd">남은 선수 ${list.length}명 · ${canPick ? '눌러서 선택' : '내 차례에만 선택할 수 있어요'}</div><div class="namegrid">${list.map(id => { const pend = s.pending?.p === id; const pt = pend ? team(s, s.pending.t) : null;
-    return `<button class="pf pfb ${pend ? 'pend vest' : ''}" ${pt ? `style="--tc:${pt.color};--ti:${inkOn(pt.color)}"` : ''} data-act="pick" data-id="${id}" ${canPick ? '' : 'disabled'}>${figHTML(pname(id))}</button>` }).join('')}</div></div>` : '';
+    return `<button class="jf pfb ${pend ? 'pend vest' : ''}" ${pt ? `style="--tc:${pt.color};--ti:${inkOn(pt.color)}"` : ''} data-act="pick" data-id="${id}" ${canPick ? '' : 'disabled'}>${figHTML(pname(id))}</button>` }).join('')}</div></div>` : '';
   // middle: board
   const o = s.order && orderDecided(s) && ph !== 'ladder' && ph !== 'cards' ? s.order : KEYS; const [L, B, R] = o;
   const hIn = !!s.room?.admin?.in, hNm = s.room?.admin?.name && s.room.admin.name !== '운영진' ? s.room.admin.name : '', np = (s.picks || []).length;
@@ -1180,6 +1180,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.48', '2026.10.16', ['PC 운영모드 일정 메뉴의 달력이 화면 아래까지 길게 늘어나지 않고 적당한 크기로 보여요', '경기 상세의 회차·시간·신청 날짜 입력칸이 좁게 찌그러지던 문제를 고쳤어요']],
   ['0.21.47', '2026.10.16', ['PC 드래프트 화면에서 주장 카드에 들어간 선수 이름을 크게 키웠어요. 유니폼 위로 넘쳐도 테두리 글씨라 잘 보여요']],
   ['0.21.46', '2026.10.16', ['드래프트 선수 아이콘을 머리 없는 반팔 유니폼 모양으로 단순하게 바꿨어요. 안 뽑힌 선수는 흰 유니폼, 뽑히면 팀색 유니폼이에요', '이름이 길어도 잘리지 않게 글자 크기가 자동으로 맞춰져요']],
   ['0.21.45', '2026.10.16', ['드래프트 선수 아이콘을 사람 상반신 모양으로 바꾸고, 뽑히면 팀색 훈련 조끼를 입어요. 남은 인원에 맞춰 축구장을 꽉 채우는 크기로 보여요', '확정된 지명 되돌리기는 운영진만 할 수 있어요', '축구장 위에 운영진 박스를 주장 카드처럼 두고, 그 안에 되돌리기·확정·진행 메뉴 버튼을 모았어요', '마지막 선수가 배치돼도 자동으로 넘어가지 않고 그대로 멈춰요. 운영진이 드래프트 확정을 눌러야 끝나요']],
