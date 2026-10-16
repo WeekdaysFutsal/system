@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.21';
+const APP_VERSION = '0.21.22';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -590,6 +590,7 @@ function vApply(s) {
   if (ad && ast.k === 'open') h += `<div class="row" style="margin-top:10px"><button class="btn" data-act="closenow">지금 신청 마감하기</button></div>`;
   if (s.stage !== 'apply' && ids.length % 3 && ids.length) h += `<p class="note">${ids.length}명은 3팀으로 딱 나눠지지 않아요. 한 팀이 ${Math.ceil(ids.length / 3)}명이 돼요.</p>`;
   if (ad) h += `<div style="height:14px"></div><button class="btn primary block" data-act="gostage" data-v="captain" ${(s.stage === 'apply' ? cc.sel : ids.length) < 3 ? 'disabled' : ''}>${s.stage === 'apply' ? '신청 확정하고 주장 정하기' : '다음: 주장 정하기'}</button>`;
+  if (ad && s.stage !== 'apply') h += resetBar(s);
   return h;
 }
 function vCaptain(s) {
@@ -600,7 +601,7 @@ function vCaptain(s) {
   h += `<p class="note">드래프트 방에서 주장들이 입장하면 ① 팀 색 선택 → ② 사다리 타기로 순번 선정 → ③ 팀원 선택 순서로 진행해요. 색이 정해지기 전까지 팀 이름은 A팀, B팀, C팀이에요.</p>`;
   if (S.admin && s.draftStatus === 'ready') h += `<div style="height:12px"></div><button class="btn primary block cta" data-act="openroom" ${KEYS.some(k => !s.captains?.[k]) ? 'disabled' : ''}>드래프트 방 열기</button>`;
   if (S.admin) { const vs = s.viewers || []; const pool = byName(Object.keys(S.players).filter(id => mstatus(S.players[id]) !== 'dormant' && !captainsOf(s).includes(id)));
-    h += `<h2>드래프트 참관자<small>지정한 회원만 드래프트를 볼 수 있어요 (${vs.length}명)</small></h2><div class="panel pad"><div class="dpick">${pool.map(id => `<button class="chip ${vs.includes(id) ? 'sel' : ''}" data-act="viewertog" data-id="${id}">${vs.includes(id) ? '👀 ' : ''}${esc(pname(id))}</button>`).join('')}</div></div>` }
+    h += `<h2>드래프트 참관자<small>지정한 회원만 드래프트를 볼 수 있어요 (${vs.length}명)</small></h2><div class="panel pad"><div class="dpick">${pool.map(id => `<button class="chip ${vs.includes(id) ? 'sel' : ''}" data-act="viewertog" data-id="${id}">${vs.includes(id) ? '👀 ' : ''}${esc(pname(id))}</button>`).join('')}</div></div>`; h += resetBar(s) }
   return h;
 }
 /* ───────── draft room (board game) ───────── */
@@ -724,7 +725,7 @@ function vDraft(s) {
   h += S.dm ? `<div class="board-table dmbt">${hostH}<div class="felt">${feltHTML(s, ph)}</div><div class="seatrow"><div class="pos-l">${seatHTML(s, L, ph)}</div><div class="pos-b">${seatHTML(s, B, ph)}</div><div class="pos-r">${seatHTML(s, R, ph)}</div></div></div>`
     : `<h2>드래프트 테이블</h2><div class="board-table">${hostH}
     <div class="pos-l">${seatHTML(s, L, ph)}</div><div class="felt">${feltHTML(s, ph)}</div><div class="pos-r">${seatHTML(s, R, ph)}</div><div class="pos-b">${seatHTML(s, B, ph)}</div></div>`;
-  if (S.admin && ph !== 'closed' && !S.dm) h += `<div class="row" style="margin-top:10px">${ph === 'draft' && !(s.picks || []).length ? '<button class="btn sm primary" data-act="ordedit">✎ 순번 직접 바꾸기</button>' : ''}${(ph === 'draft' || ph === 'cards') && !(s.picks || []).length ? '<button class="btn sm" data-act="reorder">순번 다시 정하기</button>' : ''}<button class="btn sm danger" data-act="resetroom">드래프트 처음부터</button></div>`;
+  if (S.admin && ph !== 'closed' && !S.dm) h += `<div class="row" style="margin-top:10px">${ph === 'draft' && !(s.picks || []).length ? '<button class="btn sm primary" data-act="ordedit">✎ 순번 직접 바꾸기</button>' : ''}${(ph === 'draft' || ph === 'cards') && !(s.picks || []).length ? '<button class="btn sm" data-act="reorder">순번 다시 정하기</button>' : ''}<button class="btn sm danger" data-act="resetroom">드래프트 처음부터</button><button class="btn sm" data-act="stageback" data-v="captain">↺ 주장 지정 단계로</button><button class="btn sm" data-act="stageback" data-v="apply">↺ 신청 단계로</button></div>`;
   if ((S.chatSeen ??= {})[S.sid] === undefined && S.chatSid === S.sid && S.chat.length) S.chatSeen[S.sid] = S.chat.length;
   // bottom: chat
   h += chatPanel(true);
@@ -819,6 +820,7 @@ function vTrade(s) {
         : `<li class="${S.sel === id ? 'swap' : ''}">${ad ? `<button data-act="selswap" data-id="${id}"><span>${esc(pname(id))}</span></button>` : `<span>${esc(pname(id))}</span>`}</li>`).join('')}</ol></div>` }).join('')}</div>`;
   if (ad) h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="goposter" data-id="${s.date}" ${allPicked(s) ? '' : 'disabled'}>👥 팀 공지 이미지 (공지 메뉴)</button><button class="btn primary" data-act="mkmatches" ${allPicked(s) ? '' : 'disabled'}>${sessMatches(s.date).length ? '경기진행으로 →' : '팀 확정하고 경기 일정 만들기 →'}</button></div>`;
   h += chatPanel(!!(my || S.admin));
+  if (S.admin) h += resetBar(s);
   return h;
 }
 function vNotice(s, inMenu) {
@@ -919,7 +921,7 @@ function viewSheet() {
     h += `<h4>${esc(team(s, sh.k).name)} 팀 색 바꾸기</h4><p>다른 팀이 쓰는 색은 고를 수 없어요.</p><div class="pick cpick">${PALETTE.map(p => { const by = KEYS.find(o => o !== sh.k && s.teams?.[o]?.colorName === p.name);
       return `<button class="${cur0 === p.name ? 'cur' : ''}" style="background:${p.color};color:${inkOn(p.color)}" data-act="colorset" data-c="${p.name}" ${by ? 'disabled' : ''}>${p.name}${by ? '<small>사용 중</small>' : cur0 === p.name ? '<small>지금 색</small>' : ''}</button>` }).join('')}</div>` }
   else if (sh.type === 'roommenu') { const s = cur(); const ph = roomPhase(s);
-    h += `<h4>진행 메뉴</h4><p>드래프트 진행을 조정해요.</p><div class="pick" style="grid-template-columns:1fr">${ph === 'draft' && (s.picks || []).length ? '<button data-act="undo">↶ 마지막 지명 되돌리기</button>' : ''}${ph === 'draft' && !(s.picks || []).length ? '<button data-act="ordedit">✎ 순번 직접 바꾸기</button>' : ''}${(ph === 'draft' || ph === 'cards') && !(s.picks || []).length ? '<button data-act="reorder">순번 다시 정하기</button>' : ''}<button class="alt" data-act="resetroom">드래프트 처음부터 다시</button></div>` }
+    h += `<h4>진행 메뉴</h4><p>드래프트 진행을 조정해요.</p><div class="pick" style="grid-template-columns:1fr">${ph === 'draft' && (s.picks || []).length ? '<button data-act="undo">↶ 마지막 지명 되돌리기</button>' : ''}${ph === 'draft' && !(s.picks || []).length ? '<button data-act="ordedit">✎ 순번 직접 바꾸기</button>' : ''}${(ph === 'draft' || ph === 'cards') && !(s.picks || []).length ? '<button data-act="reorder">순번 다시 정하기</button>' : ''}<button class="alt" data-act="resetroom">드래프트 처음부터 다시</button><button class="alt" data-act="stageback" data-v="captain">↺ 주장 지정 단계로 되돌리기</button><button class="alt" data-act="stageback" data-v="apply">↺ 신청 단계로 되돌리기</button></div>` }
   else if (sh.type === 'order') { const s = cur(); const o = S.ordDraft || s.order || KEYS; const can = roomPhase(s) === 'draft' && !(s.picks || []).length;
     h += `<h4>순번 직접 바꾸기</h4><p>${s.ladder ? '사다리' : s.cardgame ? '카드' : ''} 결과로 정해진 순번을 바꿔요. 첫 지명 전까지만 바꿀 수 있고, 지명은 1→2→3→3→2→1 순서로 돌아가요.</p><div class="ordlist">${o.map((k, i) => { const t = team(s, k); return `<div class="ordrow"><b class="ordn">${i + 1}번</b><span class="tok" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}</span><span class="ordc">${esc(pname(s.captains?.[k]))} 주장</span><button class="btn sm" data-act="ordmv" data-i="${i}" data-d="-1" ${i ? '' : 'disabled'} aria-label="위로">▲</button><button class="btn sm" data-act="ordmv" data-i="${i}" data-d="1" ${i < o.length - 1 ? '' : 'disabled'} aria-label="아래로">▼</button></div>` }).join('')}</div>
       <div class="row" style="margin-top:12px"><button class="btn primary cta" data-act="ordsave" ${can ? '' : 'disabled'}>이 순번으로 확정</button></div>${can ? '' : '<p class="note">이미 지명이 시작돼서 바꿀 수 없어요.</p>'}` }
@@ -951,6 +953,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.22', '2026.10.16', ['[운영진] 주장 지정·드래프트·밸런스 조정 단계에서 "신청 단계" 또는 "주장 지정 단계"로 되돌릴 수 있어요. 신청 단계로 되돌리면 신청자 명단을 다시 고칠 수 있어요']],
   ['0.21.21', '2026.10.16', ['[운영진] 신청자 목록을 순위순과 신청순으로 바꿔 볼 수 있어요']],
   ['0.21.20', '2026.10.16', ['신청 인원을 "전체 신청 인원 / 정원"으로 보여 줘요. 정원이 차도 대기자까지 합친 전체 인원이 보여요']],
   ['0.21.19', '2026.10.15', ['[운영진] 경기진행 화면에서 1~9경기 대진(맞붙는 팀)을 경기마다 바꿀 수 있어요. 끝난 경기는 골 기록도 함께 옮겨져요']],
@@ -1479,6 +1482,15 @@ async function setAppName(sid, key, name) {
   if (ok) { if (!S.admin) { S.me = name; save('me', name) } toast(merged ? '이미 신청된 이름이라 앞선 순번 하나로 합쳤어요.' : `${name} 이름으로 신청됐어요.`) }
   return ok;
 }
+const STAGE_BACK = { apply: '신청 단계', captain: '주장 지정 단계' };
+function resetBar(s) { if (!S.admin || !s) return ''; const cur0 = stageIdx(s.stage); const opts = ['apply', 'captain'].filter(st => stageIdx(st) < cur0); if (!opts.length || s.stage === 'match') return '';
+  return `<div class="panel pad resetbar"><b>↺ 이전 단계로 되돌리기</b><p class="note" style="margin:4px 0 8px">${opts.includes('captain') ? '주장 지정 단계로 되돌리면 드래프트(팀 색·순번·지명)가 지워지고 주장은 그대로 남아요. ' : ''}신청 단계로 되돌리면 주장 지정과 드래프트가 모두 지워지고, 신청자 명단을 다시 고칠 수 있어요. 신청 기록 자체는 지워지지 않아요.</p><div class="row">${opts.slice().reverse().map(st => `<button class="btn sm${st === 'apply' ? ' danger' : ''}" data-act="stageback" data-v="${st}">${STAGE_BACK[st]}로 되돌리기</button>`).join('')}</div></div>` }
+async function stageBack(st) { const s = cur(); if (!s || !STAGE_BACK[st] || stageIdx(st) >= stageIdx(s.stage)) return;
+  if (sessMatches(s.date).length) { toast('경기 대진이 이미 만들어져 있어요. 경기진행 화면에서 대진을 먼저 삭제해 주세요.'); return }
+  if (!confirm(st === 'apply' ? '신청 단계로 되돌릴까요?\n주장 지정·드래프트(팀 색, 순번, 지명, 팀 구성)가 모두 지워지고 신청자 명단을 다시 고칠 수 있어요.' : '주장 지정 단계로 되돌릴까요?\n드래프트(팀 색, 순번, 지명, 팀 구성)가 지워지고 주장은 그대로 남아요.')) return;
+  const clear = { draftStatus: 'ready', picks: [], pending: null, ladder: null, cardgame: null, order: [...KEYS], room: null, teams: Object.fromEntries(KEYS.map(k => [k, { players: [], colorName: null }])), stage: st };
+  if (st === 'apply') Object.assign(clear, { captains: { A: null, B: null, C: null }, captainTokens: { A: null, B: null, C: null } });
+  if (await w(() => S.store.update(sp(s.date), clear), `${STAGE_BACK[st]}로 되돌렸어요.`)) { if (S.adminJoin) delete S.adminJoin[s.date]; S.step = st; S.sheet = null; render(); window.scrollTo(0, 0) } }
 async function freezeApps(s) {
   if ((!Array.isArray(s.apps) && !autoIds(s).length) || s.stage !== 'apply') return true; const c = classify(s); const nn = c.rows.filter(r => !r.pid).length;
   if (nn && !confirm(`이름을 입력하지 않은 신청 ${nn}건은 드래프트 명단에서 빠져요. 계속할까요?`)) return false;
@@ -2484,6 +2496,7 @@ document.addEventListener('click', async e => {
     case 'coloropen': if (!needAdmin()) break; if (joinedCount(s) < 3 && !confirm('아직 모든 주장이 입장하지 않았어요. 그래도 색 선택을 시작할까요?')) break;
       if (await w(() => S.store.update(sp(S.sid), { 'room.colorOpen': true }))) sysChat('색 선택을 시작합니다. 주장님들 팀 색을 골라 주세요!'); break;
     case 'roommenu': S.sheet = { type: 'roommenu' }; render(); break;
+    case 'stageback': if (!needAdmin()) break; await stageBack(el.dataset.v); break;
     case 'aview': S.aview = el.dataset.v === 'time' ? 'time' : 'rank'; render(); break;
     case 'pairedit': { if (!needAdmin()) break; S.pairDraft = {}; S.sheet = { type: 'pairs' }; render(); break }
     case 'pairswap': { const m = M(id); if (!m) break; const D = (S.pairDraft ??= {}); const [hh, aa] = D[id] || [m.home, m.away]; D[id] = [aa, hh]; render(); break }
