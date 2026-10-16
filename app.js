@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.33';
+const APP_VERSION = '0.21.34';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1146,6 +1146,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.34', '2026.10.16', ['신청 현황을 표로 보여 줘요: 신청순 · 이름 · 신청 시각 · 순위 · 상태(선발/대기). 취소한 사람과 마감 후 취소한 사람은 표 아래에 따로 보여요']],
   ['0.21.33', '2026.10.16', ['홈 경기 카드의 "신청 인원"이나 일정 카드의 신청 인원을 누르면 지금 신청 현황(선발·대기)을 볼 수 있어요']],
   ['0.21.32', '2026.10.16', ['팀 운영진은 신청 0순위가 아니에요. 0순위는 그 경기의 구장 예약자(신청 시)와 경기 운영자만이에요']],
   ['0.21.31', '2026.10.16', ['PC 화면에서 메뉴가 위쪽 가로 메뉴로 바뀌고, 내용은 화면 가운데에 보여요']],
@@ -1397,16 +1398,22 @@ function viewResults() {
     <div class="rddots">${ids.slice().reverse().map(id => `<i class="${id === S.detail ? 'on' : ''}"></i>`).join('')}</div>${vResultDetail(s)}</div>`;
 }
 
-function viewApplicants() { const s = cur(); const me = myPid(); const base = isBase(s);
-  if (s.stage === 'apply') { const c = classify(s); const mine = myApp(s); const myR = mine && c.rows.find(r => r.k === mine.k); const myLine = myR ? `<div class="mypos ${myR.sel ? 'in' : 'wt'}">${myR.sel ? `✓ 나는 <b>선발</b>이에요${base ? ` · ${TIER[myR.tier]}` : ''} · ${myR.auto ? '자동 신청' : myR.n + '번째 신청'}` : `⏳ 나는 <b>대기 ${myR.wn}번</b>이에요${base ? ` · ${TIER[myR.tier]}` : ''}`}</div>` : '';
-    // 신청 순서(자동 신청은 맨 앞) — 이름순이 아님
-    const ord = arr => [...arr].sort((a, b) => (a.auto === b.auto ? 0 : a.auto ? -1 : 1) || ((typeof a.n === 'number' ? a.n : 1e9) - (typeof b.n === 'number' ? b.n : 1e9)));
-    const chip = r => `<span class="chip ${(mine && mine.k === r.k) ? 'sel' : ''}"><small class="muted">${r.auto ? '자동' : r.n}</small> ${r.pid ? esc(pname(r.pid)) : '이름 입력 대기'}${base && r.sel ? `<b class="tb t${r.tier}">${TIER[r.tier]}</b>` : ''}</span>`;
-    return backbar('홈으로') + myLine + `<h2>선발<small>${c.sel.length}${s.capacity ? ' / ' + s.capacity : ''}명</small></h2><div class="panel"><div class="chips">${ord(c.sel).map(chip).join('') || '<span class="muted">아직 신청자가 없어요.</span>'}</div></div>
-    ${c.wait.length ? `<h2>대기<small>${c.wait.length}명 · 자리가 나면 이 순서대로 선발돼요</small></h2><div class="panel"><div class="chips">${c.wait.map(r => `<span class="chip ${(mine && mine.k === r.k) ? 'sel' : ''}"><small class="muted">대기 ${r.wn}</small> ${r.pid ? esc(pname(r.pid)) : '이름 입력 대기'}${base ? `<b class="tb t${r.tier}">${TIER[r.tier]}</b>` : ''}</span>`).join('')}</div></div>` : ''}<p class="note">${base ? '0순위: 구장예약자·경기운영자, 1순위: 직전 경기 미참여자, 2순위: 그 외 선착순, 3순위: 직전 경기 마감 후 취소자. ' : '이 구장은 순위 없이 신청한 순서대로 선발해요. '}선발 칸의 숫자는 신청 순서예요.</p>` }
-  const chip = (id, i) => `<span class="chip ${id === me ? 'sel' : ''}"><small class="muted">${i + 1}</small> ${esc(pname(id))}</span>`;
-  return backbar('홈으로') + `<h2>신청자<small>${(s.applicants || []).length}${s.capacity ? ' / ' + s.capacity : ''}명</small></h2><div class="panel"><div class="chips">${(s.applicants || []).map(chip).join('') || '<span class="muted">아직 신청자가 없어요.</span>'}</div></div>
-  ${(s.waitlist || []).length ? `<h2>대기<small>${s.waitlist.length}명</small></h2><div class="panel"><div class="chips">${s.waitlist.map((id, i) => chip(id, i)).join('')}</div></div>` : ''}` }
+function viewApplicants() { const s = cur(); const me = myPid(); const base = isBase(s); const c = classify(s); const frozen = s.stage !== 'apply';
+  let rows = [...c.sel, ...c.wait];
+  if (frozen) { const find = pid => c.rows.find(r => r.pid === pid) || { pid, n: '-', tier: 2 }; rows = [...(s.applicants || []).map(pid => ({ ...find(pid), sel: true })), ...(s.waitlist || []).map((pid, i) => ({ ...find(pid), sel: false, wn: i + 1 }))] }
+  const inList = new Set(rows.map(r => r.pid).filter(Boolean)); const late = Object.entries(s.late || {}).filter(([, v]) => v);
+  const lateSet = new Set(late.map(([p0]) => p0)); const canc = Object.entries(s.cancels || {}).filter(([p0, v]) => v && !inList.has(p0) && !lateSet.has(p0));
+  const off = [...late.map(([p0, t]) => ({ pid: p0, t, k: 'late' })), ...canc.map(([p0, t]) => ({ pid: p0, t, k: 'cancel' }))].filter(x => S.players[x.pid]).sort((a, b) => a.t - b.t);
+  const mine = rows.find(r => r.pid && r.pid === me) || (!frozen && myApp(s) && rows.find(r => r.k === myApp(s).k));
+  const myLine = mine ? `<div class="mypos ${mine.sel ? 'in' : 'wt'}">${mine.sel ? `✓ 나는 <b>선발</b>이에요${base ? ` · ${TIER[mine.tier]}` : ''}${typeof mine.n === 'number' ? ` · ${mine.n}번째 신청` : mine.auto ? ' · 자동 신청' : ''}` : `⏳ 나는 <b>대기 ${mine.wn}번</b>이에요${base ? ` · ${TIER[mine.tier]}` : ''}`}</div>` : '';
+  const tr = r => `<tr class="${r.sel ? '' : 'wrow'} ${mine && r === mine ? 'me' : ''}"><td class="num">${r.auto ? '자동' : r.n}</td><td class="nm"><b>${r.pid ? esc(pname(r.pid)) : '<i class="muted">이름 입력 대기</i>'}</b>${mine && r === mine ? '<i class="metag">나</i>' : ''}</td><td class="num muted">${r.at ? fmtTS(r.at).replace(/\.\d{3}$/, '') : '-'}</td>${base ? `<td><b class="tb t${r.tier}">${TIER[r.tier]}</b></td>` : ''}<td>${r.sel ? '<b class="ok">선발</b>' : `<b class="tw">대기 ${r.wn}</b>`}</td></tr>`;
+  const cols = base ? 5 : 4;
+  return backbar('홈으로') + myLine + `<h2>신청 현황<small>신청 ${rows.length}${s.capacity ? ' / ' + s.capacity : ''}명 · 선발 ${rows.filter(r => r.sel).length} · 대기 ${rows.filter(r => !r.sel).length}</small></h2>
+  <div class="panel sheetwrap"><table class="grid aptbl"><thead><tr><th>신청순</th><th>이름</th><th>신청 시각</th>${base ? '<th>순위</th>' : ''}<th>상태</th></tr></thead><tbody>
+  ${rows.length ? rows.map(tr).join('') : `<tr><td colspan="${cols}" class="empty">아직 신청자가 없어요.</td></tr>`}
+  ${off.length ? `<tr class="offhd"><td colspan="${cols}">취소 ${off.length}명</td></tr>${off.map(x => `<tr class="offrow"><td class="num">-</td><td class="nm">${esc(pname(x.pid))}${x.pid === me ? '<i class="metag">나</i>' : ''}</td><td class="num muted">${fmtTS(x.t).replace(/\.\d{3}$/, '')}</td>${base ? '<td></td>' : ''}<td>${x.k === 'late' ? '<b class="t3">마감 후 취소</b>' : '<b class="muted">취소</b>'}</td></tr>`).join('')}` : ''}
+  </tbody></table></div>
+  <p class="note">${base ? '순위: 0순위 구장 예약자·경기 운영자 → 1순위 직전 경기 미참여 → 2순위 그 외 선착순 → 3순위 직전 경기 마감 후 취소자. 같은 순위 안에서는 신청 순서대로 선발돼요. ' : '이 구장은 순위 없이 신청한 순서대로 선발해요. '}신청 시각은 서버에 도착한 시각이에요. 취소한 시각은 이 버전부터 기록돼요.</p>` }
 /* ───────── admin views ───────── */
 async function deleteSessionBy(sid) { if (!confirm(fmtDate(sid) + ' 경기를 통째로 지울까요? 신청자, 경기 기록도 함께 지워지고 되돌릴 수 없어요.')) return;
   const ok = await w(async () => { const evs = new Set(Object.entries(S.events).filter(([, ev]) => ev.session === sid).map(([eid]) => eid)), mts = new Set(sessMatches(sid).map(m => m.id));
@@ -1794,9 +1801,10 @@ async function cancelApp(sid, pid, key, byAdmin, force) {
   if (s.draftStatus !== 'ready' || !['apply', 'captain'].includes(s.stage)) { toast(byAdmin ? '드래프트가 시작된 뒤에는 여기서 취소할 수 없어요.' : '드래프트가 시작돼서 앱에서 취소할 수 없어요. 운영진에게 알려 주세요.'); return }
   const wasSel = s.stage === 'apply' ? classify(s).sel.some(r => (key && r.k === key) || (pid && r.pid === pid)) : (s.applicants || []).includes(pid);
   const penal = !force && closed && wasSel && pid;
+  const markCancel = () => { if (!force && !penal && pid) S.store.update(sp(sid), { [`cancels.${pid}`]: nowS() }).catch(() => { }) }; // 일반 취소 기록(신청 현황 표에 보여요)
   if (force ? !confirm(`${pid ? pname(pid) + ' 님의 ' : '이름 입력 전 '}신청을 삭제할까요?\n주차·공당·물당 신청도 함께 취소되고, 마감 후 취소(3순위) 기록은 남지 않아요.`) : !confirm(penal ? `${byAdmin ? pname(pid) + ' 님의 ' : ''}신청 마감 후 취소예요. 취소하면 다음 경기 신청 때 3순위가 돼요. 그래도 취소할까요?` : '신청을 취소할까요?')) return;
   const qdel = Object.entries(S.q?.[sid] || {}).filter(([qi, d]) => (pid && d.pid === pid) || (key && 'q' + qi === key)).map(([qi]) => qi);
-  if (qdel.length && !Array.isArray(s.apps)) { if (!(await w(() => Promise.all(qdel.map(qi => withTimeout(S.store.del(sp(sid) + '/q/' + qi), 10000)))))) return; if (!(s.applicants || []).includes(pid) && !appsOf0(s).some(a => a.pid === pid)) { if (penal) await w(() => S.store.update(sp(sid), { [`late.${pid}`]: Date.now() })); if (key && s.tierOv?.[key] != null) S.store.update(sp(sid), { [`tierOv.${key}`]: null }).catch(() => { }); if (pid) await clearExtras(sid, pid); toast(force ? '삭제했어요.' : penal ? '취소했어요. 마감 후 취소로 기록됐어요.' : '취소했어요.'); watchPromote(sid, selBefore, [pid]); render(); return } }
+  if (qdel.length && !Array.isArray(s.apps)) { if (!(await w(() => Promise.all(qdel.map(qi => withTimeout(S.store.del(sp(sid) + '/q/' + qi), 10000)))))) return; if (!(s.applicants || []).includes(pid) && !appsOf0(s).some(a => a.pid === pid)) { if (penal) await w(() => S.store.update(sp(sid), { [`late.${pid}`]: Date.now() })); if (key && s.tierOv?.[key] != null) S.store.update(sp(sid), { [`tierOv.${key}`]: null }).catch(() => { }); if (pid) await clearExtras(sid, pid); markCancel(); toast(force ? '삭제했어요.' : penal ? '취소했어요. 마감 후 취소로 기록됐어요.' : '취소했어요.'); watchPromote(sid, selBefore, [pid]); render(); return } }
   if (s.stage === 'apply' && Array.isArray(s.apps)) {
     const vals = s.apps.filter(a => a && ((key && a.k === key) || (pid && a.pid === pid))); const set = {};
     if (pid && s.park?.[pid]) set[`park.${pid}`] = null; if (penal) set[`late.${pid}`] = Date.now();
@@ -1805,7 +1813,7 @@ async function cancelApp(sid, pid, key, byAdmin, force) {
     if (pid && s.dutyReq?.ball?.[pid]) set[`dutyReq.ball.${pid}`] = null; if (pid && s.dutyReq?.drink?.[pid]) set[`dutyReq.drink.${pid}`] = null;
     const qids = Object.entries(S.q?.[sid] || {}).filter(([qi, d]) => (pid && d.pid === pid) || (key && 'q' + qi === key)).map(([qi]) => qi);
     const ok2 = await w(async () => { await Promise.all(qids.map(qi => withTimeout(S.store.del(sp(sid) + '/q/' + qi), 10000))); if (vals.length || Object.keys(set).length || remove['duty.ball'] || remove['duty.drink']) await withTimeout(S.store.patch(sp(sid), { set, remove }), 10000) });
-    if (ok2) { toast(force ? '삭제했어요.' : penal ? '취소했어요. 마감 후 취소로 기록됐어요.' : '취소했어요.'); watchPromote(sid, selBefore, [pid]) } render(); return }
+    if (ok2) { markCancel(); toast(force ? '삭제했어요.' : penal ? '취소했어요. 마감 후 취소로 기록됐어요.' : '취소했어요.'); watchPromote(sid, selBefore, [pid]) } render(); return }
   const ok = await w(() => S.store.txn(sp(sid), d => { if (!d || d.draftStatus !== 'ready' || !['apply', 'captain'].includes(d.stage)) return null;
     d.apps = appsOf(d).filter(a => !((key && a.k === key) || (pid && a.pid === pid)));
     if (d.stage !== 'apply') { const was = (d.applicants || []).includes(pid); d.applicants = (d.applicants || []).filter(x => x !== pid); d.waitlist = (d.waitlist || []).filter(x => x !== pid); if (was && d.waitlist.length) d.applicants.push(d.waitlist.shift()); KEYS.forEach(k => { if (d.captains?.[k] === pid) d.captains[k] = null }) }
@@ -1815,6 +1823,7 @@ async function cancelApp(sid, pid, key, byAdmin, force) {
     if (penal) d.late = { ...(d.late || {}), [pid]: Date.now() };
     return d }));
   if (ok) watchPromote(sid, selBefore, [pid]);
+  if (ok) markCancel();
   if (ok) { const s2 = S.sessions[sid]; if (!byAdmin && pid && isBase(s) && autoIds(s2 || s).includes(pid)) toast(`신청은 취소했지만 ${roleOf(s2 || s, pid)}(이)라 자동 참가로 남아 있어요. 운영진에게 해제를 요청해 주세요.`); else toast(force ? '삭제했어요.' : penal ? '취소했어요. 마감 후 취소로 기록됐어요.' : '취소했어요.') }
 }
 const TIER_DESC = ['구장 예약자·경기 운영자급, 정원과 상관없이 선발', '직전 경기 미참여자', '그 외 선착순', '직전 경기 마감 후 취소자'];
