@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.26';
+const APP_VERSION = '0.21.27';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -385,10 +385,20 @@ async function posterFonts(texts) {
   try { await Promise.all([`900 80px ${H}`, `800 60px ${H}`, `400 40px ${B}`, `700 40px ${B}`, `80px "Anton"`].map(f => document.fonts.load(f, all))) } catch { }
   return { LAT: `"Anton",${H},Impact,sans-serif`, KR: `${H},${fb}`, BD: `${B},${fb}`, H, B };
 }
-async function drawPoster(s) {
+const POSTER_THEMES = [['stadium', '스타디움', '#1B4AA8', '#23692C'], ['night', '나이트', '#05070F', '#FFD21F'], ['clean', '클린', '#F4F6FA', '#0B1E5B'], ['stripe', '팀 컬러', '#D7263D', '#1E46C8']];
+function posterTheme(s) { const t = s?.posterTheme || S.meta?.poster?.theme; return POSTER_THEMES.some(x => x[0] === t) ? t : 'stadium' }
+function wrapText(g, text, maxW, maxLines) { const out = []; for (const para of String(text || '').split('\n')) { let line = ''; for (const ch of para) { if (g.measureText(line + ch).width > maxW && line) { out.push(line); line = ch } else line += ch } out.push(line) } return out.filter((l, i, a) => l.trim() || (i > 0 && i < a.length - 1)).slice(0, maxLines) }
+async function drawPoster(s, theme) {
+  const th = theme || posterTheme(s);
   const W = 1086, H = 1448; const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
   const PF = await posterFonts([s.venue || '', s.notice || '', s.evpw || '', ...KEYS.flatMap(k => teamPlayers(s, k).map(pname)), ...KEYS.map(k => team(s, k).name)]);
   const img = await emblem(); const LAT = PF.LAT, KR = PF.KR;
+  const light = th === 'clean';
+  const T = { stadium: { head: '#fff', stroke: '#0A0F1E', acc: '#FFD600', card: 'solid', bar: 'rgba(8,10,16,.93)', barInk: '#fff', barLine: 'rgba(255,255,255,.9)' },
+    night: { head: '#fff', stroke: null, glow: '#FFD21F', acc: '#FFD21F', card: 'band', panel: 'rgba(255,255,255,.06)', name: '#F2F5FF', bar: 'rgba(255,255,255,.06)', barInk: '#fff', barLine: '#FFD21F' },
+    clean: { head: '#fff', stroke: null, acc: '#FFD21F', card: 'band', panel: '#FFFFFF', name: '#131C2B', bar: '#0B1E5B', barInk: '#fff', barLine: '#0B1E5B' },
+    stripe: { head: '#fff', stroke: '#0A0F1E', acc: '#FFD600', card: 'band', panel: 'rgba(255,255,255,.94)', name: '#131C2B', bar: 'rgba(8,10,16,.92)', barInk: '#fff', barLine: 'rgba(255,255,255,.9)' } }[th];
+  if (th === 'stadium') {
   // sky + stadium
   let gr = g.createLinearGradient(0, 0, 0, 560); gr.addColorStop(0, '#081A55'); gr.addColorStop(.7, '#123A96'); gr.addColorStop(1, '#1B4AA8'); g.fillStyle = gr; g.fillRect(0, 0, W, 560);
   for (const [lx, ly] of [[70, 60], [W - 70, 60]]) { const rg = g.createRadialGradient(lx, ly, 4, lx, ly, 260); rg.addColorStop(0, 'rgba(255,255,255,.95)'); rg.addColorStop(.12, 'rgba(190,215,255,.6)'); rg.addColorStop(1, 'rgba(120,160,255,0)'); g.fillStyle = rg; g.fillRect(0, 0, W, 400);
@@ -401,45 +411,69 @@ async function drawPoster(s) {
   for (let i = 0; i < 5000; i++) { g.fillStyle = `rgba(${rnd() > .5 ? '120,200,110' : '10,50,15'},${.12 + rnd() * .2})`; g.fillRect(rnd() * W, 380 + rnd() * (H - 380), 2, 3) }
   g.fillStyle = 'rgba(255,255,255,.55)'; g.fillRect(W / 2 - 3, 440, 6, H - 440);
   const fade = g.createLinearGradient(0, 360, 0, 470); fade.addColorStop(0, 'rgba(20,60,150,.9)'); fade.addColorStop(1, 'rgba(20,60,150,0)'); g.fillStyle = fade; g.fillRect(0, 360, W, 110);
+  } else if (th === 'night') {
+    const bg = g.createRadialGradient(W / 2, 260, 40, W / 2, 600, 1100); bg.addColorStop(0, '#16245A'); bg.addColorStop(.55, '#0A1030'); bg.addColorStop(1, '#03050C'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    g.strokeStyle = 'rgba(255,255,255,.05)'; g.lineWidth = 1; for (let x = 0; x <= W; x += 54) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke() } for (let y = 0; y <= H; y += 54) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke() }
+    g.strokeStyle = 'rgba(255,210,31,.18)'; g.lineWidth = 3; g.beginPath(); g.arc(W / 2, 300, 230, 0, Math.PI * 2); g.stroke();
+  } else if (th === 'clean') {
+    g.fillStyle = '#EEF1F6'; g.fillRect(0, 0, W, H); g.fillStyle = '#0B1E5B'; g.fillRect(0, 0, W, 470);
+    g.fillStyle = '#FFD21F'; g.fillRect(0, 466, W, 8);
+    g.strokeStyle = 'rgba(255,255,255,.07)'; g.lineWidth = 2; g.beginPath(); g.arc(W / 2, 470, 200, Math.PI, 0); g.stroke(); g.beginPath(); g.moveTo(0, 470); g.lineTo(W, 470); g.stroke();
+  } else {
+    const cols = KEYS.map(k => team(s, k).color); g.fillStyle = '#0A0F1E'; g.fillRect(0, 0, W, H);
+    g.save(); g.translate(W / 2, H / 2); g.rotate(-Math.PI / 9); const sw = 260; for (let i = -6; i <= 6; i++) { g.fillStyle = cols[((i % 3) + 3) % 3]; g.fillRect(i * sw - sw / 2, -H, sw, H * 2) } g.restore();
+    const ov = g.createLinearGradient(0, 0, 0, H); ov.addColorStop(0, 'rgba(6,10,24,.78)'); ov.addColorStop(.4, 'rgba(6,10,24,.45)'); ov.addColorStop(1, 'rgba(6,10,24,.7)'); g.fillStyle = ov; g.fillRect(0, 0, W, H);
+  }
+  const outline = (txt, x, y, lw) => { g.save(); if (T.glow) { g.shadowColor = T.glow; g.shadowBlur = 26 } if (T.stroke) { g.lineWidth = lw; g.strokeStyle = T.stroke; g.lineJoin = 'round'; g.strokeText(txt, x, y) } g.fillText(txt, x, y); g.restore() };
   // headline
-  g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillStyle = '#fff';
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillStyle = T.head;
   g.font = `44px ${LAT}`; const club = (CFG.club?.name || 'WEEKDAYS FUTSAL CLUB').toUpperCase(); const cw = g.measureText(club).width; g.fillText(club, W / 2, 72);
-  g.fillRect(175, 50, W / 2 - cw / 2 - 195, 4); g.fillRect(W / 2 + cw / 2 + 20, 50, W / 2 - cw / 2 - 195, 4);
-  g.font = `172px ${LAT}`; const tW = g.measureText('MATCH DAY').width; g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowOffsetY = 6; g.shadowBlur = 14; g.lineWidth = 10; g.strokeStyle = '#0A0F1E'; g.lineJoin = 'round'; g.strokeText('MATCH DAY', W / 2, 212); g.fillStyle = '#FFFFFF'; g.fillText('MATCH DAY', W / 2, 212); g.restore();
-  g.fillStyle = '#fff'; const sideL = W / 2 - tW / 2 - 20; if (sideL > 60) { g.fillRect(24, 136, sideL - 24, 4); g.fillRect(W - sideL, 136, sideL - 24, 4) }
+  g.fillStyle = th === 'night' ? T.acc : T.head; g.fillRect(175, 50, W / 2 - cw / 2 - 195, 4); g.fillRect(W / 2 + cw / 2 + 20, 50, W / 2 - cw / 2 - 195, 4);
+  g.fillStyle = T.head; g.font = `172px ${LAT}`; const tW = g.measureText('MATCH DAY').width; g.save(); if (th === 'stadium') { g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowOffsetY = 6; g.shadowBlur = 14 } outline('MATCH DAY', W / 2, 212, 10); g.restore();
+  g.fillStyle = th === 'night' ? T.acc : T.head; const sideL = W / 2 - tW / 2 - 20; if (sideL > 60) { g.fillRect(24, 136, sideL - 24, 4); g.fillRect(W - sideL, 136, sideL - 24, 4) }
   g.fillRect(24, 236, W / 2 - 84, 4); g.fillRect(W / 2 + 60, 236, W / 2 - 84, 4);
   badge(g, img, W / 2, 238, 48);
   // date line
-  const [, mm, dd] = s.date.split('-'); const parts = [[`${mm}.${dd}. `, '#fff'], [dow(s.date) + '요일', '#FFD600'], [`  ${s.time || ''}`, '#fff']];
+  const [, mm, dd] = s.date.split('-'); const parts = [[`${mm}.${dd}. `, T.head], [dow(s.date) + '요일', T.acc], [`  ${s.time || ''}`, T.head]];
   g.font = `96px ${KR}`; const tw = parts.reduce((a, [t]) => a + g.measureText(t).width, 0); let x = W / 2 - tw / 2; g.textAlign = 'left';
-  for (const [t, col] of parts) { g.save(); g.lineWidth = 12; g.strokeStyle = '#0A0F1E'; g.lineJoin = 'round'; g.strokeText(t, x, 362); g.fillStyle = col; g.fillText(t, x, 362); g.restore(); x += g.measureText(t).width }
-  g.textAlign = 'center'; fitFont(g, s.venue || '', `{s}px ${KR}`, 72, W - 120); g.save(); g.lineWidth = 11; g.strokeStyle = '#0A0F1E'; g.lineJoin = 'round'; g.strokeText(s.venue || '', W / 2, 448); g.fillStyle = '#fff'; g.fillText(s.venue || '', W / 2, 448); g.restore();
+  for (const [t, col] of parts) { g.fillStyle = col; outline(t, x, 362, 12); x += g.measureText(t).width }
+  g.textAlign = 'center'; fitFont(g, s.venue || '', `{s}px ${KR}`, 72, W - 120); g.fillStyle = T.head; outline(s.venue || '', W / 2, 448, 11);
   // team cards
-  const top = 472, bot = 1186, gap = 14, cwid = (W - 48 - gap * 2) / 3; const lists = KEYS.map(k => teamPlayers(s, k)); const rows = Math.max(6, ...lists.map(l => l.length));
+  const top = th === 'clean' ? 492 : 472, bot = 1186, gap = 14, cwid = (W - 48 - gap * 2) / 3; const lists = KEYS.map(k => teamPlayers(s, k)); const rows = Math.max(6, ...lists.map(l => l.length));
   KEYS.forEach((k, i) => { const t = team(s, k); const x0 = 24 + i * (cwid + gap); const ink = inkOn(t.color);
-    g.save(); rr(g, x0, top, cwid, bot - top, 16); g.fillStyle = t.color; g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 16; g.fill(); g.restore();
-    g.save(); rr(g, x0, top, cwid, bot - top, 16); g.lineWidth = 4; g.strokeStyle = ink === '#FFFFFF' ? (i === 0 ? '#4FB2FF' : 'rgba(255,255,255,.85)') : 'rgba(0,0,0,.55)'; g.stroke(); g.restore();
+    if (T.card === 'solid') {
+      g.save(); rr(g, x0, top, cwid, bot - top, 16); g.fillStyle = t.color; g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 16; g.fill(); g.restore();
+      g.save(); rr(g, x0, top, cwid, bot - top, 16); g.lineWidth = 4; g.strokeStyle = ink === '#FFFFFF' ? (i === 0 ? '#4FB2FF' : 'rgba(255,255,255,.85)') : 'rgba(0,0,0,.55)'; g.stroke(); g.restore();
+    } else {
+      g.save(); rr(g, x0, top, cwid, bot - top, 18); g.fillStyle = T.panel; g.shadowColor = light ? 'rgba(11,30,91,.16)' : 'rgba(0,0,0,.4)'; g.shadowBlur = light ? 22 : 16; g.shadowOffsetY = light ? 6 : 0; g.fill(); g.restore();
+      g.save(); rr(g, x0, top, cwid, bot - top, 18); g.clip(); g.fillStyle = t.color; g.fillRect(x0, top, cwid, 150); g.restore();
+      if (th === 'night') { g.save(); rr(g, x0, top, cwid, bot - top, 18); g.lineWidth = 3; g.strokeStyle = t.color; g.shadowColor = t.color; g.shadowBlur = 18; g.stroke(); g.restore() }
+      if (light) { g.save(); rr(g, x0, top, cwid, bot - top, 18); g.lineWidth = 2; g.strokeStyle = '#D6DCE4'; g.stroke(); g.restore() }
+    }
     badge(g, img, x0 + 68, top + 76, 50);
     g.fillStyle = ink; g.textAlign = 'left'; fitFont(g, t.name, `{s}px ${LAT}`, 66, cwid - 138); g.fillText(t.name, x0 + 128, top + 100);
-    g.fillRect(x0 + 24, top + 144, cwid - 48, 4);
+    if (T.card === 'solid') g.fillRect(x0 + 24, top + 144, cwid - 48, 4);
+    const nameCol = T.card === 'solid' ? ink : T.name; g.fillStyle = nameCol;
     const avail = bot - top - 190, step = Math.min(84, avail / rows), fs = Math.min(50, step * .66); g.textAlign = 'center';
     lists[i].forEach((pid, j) => { const nm = pname(pid); const y = top + 190 + step * j + step * .62; const f = fitFont(g, nm, `{s}px ${KR}`, fs, cwid - 70); g.fillText(nm, x0 + cwid / 2 - (j === 0 ? 18 : 0), y);
-      if (j === 0 && captainOf(s, k) === pid) { const nw = g.measureText(nm).width; crown(g, x0 + cwid / 2 - 18 + nw / 2 + 10, y - f * .78, f * .8) } });
+      if (j === 0 && captainOf(s, k) === pid) { const nw = g.measureText(nm).width; crown(g, x0 + cwid / 2 - 18 + nw / 2 + 10, y - f * .78, f * .8) }
+      if (T.card !== 'solid' && j < lists[i].length - 1) { g.fillStyle = light ? '#EEF1F6' : 'rgba(127,140,170,.18)'; g.fillRect(x0 + 30, top + 190 + step * (j + 1), cwid - 60, 2); g.fillStyle = nameCol } });
   });
   // info bar
-  const by = 1212, bh = 176; g.save(); rr(g, 24, by, W - 48, bh, 16); g.fillStyle = 'rgba(8,10,16,.93)'; g.fill(); g.lineWidth = 3; g.strokeStyle = 'rgba(255,255,255,.9)'; g.stroke(); g.restore();
-  g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(24, by + bh / 2 - 1.5, W - 48, 3);
-  const r1 = by + bh / 4, r2 = by + bh * 3 / 4; g.textBaseline = 'middle';
-  // lock icon
-  g.fillStyle = '#fff'; rr(g, 70, r1 - 12, 44, 36, 6); g.fill(); g.lineWidth = 7; g.strokeStyle = '#fff'; g.beginPath(); g.arc(92, r1 - 14, 14, Math.PI, 0); g.stroke(); g.fillStyle = '#111'; g.fillRect(89, r1 - 2, 6, 14);
-  g.textAlign = 'left'; g.fillStyle = '#fff'; g.font = `40px ${LAT}`; g.fillText('E/V Password', 144, r1 + 2); const d1 = 144 + g.measureText('E/V Password').width + 26; g.fillRect(d1, r1 - 26, 3, 52);
-  g.fillStyle = '#FFD600'; fitFont(g, s.evpw || '-', `{s}px ${LAT}`, 72, W - 48 - d1 - 40); g.fillText(s.evpw || '-', d1 + 34, r1 + 4);
-  // megaphone
-  g.fillStyle = '#fff'; g.beginPath(); g.moveTo(70, r2 - 10); g.lineTo(88, r2 - 10); g.lineTo(114, r2 - 26); g.lineTo(114, r2 + 24); g.lineTo(88, r2 + 8); g.lineTo(70, r2 + 8); g.closePath(); g.fill(); g.fillRect(78, r2 + 8, 8, 16);
-  g.font = `38px ${LAT}`; g.fillText('NOTICE', 144, r2 + 2); const d2 = 144 + g.measureText('NOTICE').width + 26; g.fillRect(d2, r2 - 26, 3, 52);
-  const segs = []; (s.notice || '').split(/(\{[^}]*\})/).forEach(p => { if (!p) return; if (p[0] === '{') segs.push([p.slice(1, -1), '#FFD600']); else segs.push([p, '#fff']) });
-  const full = segs.map(x => x[0]).join(''); const nf = fitFont(g, full, `{s}px ${KR}`, 36, W - 48 - d2 - 44); let nx = d2 + 24; g.font = `${nf}px ${KR}`;
-  for (const [t, col] of segs) { g.fillStyle = col; g.fillText(t, nx, r2 + 2); nx += g.measureText(t).width }
+  const by = 1212, bh = 176; g.save(); rr(g, 24, by, W - 48, bh, 16); g.fillStyle = T.bar; g.fill(); g.lineWidth = 3; g.strokeStyle = T.barLine; g.stroke(); g.restore();
+  g.fillStyle = th === 'night' ? 'rgba(255,210,31,.5)' : 'rgba(255,255,255,.85)'; g.fillRect(24, by + 70 - 1.5, W - 48, 3);
+  const r1 = by + 35, r2 = by + 70 + 53; g.textBaseline = 'middle';
+  g.fillStyle = T.barInk; rr(g, 70, r1 - 12, 44, 36, 6); g.fill(); g.lineWidth = 7; g.strokeStyle = T.barInk; g.beginPath(); g.arc(92, r1 - 14, 14, Math.PI, 0); g.stroke(); g.fillStyle = T.bar.startsWith('#') ? T.bar : '#111'; g.fillRect(89, r1 - 2, 6, 14);
+  g.textAlign = 'left'; g.fillStyle = T.barInk; g.font = `36px ${LAT}`; g.fillText('E/V Password', 144, r1 + 2); const d1 = 144 + g.measureText('E/V Password').width + 26; g.fillRect(d1, r1 - 22, 3, 44);
+  g.fillStyle = T.acc; fitFont(g, s.evpw || '-', `{s}px ${LAT}`, 60, W - 48 - d1 - 40); g.fillText(s.evpw || '-', d1 + 34, r1 + 4);
+  g.fillStyle = T.barInk; g.beginPath(); g.moveTo(70, r2 - 10); g.lineTo(88, r2 - 10); g.lineTo(114, r2 - 26); g.lineTo(114, r2 + 24); g.lineTo(88, r2 + 8); g.lineTo(70, r2 + 8); g.closePath(); g.fill(); g.fillRect(78, r2 + 8, 8, 16);
+  g.font = `36px ${LAT}`; g.fillText('NOTICE', 144, r2 + 2); const d2 = 144 + g.measureText('NOTICE').width + 26; g.fillRect(d2, r2 - 40, 3, 80);
+  // notice: up to 3 lines, { } = highlight
+  const nW = W - 48 - d2 - 44; const raw = s.notice || ''; const plain = raw.replace(/[{}]/g, '');
+  let nf = 36, lines; for (; nf >= 22; nf -= 2) { g.font = `${nf}px ${KR}`; lines = wrapText(g, plain, nW, 9); if (lines.length * nf * 1.25 <= 96 && lines.length <= 3) break } lines = (lines || []).slice(0, 3);
+  const hl = []; let on = false; for (const ch of raw) { if (ch === '{') { on = true; continue } if (ch === '}') { on = false; continue } hl.push(on) }
+  let ci0 = 0; const lh = nf * 1.25, y0 = r2 + 2 - (lines.length - 1) * lh / 2; g.font = `${nf}px ${KR}`;
+  lines.forEach((ln, li) => { let nx = d2 + 24; const idx = plain.indexOf(ln, ci0); const base = idx >= 0 ? idx : ci0; for (let q = 0; q < ln.length; q++) { g.fillStyle = hl[base + q] ? T.acc : T.barInk; g.fillText(ln[q], nx, y0 + li * lh); nx += g.measureText(ln[q]).width } ci0 = base + ln.length });
   g.textBaseline = 'alphabetic';
   return c;
 }
@@ -816,19 +850,22 @@ function vTrade(s) {
   return h;
 }
 function vNotice(s, inMenu) {
-  const ad = S.admin && !inMenu; const img = S.poster[S.sid];
-  if (!allPicked(s)) return `<div class="notice warn">아직 팀 색을 고르지 않은 팀이 있어요. 밸런스 조정 화면에서 팀 색을 먼저 정해 주세요.</div>`;
+  const ad = S.admin; const img = S.poster[S.sid]; const th = posterTheme(s); const ready = allPicked(s);
+  const form = ad ? `<h2>포스터에 들어갈 내용<small>입력하면 바로 반영돼요</small></h2><div class="panel pad pform">
+    <div class="field"><label for="f-ev">🔒 엘리베이터(E/V) 비밀번호</label><input id="f-ev" class="inp" type="text" inputmode="text" maxlength="20" placeholder="예: 1234*" value="${esc(s.evpw || '')}" data-in="sfield" data-f="evpw"></div>
+    <div class="field"><label for="f-nt">📢 공지사항 <small class="muted">최대 3줄 · { }로 감싼 글자는 강조색</small></label><textarea id="f-nt" class="inp" rows="3" maxlength="120" placeholder="예: {조끼 지참} 부탁드려요\n주차는 B2 이용" data-in="sfield" data-f="notice">${esc(s.notice || '')}</textarea></div></div>` : '';
+  if (!ready) return form + `<div class="notice warn" style="margin-top:12px">아직 팀 색을 고르지 않은 팀이 있어요. 팀 색이 정해지면 포스터가 만들어져요. 위 내용은 미리 입력해 둘 수 있어요.</div>`;
   if (!img) queueMicrotask(refreshPoster);
-  let h = `<div class="dgrid"><section><h2>팀 선정 결과 공지 이미지</h2><img class="poster" alt="매치데이 공지 이미지 미리보기" src="${img || ''}" width="1086" height="1448">
+  const picker = ad ? `<h2>포스터 디자인<small>골라서 배포하세요</small></h2><div class="pthemes">${POSTER_THEMES.map(([k, n, c1, c2]) => { const t = S.pthumb?.[S.sid + ':' + k]; return `<button class="pth ${k === th ? 'on' : ''}" data-act="ptheme" data-v="${k}" aria-pressed="${k === th}">${t ? `<img src="${t}" alt="">` : `<span class="pth-ph" style="background:linear-gradient(160deg,${c1} 0 55%,${c2} 55%)"></span>`}<b>${n}</b></button>` }).join('')}</div>` : '';
+  if (ad) queueMicrotask(posterThumbs);
+  let h = `<div class="dgrid"><section>${form}${picker}</section><section><h2>공지 이미지 미리보기</h2><img class="poster" alt="매치데이 공지 이미지 미리보기" src="${img || ''}" width="1086" height="1448">
   <div class="row" style="margin-top:10px"><button class="btn primary" data-act="share">공유하기</button><button class="btn" data-act="download">이미지 저장</button></div>
   <button class="btn block" style="margin-top:8px" data-act="copytext">공지 텍스트 복사</button>`;
-  h += '</section><section>';
-  if (ad) h += `<h2>공지 내용</h2><div class="panel">
-    <div class="field"><label for="f-ev">E/V 비밀번호</label><input id="f-ev" class="inp" type="text" value="${esc(s.evpw || '')}" data-in="sfield" data-f="evpw" ${ad ? '' : 'disabled'}></div>
-    <div class="field"><label for="f-nt">NOTICE 문구</label><input id="f-nt" class="inp" type="text" value="${esc(s.notice || '')}" data-in="sfield" data-f="notice" ${ad ? '' : 'disabled'}><span class="note" style="margin:0">{ } 로 감싼 글자는 노란색으로 강조돼요.</span></div></div>`;
-  if (ad) h += sessMatches(s.date).length ? `<div style="height:14px"></div><button class="btn block" data-act="gorun" data-id="${s.date}" data-step="match">경기 진행 화면으로</button>` : `<div style="height:14px"></div><button class="btn primary block" data-act="mkmatches">경기 일정 만들기 (9경기)</button>`;
+  if (ad && !inMenu) h += sessMatches(s.date).length ? `<div style="height:14px"></div><button class="btn block" data-act="gorun" data-id="${s.date}" data-step="match">경기 진행 화면으로</button>` : `<div style="height:14px"></div><button class="btn primary block" data-act="mkmatches">경기 일정 만들기 (9경기)</button>`;
   return h + '</section></div>';
 }
+async function posterThumbs() { const s = cur(); if (!s || !allPicked(s) || S.pthumbBusy) return; S.pthumb ??= {}; const miss = POSTER_THEMES.map(x => x[0]).filter(k => !S.pthumb[S.sid + ':' + k]); if (!miss.length) return; S.pthumbBusy = 1;
+  try { for (const k of miss) { const big = await drawPoster(s, k); const t = document.createElement('canvas'); t.width = 217; t.height = 290; t.getContext('2d').drawImage(big, 0, 0, 217, 290); S.pthumb[S.sid + ':' + k] = t.toDataURL('image/jpeg', .82); const el = document.querySelector(`.pth[data-v="${k}"]`); if (el) el.innerHTML = `<img src="${S.pthumb[S.sid + ':' + k]}" alt=""><b>${POSTER_THEMES.find(x => x[0] === k)[1]}</b>` } } catch (e) { console.error(e) } finally { S.pthumbBusy = 0 } }
 function pairSheet() { const s = cur(); const ms = s ? sessMatches(s.date) : []; const D = S.pairDraft || {};
   const opt = (sel, mid, side) => `<select class="inp" data-in="pairsel" data-id="${mid}" data-side="${side}" aria-label="${side === 'h' ? '왼쪽' : '오른쪽'} 팀">${KEYS.map(k => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(team(s, k).name)}</option>`).join('')}</select>`;
   return `<h4>1~9경기 대진 변경</h4><p>경기마다 맞붙는 두 팀을 골라요. 좌우만 바꾸면 골 기록은 그대로예요. 끝난 경기에서 한 팀을 다른 팀으로 바꾸면, 빠진 팀의 골 기록이 새로 들어온 팀으로 옮겨져서 점수는 그대로 유지돼요.</p><div class="pairlist">${ms.map(m => { const [hh, aa] = D[m.id] || [m.home, m.away]; const bad = hh === aa; const ch = hh !== m.home || aa !== m.away; const [a, b] = (() => { const [x, y] = score(m); return hh === m.away && aa === m.home ? [y, x] : [x, y] })();
@@ -933,6 +970,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.27', '2026.10.16', ['[운영진] 공지 메뉴 맨 위에서 엘리베이터 비밀번호와 공지사항(최대 3줄)을 입력하면 포스터에 바로 반영돼요. 팀 색이 정해지기 전에도 미리 입력할 수 있어요', '[운영진] 공지 포스터 디자인을 스타디움·나이트·클린·팀 컬러 4가지 중에서 골라 배포할 수 있어요']],
   ['0.21.26', '2026.10.16', ['디자인 다듬기: 운영모드 버튼은 운영진에게만 보이고, 회원은 내 정보 맨 아래에서 들어갈 수 있어요', 'PC 홈의 MATCH REVIEW에 지난 경기 9경기 결과가 한눈에 보여요', '신청자 보기에서 내 상태가 색으로 구분되고, 대기자는 대기 순번과 순위로 보여요', '경기모드에서 고를 경기가 없을 때 불필요한 선택 칸을 숨겼어요', '[운영진] 신청자 표의 순위 규칙 설명을 접어 두고, 당번 요약과 달력 범례가 휴대폰에서 깔끔하게 보여요']],
   ['0.21.25', '2026.10.16', ['일정 카드의 "📅 캘린더에 추가"로 경기 일정을 아이폰·구글 캘린더에 넣을 수 있어요(경기 2시간 전 알림)', '[운영진] 신청자 직접 추가 때 회원 명단에 없는 이름은 "게스트로 추가" 버튼으로 바로 넣을 수 있어요', '공지 이미지 저장 파일명에 날짜와 회차가 들어가요']],
   ['0.21.24', '2026.10.16', ['전체 코드를 다시 점검해 쓰지 않는 코드를 정리하고 더 가볍고 빠르게 만들었어요', '[중요] 경기 운영자가 지정되지 않은 경기에서 신청 인원이 0명으로 보이거나 신청 확정 시 명단이 비는 문제를 고쳤어요', '로그인 전에 신청한 뒤 로그인해도 내 신청이 그대로 이어져요. 이름 나중에 입력하기도 정상 동작해요', '대기자는 순위(1→2→3순위) 순서로 번호가 매겨져요. 대기 상태에서는 마감 후에도 대기 취소를 할 수 있어요', '신청자 보기 맨 위에 내 선발·대기 순번이 보여요', '드래프트에서 내 차례가 되면 진동과 안내가 떠요', '경기 타이머·휘슬·사다리를 모든 기기에서 서버 시각 기준으로 맞춰요', '경기모드에서 휘슬 켜기/끄기가 진행 중인 경기에도 바로 적용되고, 시작 버튼을 두 번 눌러도 한 번만 시작돼요', '경기모드 중에는 화면을 당겨도 새로고침되지 않아요', '사용 설명서 용량을 약 40% 줄였어요']],
@@ -2272,7 +2310,7 @@ document.addEventListener('input', e => { const el = e.target; const k = el.data
   if (k === 'impf' && S.imp) { S.imp[el.dataset.f] = el.value; return }
   if (k === 'schedf' && S.admin) { const f = el.dataset.f; S.meta = S.meta || {}; S.meta.sched = { ...schedCfg(), [f]: el.value }; clearTimeout(S.schedT); S.schedT = setTimeout(async () => { await w(() => S.store.set('meta/sched', S.meta.sched)); S.schedImg = {}; refreshSchedule() }, 700); return }
   if (k === 'mq') { S.mq = el.value; clearTimeout(S.mqT); S.mqT = setTimeout(() => { const pos = el.selectionStart; S.pending = false; const a = document.activeElement; a && a.blur(); render(); const n = document.getElementById('mq'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos) } catch { } } }, 250); return }
-  if (k === 'sfield' && S.admin) { const f = el.dataset.f; clearTimeout(saveT[f]); saveT[f] = setTimeout(async () => { await w(() => S.store.update(sp(S.sid), { [f]: el.value })); if (f === 'evpw' || f === 'notice') refreshPoster() }, 600) } });
+  if (k === 'sfield' && S.admin) { const f = el.dataset.f; clearTimeout(saveT[f]); saveT[f] = setTimeout(async () => { await w(() => S.store.update(sp(S.sid), { [f]: el.value })); if (f === 'evpw' || f === 'notice') { for (const k in (S.pthumb || {})) if (k.startsWith(S.sid + ':')) delete S.pthumb[k]; refreshPoster(); posterThumbs() } }, 600) } });
 document.addEventListener('change', e => { const el = e.target;
   if (el.dataset?.in === 'pairsel') { const m = M(el.dataset.id); if (!m) return; const D = (S.pairDraft ??= {}); const cur0 = D[m.id] || [m.home, m.away]; const nx = [...cur0]; const i = el.dataset.side === 'h' ? 0 : 1; nx[i] = el.value; if (nx[0] === nx[1]) nx[1 - i] = cur0[i]; D[m.id] = nx; render(); return }
   if (el.dataset.in === 'schedym') { S.schedYm = el.value; render(); return }
@@ -2489,6 +2527,7 @@ document.addEventListener('click', async e => {
     case 'calgoo': S.sheet = null; render(); window.open(calGoogle(id), '_blank', 'noopener'); break;
     case 'rejguest': { const L = S.rejNames || []; S.rejNames = null; if (L.length) await addApplicants(L.map(n => n + '(게)')); else render(); break }
     case 'rejclose': S.rejNames = null; render(); break;
+    case 'ptheme': { if (!needAdmin()) break; const v = el.dataset.v; if (!POSTER_THEMES.some(x => x[0] === v)) break; document.querySelectorAll('.pth').forEach(b => b.classList.toggle('on', b.dataset.v === v)); await w(() => S.store.update(sp(S.sid), { posterTheme: v })); S.store.set('meta/poster', { theme: v }).catch(() => { }); const ss = { ...cur(), posterTheme: v }; const cv = await drawPoster(ss, v); S.poster[S.sid] = cv.toDataURL('image/png'); const im = document.querySelector('img.poster:not(.schedimg)'); if (im) im.src = S.poster[S.sid]; toast(`${POSTER_THEMES.find(x => x[0] === v)[1]} 디자인으로 바꿨어요.`); break }
     case 'aview': S.aview = el.dataset.v === 'time' ? 'time' : 'rank'; render(); break;
     case 'pairedit': { if (!needAdmin()) break; S.pairDraft = {}; S.sheet = { type: 'pairs' }; render(); break }
     case 'pairswap': { const m = M(id); if (!m) break; const D = (S.pairDraft ??= {}); const [hh, aa] = D[id] || [m.home, m.away]; D[id] = [aa, hh]; render(); break }

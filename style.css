@@ -71,4 +71,11 @@ body:has(.mmfs){overflow:hidden}
 @media (min-width:1024px){.setwrap{max-width:760px}}
 .sched-hd span .st-open,.sched-hd span .st-live{color:#fff}
 @media (max-width:640px){.planwrap .scgrid .scd{min-height:40px;height:auto}}
-:root{--cssv:"0.21.26"}
+.pthemes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:6px}
+.pth{display:flex;flex-direction:column;align-items:stretch;gap:6px;padding:6px;border-radius:14px;border:2px solid var(--line);background:var(--surface);font-weight:700;font-size:13px;color:var(--ink)}
+.pth img,.pth .pth-ph{display:block;width:100%;aspect-ratio:3/4;border-radius:9px;object-fit:cover}
+.pth.on{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.pth.on b::before{content:"✓ ";color:var(--accent)}
+.pform textarea.inp{resize:vertical;min-height:84px;line-height:1.5;font:inherit}
+.pform .field label small{font-weight:400;margin-left:4px}
+:root{--cssv:"0.21.27"}
