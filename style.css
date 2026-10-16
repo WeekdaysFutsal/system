@@ -167,4 +167,9 @@ table.grid.aptbl{min-width:0!important;width:100%;table-layout:fixed}table.grid.
 .stk.figs .pendstk .fb{outline:2px dashed #fff;outline-offset:1px;opacity:.9}
 .stk.figs .fig.undo .fb{box-shadow:0 0 0 2px #FF4D4F}
 @media (max-width:640px){.stk.figs .fig .fb{min-width:30px;font-size:10.5px;padding:7px 4px 3px}.stk.figs .fig .fh{width:12px;height:12px}}
-:root{--cssv:"0.21.43"}
+@keyframes capBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+.capico{display:inline-flex;align-items:center;gap:5px;height:40px;padding:0 12px 0 10px;margin-right:6px;border-radius:999px;background:linear-gradient(180deg,#FFE25A,#FFC21A);color:#1A1400;font-weight:900;font-size:13px;box-shadow:0 0 0 2px rgba(255,255,255,.35),0 4px 12px rgba(255,190,0,.45);animation:capBob 1.6s ease-in-out infinite;white-space:nowrap}
+.capico b{font-weight:900}
+@media (max-width:380px){.capico b{display:none}.capico{padding:0 10px}}
+@media (prefers-reduced-motion:reduce){.capico{animation:none}}
+:root{--cssv:"0.21.44"}
