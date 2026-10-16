@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.46';
+const APP_VERSION = '0.21.47';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1180,6 +1180,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.47', '2026.10.16', ['PC 드래프트 화면에서 주장 카드에 들어간 선수 이름을 크게 키웠어요. 유니폼 위로 넘쳐도 테두리 글씨라 잘 보여요']],
   ['0.21.46', '2026.10.16', ['드래프트 선수 아이콘을 머리 없는 반팔 유니폼 모양으로 단순하게 바꿨어요. 안 뽑힌 선수는 흰 유니폼, 뽑히면 팀색 유니폼이에요', '이름이 길어도 잘리지 않게 글자 크기가 자동으로 맞춰져요']],
   ['0.21.45', '2026.10.16', ['드래프트 선수 아이콘을 사람 상반신 모양으로 바꾸고, 뽑히면 팀색 훈련 조끼를 입어요. 남은 인원에 맞춰 축구장을 꽉 채우는 크기로 보여요', '확정된 지명 되돌리기는 운영진만 할 수 있어요', '축구장 위에 운영진 박스를 주장 카드처럼 두고, 그 안에 되돌리기·확정·진행 메뉴 버튼을 모았어요', '마지막 선수가 배치돼도 자동으로 넘어가지 않고 그대로 멈춰요. 운영진이 드래프트 확정을 눌러야 끝나요']],
   ['0.21.44', '2026.10.16', ['주장으로 지정되면 주장 코드 없이 내 이름으로 로그인만 해도 화면 위에 👑 드래프트 입장 버튼이 보여요', '띄어쓰기 등으로 이름이 조금 달라도 같은 사람이면 주장으로 알아봐요']],

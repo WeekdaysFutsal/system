@@ -239,4 +239,8 @@ table.grid.aptbl{min-width:0!important;width:100%;table-layout:fixed}table.grid.
 .stk .pf.mini.undo .pf-body{stroke:#FF4D4F;stroke-width:3}
 .pfb.pend .pfs{filter:drop-shadow(0 0 6px rgba(255,210,31,.95))}
 .felt .pool .namegrid:has(.pfb){row-gap:6px!important}
-:root{--cssv:"0.21.46"}
+/* 0.21.47 PC: 주장 카드 안 이름 크게 (유니폼 밖으로 넘쳐도 테두리 글씨로 잘 보이게) */
+.board-table:not(.dmbt) .stk .pf.mini{--fw:52px}
+.board-table:not(.dmbt) .stk.pfs-row{gap:8px 4px}
+.board-table:not(.dmbt) .stk .pf.mini b.pfn,.board-table:not(.dmbt) .stk .pf.mini b.pfn.l4{top:58%!important;font-size:15px!important;letter-spacing:-.04em!important;color:#fff!important;z-index:2;text-shadow:-1.5px -1.5px 0 #131C2B,1.5px -1.5px 0 #131C2B,-1.5px 1.5px 0 #131C2B,1.5px 1.5px 0 #131C2B,0 2px 0 #131C2B,0 -2px 0 #131C2B,2px 0 0 #131C2B,-2px 0 0 #131C2B,0 3px 6px rgba(0,0,0,.35)!important}
+:root{--cssv:"0.21.47"}
