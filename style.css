@@ -321,4 +321,12 @@ table.grid.aptbl{min-width:0!important;width:100%;table-layout:fixed}table.grid.
 .dmroot .felt .pool .namegrid:has(.pfb){gap:10px 8px!important}
 #turnBall.passing .tb-b{animation:none!important}
 .capico.view{background:linear-gradient(180deg,#FFFFFF,#E3E9F5);box-shadow:0 0 0 2px rgba(255,255,255,.35),0 4px 12px rgba(0,0,0,.25);animation:none}
-:root{--cssv:"0.21.55"}
+/* 0.21.56 신청 현황 보기 버튼 강조 */
+.cap-row span{display:inline-flex;align-items:center;flex-wrap:wrap;gap:4px 8px}
+.capbtn em.caplink,.hero .caplink{display:inline-flex;align-items:center;gap:3px;margin-left:0!important;padding:5px 11px!important;border-radius:999px;background:#FFD21F;color:#131C2B!important;font-size:12.5px!important;font-weight:900!important;line-height:1.2;box-shadow:0 2px 0 rgba(0,0,0,.25),0 0 0 2px rgba(255,255,255,.25);opacity:1;animation:capHint 2.4s ease-in-out infinite}
+.capbtn:hover em.caplink{background:#FFE14D}
+.capbtn:active em.caplink{transform:translateY(1px);box-shadow:0 1px 0 rgba(0,0,0,.25)}
+@keyframes capHint{0%,80%,100%{transform:scale(1)}88%{transform:scale(1.07)}}
+@media (prefers-reduced-motion:reduce){.capbtn em.caplink{animation:none}}
+.cap-row span{opacity:1!important}
+:root{--cssv:"0.21.56"}

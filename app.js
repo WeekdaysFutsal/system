@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.55';
+const APP_VERSION = '0.21.56';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1200,6 +1200,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.56', '2026.10.19', ['홈 경기 카드의 \'신청 현황 보기\'를 노란 버튼으로 바꿔 더 눈에 띄게 했어요']],
   ['0.21.55', '2026.10.16', ['드래프트 중에도 아래 메뉴가 바뀌지 않고 항상 홈·일정·경기모드·경기결과·내 정보로 고정돼요. 드래프트 방은 오른쪽 위 버튼으로 들어가요 (주장 👑 드래프트, 참관자 👀 참관)']],
   ['0.21.54', '2026.10.16', ['차례가 넘어갈 때 축구공이 땅을 차고 포물선으로 날아가 다음 팀 카드 가운데에 착지한 뒤 다시 통통 튀도록 자연스럽게 바꿨어요', '드래프트 화면 위쪽의 단계·주장 정보 바를 없애고 그만큼 축구장과 카드를 여유롭게 배치했어요']],
   ['0.21.53', '2026.10.16', ['차례 표시 NOW 대신, 차례인 팀 카드 위에서 축구공이 통통 튀어요. 차례가 넘어가면 공이 다음 팀으로 패스돼요']],
@@ -1388,7 +1389,7 @@ function viewMHome() {
       <div class="hero-date">${m}.${d}<small>${dow(sid)}요일</small></div><div class="hero-time">${esc(s.time || '')}</div>
       <div class="hero-venue">📍 ${esc(s.venue || '장소 미정')}</div>
       ${st.k === 'open' && s.applyClose ? `<div class="hero-status"><span>${fmtDT(s.applyClose)} 신청 마감</span></div>` : st.k === 'soon' && s.applyOpen ? `<div class="hero-status"><span>${fmtDT(s.applyOpen)} 신청 오픈</span></div>` : ''}
-      <div class="cap capbtn" role="button" tabindex="0" data-act="applist" data-id="${sid}" aria-label="신청 현황 보기"><div class="cap-row"><span>신청 인원 <em class="caplink">현황 보기 ›</em>${appCounts(s).wait ? ` · 대기 ${appCounts(s).wait}` : ''}</span><b>${n}<small> / ${cap || '-'}명</small></b></div>${cap ? `<div class="bar"><i style="width:${Math.min(100, n / cap * 100)}%"></i></div>` : ''}</div></div>`;
+      <div class="cap capbtn" role="button" tabindex="0" data-act="applist" data-id="${sid}" aria-label="신청 현황 보기"><div class="cap-row"><span>신청 인원${appCounts(s).wait ? ` · 대기 ${appCounts(s).wait}` : ''}<em class="caplink">👥 신청 현황 보기 ›</em></span><b>${n}<small> / ${cap || '-'}명</small></b></div>${cap ? `<div class="bar"><i style="width:${Math.min(100, n / cap * 100)}%"></i></div>` : ''}</div></div>`;
     h += homeAction(s, st, fit);
     if (fit) { const a = applyState(s); if (st.k === 'open' || st.k === 'soon' || (st.k === 'closed' && a.k !== 'none' && s.stage !== 'match')) { const ab = applyBox(s, true); if (ab) h += `<div class="inline-apply">${ab}</div>` } }
   }
