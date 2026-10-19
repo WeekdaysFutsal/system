@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.56';
+const APP_VERSION = '0.21.57';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1200,6 +1200,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.57', '2026.10.19', ['신청 현황 명단에서 선발자와 대기자를 확실히 나눠 보여줘요. 선발은 초록, 대기는 회색으로 표시하고 그 사이에 \'여기까지 선발\' 구분선을 넣었어요']],
   ['0.21.56', '2026.10.19', ['홈 경기 카드의 \'신청 현황 보기\'를 노란 버튼으로 바꿔 더 눈에 띄게 했어요']],
   ['0.21.55', '2026.10.16', ['드래프트 중에도 아래 메뉴가 바뀌지 않고 항상 홈·일정·경기모드·경기결과·내 정보로 고정돼요. 드래프트 방은 오른쪽 위 버튼으로 들어가요 (주장 👑 드래프트, 참관자 👀 참관)']],
   ['0.21.54', '2026.10.16', ['차례가 넘어갈 때 축구공이 땅을 차고 포물선으로 날아가 다음 팀 카드 가운데에 착지한 뒤 다시 통통 튀도록 자연스럽게 바꿨어요', '드래프트 화면 위쪽의 단계·주장 정보 바를 없애고 그만큼 축구장과 카드를 여유롭게 배치했어요']],
@@ -1483,11 +1484,12 @@ function viewApplicants() { const s = cur(); const me = myPid(); const base = is
   const off = [...late.map(([p0, t]) => ({ pid: p0, t, k: 'late' })), ...canc.map(([p0, t]) => ({ pid: p0, t, k: 'cancel' }))].filter(x => S.players[x.pid]).sort((a, b) => a.t - b.t);
   const mine = rows.find(r => r.pid && r.pid === me) || (!frozen && myApp(s) && rows.find(r => r.k === myApp(s).k));
   const myLine = mine ? `<div class="mypos ${mine.sel ? 'in' : 'wt'}">${mine.sel ? `✓ 나는 <b>선발</b>이에요${base ? ` · ${TIER[mine.tier]}` : ''}${typeof mine.n === 'number' ? ` · ${mine.n}번째 신청` : mine.auto ? ' · 자동 신청' : ''}` : `⏳ 나는 <b>대기 ${mine.wn}번</b>이에요${base ? ` · ${TIER[mine.tier]}` : ''}`}</div>` : '';
-  const tr = r => `<tr class="${r.sel ? '' : 'wrow'} ${mine && r === mine ? 'me' : ''}"><td class="num">${r.auto ? '자동' : r.n}</td><td class="nm"><b>${r.pid ? esc(pname(r.pid)) : '<i class="muted">이름 입력 대기</i>'}</b>${mine && r === mine ? '<i class="metag">나</i>' : ''}</td><td class="num muted">${r.at ? fmtTS(r.at).replace(/\.\d{3}$/, '') : '-'}</td>${base ? `<td><b class="tb t${r.tier}">${TIER[r.tier]}</b></td>` : ''}<td>${r.sel ? '<b class="ok">선발</b>' : `<b class="tw">대기 ${r.wn}</b>`}</td></tr>`;
+  const tr = r => `<tr class="${r.sel ? 'srow' : 'wrow'} ${mine && r === mine ? 'me' : ''}"><td class="num">${r.auto ? '자동' : r.n}</td><td class="nm"><b>${r.pid ? esc(pname(r.pid)) : '<i class="muted">이름 입력 대기</i>'}</b>${mine && r === mine ? '<i class="metag">나</i>' : ''}</td><td class="num muted">${r.at ? fmtTS(r.at).replace(/\.\d{3}$/, '') : '-'}</td>${base ? `<td><b class="tb t${r.tier}">${TIER[r.tier]}</b></td>` : ''}<td>${r.sel ? '<b class="ok">선발</b>' : `<b class="tw">대기 ${r.wn}</b>`}</td></tr>`;
   const cols = base ? 5 : 4;
   return '<div class="apwrap">' + backbar('홈으로') + myLine + `<h2>신청 현황<small>신청 ${rows.length}${s.capacity ? ' / ' + s.capacity : ''}명 · 선발 ${rows.filter(r => r.sel).length} · 대기 ${rows.filter(r => !r.sel).length}</small></h2>
   <div class="vtog" role="group" aria-label="정렬"><button class="btn sm${byTime ? '' : ' primary'}" data-act="apord" data-v="rank">순위순</button><button class="btn sm${byTime ? ' primary' : ''}" data-act="apord" data-v="time">신청순</button><small>${byTime ? '신청이 들어온 순서대로 보여요.' : '선발 → 대기 순서로 보여요.'}</small></div><div class="panel sheetwrap"><table class="grid aptbl"><colgroup><col class="c-n"><col class="c-nm"><col class="c-t">${base ? '<col class="c-r">' : ''}<col class="c-s"></colgroup><thead><tr><th>신청순</th><th>이름</th><th>신청 시각</th>${base ? '<th>순위</th>' : ''}<th>상태</th></tr></thead><tbody>
-  ${rows.length ? rows.map(tr).join('') : `<tr><td colspan="${cols}" class="empty">아직 신청자가 없어요.</td></tr>`}
+  ${rows.length ? (byTime ? rows.map(tr).join('') : (() => { const sel = rows.filter(r => r.sel), wt = rows.filter(r => !r.sel);
+    return `<tr class="aphd in"><td colspan="${cols}">✅ 선발 ${sel.length}명</td></tr>${sel.map(tr).join('')}${wt.length ? `<tr class="apcut"><td colspan="${cols}"><span>✂ 여기까지 선발 · 아래는 대기</span></td></tr><tr class="aphd wt"><td colspan="${cols}">⏳ 대기 ${wt.length}명 <small>선발자가 취소하면 순서대로 올라가요</small></td></tr>${wt.map(tr).join('')}` : ''}` })()) : `<tr><td colspan="${cols}" class="empty">아직 신청자가 없어요.</td></tr>`}
   ${off.length ? `<tr class="offhd"><td colspan="${cols}">취소 ${off.length}명</td></tr>${off.map(x => `<tr class="offrow"><td class="num">-</td><td class="nm">${esc(pname(x.pid))}${x.pid === me ? '<i class="metag">나</i>' : ''}</td><td class="num muted">${fmtTS(x.t).replace(/\.\d{3}$/, '')}</td>${base ? '<td></td>' : ''}<td>${x.k === 'late' ? '<b class="t3">마감 후 취소</b>' : '<b class="muted">취소</b>'}</td></tr>`).join('')}` : ''}
   </tbody></table></div>
   <p class="note">${base ? '순위: 0순위 구장 예약자·경기 운영자 → 1순위 직전 경기 미참여 → 2순위 그 외 선착순 → 3순위 직전 경기 마감 후 취소자. 같은 순위 안에서는 신청 순서대로 선발돼요. ' : '이 구장은 순위 없이 신청한 순서대로 선발해요. '}신청 시각은 서버에 도착한 시각이에요. 취소한 시각은 이 버전부터 기록돼요.</p></div>` }
