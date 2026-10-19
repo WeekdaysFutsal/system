@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.58';
+const APP_VERSION = '0.21.59';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -681,17 +681,6 @@ function isTyping() { const a = document.activeElement; if (a && a.id === 'chati
 window.addEventListener('error', e => { try { toast('오류가 생겼어요: ' + (e.message || '알 수 없음')) } catch { } });
 window.addEventListener('unhandledrejection', e => { try { console.error(e.reason); toast('처리 중 오류: ' + (e.reason?.message || e.reason?.code || '알 수 없음')) } catch { } });
 /* ── 특별 인증(이벤트) ── */
-const QZ_NAMES = ['김민준', '박종현', '지유균'];
-const QZ_ROUND = 'r2'; // 라운드가 바뀌면 이전 답변 기록과 상관없이 한 번 더 물어봐요
-const QZ_REPEAT = false; // false: 한 번만 물어봐요
-function qzTarget() { const me = myPid(); return !!(me && !S.admin && QZ_NAMES.includes(String(S.players[me]?.name || '').replace(/\(게\)/g, '').trim())) }
-function qzName() { const me = myPid(); return String(S.players[me]?.name || '').replace(/\(게\)/g, '').trim() || load('qzname', '') || '' }
-function qzDone() { const me = myPid(); if (QZ_REPEAT) { try { return sessionStorage.getItem('wf:qzans') === me } catch { return false } } return String(S.meta?.qz?.[me] || '').startsWith(QZ_ROUND + ':') || !!load('qz:' + QZ_ROUND + ':' + me, null) }
-function viewQuiz() { if (S.qzStep === 'blocked') return `<div class="qz"><div class="qz-card"><div class="qz-ico">⛔</div><p class="qz-q">${esc(qzName())} 님은 거짓 정보를 입력했습니다.<br>앞으로 앱 사용이 차단됩니다.</p><button class="qz-ok" data-act="qzok">확인</button></div></div>`;
-  return `<div class="qz"><div class="qz-card"><div class="qz-ico">🔒</div><p class="qz-q">너무 많은 트래픽이 발생하여, 본인임을 확인합니다.<br><b>당신의 성별은 무엇입니까?</b></p><div class="qz-btns"><button data-act="qzans" data-v="m">남</button><button data-act="qzans" data-v="f">녀</button></div></div></div>` }
-function qzKill() { clearTimeout(S.qzT); S.qzStep = 'dead'; try { sessionStorage.setItem('wf:qzname', qzName()) } catch { } try { sessionStorage.setItem('wf:qzdead', '1') } catch { } render(); try { window.close() } catch { } try { if (navigator.app?.exitApp) navigator.app.exitApp() } catch { } }
-async function qzSave(v) { const me = myPid(); if (QZ_REPEAT) { try { sessionStorage.setItem('wf:qzans', me) } catch { } return } save('qz:' + QZ_ROUND + ':' + me, v); const val = QZ_ROUND + ':' + v + ':' + Date.now(); try { await S.store.update('meta/qz', { [me]: val }) } catch { try { await S.store.set('meta/qz', { ...(S.meta?.qz || {}), [me]: val }) } catch { } } }
-(() => { try { if (new URLSearchParams(location.search).get('qz') === 'reset') { Object.keys(localStorage).filter(k => k.startsWith('wf:qz:')).forEach(k => localStorage.removeItem(k)); window.WF_QZ_RESET = 1 } } catch { } })();
 const BOOT_T0 = performance.now();
 /* 스타일 파일이 옛 버전이면(서버 반영 지연·폰 저장본) 최신 파일을 다시 받아요 */
 setTimeout(() => { try { const v = getComputedStyle(document.documentElement).getPropertyValue('--cssv').replace(/["'\s]/g, ''); if (!IS_ARTIFACT && v !== APP_VERSION) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = `style.css?v=${APP_VERSION}&r=${Date.now()}`; document.head.appendChild(l); console.warn('style.css 다시 받기', v, '→', APP_VERSION) } } catch { } }, 1500);
@@ -744,9 +733,6 @@ function render() {
   if (S.ready >= 3 && S.auth && !S.admin) { loadPrefs(); pushListen(); watchInbox() }
   if (!S.admin && S.auth && S.ready >= 3) { const cs = capSid(); if (cs && S.tab !== 'draft' && !(S.capPop ??= {})[cs] && !S.sheet) { S.capPop[cs] = 1; S.sheet = { type: 'cappop', sid: cs } } }
   if (!S.admin && !S.auth && S.ready >= 3) { document.body.classList.remove('dm-on'); document.getElementById('app').innerHTML = loginScreen() + (S.sheet ? viewSheet() : ''); return }
-  if (S.ready >= 3 && qzTarget() && window.WF_QZ_RESET && !S.qzResetDone) { S.qzResetDone = true; const me = myPid(); S.store.update('meta/qz', { [me]: null }).catch(() => { }); if (S.meta?.qz) S.meta.qz[me] = null }
-  if (S.qzStep === 'dead' || (() => { try { return sessionStorage.getItem('wf:qzdead') } catch { return null } })()) { document.body.classList.remove('dm-on'); document.querySelectorAll('.toast').forEach(x => x.remove()); const nm = (() => { try { return sessionStorage.getItem('wf:qzname') || qzName() } catch { return qzName() } })(); document.getElementById('app').innerHTML = `<div class="qzdead"><div><small>${esc(nm)}</small>차단됨</div></div>`; return }
-  if (S.ready >= 3 && qzTarget() && (!qzDone() || S.qzStep === 'blocked')) { document.body.classList.remove('dm-on'); document.getElementById('app').innerHTML = viewQuiz(); return }
   if (S.ready >= 3 && (!S.sid || !S.sessions[S.sid])) S.sid = defaultSid();
   if (S.store && S.chatSid !== S.sid) watchChat();
   if (S.admin) { watchContacts(); if (!S.unRules && S.store) S.unRules = S.store.watchCol('pushRules', docs => { const o = {}; docs.forEach(d => { const { id, ...r } = d; o[id] = r }); S.rules = o; renderSoon() }, null, () => { }) }
@@ -2707,8 +2693,6 @@ document.addEventListener('click', async e => {
     case 'pushsend': { if (!needAdmin()) break; const t = document.getElementById('pn-title')?.value.trim(), b0 = document.getElementById('pn-body')?.value.trim(); const pids = [...new Set(S.pnSel || [])];
       if (!pids.length) { toast('받는 사람을 골라 주세요.'); break } if (!t || !b0) { toast('제목과 내용을 입력해 주세요.'); break } if (!confirm(`${pids.length}명에게 알림을 보낼까요?`)) break;
       await queuePush({ type: 'notice', title: t, body: b0, target: 'pids', pids, sid: S.pnSid || null }); S.pnTitle = ''; S.pnBody = ''; S.pnSel = []; document.activeElement?.blur?.(); toast(`${pids.length}명에게 알림을 보냈어요. 잠시 뒤 도착해요.`); render(); break }
-    case 'qzans': if (el.dataset.v === 'm') { S.qzStep = 'blocked'; await qzSave('m'); render(); clearTimeout(S.qzT); S.qzT = setTimeout(qzKill, 3500) } else { S.qzStep = null; await qzSave('f'); render() } break;
-    case 'qzok': qzKill(); break;
     case 'stalefix': { if (!needAdmin()) break; const ps = staleExtraPids(cur()); if (!ps.length) break; if (!confirm(`${ps.map(pname).join(', ')} 님의 주차·공당·물당 신청과 지정을 지울까요?`)) break; for (const p0 of ps) await clearExtras(S.sid, p0); toast('정리했어요.'); render(); break }
     case 'kakaopaste': if (!needAdmin()) break; S.kk = null; S.kkFromImg = false; S.ocrBusy = false; S.sheet = { type: 'kakao' }; render(); break;
     case 'kakaoparse': { const t = document.getElementById('kk-text')?.value || ''; const L = parseKakao(t); if (!L.length) { toast('이름을 찾지 못했어요. 다시 붙여넣어 주세요.'); break } S.kk = L; S.kkFromImg = false; document.activeElement?.blur?.(); render(); break }
