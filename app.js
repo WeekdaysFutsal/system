@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.63';
+const APP_VERSION = '0.21.64';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1167,6 +1167,8 @@ function viewSheet() {
   else if (sh.type === 'cappop') { const s = S.sessions[sh.sid]; const k = myTeam(s);
     h += `<div class="cappop"><div class="cp-crown">👑</div><h4>${esc(pname(myPid()))} 님, 주장으로 지정됐어요!</h4><p>${fmtDate(sh.sid)} ${esc(s.time || '')} 경기의 <b>${esc(team(s, k).name)}</b> 주장이에요.<br>${s.room?.open ? '드래프트 방이 열렸어요. 지금 입장해 주세요.' : '운영진이 드래프트 방을 열면 팀원을 선정해요.'}</p><button class="btn primary block cta" data-act="gocap" data-id="${sh.sid}">팀 선정 화면으로 가기</button></div>` }
   else if (sh.type === 'import') h += importSheet();
+  else if (sh.type === 'attimp') h += attImpSheet();
+  else if (sh.type === 'attp') h += attPersonSheet(sh.id);
   else if (sh.type === 'duty') h += dutySheet(sh.sid);
   else if (sh.type === 'park') h += parkSheet(sh.sid);
   else if (sh.type === 'parkapply') { h += `<h4>🚗 주차 신청</h4><p>${fmtDate(sh.sid)} 경기 주차를 신청해요. 신청자 중 ${PARK_SLOTS}명을 추첨해요.</p><div class="panel"><div class="field"><label for="pk-car2">차량번호</label><input id="pk-car2" class="inp" type="text" maxlength="12" placeholder="예: 12가3456" value="${esc(myCar())}"></div><p class="note" style="margin:6px 0 0">내 정보에 차량번호를 저장해 두면 자동으로 채워져요.</p></div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="parksave">신청</button></div>` }
@@ -1214,6 +1216,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.64', '2026.10.20', ['운영모드 회원 메뉴 표에 회원별 출석 횟수·출석률·최근 출석이 나와요. 출석 횟수를 누르면 참석한 경기 날짜를 볼 수 있어요', '지난 출석 기록을 붙여넣기로 올릴 수 있어요 (출석표, 날짜별 명단, 횟수 요약 형식)', '운영모드 화면 아래 \'경기 도구\' 줄을 없앴어요']],
   ['0.21.63', '2026.10.20', ['공당·물당 정하는 방식을 바꿨어요. 공당은 운영진이 먼저 지정하고, 물당은 공당을 뺀 경기 참가자 중에서 운영진이 정한 인원만큼 랜덤으로 추첨해요']],
   ['0.21.62', '2026.10.20', ['경기결과 메뉴에 \'출석 현황\'을 추가했어요. 회원별 출석 수·출석률·최근 출석·연속 출석을 볼 수 있고, 이름을 누르면 출석한 날짜가 나와요 (운영모드는 회원 메뉴에서)', '모바일 팀원조정 화면에서도 채팅 내용 칸을 없애고 팀 현황을 더 넓게 보여줘요', '채팅 입력할 때 화면이 들썩이지 않고 그대로 있고, 입력창만 키보드 위로 올라와요']],
   ['0.21.61', '2026.10.20', ['운영모드 두 번째 단계를 \'도우미 지정\'으로 바꿨어요. 주장 3명을 가로 카드로 크게 보여주고, 같은 화면에서 주차 추첨과 공당·물당 지정까지 바로 할 수 있어요', '버튼 크기와 색을 정리해 누를 곳이 더 잘 보이게 했어요']],
@@ -1485,21 +1488,57 @@ function vResultDetail(s) {
 }
 /* ───────── 출석 현황 ───────── */
 function attPids(s) { const ps = new Set(); KEYS.forEach(k => (s.teams?.[k]?.players || []).forEach(p => p && ps.add(p))); if (!ps.size) (s.applicants || []).forEach(p => p && ps.add(p)); return [...ps] }
-function attSessions(period) { const t = today(); let ids = Object.keys(S.sessions).filter(id => { const s = S.sessions[id]; return id <= t && (s.stage === 'match' || s.imported) && attPids(s).length }).sort();
+function attUp() { return S.meta?.att || {} } // 업로드한 지난 출석 기록 { dates: {날짜: [pid]}, base: {pid: 횟수}, baseTotal }
+function attEntries(period) { const t = today(); const up = attUp().dates || {}; const E = {};
+  Object.keys(S.sessions).forEach(id => { const s = S.sessions[id]; if (id <= t && (s.stage === 'match' || s.imported)) { const ps = attPids(s); if (ps.length) E[id] = ps } });
+  Object.entries(up).forEach(([d, ps]) => { if (d <= t && !E[d] && (ps || []).length) E[d] = ps.filter(p => S.players[p]) });
+  let ids = Object.keys(E).sort();
   if (period === 'year') ids = ids.filter(id => id.startsWith(t.slice(0, 4)));
   else if (period === '3m') { const d = new Date(); d.setMonth(d.getMonth() - 3); const cut = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`; ids = ids.filter(id => id >= cut) }
-  return ids }
-function attRows(period) { const ids = attSessions(period); const m = {}; ids.forEach(id => attPids(S.sessions[id]).forEach(p => (m[p] ??= []).push(id)));
-  const pids = new Set([...Object.keys(m), ...Object.keys(S.players).filter(id => !['guest', 'dormant'].includes(mstatus(S.players[id])))]);
-  const rows = [...pids].filter(id => S.players[id]).map(id => { const a = m[id] || []; let st = 0; for (let i = ids.length - 1; i >= 0 && a.includes(ids[i]); i--) st++;
-    return { id, n: a.length, rate: ids.length ? a.length / ids.length : 0, last: a[a.length - 1] || '', dates: a, streak: st, guest: mstatus(S.players[id]) === 'guest' } });
+  return { ids, E } }
+function attSessions(period) { return attEntries(period).ids }
+function attRows(period) { const { ids, E } = attEntries(period); const m = {}; ids.forEach(id => E[id].forEach(p => (m[p] ??= []).push(id)));
+  const up = attUp(); const useBase = period === 'all'; const base = useBase ? (up.base || {}) : {}; const total = ids.length + (useBase ? (+up.baseTotal || 0) : 0);
+  const pids = new Set([...Object.keys(m), ...Object.keys(base).filter(p => S.players[p]), ...Object.keys(S.players).filter(id => !['guest', 'dormant'].includes(mstatus(S.players[id])))]);
+  const rows = [...pids].filter(id => S.players[id]).map(id => { const a = m[id] || []; const b = +base[id] || 0; let st = 0; for (let i = ids.length - 1; i >= 0 && a.includes(ids[i]); i--) st++; const n = a.length + b;
+    return { id, n, base: b, rate: total ? Math.min(1, n / total) : 0, last: a[a.length - 1] || '', dates: a, streak: st, guest: mstatus(S.players[id]) === 'guest' } });
   rows.sort((x, y) => y.n - x.n || (y.last > x.last ? 1 : y.last < x.last ? -1 : 0) || pname(x.id).localeCompare(pname(y.id), 'ko'));
-  let rk = 0, prev = -1; rows.forEach((r, i) => { if (r.n !== prev) { rk = i + 1; prev = r.n } r.rank = rk }); return { ids, rows } }
-function viewAttendance() { const per = S.attPer || 'all'; const { ids, rows } = attRows(per); const me = myPid(); const mine = rows.find(r => r.id === me);
+  let rk = 0, prev = -1; rows.forEach((r, i) => { if (r.n !== prev) { rk = i + 1; prev = r.n } r.rank = rk }); return { ids, rows, total } }
+/* 지난 출석 기록 붙여넣기: ① 표(첫 줄 날짜, 각 줄 이름+O/X) ② 날짜 줄(날짜 이름 이름…) ③ 요약(이름 횟수) */
+function attDate(t) { t = String(t || '').trim().replace(/[년월]/g, '.').replace(/일/g, '').replace(/\s+/g, ''); let m = t.match(/^(\d{2,4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})\.?$/); let y, mo, d;
+  if (m) { y = +m[1]; if (y < 100) y += 2000; mo = +m[2]; d = +m[3] } else { m = t.match(/^(\d{1,2})[.\-\/](\d{1,2})\.?$/); if (!m) return null; mo = +m[1]; d = +m[2]; y = +today().slice(0, 4); if (`${y}-${p2(mo)}-${p2(d)}` > today()) y-- }
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null; return `${y}-${p2(mo)}-${p2(d)}` }
+function attParse(text, total) { const lines = String(text || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean); const res = { kind: '', dates: {}, base: {}, unknown: new Set(), baseTotal: 0 }; if (!lines.length) return res;
+  const split = l => l.includes('\t') ? l.split('\t') : l.includes(',') ? l.split(',') : l.split(/\s+/); const pid = n => { n = String(n || '').trim(); if (!n) return null; const id = findPlayer(n); if (!id) res.unknown.add(n); return id };
+  const head = split(lines[0]).map(x => x.trim()); const hd = head.slice(1).map(attDate);
+  if (hd.filter(Boolean).length >= 1 && hd.filter(Boolean).length >= hd.length / 2) { res.kind = 'table'; const yes = /^(o|ㅇ|○|●|◯|v|✓|✔|y|yes|1|출|출석|참|참석|true)$/i;
+    lines.slice(1).forEach(l => { const cs = split(l).map(x => x.trim()); const id = pid(cs[0]); if (!id) return; hd.forEach((d, i) => { if (d && yes.test(cs[i + 1] || '')) (res.dates[d] ??= []).push(id) }) }); return res }
+  if (attDate(split(lines[0])[0])) { res.kind = 'dates'; lines.forEach(l => { const cs = split(l).map(x => x.trim()).filter(Boolean); const d = attDate(cs[0]); if (!d) return; cs.slice(1).forEach(n => { const id = pid(n); if (id && !(res.dates[d] ??= []).includes(id)) res.dates[d].push(id) }) }); return res }
+  res.kind = 'summary'; res.baseTotal = Math.max(0, +total || 0); lines.forEach(l => { const cs = split(l).map(x => x.trim()).filter(Boolean); const num = cs.find(x => /^\d+$/.test(x)); const nm = cs.filter(x => !/^\d+$/.test(x)).join(''); if (!num || !nm) return; const id = pid(nm); if (id) res.base[id] = +num }); return res }
+function attImpSheet() { const st = S.attImp || {}; const r = st.res; const up = attUp(); const nd = Object.keys(up.dates || {}).length, nb = Object.keys(up.base || {}).length;
+  return `<h4>⬆ 지난 출석 기록 올리기</h4><p>엑셀·구글시트에서 복사해서 붙여넣으면 돼요. 아래 세 가지 형식을 자동으로 알아봐요.</p>
+  <div class="panel pad att-fmt"><b>① 출석표</b> 첫 줄에 날짜, 각 줄에 이름과 O/X (1, ✓, 출석도 돼요)<pre>이름	9.1	9.14	9.28\n김일	O		O\n이이	O	O	O</pre>
+    <b>② 날짜별 명단</b> 줄마다 날짜와 그날 온 사람<pre>2026.09.01 김일 이이 박삼\n2026.09.14 이이 정오</pre>
+    <b>③ 횟수 요약</b> 이름과 출석 횟수 (날짜 없이 합계만 있을 때)<pre>김일 12\n이이 15</pre></div>
+  <label class="field"><span>붙여넣기</span><textarea id="att-txt" class="inp" rows="8" placeholder="여기에 붙여넣으세요">${esc(st.text || '')}</textarea></label>
+  <label class="field"><span>③ 요약일 때 전체 경기 수 (출석률 계산용)</span><input id="att-tot" class="inp" type="number" min="0" value="${esc(st.total || '')}" placeholder="예: 20"></label>
+  <div class="row"><button class="btn" data-act="attparse">확인하기</button></div>
+  ${r ? `<div class="panel pad att-prev"><b>${{ table: '① 출석표로', dates: '② 날짜별 명단으로', summary: '③ 횟수 요약으로' }[r.kind] || '알 수 없는 형식이에요. 예시를 확인해 주세요'}${r.kind ? ' 읽었어요' : ''}</b>
+    <p>${r.kind === 'summary' ? `${Object.keys(r.base).length}명의 출석 횟수 · 전체 경기 ${r.baseTotal || '(입력 안 함)'}회` : `${Object.keys(r.dates).length}경기 · 출석 ${Object.values(r.dates).reduce((a, b) => a + b.length, 0)}건 (${Object.keys(r.dates).sort()[0] || '-'} ~ ${Object.keys(r.dates).sort().slice(-1)[0] || '-'})`}</p>
+    ${r.unknown.size ? `<p class="warn">⚠️ 회원 명단에 없는 이름 ${r.unknown.size}개는 빼고 저장해요: ${[...r.unknown].slice(0, 12).map(esc).join(', ')}${r.unknown.size > 12 ? ' …' : ''}</p>` : ''}
+    <button class="btn primary block" data-act="attsave" ${(r.kind === 'summary' ? Object.keys(r.base).length : Object.keys(r.dates).length) ? '' : 'disabled'}>저장하기</button></div>` : ''}
+  ${nd || nb ? `<div class="panel pad" style="margin-top:10px"><b>지금 올라가 있는 기록</b><p class="muted" style="margin:4px 0 8px">${nd ? `날짜별 ${nd}경기` : ''}${nd && nb ? ' · ' : ''}${nb ? `횟수 요약 ${nb}명 (전체 ${up.baseTotal || 0}경기)` : ''}</p><button class="btn sm danger" data-act="attclear">올린 기록 모두 지우기</button></div>` : ''}
+  <p class="note">같은 날짜를 다시 올리면 새 내용으로 바뀌어요. 앱에서 진행한 경기와 날짜가 겹치면 앱 기록이 우선이에요. 횟수 요약은 '전체' 기간에만 더해져요.</p>` }
+function attPersonSheet(id) { const { rows, total } = attRows('all'); const r = rows.find(x => x.id === id) || { n: 0, rate: 0, dates: [], base: 0 }; const md = d => { const [y, mm, dd] = d.split('-'); return `${y.slice(2)}.${+mm}.${+dd}` };
+  return `<h4>${esc(pname(id))} 출석 현황</h4><div class="att-me"><div class="am-top"><span>전체 출석</span><b>${r.n}<small>/${total}경기</small></b><em>${Math.round(r.rate * 100)}%</em></div><div class="att-bar big"><i style="width:${Math.round(r.rate * 100)}%"></i></div>
+    <div class="am-sub">${r.last ? `최근 출석 ${fmtDate(r.last)}` : '날짜가 있는 출석 기록이 없어요'}${r.streak > 1 ? ` · 🔥 ${r.streak}경기 연속` : ''}${r.base ? ` · 이전 기록 ${r.base}회 포함` : ''}</div></div>
+    ${r.dates.length ? `<b class="dk">참석한 경기 ${r.dates.length}회</b><div class="att-dates list">${r.dates.slice().reverse().map(d => `<span>${md(d)}</span>`).join('')}</div>` : ''}` }
+function viewAttendance() { const per = S.attPer || 'all'; const { ids, rows, total } = attRows(per); const me = myPid(); const mine = rows.find(r => r.id === me);
   const pct = r => Math.round(r.rate * 100); const md = id => { const [, mm, dd] = id.split('-'); return `${+mm}.${+dd}` };
-  let h = `<div class="att"><div class="att-hd"><div><b>출석 현황</b><small>끝난 경기 ${ids.length}회 기준</small></div><div class="seg att-seg">${[['all', '전체'], ['year', '올해'], ['3m', '최근 3개월']].map(([k, n]) => `<button role="tab" data-act="attper" data-k="${k}" aria-selected="${per === k}">${n}</button>`).join('')}</div></div>`;
-  if (!ids.length) return h + `<div class="panel"><p class="empty">이 기간에 끝난 경기가 없어요.</p></div></div>`;
-  if (mine && !S.admin) h += `<div class="att-me"><div class="am-top"><span>나의 출석</span><b>${mine.n}<small>/${ids.length}경기</small></b><em>${pct(mine)}%</em></div><div class="att-bar big"><i style="width:${pct(mine)}%"></i></div>
+  let h = `<div class="att"><div class="att-hd"><div><b>출석 현황</b><small>끝난 경기 ${total}회 기준${total !== ids.length ? ` (올린 기록 포함)` : ''}</small></div><div class="seg att-seg">${[['all', '전체'], ['year', '올해'], ['3m', '최근 3개월']].map(([k, n]) => `<button role="tab" data-act="attper" data-k="${k}" aria-selected="${per === k}">${n}</button>`).join('')}</div></div>`;
+  if (S.admin) h += `<div class="row att-adm"><button class="btn sm" data-act="attimp">⬆ 지난 출석 기록 올리기</button></div>`;
+  if (!total) return h + `<div class="panel"><p class="empty">이 기간에 끝난 경기가 없어요.</p></div></div>`;
+  if (mine && !S.admin) h += `<div class="att-me"><div class="am-top"><span>나의 출석</span><b>${mine.n}<small>/${total}경기</small></b><em>${pct(mine)}%</em></div><div class="att-bar big"><i style="width:${pct(mine)}%"></i></div>
     <div class="am-sub">${mine.last ? `최근 출석 ${fmtDate(mine.last)}` : '아직 출석 기록이 없어요'}${mine.streak > 1 ? ` · 🔥 ${mine.streak}경기 연속 출석 중` : ''}</div>
     ${mine.dates.length ? `<div class="att-dates">${mine.dates.slice().reverse().map(id => `<span>${md(id)}</span>`).join('')}</div>` : ''}</div>`;
   h += `<div class="panel tblwrap"><table class="att-tbl"><thead><tr><th>순위</th><th class="l">이름</th><th>출석</th><th class="l">출석률</th><th>최근</th></tr></thead><tbody>${rows.map(r => { const op = S.attOpen === r.id;
@@ -1625,9 +1664,8 @@ function viewRun() {
   if (step === 'draft' && S.dm) return `<div class="dmroot">${adminBar()}${vDraft(s)}</div>`;
   let h = adminBar();
   if (step === 'notice') step = 'trade';
-  if (step === 'result') h += ms.length ? vResultDetail(s) + `<p class="note">골과 도움은 "경기" 단계에서 각 경기를 눌러 고쳐요.</p>` : `<div class="panel pad" style="margin-top:14px"><p class="empty" style="padding:8px 0">아직 경기 기록이 없어요. 팀 확정 단계에서 경기 일정을 만들거나, 아래 "기록 붙여넣기"로 지난 기록을 넣을 수 있어요.</p></div>`;
+  if (step === 'result') h += ms.length ? vResultDetail(s) + `<p class="note">골과 도움은 "경기" 단계에서 각 경기를 눌러 고쳐요.</p>` : `<div class="panel pad" style="margin-top:14px"><p class="empty" style="padding:8px 0">아직 경기 기록이 없어요. 팀 확정 단계에서 경기 일정을 만들거나, "기록 붙여넣기"로 지난 기록을 넣을 수 있어요.</p><button class="btn sm" style="margin-top:8px" data-act="impopen">📋 기록 붙여넣기</button></div>`;
   else h += ({ apply: vApply, captain: vCaptain, draft: vDraft, trade: vTrade, match: vMatchDay })[step](s);
-  h += `<div class="runtools"><span>경기 도구</span><button class="btn sm" data-act="dutyedit" data-id="${sid}">⚽🥤 당번 지정</button><button class="btn sm" data-act="parkedit" data-id="${sid}">🚗 주차 관리</button><button class="btn sm" data-act="impopen">📋 기록 붙여넣기</button></div>`;
   return h;
 }
 function recruitText(s) { return [`[${CFG.club?.short || 'WF'}] ${fmtDate(s.date)} ${s.time || ''} 경기 신청 받아요`, `장소: ${s.venue || '-'}`, `정원: ${s.capacity || '-'}명`, s.applyClose ? `마감: ${fmtDT(s.applyClose)}` : '', s.applyOpen ? `신청 오픈: ${fmtDT(s.applyOpen)}` : '', `앱에서 신청해 주세요 👉 ${location.origin}${location.pathname}`].filter(Boolean).join('\n') }
@@ -2555,12 +2593,13 @@ function watchContacts() { if (!S.admin || S.unsubContacts || !S.store) return; 
 function memberRows() {
   const st = {}; for (const r of playerStats()) st[r.id] = r;
   const last = {}; for (const [sid, s] of Object.entries(S.sessions)) { if (!sessMatches(sid).some(m => m.status === 'done')) continue; for (const k of KEYS) for (const id of teamPlayers(s, k)) if (!last[id] || last[id] < sid) last[id] = sid }
-  return Object.entries(S.players).map(([id, p]) => ({ id, name: p.name, status: mstatus(p), phone: S.contacts?.[id]?.phone || '', memo: S.contacts?.[id]?.memo || '', days: st[id]?.days || 0, g: st[id]?.g || 0, a: st[id]?.a || 0, last: last[id] || '', created: p.createdAt || 0 }));
+  const AT = {}; attRows('all').rows.forEach(r => AT[r.id] = r);
+  return Object.entries(S.players).map(([id, p]) => ({ att: AT[id]?.n || 0, attr: Math.round((AT[id]?.rate || 0) * 100), attLast: AT[id]?.last || '', id, name: p.name, status: mstatus(p), phone: S.contacts?.[id]?.phone || '', memo: S.contacts?.[id]?.memo || '', days: st[id]?.days || 0, g: st[id]?.g || 0, a: st[id]?.a || 0, last: last[id] || '', created: p.createdAt || 0 }));
 }
 const MCOLS = [
   ['name', '이름', r => r.name, 't'], ['status', '회원 유형', r => MSTAT[r.status] || r.status, 't'],
   ['login', '로그인', r => S.authMap?.[r.id] ? '등록됨' : '미등록', 't'], ['birth', '생년월일', r => S.contacts?.[r.id]?.birth || '', 't'], ['phone', '연락처', r => r.phone || '', 't'],
-  ['memo', '메모', r => r.memo || '', 't'], ['days', '참가', r => r.days || 0, 'n'], ['last', '최근 참가', r => r.last || '', 't']];
+  ['memo', '메모', r => r.memo || '', 't'], ['days', '참가', r => r.days || 0, 'n'], ['last', '최근 참가', r => r.last || '', 't'], ['att', '출석', r => r.att || 0, 'n'], ['attr', '출석률', r => r.attr || 0, 'n'], ['attLast', '최근 출석', r => r.attLast || '', 't']];
 const mcol = k => MCOLS.find(c => c[0] === k);
 function mApplyCols(rows) { const F = S.colF || {}; for (const [k, vals] of Object.entries(F)) { if (!vals) continue; const c = mcol(k); const set = new Set(vals); rows = rows.filter(r => set.has(String(c[2](r)))) }
   const so = S.colSort || { k: 'name', d: 1 }; const c = mcol(so.k) || MCOLS[0]; const g = c[2];
@@ -2590,14 +2629,14 @@ function viewMembers0() {
   const nsel = Object.values(S.msel || {}).filter(Boolean).length;
   if (nsel) h += `<div class="bulkbar"><b>${nsel}명 선택</b><button class="btn sm" data-act="mselclear">선택 해제</button><button class="btn sm danger" data-act="mbulkdel">선택 삭제</button></div>`;
   if (!rows.length) return h + `<div class="panel"><p class="empty">${q || fk.length ? '조건에 맞는 회원이 없어요.' : '회원이 없어요. 회원 추가나 명단 붙여넣기로 등록하세요.'}</p></div>`;
-  h += `<div class="panel sheetwrap"><table class="grid"><thead><tr><th class="ck"><input type="checkbox" class="staffck" data-in="mselall" aria-label="모두 선택" ${rows.length && rows.every(r => S.msel?.[r.id]) ? 'checked' : ''}></th>${mTh('name', 'stick')}${mTh('status')}${mTh('login')}${mTh('birth')}${mTh('phone')}${mTh('memo')}${mTh('days')}${mTh('last')}<th>관리</th></tr></thead><tbody>
+  h += `<div class="panel sheetwrap"><table class="grid"><thead><tr><th class="ck"><input type="checkbox" class="staffck" data-in="mselall" aria-label="모두 선택" ${rows.length && rows.every(r => S.msel?.[r.id]) ? 'checked' : ''}></th>${mTh('name', 'stick')}${mTh('status')}${mTh('login')}${mTh('birth')}${mTh('phone')}${mTh('memo')}${mTh('att')}${mTh('attr')}${mTh('attLast')}<th>관리</th></tr></thead><tbody>
   ${rows.map(r => `<tr class="${S.msel?.[r.id] ? 'msel' : ''}"><td class="ck"><input type="checkbox" class="staffck" data-in="msel" data-id="${r.id}" ${S.msel?.[r.id] ? 'checked' : ''} aria-label="${esc(r.name)} 선택"></td><td class="stick"><input class="cell w-name" type="text" value="${esc(r.name)}" data-in="mcell" data-id="${r.id}" data-f="name"></td>
     <td><select class="cell w-st st-${r.status}" data-in="mcell" data-id="${r.id}" data-f="status">${Object.entries(MSTAT).map(([k, n]) => `<option value="${k}" ${r.status === k ? 'selected' : ''}>${n}</option>`).join('')}</select></td>
     <td>${S.authMap?.[r.id] ? `<span class="muted" style="font-size:12px">등록됨</span> <button class="btn sm" data-act="pinreset" data-id="${r.id}">초기화</button>` : '<span class="muted" style="font-size:12px">미등록</span>'}</td>
     <td><input class="cell w-num" type="text" inputmode="numeric" maxlength="8" value="${esc(S.contacts?.[r.id]?.birth || '')}" placeholder="-" data-in="mcell" data-id="${r.id}" data-f="birth" style="width:84px"></td>
     <td><div class="telcell"><input class="cell w-tel" type="tel" value="${esc(r.phone)}" placeholder="010-0000-0000" data-in="mcell" data-id="${r.id}" data-f="phone">${r.phone ? `<a class="tel" href="tel:${esc(r.phone.replace(/[^0-9+]/g, ''))}" aria-label="${esc(r.name)}에게 전화">📞</a>` : ''}</div></td>
     <td><input class="cell w-memo" type="text" value="${esc(r.memo)}" placeholder="메모" data-in="mcell" data-id="${r.id}" data-f="memo"></td>
-    <td class="num">${r.days}</td><td class="num">${r.last ? r.last.slice(5).replace('-', '.') : '-'}</td>
+    <td class="num"><button class="attcell" data-act="attp" data-id="${r.id}"><b>${r.att}</b>회</button></td><td class="num"><div class="att-rate sm"><div class="att-bar"><i style="width:${r.attr}%"></i></div><span>${r.attr}%</span></div></td><td class="num">${r.attLast ? r.attLast.slice(5).replace('-', '.') : '-'}</td>
     <td class="acts"><button class="btn sm danger" data-act="mdel" data-id="${r.id}">삭제</button></td></tr>`).join('')}</tbody></table></div>
   <p class="note">칸을 눌러 바로 고치면 저장돼요. 회원 유형: 운영진(운영모드) · 특별회원(운영모드) · 정회원 · 장불회원(쉬는 회원, 신청·명단에서 빠져요) · 게스트. 장불회원으로 바꿔도 지난 기록은 그대로 남아요. 연락처와 메모는 운영모드에서만 보여요.</p>`;
   return h;
@@ -2619,7 +2658,7 @@ async function saveMember(m) {
 async function exportMembersCSV() {
   const rows = memberRows().sort((a, b) => a.name.localeCompare(b.name, 'ko'));
   const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const csv = '\ufeff' + [['이름', '회원 유형', '연락처', '메모', '참가', '최근 참가', '골', '도움'], ...rows.map(r => [r.name, MSTAT[r.status], r.phone, r.memo, r.days, r.last, r.g, r.a])].map(r => r.map(q).join(',')).join('\n');
+  const csv = '\ufeff' + [['이름', '회원 유형', '연락처', '메모', '출석', '출석률(%)', '최근 출석', '골', '도움'], ...rows.map(r => [r.name, MSTAT[r.status], r.phone, r.memo, r.att, r.attr, r.attLast, r.g, r.a])].map(r => r.map(q).join(',')).join('\n');
   const name = `WD_FUTSAL_회원명단_${today().replace(/-/g, '')}.csv`; const blob = new Blob([csv], { type: 'text/csv' });
   if (S.store?.dl) { try { await S.store.dl.save({ filename: name, data: blob }); toast('회원 명단을 저장했어요.') } catch (e) { if (e?.code !== 'declined') toast('이 화면에서는 저장할 수 없어요.') } return }
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 1000); toast('회원 명단을 저장했어요.');
@@ -2892,6 +2931,13 @@ document.addEventListener('click', async e => {
       const pick = sh(pool).slice(0, n); const t0 = Date.now(); S.dspin = { sid: id, hl: [] }; const tick = () => { if (Date.now() - t0 > 1400) { clearInterval(S.dspinT); S.dspin = null; w(() => S.store.update(sp(id), { 'duty.drink': pick }), `물당: ${pick.map(pname).join(', ')}`); return } S.dspin.hl = sh(pool).slice(0, n); render() };
       clearInterval(S.dspinT); S.dspinT = setInterval(tick, 110); tick(); break }
     case 'drinkclear': { if (!needAdmin()) break; if (!confirm('물당 추첨 결과를 지울까요?')) break; await w(() => S.store.update(sp(id), { 'duty.drink': [] }), '물당 추첨을 취소했어요.'); break }
+    case 'attp': S.sheet = { type: 'attp', id }; render(); break;
+    case 'attimp': if (!needAdmin()) break; S.attImp = {}; S.sheet = { type: 'attimp' }; render(); break;
+    case 'attparse': { const text = document.getElementById('att-txt')?.value || '', total = document.getElementById('att-tot')?.value || ''; S.attImp = { text, total, res: attParse(text, total) }; render(); break }
+    case 'attsave': { if (!needAdmin()) break; const r = S.attImp?.res; if (!r) break; const up = attUp(); const nx = { dates: { ...(up.dates || {}) }, base: { ...(up.base || {}) }, baseTotal: +up.baseTotal || 0, at: Date.now() };
+      if (r.kind === 'summary') { nx.base = r.base; nx.baseTotal = r.baseTotal } else Object.entries(r.dates).forEach(([d, ps]) => nx.dates[d] = ps);
+      const ok = await w(() => S.store.set('meta/att', nx), '출석 기록을 저장했어요.'); if (ok) { S.meta = S.meta || {}; S.meta.att = nx; S.attImp = {}; S.sheet = null; render() } break }
+    case 'attclear': { if (!needAdmin()) break; if (!confirm('올린 출석 기록을 모두 지울까요? 앱에서 진행한 경기 기록은 그대로 남아요.')) break; const ok = await w(() => S.store.set('meta/att', { dates: {}, base: {}, baseTotal: 0, at: Date.now() }), '올린 기록을 지웠어요.'); if (ok) { S.meta.att = { dates: {}, base: {}, baseTotal: 0 }; render() } break }
     case 'finishdraft': await finishDraft(); break;
     case 'redodraft': if (!needAdmin()) break; await redoDraft(); break;
     case 'mergedups': if (!needAdmin()) break; await mergeDups(); break;

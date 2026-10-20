@@ -372,7 +372,20 @@ table.atbl tr.wrow td .muted,table.atbl tr.lrow td .muted,table.atbl tr.wrow td.
 .t2{background:rgba(129,140,248,.22);color:#C7D2FE}
 .t3{background:rgba(239,68,68,.2);color:#FCA5A5}
 }
-:root{--cssv:"0.21.63"}
+:root{--cssv:"0.21.64"}
+.att-adm{margin:-4px 0 12px}
+.att-fmt b{display:block;margin:8px 0 2px;font-size:13.5px}
+.att-fmt b:first-child{margin-top:0}
+.att-fmt pre{margin:4px 0 6px;padding:8px 10px;border-radius:8px;background:var(--bg);font-size:12px;line-height:1.5;overflow-x:auto;white-space:pre}
+.att-prev{margin-top:12px;border-color:var(--accent)}
+.att-prev p{margin:6px 0 10px;font-size:14px}
+.att-prev .warn{color:#B45309;font-size:13px}
+@media (prefers-color-scheme:dark){.att-prev .warn{color:#FBBF24}}
+.attcell{display:inline-flex;align-items:baseline;gap:2px;padding:4px 10px;border-radius:99px;background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--accent);font-size:12px;font-weight:700;cursor:pointer}
+.attcell b{font-size:15px;font-weight:900}
+.att-rate.sm .att-bar{min-width:44px;height:6px}
+.att-rate.sm span{font-size:12px;min-width:32px}
+.att-dates.list span{background:var(--bg);border:1px solid var(--line);color:var(--ink)}
 .dn-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
 .dn-row>span{font-size:14px;font-weight:700;color:var(--muted)}
 .stepper{display:flex;align-items:center;gap:10px}
