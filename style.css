@@ -372,7 +372,50 @@ table.atbl tr.wrow td .muted,table.atbl tr.lrow td .muted,table.atbl tr.wrow td.
 .t2{background:rgba(129,140,248,.22);color:#C7D2FE}
 .t3{background:rgba(239,68,68,.2);color:#FCA5A5}
 }
-:root{--cssv:"0.21.61"}
+:root{--cssv:"0.21.62"}
+/* 0.21.62 팀원조정 채팅 칸 제거(모바일), 키보드 고정, 출석 현황 */
+.chatdock.nolog .cd-log{display:none!important}
+.chatdock{transition:transform .12s ease-out}
+body.kb-on .chatdock{bottom:0!important;transform:translateY(calc(-1 * var(--kb,0px)))}
+body.kb-on .chatdock .cd-bar{padding-bottom:8px!important}
+body.kb-on .tabs,body.kb-on .mmtab{visibility:hidden}
+#chatin{font-size:16px}
+.res-seg{margin:14px 0 4px}
+.att{margin-top:10px}
+.att-hd{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:6px 0 12px}
+.att-hd b{display:block;font-size:20px;font-weight:900}
+.att-hd small{font-size:12.5px;color:var(--muted);font-weight:600}
+.att-seg button{padding:0 12px}
+.att-me{background:linear-gradient(135deg,#0E1C38,#1E46C8);color:#fff;border-radius:18px;padding:16px 16px 14px;margin-bottom:12px;box-shadow:0 8px 20px -10px rgba(30,70,200,.6)}
+.am-top{display:flex;align-items:baseline;gap:10px}
+.am-top span{font-size:13px;font-weight:700;opacity:.85}
+.am-top b{font-family:var(--latin);font-weight:400;font-size:34px;line-height:1}
+.am-top b small{font-family:var(--body);font-size:13px;opacity:.8;margin-left:2px}
+.am-top em{margin-left:auto;font-style:normal;font-family:var(--latin);font-size:28px;color:#FFD21F}
+.am-sub{font-size:12.5px;opacity:.9;margin-top:8px}
+.att-bar{flex:1;height:8px;border-radius:99px;background:color-mix(in srgb,var(--line) 70%,transparent);overflow:hidden;min-width:60px}
+.att-bar i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#1FB45A,#15803D)}
+.att-me .att-bar{background:rgba(255,255,255,.2);margin-top:10px}
+.att-me .att-bar i{background:linear-gradient(90deg,#FFE14D,#FFC400)}
+.att-dates{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.att-dates span{font-size:12px;font-weight:700;padding:3px 8px;border-radius:99px;background:rgba(255,255,255,.16)}
+.att-tbl .att-dates span{background:var(--bg);border:1px solid var(--line);color:var(--ink)}
+.att-tbl{width:100%;border-collapse:collapse;font-size:14px}
+.att-tbl th{font-size:12px;color:var(--muted);font-weight:700;padding:10px 8px;border-bottom:1px solid var(--line);text-align:center}
+.att-tbl td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:center}
+.att-tbl .l{text-align:left}
+.att-tbl tr[data-act]{cursor:pointer}
+.att-tbl tr[data-act]:hover td{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+.att-tbl tr.me td{background:color-mix(in srgb,#FFD21F 14%,transparent)}
+.att-tbl tr.zero td{color:var(--muted)}
+.att-tbl td.ark{font-family:var(--latin);font-size:16px;width:44px}
+.att-tbl td.num b{font-size:16px}
+.att-tbl .nm b{font-weight:800}
+.att-tbl .stk3{margin-left:6px;font-size:11px;font-weight:800;color:#E5483B}
+.att-rate{display:flex;align-items:center;gap:8px}
+.att-rate span{font-size:12.5px;font-weight:800;min-width:36px;text-align:right}
+.att-open td{background:var(--bg);padding-top:4px!important}
+@media (max-width:420px){.att-tbl td,.att-tbl th{padding:9px 5px}.att-bar{min-width:40px}}
 /* 0.21.61 버튼 · 칩 정리: 누를 곳이 잘 보이게 */
 .btn{min-height:46px;font-weight:800}
 .btn.sm{min-height:38px;font-size:14px;padding:0 14px}
@@ -423,3 +466,6 @@ table.atbl tr.wrow td .muted,table.atbl tr.lrow td .muted,table.atbl tr.wrow td.
 @media (max-width:560px){.hp-two{grid-template-columns:1fr}.capgrid{gap:6px}.capcard{min-height:104px;padding:12px 4px}.cc-name{font-size:19px}}
 
 @media (prefers-color-scheme:dark){.btn.danger,.btn.sm.danger{color:#FF8A80!important;border-color:rgba(255,138,128,.45)}}
+
+/* 0.21.62 모바일 팀원조정: 팀 현황 크게 */
+@media (max-width:760px){.tcards{margin-top:28px;gap:8px}.tcard{min-height:calc(100dvh - var(--abh,64px) - 400px)}.tcard li{font-size:16px!important;padding:10px 2px!important}.tcard ol{padding:6px 8px 12px}.tcard .tchd{padding:14px 6px 12px}}
