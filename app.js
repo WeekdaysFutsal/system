@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.60';
+const APP_VERSION = '0.21.61';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -829,14 +829,32 @@ function vApply(s) {
   return h;
 }
 function vCaptain(s) {
-  const ad = S.admin && s.draftStatus === 'ready' && !s.ladder;
-  let h = `<h2>주장 3명<small>신청자 중에서 골라요</small></h2><div class="panel">${KEYS.map((k, i) => { const c = s.captains?.[k];
-    return `<button class="slot" data-act="capslot" data-k="${k}" ${ad ? '' : 'disabled'}><span class="teamtag" style="background:${NEUTRAL[k]};color:${inkOn(NEUTRAL[k])}">${k}팀</span><span class="who ${c ? '' : 'empty'}">${c ? '👑 ' + esc(pname(c)) : '눌러서 주장 선택'}</span>${ad ? '<span class="muted">변경</span>' : ''}</button>` }).join('')}</div>`;
-  h += `<p class="note">주장으로 지정된 회원은 앱에 로그인하면 팝업과 화면 위 안내 띠로 팀 선정 화면에 바로 들어올 수 있어요. 따로 링크를 보낼 필요가 없어요.</p>`;
-  h += `<p class="note">드래프트 방에서 주장들이 입장하면 ① 팀 색 선택 → ② 사다리 타기로 순번 선정 → ③ 팀원 선택 순서로 진행해요. 색이 정해지기 전까지 팀 이름은 A팀, B팀, C팀이에요.</p>`;
-  if (S.admin && s.draftStatus === 'ready') h += `<div style="height:12px"></div><button class="btn primary block cta" data-act="openroom" ${KEYS.some(k => !s.captains?.[k]) ? 'disabled' : ''}>드래프트 방 열기</button>`;
-  if (S.admin) { const vs = s.viewers || []; const pool = byName(Object.keys(S.players).filter(id => mstatus(S.players[id]) !== 'dormant' && !captainsOf(s).includes(id)));
-    h += `<h2>드래프트 참관자<small>지정한 회원만 드래프트를 볼 수 있어요 (${vs.length}명)</small></h2><div class="panel pad"><div class="dpick">${pool.map(id => `<button class="chip ${vs.includes(id) ? 'sel' : ''}" data-act="viewertog" data-id="${id}">${vs.includes(id) ? '👀 ' : ''}${esc(pname(id))}</button>`).join('')}</div></div>`; h += resetBar(s) }
+  const ad = S.admin && s.draftStatus === 'ready' && !s.ladder; const sid = s.date; const closed = applyClosed(s);
+  let h = `<div class="helpers"><div class="hp-intro"><b>경기 도우미 지정</b><span>주장 3명과 주차 · 공당 · 물당을 이 화면에서 한 번에 정해요.</span></div>`;
+  // 주장 (가로 3칸)
+  h += `<section class="hp-sec"><div class="hp-hd"><b>👑 주장</b><small>${KEYS.filter(k => s.captains?.[k]).length}/3명 · 카드를 눌러서 정해요</small></div><div class="capgrid">${KEYS.map(k => { const c = s.captains?.[k];
+    return `<button class="capcard ${c ? 'on' : ''}" data-act="capslot" data-k="${k}" ${ad ? '' : 'disabled'}><span class="cc-tag" style="background:${NEUTRAL[k]};color:${inkOn(NEUTRAL[k])}">${k}팀</span><b class="cc-name">${c ? esc(pname(c)) : '＋ 주장 선택'}</b>${ad && c ? '<small class="cc-edit">눌러서 변경</small>' : ''}</button>` }).join('')}</div>
+    ${S.admin && s.draftStatus === 'ready' ? `<button class="btn primary block cta hp-open" data-act="openroom" ${KEYS.some(k => !s.captains?.[k]) ? 'disabled' : ''}>${KEYS.some(k => !s.captains?.[k]) ? '주장 3명을 정하면 드래프트 방을 열 수 있어요' : '🎯 드래프트 방 열기'}</button>` : ''}</section>`;
+  if (S.admin) {
+    // 주차
+    const pa = parkApps(s), win = s.parkWin || [];
+    h += `<section class="hp-sec"><div class="hp-hd"><b>🚗 주차</b><small>신청 ${pa.length}명 · ${PARK_SLOTS}자리</small></div><div class="hp-card">
+      <div class="hp-list">${win.length ? win.map(id => { const a = (s.park || {})[id] || {}; return `<span class="hp-pill win"><b>${esc(pname(id))}</b>${a.car ? `<small>${esc(a.car)}</small>` : ''}</span>` }).join('') : `<span class="hp-empty">${pa.length ? '아직 당첨자가 없어요' : '주차 신청자가 없어요'}</span>`}</div>
+      <div class="hp-btns">${closed && pa.length ? `<button class="btn primary" data-act="parkdraw" data-id="${sid}">🎲 ${win.length ? '다시 추첨' : '추첨하기'}</button>` : ''}<button class="btn" data-act="parkedit" data-id="${sid}">명단 · 직접 지정</button></div>
+      ${closed ? '' : '<p class="hp-note">신청이 마감되면 추첨할 수 있어요.</p>'}</div></section>`;
+    // 공당 · 물당 (2칸)
+    const d = s.duty || {}; const ps = new Set(participants(s));
+    const duty = (kind, ico, nm) => { const sel = d[kind] || []; const req = dutyReqs(s, kind).filter(id => ps.has(id) || !closed); const cand = [...new Set([...sel, ...req])];
+      return `<div class="hp-card"><div class="hp-sub"><b>${ico} ${nm}</b><small>${sel.length ? `${sel.length}명 지정` : '미지정'} · 신청 ${dutyReqs(s, kind).length}명</small></div>
+        <div class="hp-list">${cand.length ? cand.map(id => closed ? `<button class="hp-pill tog ${sel.includes(id) ? 'win' : ''}" data-act="dutytog" data-kind="${kind}" data-id="${id}" data-sid="${sid}">${sel.includes(id) ? '✓ ' : ''}<b>${esc(pname(id))}</b>${dutyReqs(s, kind).includes(id) ? '<small>🙋 신청</small>' : ''}</button>` : `<span class="hp-pill"><b>${esc(pname(id))}</b><small>🙋 신청</small></span>`).join('') : '<span class="hp-empty">아직 신청자가 없어요</span>'}</div>
+        <div class="hp-btns"><button class="btn" data-act="dutyedit" data-id="${sid}">${closed ? '전체 명단에서 고르기' : '신청 현황 보기'}</button></div></div>` };
+    h += `<section class="hp-sec"><div class="hp-hd"><b>🧺 공당 · 물당</b><small>${closed ? '이름을 누르면 지정 · 해제돼요' : '신청이 마감되면 지정할 수 있어요'}</small></div><div class="hp-two">${duty('ball', '⚽', '공당')}${duty('drink', '🥤', '물당')}</div></section>`;
+    // 참관자
+    const vs = s.viewers || []; const pool = byName(Object.keys(S.players).filter(id => mstatus(S.players[id]) !== 'dormant' && !captainsOf(s).includes(id)));
+    h += `<section class="hp-sec"><div class="hp-hd"><b>👀 드래프트 참관자</b><small>지정한 회원만 드래프트를 볼 수 있어요 · ${vs.length}명</small></div><div class="hp-card"><div class="dpick">${pool.map(id => `<button class="chip ${vs.includes(id) ? 'sel' : ''}" data-act="viewertog" data-id="${id}">${vs.includes(id) ? '👀 ' : ''}${esc(pname(id))}</button>`).join('')}</div></div></section>`;
+  }
+  h += `<p class="note">주장으로 지정된 회원은 로그인하면 오른쪽 위 👑 버튼으로 드래프트 방에 바로 들어와요. 드래프트는 ① 팀 색 선택 → ② 순번 정하기 → ③ 팀원 선택 순서로 진행해요.</p></div>`;
+  if (S.admin) h += resetBar(s);
   return h;
 }
 /* ───────── draft room (board game) ───────── */
@@ -1190,6 +1208,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.61', '2026.10.20', ['운영모드 두 번째 단계를 \'도우미 지정\'으로 바꿨어요. 주장 3명을 가로 카드로 크게 보여주고, 같은 화면에서 주차 추첨과 공당·물당 지정까지 바로 할 수 있어요', '버튼 크기와 색을 정리해 누를 곳이 더 잘 보이게 했어요']],
   ['0.21.60', '2026.10.20', ['주차 추첨, 공당·물당, 신청자 관리, 달력 등 배경과 글씨색이 비슷해 잘 안 보이던 곳을 모두 찾아 글씨가 잘 보이게 고쳤어요 (특히 다크 모드)']],
   ['0.21.57', '2026.10.19', ['신청 현황 명단에서 선발자와 대기자를 확실히 나눠 보여줘요. 선발은 초록, 대기는 회색으로 표시하고 그 사이에 \'여기까지 선발\' 구분선을 넣었어요']],
   ['0.21.56', '2026.10.19', ['홈 경기 카드의 \'신청 현황 보기\'를 노란 버튼으로 바꿔 더 눈에 띄게 했어요']],
@@ -1490,7 +1509,7 @@ async function deleteSessionBy(sid) { if (!confirm(fmtDate(sid) + ' 경기를 �
     try { (await S.store.query('events', [['session', '==', sid]])).forEach(d => evs.add(d.id)); (await S.store.query('matches', [['session', '==', sid]])).forEach(d => mts.add(d.id)) } catch { } // 90일 지난 기록도 함께 지워요
     for (const eid of evs) await S.store.del('events/' + eid); for (const id of mts) await S.store.del(mp(id)); await S.store.del(sp(sid)) }, '삭제했어요.');
   if (ok && S.sid === sid) S.sid = null; render() }
-const RUN_STEPS = [['apply', '신청접수'], ['captain', '주장지정'], ['draft', '드래프트'], ['trade', '팀원조정'], ['match', '경기진행'], ['result', '경기결과']];
+const RUN_STEPS = [['apply', '신청접수'], ['captain', '도우미 지정'], ['draft', '드래프트'], ['trade', '팀원조정'], ['match', '경기진행'], ['result', '경기결과']];
 function stepDone(s, k) { if (k === 'result' || k === 'match') { const ms = sessMatches(s.date); return ms.length > 0 && ms.every(m => m.status === 'done') } if (k === 'notice') return stageIdx(s.stage) > stageIdx('notice'); return stageIdx(k) < stageIdx(s.stage) }
 function shiftDate(sid, days, time) { const d = new Date(sid + 'T00:00'); d.setDate(d.getDate() - days); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${time || '12:00'}` }
 function adminSid() { if (S.sid && S.sessions[S.sid]) return S.sid; return defaultSid() }
@@ -1648,7 +1667,7 @@ async function makePractice() {
 function listCol(path) { return new Promise(res => { let un = null, done = false; const t = setTimeout(() => { if (!done) { done = true; try { un && un() } catch { } res([]) } }, 4000);
   un = S.store.watchCol(path, docs => { if (done) return; done = true; clearTimeout(t); setTimeout(() => { try { un && un() } catch { } }, 0); res(docs) }, null, () => { if (!done) { done = true; res([]) } }) }) }
 function freeDate(from) { let d = from || today(); const x0 = () => { const x = new Date(d + 'T00:00'); x.setDate(x.getDate() + 1); d = `${x.getFullYear()}-${p2(x.getMonth() + 1)}-${p2(x.getDate())}` }; while (S.sessions[d]) x0(); return d }
-const SIM = { apply: ['신청접수', 'apply'], captain: ['주장지정', 'captain'], draft: ['드래프트', 'draft'], trade: ['팀원조정', 'trade'] };
+const SIM = { apply: ['신청접수', 'apply'], captain: ['도우미 지정', 'captain'], draft: ['드래프트', 'draft'], trade: ['팀원조정', 'trade'] };
 async function makeSim(kind) {
   const pool = Object.entries(S.players).filter(([, p]) => mstatus(p) !== 'dormant').map(([id]) => id);
   if (pool.length < 12) { toast('회원이 12명 이상 있어야 연습 데이터를 만들 수 있어요.'); return }
@@ -2782,7 +2801,7 @@ document.addEventListener('click', async e => {
     case 'latecancel': if (!needAdmin()) break; await cancelApp(S.sid, id, null, true); break;
     case 'schedshare': case 'scheddl': { const ym = S.schedYm || defaultMonth(); const c = await drawSched(ym); const b = await new Promise(r => c.toBlob(r, 'image/png')); await shareBlob(b, `WF_일정_${ym.slice(0, 4)}년${+ym.slice(5)}월.png`, act === 'scheddl'); break }
     case 'dutyedit': if (!needAdmin()) break; S.sheet = { type: 'duty', sid: id }; render(); break;
-    case 'dutytog': { const sid = S.sheet?.sid; const ss = S.sessions[sid]; const kind = el.dataset.kind; const cur1 = new Set(ss.duty?.[kind] || []); cur1.has(id) ? cur1.delete(id) : cur1.add(id); await w(() => S.store.update(sp(sid), { [`duty.${kind}`]: [...cur1] })); break }
+    case 'dutytog': { if (!needAdmin()) break; const sid = el.dataset.sid || S.sheet?.sid; const ss = S.sessions[sid]; const kind = el.dataset.kind; const cur1 = new Set(ss.duty?.[kind] || []); cur1.has(id) ? cur1.delete(id) : cur1.add(id); await w(() => S.store.update(sp(sid), { [`duty.${kind}`]: [...cur1] })); break }
     case 'parkedit': if (!needAdmin()) break; S.sheet = { type: 'park', sid: id }; render(); break;
     case 'parkdraw': if (!needAdmin()) break; await drawParking(id); break;
     case 'parkapply': S.sheet = { type: 'parkapply', sid: id }; render(); break;
