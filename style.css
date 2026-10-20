@@ -372,7 +372,18 @@ table.atbl tr.wrow td .muted,table.atbl tr.lrow td .muted,table.atbl tr.wrow td.
 .t2{background:rgba(129,140,248,.22);color:#C7D2FE}
 .t3{background:rgba(239,68,68,.2);color:#FCA5A5}
 }
-:root{--cssv:"0.21.66"}
+:root{--cssv:"0.21.67"}
+/* 0.21.67 운영진 여러 명 이름, 팀 색 버튼 크게 */
+.hb-names{display:flex;flex-wrap:wrap;gap:3px 4px;margin-top:2px}
+.hb-names i{font-style:normal;font-size:11.5px;font-weight:800;padding:1px 7px;border-radius:99px;background:rgba(255,210,31,.18);color:#FFE14D}
+.hostbox .hb-nm{line-height:1.2}
+.felt .cswatch.sm{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important;width:100%;max-width:420px;margin:8px auto 0!important}
+.felt .cswatch.sm .csw{min-height:56px!important;font-size:16px!important;letter-spacing:.5px!important;border-radius:12px!important;box-shadow:inset 0 0 0 2px rgba(255,255,255,.35),0 3px 8px rgba(0,0,0,.3)!important}
+.felt .cswatch.sm .csw small{font-size:11px!important;font-family:var(--body);font-weight:800}
+.felt .cswatch.sm .csw:not(:disabled):active{transform:scale(.96)}
+.dmroot .felt .cswatch.sm .csw{min-height:48px!important;font-size:14px!important}
+.felt .cswatch.sm .csw:disabled{opacity:.3!important}
+.hp-both{margin-top:10px}
 /* 하위 메뉴: 상위 메뉴 바로 아래에 붙여서, 스크롤해도 따라오게 */
 .wrap>.subnav:first-child{margin-top:0;position:sticky;top:var(--tabsb,58px);z-index:4;background:transparent;border-bottom:0;overflow:visible}
 .wrap>.subnav:first-child::before{content:"";position:absolute;top:0;bottom:0;left:calc(50% - 50vw);right:calc(50% - 50vw);background:var(--surface);border-bottom:1px solid var(--line);z-index:-1}

@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.66';
+const APP_VERSION = '0.21.67';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -705,7 +705,7 @@ function liftBubbles() { let L = document.getElementById('bubLayer'); if (!L) { 
   document.querySelectorAll('#app .bubble').forEach(b => { const a = b.parentElement; b.remove(); L.appendChild(b); S.bubA.push({ a, b }) }); placeBubbles() }
 function placeBubbles() { const vw = innerWidth, top0 = (document.querySelector('.appbar')?.offsetHeight || 0) + 4, placed = [];
   (S.bubA || []).forEach(({ a, b }) => { if (!a.isConnected) { b.remove(); return } const r = a.getBoundingClientRect(); if (!r.width) { b.style.display = 'none'; return } b.style.display = '';
-    const w = b.offsetWidth, h = b.offsetHeight, cx = r.left + r.width / 2, left = Math.max(8, Math.min(vw - w - 8, cx - w / 2)); let top = r.top - h - 10; const below = top < top0; if (below) top = r.bottom + 10;
+    const w = b.offsetWidth, h = b.offsetHeight, cx = r.left + r.width / 2, left = Math.max(8, Math.min(vw - w - 8, cx - w / 2)); const toField = a.classList?.contains('hostbox') || !!a.closest?.('.tradehost'); let top = r.top - h - 10; const below = toField || top < top0; if (below) top = r.bottom + 10;
     for (let k = 0; k < 6; k++) { const hit = placed.find(q => left < q.l + q.w + 4 && left + w + 4 > q.l && top < q.t + q.h + 4 && top + h + 4 > q.t); if (!hit) break; top = below ? hit.t + hit.h + 6 : hit.t - h - 6 } placed.push({ l: left, t: top, w, h });
     b.classList.toggle('below', below); b.style.left = left + 'px'; b.style.top = top + 'px'; b.style.setProperty('--ax', Math.max(16, Math.min(w - 16, cx - left)) + 'px') }) }
 window.addEventListener('scroll', () => { if (S.bubA?.length) placeBubbles(); if (S.ballK) placeBall() }, { passive: true, capture: true });
@@ -732,10 +732,10 @@ function presTick() { const on = !!document.querySelector('.board-table') && !!S
     if (!S.presT || S.presSid !== sid || S.presRole !== presRole()) { clearInterval(S.presT); S.presSid = sid; S.presRole = presRole(); beat(); S.presT = setInterval(beat, 15000) } }
   else if (S.presT) { clearInterval(S.presT); S.presT = null; if (S.presId) S.store.del('pres/' + S.presId).catch(() => { }); S.presId = null }
   // Master: 접속자 목록
-  const showList = on && isMaster(); let el = document.getElementById('presBox');
-  if (!showList) { if (el) el.remove(); if (S.unPres) { try { S.unPres() } catch { } S.unPres = null } return }
-  if (!S.unPres) S.unPres = S.store.watchCol('pres', docs => { S.presAll = docs; drawPres() });
-  drawPres() }
+  if (on && !S.unPres) S.unPres = S.store.watchCol('pres', docs => { S.presAll = docs; const a = presAdmins().join('|'); if (a !== S.presAdm) { S.presAdm = a; renderSoon() } drawPres() });
+  if (!on && S.unPres) { try { S.unPres() } catch { } S.unPres = null }
+  const el = document.getElementById('presBox'); if (!(on && isMaster())) { if (el) el.remove(); return } drawPres() }
+function presAdmins() { const now = Date.now(); return [...new Set((S.presAll || []).filter(d => d.sid === S.sid && d.role === '운영진' && now - (d.at || 0) < 45000).map(d => d.name || '운영진'))].sort() }
 function drawPres() { if (!isMaster() || !document.querySelector('.board-table')) return; const now = Date.now(); const list = (S.presAll || []).filter(d => d.sid === S.sid && now - (d.at || 0) < 45000).sort((a, b) => (a.role > b.role ? 1 : -1));
   let el = document.getElementById('presBox'); if (!el) { el = document.createElement('div'); el.id = 'presBox'; document.body.appendChild(el) }
   el.innerHTML = `<button class="pres-pill" data-act="presopen">👥 접속 ${list.length}</button>${S.presOpen ? `<div class="pres-list"><b>지금 드래프트 화면에 있는 사람 <small>Master 전용</small></b>${list.length ? list.map(d => `<div class="pres-row ${d.role === '숨김 참관' ? 'hid' : ''}"><span>${d.dev || ''} ${esc(d.name || '')}${d.uid === myUid() ? ' <i>(나)</i>' : ''}</span><em>${esc(d.role || '')}</em><small>${Math.max(0, Math.round((now - d.at) / 1000))}초 전</small></div>`).join('') : '<p>아무도 없어요</p>'}</div>` : ''}` }
@@ -861,17 +861,16 @@ function vCaptain(s) {
       ${closed ? '' : '<p class="hp-note">신청이 마감되면 추첨할 수 있어요.</p>'}</div></section>`;
     // 공당 · 물당 (2칸)
     const d = s.duty || {}; const ps = new Set(participants(s));
-    const duty = (kind, ico, nm) => { const sel = d[kind] || []; const req = dutyReqs(s, kind).filter(id => ps.has(id) || !closed); const cand = [...new Set([...sel, ...req])];
-      return `<div class="hp-card"><div class="hp-sub"><b>${ico} ${nm}</b><small>${sel.length ? `${sel.length}명 지정` : '미지정'} · 신청 ${dutyReqs(s, kind).length}명</small></div>
-        <div class="hp-list">${cand.length ? cand.map(id => closed ? `<button class="hp-pill tog ${sel.includes(id) ? 'win' : ''}" data-act="dutytog" data-kind="${kind}" data-id="${id}" data-sid="${sid}">${sel.includes(id) ? '✓ ' : ''}<b>${esc(pname(id))}</b>${dutyReqs(s, kind).includes(id) ? '<small>🙋 신청</small>' : ''}</button>` : `<span class="hp-pill"><b>${esc(pname(id))}</b><small>🙋 신청</small></span>`).join('') : '<span class="hp-empty">아직 신청자가 없어요</span>'}</div>
-        <div class="hp-btns"><button class="btn" data-act="dutyedit" data-id="${sid}">${closed ? '전체 명단에서 고르기' : '신청 현황 보기'}</button></div></div>` };
-    const ball = d.ball || [], drink = d.drink || [], dn = Math.max(1, +s.drinkN || 1); const dpool = participants(s).filter(id => !ball.includes(id)); const spin = S.dspin && S.dspin.sid === sid;
-    const drinkCard = `<div class="hp-card"><div class="hp-sub"><b>🥤 물당</b><small>${drink.length ? `${drink.length}명 추첨됨` : '미추첨'} · 공당 제외 ${dpool.length}명 중</small></div>
-      <div class="hp-list">${spin ? dpool.map(id => `<span class="hp-pill ${S.dspin.hl.includes(id) ? 'win spin' : ''}"><b>${esc(pname(id))}</b></span>`).join('') : drink.length ? drink.map(id => `<span class="hp-pill win"><b>${esc(pname(id))}</b></span>`).join('') : `<span class="hp-empty">${ball.length ? '추첨 버튼을 눌러 뽑아요' : '공당을 먼저 지정해 주세요'}</span>`}</div>
-      <div class="dn-row"><span>추첨 인원</span><div class="stepper"><button class="btn sm" data-act="drinkn" data-d="-1" data-id="${sid}" ${dn <= 1 ? 'disabled' : ''} aria-label="줄이기">−</button><b>${dn}명</b><button class="btn sm" data-act="drinkn" data-d="1" data-id="${sid}" ${dn >= Math.max(1, dpool.length) ? 'disabled' : ''} aria-label="늘리기">＋</button></div></div>
-      <div class="hp-btns"><button class="btn primary" data-act="drinkdraw" data-id="${sid}" ${closed && ball.length && dpool.length && !spin ? '' : 'disabled'}>🎲 ${drink.length ? '다시 추첨' : `물당 ${dn}명 추첨`}</button>${drink.length ? `<button class="btn" data-act="drinkclear" data-id="${sid}">추첨 취소</button>` : ''}</div>
-      ${!closed ? '<p class="hp-note">신청이 마감되면 추첨할 수 있어요.</p>' : !ball.length ? '<p class="hp-note">① 공당을 먼저 지정하면 ② 나머지 참가자 중에서 물당을 뽑아요.</p>' : ''}</div>`;
-    h += `<section class="hp-sec"><div class="hp-hd"><b>🧺 공당 · 물당</b><small>① 공당은 운영진이 지정 → ② 물당은 공당을 뺀 참가자 중 추첨</small></div><div class="hp-two">${duty('ball', '⚽', '공당')}${drinkCard}</div></section>`;
+    const ps0 = participants(s); const spin = S.dspin && S.dspin.sid === sid ? S.dspin : null;
+    const duty = (kind, ico, nm) => { const sel = d[kind] || [], other = kind === 'drink' ? (d.ball || []) : (d.drink || []); const n = dutyN(s, kind); const req = dutyReqs(s, kind).filter(id => ps0.includes(id) && !other.includes(id));
+      const sp0 = spin && spin.kind === kind; const show = sp0 ? dutyPool(s, kind) : [...new Set([...sel, ...req])];
+      return `<div class="hp-card"><div class="hp-sub"><b>${ico} ${nm}</b><small>${sel.length ? `${sel.length}명 확정` : '미확정'} · 🙋 신청 ${req.length}명</small></div>
+        <div class="hp-list">${show.length ? show.map(id => sp0 ? `<span class="hp-pill ${spin.hl.includes(id) ? 'win spin' : ''}"><b>${esc(pname(id))}</b></span>`
+          : closed ? `<button class="hp-pill tog ${sel.includes(id) ? 'win' : ''}" data-act="dutytog" data-kind="${kind}" data-id="${id}" data-sid="${sid}">${sel.includes(id) ? '✓ ' : ''}<b>${esc(pname(id))}</b>${req.includes(id) ? '<small>🙋 신청</small>' : ''}</button>` : `<span class="hp-pill"><b>${esc(pname(id))}</b><small>🙋 신청</small></span>`).join('') : '<span class="hp-empty">아직 신청자가 없어요</span>'}</div>
+        <div class="dn-row"><span>인원</span><div class="stepper"><button class="btn sm" data-act="dutyn" data-kind="${kind}" data-d="-1" data-id="${sid}" ${n <= 1 ? 'disabled' : ''} aria-label="줄이기">−</button><b>${n}명</b><button class="btn sm" data-act="dutyn" data-kind="${kind}" data-d="1" data-id="${sid}" aria-label="늘리기">＋</button></div></div>
+        <p class="hp-note">${req.length === n ? `신청자 ${n}명을 그대로 확정해요.` : req.length > n ? `신청자 ${req.length}명 중 ${n}명을 추첨해요.` : req.length ? `신청자 ${req.length}명은 자동 포함, 부족한 ${n - req.length}명은 추첨해요.` : `참가자 중에서 ${n}명을 추첨해요.`}${kind === 'drink' ? ' 공당은 제외돼요.' : ''}</p>
+        <div class="hp-btns"><button class="btn primary" data-act="dutydraw" data-kind="${kind}" data-id="${sid}" ${closed && !spin && dutyPool(s, kind).length ? '' : 'disabled'}>${sel.length ? '🎲 다시 확정' : `🎲 ${nm} ${n}명 확정`}</button><button class="btn" data-act="dutyedit" data-id="${sid}">직접 고르기</button></div></div>` };
+    h += `<section class="hp-sec"><div class="hp-hd"><b>🧺 공당 · 물당</b><small>신청자는 자동 포함 · 인원이 넘치거나 모자라면 추첨 · 공당 먼저, 물당은 공당 제외</small></div><div class="hp-two">${duty('ball', '⚽', '공당')}${duty('drink', '🥤', '물당')}</div>${closed ? `<button class="btn primary block hp-both" data-act="dutyboth" data-id="${sid}" ${spin ? 'disabled' : ''}>🎲 공당 → 물당 한 번에 확정</button>` : '<p class="hp-note">신청이 마감되면 확정할 수 있어요.</p>'}</section>`;
     // 참관자
     const vs = s.viewers || []; const pool = byName(Object.keys(S.players).filter(id => mstatus(S.players[id]) !== 'dormant' && !captainsOf(s).includes(id)));
     h += `<section class="hp-sec"><div class="hp-hd"><b>👀 드래프트 참관자</b><small>지정한 회원만 드래프트를 볼 수 있어요 · ${vs.length}명</small></div><div class="hp-card"><div class="dpick">${pool.map(id => `<button class="chip ${vs.includes(id) ? 'sel' : ''}" data-act="viewertog" data-id="${id}">${vs.includes(id) ? '👀 ' : ''}${esc(pname(id))}</button>`).join('')}</div></div></section>`;
@@ -996,7 +995,7 @@ function vDraft(s) {
   // middle: board
   const o = s.order && orderDecided(s) && ph !== 'ladder' && ph !== 'cards' ? s.order : KEYS; const [L, B, R] = o;
   const hIn = !!s.room?.admin?.in, hNm = s.room?.admin?.name && s.room.admin.name !== '운영진' ? s.room.admin.name : '', np = (s.picks || []).length;
-  const hostH = `<div class="seat host hostbox ${hIn ? '' : 'off'}">${bubbleFor(m => m.admin)}<div class="hb-id"><span class="hb-av">운영</span><span class="hb-nm"><b>운영진</b>${hNm ? `<small>${esc(hNm)}</small>` : ''}</span><i class="dot ${hIn ? 'on' : ''}" title="${hIn ? '진행 중' : '대기 중'}"></i></div>
+  const hostH = `<div class="seat host hostbox ${hIn ? '' : 'off'}">${bubbleFor(m => m.admin)}<div class="hb-id"><span class="hb-av">운영</span><span class="hb-nm"><b>운영진${presAdmins().length > 1 ? ` ${presAdmins().length}명` : ''}</b>${(() => { const ns = presAdmins().filter(n => n !== '운영진'); const list = ns.length ? ns : hNm ? [hNm] : []; return list.length ? `<span class="hb-names">${list.map(n => `<i>${esc(n)}</i>`).join('')}</span>` : '' })()}</span><i class="dot ${hIn ? 'on' : ''}" title="${hIn ? '진행 중' : '대기 중'}"></i></div>
     ${S.admin && ph !== 'closed' ? `<div class="hb-act">${ph === 'draft' && allIn(s) ? '<button class="hbtn ok" data-act="finishdraft">✅ 확정</button>' : ''}${ph === 'draft' && np ? '<button class="hbtn undo" data-act="undo">↶ 되돌리기</button>' : ''}${ph === 'draft' && !np ? '<button class="hbtn" data-act="ordedit">✎ 순번 바꾸기</button>' : ''}<button class="hbtn more" data-act="roommenu" aria-label="진행 메뉴">⋯ 메뉴</button></div>` : `<span class="hb-st">${hIn ? '진행 중' : '대기 중'}</span>`}</div>`;
   h += S.dm ? `<div class="board-table dmbt">${hostH}<div class="felt">${feltHTML(s, ph)}</div><div class="seatrow"><div class="pos-l">${seatHTML(s, L, ph)}</div><div class="pos-b">${seatHTML(s, B, ph)}</div><div class="pos-r">${seatHTML(s, R, ph)}</div></div></div>`
     : `<h2>드래프트 테이블</h2><div class="board-table">${hostH}
@@ -1233,6 +1232,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.67', '2026.10.20', ['공당·물당: 신청자는 자동으로 포함하고, 운영진이 정한 인원보다 신청자가 많으면 신청자 중에서, 모자라면 나머지 참가자 중에서 추첨해 확정해요 (공당 먼저, 물당은 공당 제외). 물당 신청도 다시 할 수 있어요', '드래프트 팀 색 고르기 버튼을 크게 키웠어요', '운영진이 여러 명 들어오면 위쪽 운영진 박스에 이름이 하나씩 보여요', '운영진 말풍선이 축구장 쪽(아래)으로 떠요']],
   ['0.21.65', '2026.10.20', ['화면마다 제각각이던 버튼식 메뉴를 \'상위 메뉴 → 하위 메뉴\' 모양으로 통일했어요 (예: 운영모드 회원 → 회원 관리 · 출석 관리, 일정 → 달력 · 목록, 공지 → 팀 공지 · 월간 일정표 · 신청 안내 글 · 알림 보내기, 경기결과 → 경기 결과 · 출석 현황)']],
   ['0.21.64', '2026.10.20', ['운영모드 회원 메뉴 표에 회원별 출석 횟수·출석률·최근 출석이 나와요. 출석 횟수를 누르면 참석한 경기 날짜를 볼 수 있어요', '지난 출석 기록을 붙여넣기로 올릴 수 있어요 (출석표, 날짜별 명단, 횟수 요약 형식)', '운영모드 화면 아래 \'경기 도구\' 줄을 없앴어요']],
   ['0.21.63', '2026.10.20', ['공당·물당 정하는 방식을 바꿨어요. 공당은 운영진이 먼저 지정하고, 물당은 공당을 뺀 경기 참가자 중에서 운영진이 정한 인원만큼 랜덤으로 추첨해요']],
@@ -1916,13 +1916,18 @@ function dutyLine(s) { const d = s.duty || {}; const b = (d.ball || []).map(pnam
   if (!b.length && !w.length && !pw.length) return '';
   return `<div class="duties">${b.length ? `<span><em>⚽ 공당</em>${esc(b.join(', '))}</span>` : ''}${w.length ? `<span><em>🥤 물당</em>${esc(w.join(', '))}</span>` : ''}${pw.length ? `<span><em>🚗 주차</em>${esc(pw.join(', '))}</span>` : ''}</div>` }
 function dutyReqs(s, k) { return Object.entries(s.dutyReq?.[k] || {}).filter(([, v]) => v).sort((a, b) => a[1] - b[1]).map(([pid]) => pid) }
+function dutyN(s, kind) { return Math.max(1, +(kind === 'drink' ? s.drinkN : s.ballN) || 1) }
+function dutyPool(s, kind) { const d = s.duty || {}; const other = kind === 'drink' ? (d.ball || []) : (d.drink || []); return participants(s).filter(id => !other.includes(id)) }
+function dutyPick(s, kind) { const n = dutyN(s, kind); const pool = dutyPool(s, kind); const req = dutyReqs(s, kind).filter(id => pool.includes(id)); const sh = a => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]] } return b };
+  if (req.length >= n) return sh(req).slice(0, n); return [...req, ...sh(pool.filter(id => !req.includes(id))).slice(0, n - req.length)] }
+function dutySpin(sid, kind, done) { const ss = S.sessions[sid]; const pool = dutyPool(ss, kind); const pick = dutyPick(ss, kind); const n = pick.length; const t0 = Date.now(); S.dspin = { sid, kind, hl: [] };
+  clearInterval(S.dspinT); S.dspinT = setInterval(() => { if (Date.now() - t0 > 1300) { clearInterval(S.dspinT); S.dspin = null; done(pick); return } S.dspin.hl = pool.slice().sort(() => Math.random() - .5).slice(0, n); render() }, 110) }
 function dutyReqLabel(s) { const b = dutyReqs(s, 'ball').length, d = dutyReqs(s, 'drink').length; return b || d ? `신청 공 ${b} · 물 ${d}` : '' }
 function dutyBox(s) {
   const me = myPid(); if (!me || s.stage === 'match') return ''; const d = s.duty || {}; const rq = s.dutyReq || {};
   const one = (k, ico, nm) => { const set = d[k] || []; if (set.length) return set.includes(me) ? `<span class="xpill fixed"><b>${ico} ${nm}</b><small>지정됐어요</small></span>` : '';
     const on = !!rq[k]?.[me]; return `<button class="xpill ${on ? 'on' : ''}" data-act="dutyreq" data-k="${k}" data-id="${s.date}" aria-pressed="${on}"><b>${ico} ${nm}</b><small>${on ? '신청함 ✓' : '신청하기'}</small></button>` };
-  const dk = d.drink || []; // 물당은 추첨이라 신청 버튼 없이, 뽑혔을 때만 표시
-  return one('ball', '⚽', '공당') + (dk.includes(me) ? `<span class="xpill fixed"><b>🥤 물당</b><small>추첨됐어요</small></span>` : '');
+  return one('ball', '⚽', '공당') + one('drink', '🥤', '물당');
 }
 function parkBox(s) {
   const me = myPid(); if (!me) return ''; const mine = s.park?.[me]; const won = (s.parkWin || []).includes(me); const drawn = !!s.parkDrawAt; const open = sStatus(s).k === 'open';
@@ -2944,20 +2949,10 @@ document.addEventListener('click', async e => {
     case 'memv': S.memv = el.dataset.k; render(); window.scrollTo(0, 0); break;
     case 'attper': S.attPer = el.dataset.k; S.attOpen = null; render(); break;
     case 'attopen': S.attOpen = S.attOpen === id ? null : id; render(); break;
-    case 'drinkn': { if (!needAdmin()) break; const ss = S.sessions[id]; const pool = participants(ss).filter(p => !(ss.duty?.ball || []).includes(p)); const v = Math.min(Math.max(1, pool.length), Math.max(1, (+ss.drinkN || 1) + (+el.dataset.d))); await w(() => S.store.update(sp(id), { drinkN: v })); break }
-    case 'drinkdraw': { if (!needAdmin()) break; const ss = S.sessions[id]; const ball = ss.duty?.ball || []; if (!ball.length) { toast('공당을 먼저 지정해 주세요.'); break } const pool = participants(ss).filter(p => !ball.includes(p)); if (!pool.length) break;
-      const n = Math.min(pool.length, Math.max(1, +ss.drinkN || 1)); const sh = a => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]] } return b };
-      const pick = sh(pool).slice(0, n); const t0 = Date.now(); S.dspin = { sid: id, hl: [] }; const tick = () => { if (Date.now() - t0 > 1400) { clearInterval(S.dspinT); S.dspin = null; w(() => S.store.update(sp(id), { 'duty.drink': pick }), `물당: ${pick.map(pname).join(', ')}`); return } S.dspin.hl = sh(pool).slice(0, n); render() };
-      clearInterval(S.dspinT); S.dspinT = setInterval(tick, 110); tick(); break }
-    case 'drinkclear': { if (!needAdmin()) break; if (!confirm('물당 추첨 결과를 지울까요?')) break; await w(() => S.store.update(sp(id), { 'duty.drink': [] }), '물당 추첨을 취소했어요.'); break }
-    case 'attp': S.sheet = { type: 'attp', id }; render(); break;
-    case 'attimp': if (!needAdmin()) break; S.attImp = {}; S.sheet = { type: 'attimp' }; render(); break;
-    case 'attparse': { const text = document.getElementById('att-txt')?.value || '', total = document.getElementById('att-tot')?.value || ''; S.attImp = { text, total, res: attParse(text, total) }; render(); break }
-    case 'attsave': { if (!needAdmin()) break; const r = S.attImp?.res; if (!r) break; const up = attUp(); const nx = { dates: { ...(up.dates || {}) }, base: { ...(up.base || {}) }, baseTotal: +up.baseTotal || 0, at: Date.now() };
-      if (r.kind === 'summary') { nx.base = r.base; nx.baseTotal = r.baseTotal } else Object.entries(r.dates).forEach(([d, ps]) => nx.dates[d] = ps);
-      const ok = await w(() => S.store.set('meta/att', nx), '출석 기록을 저장했어요.'); if (ok) { S.meta = S.meta || {}; S.meta.att = nx; S.attImp = {}; S.sheet = null; render() } break }
-    case 'attclear': { if (!needAdmin()) break; if (!confirm('올린 출석 기록을 모두 지울까요? 앱에서 진행한 경기 기록은 그대로 남아요.')) break; const ok = await w(() => S.store.set('meta/att', { dates: {}, base: {}, baseTotal: 0, at: Date.now() }), '올린 기록을 지웠어요.'); if (ok) { S.meta.att = { dates: {}, base: {}, baseTotal: 0 }; render() } break }
-    case 'presopen': S.presOpen = !S.presOpen; drawPres(); break;
+    case 'dutyn': { if (!needAdmin()) break; const ss = S.sessions[id]; const k = el.dataset.kind; const f = k === 'drink' ? 'drinkN' : 'ballN'; const v = Math.min(Math.max(1, participants(ss).length), Math.max(1, dutyN(ss, k) + (+el.dataset.d))); await w(() => S.store.update(sp(id), { [f]: v })); break }
+    case 'dutydraw': { if (!needAdmin()) break; const k = el.dataset.kind; const sid0 = id; dutySpin(sid0, k, pick => w(() => S.store.update(sp(sid0), { [`duty.${k}`]: pick }), `${k === 'drink' ? '물당' : '공당'}: ${pick.map(pname).join(', ')}`)); break }
+    case 'dutyboth': { if (!needAdmin()) break; const sid0 = id; dutySpin(sid0, 'ball', async b => { await w(() => S.store.update(sp(sid0), { 'duty.ball': b })); const ss = S.sessions[sid0]; ss.duty = { ...(ss.duty || {}), ball: b };
+      dutySpin(sid0, 'drink', dk => w(() => S.store.update(sp(sid0), { 'duty.drink': dk }), `공당: ${b.map(pname).join(', ')} · 물당: ${dk.map(pname).join(', ')}`)) }); break }
     case 'finishdraft': await finishDraft(); break;
     case 'redodraft': if (!needAdmin()) break; await redoDraft(); break;
     case 'mergedups': if (!needAdmin()) break; await mergeDups(); break;
