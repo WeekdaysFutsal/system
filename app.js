@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.59';
+const APP_VERSION = '0.21.60';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -95,7 +95,9 @@ const p2 = n => String(n).padStart(2, '0');
 function nowLocal() { const d = new Date(); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}` }
 function today() { const d = new Date(); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])) }
-function inkOn(hex) { const h = (hex || '#888888').replace('#', ''); const r = parseInt(h.substr(0, 2), 16), g = parseInt(h.substr(2, 2), 16), b = parseInt(h.substr(4, 2), 16); return (0.299 * r + 0.587 * g + 0.114 * b) > 165 ? '#131C2B' : '#FFFFFF' }
+function inkOn(hex) { const h = (hex || '#888888').replace('#', ''); const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4) };
+  const L = .2126 * f(parseInt(h.substr(0, 2), 16)) + .7152 * f(parseInt(h.substr(2, 2), 16)) + .0722 * f(parseInt(h.substr(4, 2), 16)); const cw = 1.05 / (L + .05), cd = (L + .05) / .0611;
+  return cd > cw * 1.5 ? '#131C2B' : '#FFFFFF' } // 배경색에 따라 더 잘 보이는 글자색 (흰색 우선)
 const DOW = '일월화수목금토';
 function dow(id) { const [y, m, d] = id.split('-'); return DOW[new Date(+y, +m - 1, +d).getDay()] }
 function fmtDate(id) { const [, m, d] = id.split('-'); return `${+m}월 ${+d}일 (${dow(id)})` }
@@ -829,7 +831,7 @@ function vApply(s) {
 function vCaptain(s) {
   const ad = S.admin && s.draftStatus === 'ready' && !s.ladder;
   let h = `<h2>주장 3명<small>신청자 중에서 골라요</small></h2><div class="panel">${KEYS.map((k, i) => { const c = s.captains?.[k];
-    return `<button class="slot" data-act="capslot" data-k="${k}" ${ad ? '' : 'disabled'}><span class="teamtag" style="background:${NEUTRAL[k]};color:#fff">${k}팀</span><span class="who ${c ? '' : 'empty'}">${c ? '👑 ' + esc(pname(c)) : '눌러서 주장 선택'}</span>${ad ? '<span class="muted">변경</span>' : ''}</button>` }).join('')}</div>`;
+    return `<button class="slot" data-act="capslot" data-k="${k}" ${ad ? '' : 'disabled'}><span class="teamtag" style="background:${NEUTRAL[k]};color:${inkOn(NEUTRAL[k])}">${k}팀</span><span class="who ${c ? '' : 'empty'}">${c ? '👑 ' + esc(pname(c)) : '눌러서 주장 선택'}</span>${ad ? '<span class="muted">변경</span>' : ''}</button>` }).join('')}</div>`;
   h += `<p class="note">주장으로 지정된 회원은 앱에 로그인하면 팝업과 화면 위 안내 띠로 팀 선정 화면에 바로 들어올 수 있어요. 따로 링크를 보낼 필요가 없어요.</p>`;
   h += `<p class="note">드래프트 방에서 주장들이 입장하면 ① 팀 색 선택 → ② 사다리 타기로 순번 선정 → ③ 팀원 선택 순서로 진행해요. 색이 정해지기 전까지 팀 이름은 A팀, B팀, C팀이에요.</p>`;
   if (S.admin && s.draftStatus === 'ready') h += `<div style="height:12px"></div><button class="btn primary block cta" data-act="openroom" ${KEYS.some(k => !s.captains?.[k]) ? 'disabled' : ''}>드래프트 방 열기</button>`;
@@ -1188,6 +1190,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.60', '2026.10.20', ['주차 추첨, 공당·물당, 신청자 관리, 달력 등 배경과 글씨색이 비슷해 잘 안 보이던 곳을 모두 찾아 글씨가 잘 보이게 고쳤어요 (특히 다크 모드)']],
   ['0.21.57', '2026.10.19', ['신청 현황 명단에서 선발자와 대기자를 확실히 나눠 보여줘요. 선발은 초록, 대기는 회색으로 표시하고 그 사이에 \'여기까지 선발\' 구분선을 넣었어요']],
   ['0.21.56', '2026.10.19', ['홈 경기 카드의 \'신청 현황 보기\'를 노란 버튼으로 바꿔 더 눈에 띄게 했어요']],
   ['0.21.55', '2026.10.16', ['드래프트 중에도 아래 메뉴가 바뀌지 않고 항상 홈·일정·경기모드·경기결과·내 정보로 고정돼요. 드래프트 방은 오른쪽 위 버튼으로 들어가요 (주장 👑 드래프트, 참관자 👀 참관)']],
