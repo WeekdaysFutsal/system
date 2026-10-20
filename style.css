@@ -372,7 +372,18 @@ table.atbl tr.wrow td .muted,table.atbl tr.lrow td .muted,table.atbl tr.wrow td.
 .t2{background:rgba(129,140,248,.22);color:#C7D2FE}
 .t3{background:rgba(239,68,68,.2);color:#FCA5A5}
 }
-:root{--cssv:"0.21.64"}
+:root{--cssv:"0.21.65"}
+/* 0.21.65 공통 하위 메뉴 */
+.subnav{display:flex;gap:2px;margin:12px 0 14px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.subnav::-webkit-scrollbar{display:none}
+.subnav button{position:relative;flex:none;min-height:46px;padding:0 16px;font-size:15px;font-weight:700;color:var(--muted);background:none;border:0;border-radius:10px 10px 0 0;white-space:nowrap}
+.subnav button:hover{color:var(--ink);background:color-mix(in srgb,var(--accent) 6%,transparent)}
+.subnav button[aria-selected="true"]{color:var(--accent);font-weight:900}
+.subnav button[aria-selected="true"]::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:3px;border-radius:3px 3px 0 0;background:var(--accent)}
+@media (max-width:560px){.subnav{margin:10px -14px 12px;padding:0 8px}.subnav button{flex:1;padding:0 8px;font-size:14px}}
+.subact{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.mg-top.subact{justify-content:space-between}
+.res-seg{display:none}
 .att-adm{margin:-4px 0 12px}
 .att-fmt b{display:block;margin:8px 0 2px;font-size:13.5px}
 .att-fmt b:first-child{margin-top:0}

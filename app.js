@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.64';
+const APP_VERSION = '0.21.65';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1216,6 +1216,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.65', '2026.10.20', ['화면마다 제각각이던 버튼식 메뉴를 \'상위 메뉴 → 하위 메뉴\' 모양으로 통일했어요 (예: 운영모드 회원 → 회원 관리 · 출석 관리, 일정 → 달력 · 목록, 공지 → 팀 공지 · 월간 일정표 · 신청 안내 글 · 알림 보내기, 경기결과 → 경기 결과 · 출석 현황)']],
   ['0.21.64', '2026.10.20', ['운영모드 회원 메뉴 표에 회원별 출석 횟수·출석률·최근 출석이 나와요. 출석 횟수를 누르면 참석한 경기 날짜를 볼 수 있어요', '지난 출석 기록을 붙여넣기로 올릴 수 있어요 (출석표, 날짜별 명단, 횟수 요약 형식)', '운영모드 화면 아래 \'경기 도구\' 줄을 없앴어요']],
   ['0.21.63', '2026.10.20', ['공당·물당 정하는 방식을 바꿨어요. 공당은 운영진이 먼저 지정하고, 물당은 공당을 뺀 경기 참가자 중에서 운영진이 정한 인원만큼 랜덤으로 추첨해요']],
   ['0.21.62', '2026.10.20', ['경기결과 메뉴에 \'출석 현황\'을 추가했어요. 회원별 출석 수·출석률·최근 출석·연속 출석을 볼 수 있고, 이름을 누르면 출석한 날짜가 나와요 (운영모드는 회원 메뉴에서)', '모바일 팀원조정 화면에서도 채팅 내용 칸을 없애고 팀 현황을 더 넓게 보여줘요', '채팅 입력할 때 화면이 들썩이지 않고 그대로 있고, 입력창만 키보드 위로 올라와요']],
@@ -1546,10 +1547,12 @@ function viewAttendance() { const per = S.attPer || 'all'; const { ids, rows, to
       ${op ? `<tr class="att-open"><td colspan="5">${r.dates.length ? `<div class="att-dates">${r.dates.slice().reverse().map(id => `<span>${md(id)}</span>`).join('')}</div>` : '<span class="muted">출석한 경기가 없어요.</span>'}</td></tr>` : ''}` }).join('')}</tbody></table></div>
     <p class="note">팀에 들어가 경기를 뛴 날을 출석으로 세요. 이름을 누르면 출석한 날짜를 볼 수 있어요. 출석률은 이 기간의 끝난 경기 수 대비예요.</p></div>`;
   return h }
-function viewResults() { const tg = `<div class="seg res-seg"><button role="tab" data-act="resv" data-k="res" aria-selected="${S.resv !== 'att'}">⚽ 경기 결과</button><button role="tab" data-act="resv" data-k="att" aria-selected="${S.resv === 'att'}">📋 출석 현황</button></div>`;
+/* 화면 상단 하위 메뉴 (모든 화면 공통 모양) */
+function subnav(items, cur, act) { return `<nav class="subnav" role="tablist">${items.map(([k, n]) => `<button role="tab" data-act="${act}" data-k="${k}" aria-selected="${cur === k}">${n}</button>`).join('')}</nav>` }
+function viewResults() { const tg = subnav([['res', '경기 결과'], ['att', '출석 현황']], S.resv === 'att' ? 'att' : 'res', 'resv');
   if (S.resv === 'att') return tg + viewAttendance(); return tg + viewResults0() }
 function viewResults0() {
-  const ids = pastSids(); if (!ids.length) return `<h2>경기결과</h2><div class="panel"><p class="empty">아직 끝난 경기가 없어요.</p></div>`;
+  const ids = pastSids(); if (!ids.length) return `<div class="panel"><p class="empty">아직 끝난 경기가 없어요.</p></div>`;
   if (!S.detail || !ids.includes(S.detail)) S.detail = ids[0];
   const i = ids.indexOf(S.detail); const s = S.sessions[S.detail]; S.sid = S.detail; loadOld(S.detail); const older = ids[i + 1], newer = ids[i - 1];
   return `<div class="rdswipe ${S.rdAnim || ''}"><div class="rdnav"><button class="navb" data-act="rdgo" data-id="${older || ''}" ${older ? '' : 'disabled'} aria-label="이전 경기">‹<small>이전</small></button>
@@ -2266,7 +2269,7 @@ function readRuleForm() { const g = id => document.getElementById(id); const R =
   if (g('rf-at')) R.at = g('rf-at').value; if (g('rf-event')) { R.event = g('rf-event').value; R.offsetMin = (+g('rf-dir').value) * ((+g('rf-h').value || 0) * 60 + (+g('rf-m').value || 0)) } return R }
 function viewNoticeMenu() {
   const nt = S.noticeTab || 'team';
-  let h = `<div class="mg-top"><div class="seg pseg" role="tablist">${[['team', '👥 팀 공지'], ['month', '📅 월간 일정표'], ['recruit', '📝 신청 안내 글'], ['push', '🔔 알림 보내기']].map(([k, n]) => `<button role="tab" data-act="ntab" data-k="${k}" aria-selected="${nt === k}">${n}</button>`).join('')}</div></div>`;
+  let h = subnav([['team', '팀 공지'], ['month', '월간 일정표'], ['recruit', '신청 안내 글'], ['push', '알림 보내기']], nt, 'ntab');
   if (nt === 'push') return h + pushComposer();
   if (nt === 'month') return h + (Object.keys(S.sessions).length ? schedPanel() : `<div class="panel"><p class="empty">경기를 먼저 추가하세요.</p></div>`);
   if (nt === 'recruit') { const up = Object.keys(S.sessions).filter(id => id >= today()).sort(); if (!up.length) return h + `<div class="panel"><p class="empty">예정된 경기가 없어요.</p></div>`;
@@ -2280,8 +2283,7 @@ function viewNoticeMenu() {
 /* ───────── admin: 일정 (calendar + list) ───────── */
 function viewPlan() {
   const mv = S.mview || 'cal';
-  let h = `<div class="mg-top"><div class="seg pseg" role="tablist">${[['cal', '📅 달력'], ['list', '📋 목록']].map(([k, n]) => `<button role="tab" data-act="mview" data-k="${k}" aria-selected="${mv === k}">${n}</button>`).join('')}</div>
-    <div class="row" style="gap:6px"><button class="btn sm" data-act="fillnos">회차 자동 채우기</button><button class="btn primary sm" data-act="caladd">＋ 경기 추가</button></div></div>`;
+  let h = subnav([['cal', '달력'], ['list', '목록']], mv, 'mview') + `<div class="subact"><button class="btn sm" data-act="fillnos">회차 자동 채우기</button><button class="btn primary sm" data-act="caladd">＋ 경기 추가</button></div>`;
   if (mv === 'list') return h + viewManageList();
   const all = Object.keys(S.sessions).sort(); const nx = nextSid();
   if (!S.planSel) S.planSel = (S.sid && S.sessions[S.sid]) ? S.sid : nx || all[all.length - 1] || today();
@@ -2614,14 +2616,14 @@ function colFilterSheet(k) { const c = mcol(k); const all = memberRows(); const 
     <div class="cf-all"><button class="linkbtn" data-act="colall">모두 선택</button><button class="linkbtn" data-act="colnone">모두 해제</button><span class="muted">${tmp.length}/${vals.length}개 선택</span></div>
     <div class="cf-list">${shown.map(v => `<label class="cf-item"><input type="checkbox" data-in="colfv" value="${esc(v)}" ${tmp.includes(v) ? 'checked' : ''}><span>${v === '' ? '<i class="muted">(비어 있음)</i>' : esc(v)}</span><small>${cnt[v]}</small></label>`).join('') || '<p class="muted">맞는 값이 없어요.</p>'}</div>
     <div class="row" style="margin-top:12px"><button class="btn" data-act="colclear" data-k="${k}">필터 해제</button><button class="btn primary" data-act="colapply" data-k="${k}" ${tmp.length ? '' : 'disabled'}>적용</button></div>` }
-function viewMembers() { if (S.mview === 'att') return `<div class="mg-top"><button class="btn sm" data-act="mview" data-k="">‹ 회원 관리로</button></div>` + viewAttendance(); return viewMembers0() }
+function viewMembers() { const tg = subnav([['list', '회원 관리'], ['att', '출석 관리']], S.memv === 'att' ? 'att' : 'list', 'memv'); if (S.memv === 'att') return tg + viewAttendance(); return tg + viewMembers0() }
 function viewMembers0() {
   const q = (S.mq || '').trim(); const f = S.mstat || 'all';
   const allRows = memberRows(); let rows = allRows; const cnt = k => allRows.filter(r => r.status === k).length;
   if (f !== 'all') rows = rows.filter(r => r.status === f);
   if (q) rows = rows.filter(r => r.name.includes(q) || r.phone.replace(/-/g, '').includes(q.replace(/-/g, '')) || r.memo.includes(q));
   rows = mApplyCols(rows); const fk = Object.keys(S.colF || {}).filter(k => S.colF[k]);
-  let h = `<div class="mg-top"><h2 style="margin:0">회원 관리<small>${Object.keys(S.players).length}명</small></h2><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="mview" data-k="att">📋 출석 현황</button><button class="btn sm" data-act="mbulk">명단 붙여넣기</button><button class="btn sm" data-act="mcsv">CSV 저장</button><button class="btn primary sm" data-act="madd">＋ 회원 추가</button></div></div>
+  let h = `<div class="mg-top subact"><h2 style="margin:0">회원 ${Object.keys(S.players).length}명</h2><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="mbulk">명단 붙여넣기</button><button class="btn sm" data-act="mcsv">CSV 저장</button><button class="btn primary sm" data-act="madd">＋ 회원 추가</button></div></div>
   <div class="mtools"><input class="inp" type="search" id="mq" placeholder="이름, 연락처, 메모 검색" value="${esc(q)}" data-in="mq">
   <div class="seg">${[['all', `전체 ${Object.keys(S.players).length}`], ...Object.entries(MSTAT).map(([k, n]) => [k, `${n} ${cnt(k)}`])].map(([k, n]) => `<button role="tab" data-act="mstat" data-k="${k}" aria-selected="${f === k}">${n}</button>`).join('')}</div>
 </div>${fk.length || S.colSort ? `<div class="cf-bar">${fk.map(k => `<button class="chip sel" data-act="colclear" data-k="${k}">${mcol(k)[1]}: ${S.colF[k].length > 2 ? S.colF[k].slice(0, 2).map(v => esc(v || '(빈칸)')).join(', ') + ` 외 ${S.colF[k].length - 2}` : S.colF[k].map(v => esc(v || '(빈칸)')).join(', ')} ✕</button>`).join('')}${S.colSort ? `<span class="chip">정렬: ${mcol(S.colSort.k)[1]} ${S.colSort.d > 0 ? '▲' : '▼'}</span>` : ''}<button class="linkbtn" data-act="colreset">모두 초기화</button><span class="muted">${rows.length}명 표시</span></div>` : ''}`;
@@ -2922,7 +2924,7 @@ document.addEventListener('click', async e => {
       const base = kind === 'team' ? teamDesign(cur()) : schedDesign(); const d = { ...base, font: v }; S.cand[kind] = candList(kind).map(x => ({ ...x, font: v })); await applyDesign(kind, d); toast(`${POSTER_FONTS.find(x => x[0] === v)[1]} 글꼴로 바꿨어요.`); render(); break }
     case 'apord': S.apord = el.dataset.v === 'time' ? 'time' : 'rank'; render(); break;
     case 'resv': S.resv = el.dataset.k; render(); break;
-    case 'mview': S.mview = el.dataset.k; render(); window.scrollTo(0, 0); break;
+    case 'memv': S.memv = el.dataset.k; render(); window.scrollTo(0, 0); break;
     case 'attper': S.attPer = el.dataset.k; S.attOpen = null; render(); break;
     case 'attopen': S.attOpen = S.attOpen === id ? null : id; render(); break;
     case 'drinkn': { if (!needAdmin()) break; const ss = S.sessions[id]; const pool = participants(ss).filter(p => !(ss.duty?.ball || []).includes(p)); const v = Math.min(Math.max(1, pool.length), Math.max(1, (+ss.drinkN || 1) + (+el.dataset.d))); await w(() => S.store.update(sp(id), { drinkN: v })); break }
