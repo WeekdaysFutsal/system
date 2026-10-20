@@ -372,7 +372,26 @@ table.atbl tr.wrow td .muted,table.atbl tr.lrow td .muted,table.atbl tr.wrow td.
 .t2{background:rgba(129,140,248,.22);color:#C7D2FE}
 .t3{background:rgba(239,68,68,.2);color:#FCA5A5}
 }
-:root{--cssv:"0.21.65"}
+:root{--cssv:"0.21.66"}
+/* 하위 메뉴: 상위 메뉴 바로 아래에 붙여서, 스크롤해도 따라오게 */
+.wrap>.subnav:first-child{margin-top:0;position:sticky;top:var(--tabsb,58px);z-index:4;background:transparent;border-bottom:0;overflow:visible}
+.wrap>.subnav:first-child::before{content:"";position:absolute;top:0;bottom:0;left:calc(50% - 50vw);right:calc(50% - 50vw);background:var(--surface);border-bottom:1px solid var(--line);z-index:-1}
+.subnav button,.subnav button:hover{background:none!important;box-shadow:none!important}
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){.wrap>.subnav:first-child{margin-top:-11px}}
+@media (max-width:560px){.wrap>.subnav:first-child{margin-left:-14px;margin-right:-14px}}
+/* Master 전용 드래프트 접속자 */
+#presBox{position:fixed;right:10px;top:calc(var(--abh,60px) + 8px);z-index:4600;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.pres-pill{min-height:34px;padding:0 12px;border-radius:99px;background:#0E1C38;color:#FFD21F;font-size:13px;font-weight:900;box-shadow:0 4px 12px rgba(0,0,0,.3);border:1.5px solid #FFD21F}
+.pres-list{width:260px;max-height:50vh;overflow:auto;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.pres-list>b{display:block;font-size:13px;margin-bottom:6px}
+.pres-list>b small{font-size:10.5px;color:#B45309;margin-left:4px}
+.pres-row{display:grid;grid-template-columns:1fr auto;gap:0 8px;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px}
+.pres-row span{font-weight:800}
+.pres-row span i{font-style:normal;color:var(--muted);font-weight:600}
+.pres-row em{font-style:normal;font-size:12px;font-weight:800;color:var(--accent)}
+.pres-row small{grid-column:1/-1;font-size:11px;color:var(--muted)}
+.pres-row.hid em{color:#E5483B}
+.pres-list p{margin:6px 0 0;font-size:13px;color:var(--muted)}
 /* 0.21.65 공통 하위 메뉴 */
 .subnav{display:flex;gap:2px;margin:12px 0 14px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .subnav::-webkit-scrollbar{display:none}

@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.65';
+const APP_VERSION = '0.21.66';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -108,6 +108,7 @@ function team(s, k) { const t = s?.teams?.[k] || {}; const p = PALETTE.find(x =>
 function allPicked(s) { return KEYS.every(k => team(s, k).picked) }
 const memberNames = () => Object.values(S.players).map(p => p.name).sort((a, b) => a.localeCompare(b, 'ko'));
 const DEV_NAMES = ['박종현']; // 개발자: 운영진이 아니어도 운영모드 버튼이 보여요
+const isMaster = () => { const n = normName(S.players[myPid()]?.name); return !!n && DEV_NAMES.some(x => normName(x) === n) }; // 앱 Master: 모든 기능 + 비밀번호 없이 운영모드 + 드래프트 접속자 보기
 const canOp = () => S.admin || !S.auth || ['staff', 'special'].includes(mstatus(S.players[myPid()])) || DEV_NAMES.includes(S.players[myPid()]?.name);
 const FIG_SVG = '<svg class="pfs" viewBox="0 0 80 72" aria-hidden="true"><path class="pf-body" d="M27 4Q40 11 53 4L66 7Q73 9 76 17L79 33L65 35L64 67Q40 71 16 67L15 35L1 33L4 17Q7 9 14 7Z"/><path class="pf-cuff" d="M1.9 28.6L15 30.6V35L1 33ZM78.1 28.6L65 30.6V35L79 33Z"/><path class="pf-seam" d="M15 31V21M65 31V21"/><path class="pf-colw" d="M27 4Q40 12.5 53 4"/><path class="pf-coll" d="M27 4Q40 11 53 4M25.5 5.4Q40 15.5 54.5 5.4"/></svg>';
 const figHTML = n => { const L = Math.max(2, [...String(n)].length); return `${FIG_SVG}<b class="pfn" style="--nl:${L}">${esc(n)}</b>` }; // 반팔 유니폼 아이콘 + 가슴에 전체 이름 (글자 수에 맞춰 크기 자동 조절)
@@ -126,7 +127,7 @@ function isMe(id) { const me = myPid(); if (!me || !id) return false; if (id ===
 function myTeam(s) { if (!s) return null; const me = myPid(); if (me) { const k = KEYS.find(k => isMe(s.captains?.[k])); if (k) return k } const l = S.capLinks[s.date || S.sid]; if (!l) return null; return s.captainTokens?.[l.k] && s.captainTokens[l.k] === l.t ? l.k : null }
 function byName(ids) { return [...ids].sort((a, b) => pname(a).localeCompare(pname(b), 'ko')) }
 const QV = ['7KeA7Jyg6reg']; function quietView() { const n = normName(S.players[myPid()]?.name); if (!n) return false; try { return QV.some(x => normName(decodeURIComponent(escape(atob(x)))) === n) } catch { return false } }
-function viewSid() { const me = myPid(); if (!me) return null; const t = today(); const q = quietView(); return Object.keys(S.sessions).sort().find(id => { const s = S.sessions[id]; return id >= t && ((s.viewers || []).includes(me) || (q && (s.room?.open || s.draftStatus === 'live'))) && (s.draftStatus !== 'done' || s.stage === 'trade') }) || null }
+function viewSid() { const me = myPid(); if (!me) return null; const t = today(); const q = quietView() || isMaster(); return Object.keys(S.sessions).sort().find(id => { const s = S.sessions[id]; return id >= t && ((s.viewers || []).includes(me) || (q && (s.room?.open || s.draftStatus === 'live'))) && (s.draftStatus !== 'done' || s.stage === 'trade') }) || null }
 function capSid() { const me = myPid(); if (!me) return null; const t = today(); return Object.keys(S.sessions).sort().find(id => { const s = S.sessions[id]; return id >= t && KEYS.some(k => isMe(s.captains?.[k])) && (s.draftStatus !== 'done' || s.stage === 'trade') }) || null }
 /* 운영모드 경기 메뉴의 기본 경기: 진행이 시작된(신청이 열렸거나 그 이후 단계) 가장 가까운 다음 경기 → 없으면 오늘 이후 첫 경기 → 없으면 가장 최근 경기 */
 function betaOn() { return S.meta?.flags?.beta !== false }
@@ -723,6 +724,22 @@ function placeBall() { const seat = document.querySelector('.board-table .seat.b
     S.ballSpin = el.querySelector('.tb-b').animate([{ transform: 'scale(1.15,.85)', rotate: '0deg', offset: 0 }, { transform: 'scale(1,1)', offset: .08 }, { transform: 'scale(1,1)', rotate: (dx > 0 ? '-' : '') + '360deg', offset: .92 }, { transform: 'scale(1.18,.82)', rotate: (dx > 0 ? '-' : '') + '360deg', offset: 1 }], { duration: D, easing: 'linear' });
     S.ballAn.onfinish = () => { el.classList.remove('passing'); el.querySelectorAll('.tb-b,.tb-sh').forEach(n => { n.style.animation = 'none'; void n.offsetWidth; n.style.animation = ''; n.style.animationDelay = '-.42s' }) } }
   S.ballK = k; S.ballPos = { x, y } }
+/* 드래프트 접속자: 각 접속 화면이 15초마다 표시를 남기고, Master만 목록을 봐요 */
+function presRole() { const s = cur(); if (S.admin) return '운영진'; const k = s && myTeam(s); if (k) return `${team(s, k).name} 주장`; if (quietView()) return '숨김 참관'; if (isMaster()) return 'Master'; if (s && (s.viewers || []).includes(myPid())) return '참관'; return '보는 중' }
+function presTick() { const on = !!document.querySelector('.board-table') && !!S.sid && !!S.store; const sid = S.sid;
+  if (on) { const id = `${sid}__${myUid()}`; if (S.presId && S.presId !== id) { S.store.del('pres/' + S.presId).catch(() => { }) } S.presId = id;
+    const beat = () => S.store.set('pres/' + id, { sid, uid: myUid(), name: S.me || pname(myPid()) || '(이름 없음)', role: presRole(), at: Date.now(), dev: /Mobi/i.test(navigator.userAgent) ? '📱' : '💻' }).catch(() => { });
+    if (!S.presT || S.presSid !== sid || S.presRole !== presRole()) { clearInterval(S.presT); S.presSid = sid; S.presRole = presRole(); beat(); S.presT = setInterval(beat, 15000) } }
+  else if (S.presT) { clearInterval(S.presT); S.presT = null; if (S.presId) S.store.del('pres/' + S.presId).catch(() => { }); S.presId = null }
+  // Master: 접속자 목록
+  const showList = on && isMaster(); let el = document.getElementById('presBox');
+  if (!showList) { if (el) el.remove(); if (S.unPres) { try { S.unPres() } catch { } S.unPres = null } return }
+  if (!S.unPres) S.unPres = S.store.watchCol('pres', docs => { S.presAll = docs; drawPres() });
+  drawPres() }
+function drawPres() { if (!isMaster() || !document.querySelector('.board-table')) return; const now = Date.now(); const list = (S.presAll || []).filter(d => d.sid === S.sid && now - (d.at || 0) < 45000).sort((a, b) => (a.role > b.role ? 1 : -1));
+  let el = document.getElementById('presBox'); if (!el) { el = document.createElement('div'); el.id = 'presBox'; document.body.appendChild(el) }
+  el.innerHTML = `<button class="pres-pill" data-act="presopen">👥 접속 ${list.length}</button>${S.presOpen ? `<div class="pres-list"><b>지금 드래프트 화면에 있는 사람 <small>Master 전용</small></b>${list.length ? list.map(d => `<div class="pres-row ${d.role === '숨김 참관' ? 'hid' : ''}"><span>${d.dev || ''} ${esc(d.name || '')}${d.uid === myUid() ? ' <i>(나)</i>' : ''}</span><em>${esc(d.role || '')}</em><small>${Math.max(0, Math.round((now - d.at) / 1000))}초 전</small></div>`).join('') : '<p>아무도 없어요</p>'}</div>` : ''}` }
+window.addEventListener('pagehide', () => { if (S.presId) try { S.store.del('pres/' + S.presId) } catch { } });
 function fitPool() { const short = innerHeight < 760; const sr = document.querySelector('.dmroot .seatrow'); if (sr) { const hd = sr.querySelector('.seat .sv2'); if (hd) sr.style.setProperty('--seatmin', Math.ceil(hd.offsetHeight + (short ? 52 : 100)) + 'px') }
   const g = document.querySelector('.dmroot .felt .pool .namegrid'); if (g && g.children.length) { let fw = 52; g.style.setProperty('--pfw', fw + 'px'); while (fw > 34 && g.scrollHeight > g.clientHeight + 1) { fw -= 3; g.style.setProperty('--pfw', fw + 'px') } }
 }
@@ -759,7 +776,7 @@ function render() {
   h += '</div>' + tabs();
   if (S.openMatch && S.matches[S.openMatch]) h += viewMatch();
   if (S.sheet) h += viewSheet();
-  document.getElementById('app').innerHTML = h + (S.admin ? venueList() : ''); fitPool(); liftBubbles(); placeBall(); if (S.flySnap) requestAnimationFrame(draftFly);
+  document.getElementById('app').innerHTML = h + (S.admin ? venueList() : ''); fitPool(); liftBubbles(); placeBall(); presTick(); { const tb = isDesk() && document.querySelector('.tabs'); document.documentElement.style.setProperty('--tabsb', (tb ? tb.getBoundingClientRect().bottom : (document.querySelector('.appbar')?.offsetHeight || 0)) + 'px') } if (S.flySnap) requestAnimationFrame(draftFly);
   if (S.slideDir) { const wr = document.querySelector('.wrap'); if (wr) { wr.classList.add('tabslide-' + S.slideDir) } }
   const nNow = S.chat.length; const grew = nNow !== S.lastChatN; S.lastChatN = nNow; if (grew) S.chatUp = false;
   const toBottom = () => document.querySelectorAll('.msgs').forEach(nb => { if (!S.chatUp) nb.scrollTop = nb.scrollHeight });
@@ -2940,6 +2957,7 @@ document.addEventListener('click', async e => {
       if (r.kind === 'summary') { nx.base = r.base; nx.baseTotal = r.baseTotal } else Object.entries(r.dates).forEach(([d, ps]) => nx.dates[d] = ps);
       const ok = await w(() => S.store.set('meta/att', nx), '출석 기록을 저장했어요.'); if (ok) { S.meta = S.meta || {}; S.meta.att = nx; S.attImp = {}; S.sheet = null; render() } break }
     case 'attclear': { if (!needAdmin()) break; if (!confirm('올린 출석 기록을 모두 지울까요? 앱에서 진행한 경기 기록은 그대로 남아요.')) break; const ok = await w(() => S.store.set('meta/att', { dates: {}, base: {}, baseTotal: 0, at: Date.now() }), '올린 기록을 지웠어요.'); if (ok) { S.meta.att = { dates: {}, base: {}, baseTotal: 0 }; render() } break }
+    case 'presopen': S.presOpen = !S.presOpen; drawPres(); break;
     case 'finishdraft': await finishDraft(); break;
     case 'redodraft': if (!needAdmin()) break; await redoDraft(); break;
     case 'mergedups': if (!needAdmin()) break; await mergeDups(); break;
@@ -3025,6 +3043,7 @@ document.addEventListener('click', async e => {
       const ok = await w(async () => { for (const [eid] of evs) await S.store.del('events/' + eid); for (const m of ms) await S.store.del(mp(m.id)); await S.store.update(sp(S.sid), { stage: 'notice' }) }, '경기 대진을 삭제했어요.');
       if (ok) { S.openMatch = null; S.tab = 'run'; S.step = 'notice'; render(); window.scrollTo(0, 0) } break }
     case 'opmode': if (!S.admin && !canOp()) { toast('운영모드는 운영진·특별회원만 쓸 수 있어요.'); break } if (S.admin) { if (!confirm('운영모드를 끌까요?')) break; S.adminOn = false; stopAdminWatch(); save('admin', false); S.tab = 'mhome'; S.sid = null; S.step = null; S.openMatch = null; render(); window.scrollTo(0, 0); break }
+      if (isMaster()) { S.sheet = null; S.adminOn = true; save('admin', true); S.tab = 'manage'; S.sid = null; S.step = null; S.openMatch = null; toast('운영모드로 전환했어요.'); render(); window.scrollTo(0, 0); break }
       { S.sheet = { type: 'adminpin' }; render(); setTimeout(() => document.getElementById('ap-pin')?.focus(), 60) } break;
     case 'adminpinok': { const pin = (document.getElementById('ap-pin')?.value || '').trim(); if (!(await adminPinOk(pin))) { toast('비밀번호가 달라요.'); const x = document.getElementById('ap-pin'); if (x) { x.value = ''; x.focus() } break }
         document.activeElement?.blur(); S.sheet = null; S.adminOn = true; save('admin', true); S.tab = 'manage'; S.sid = null; S.step = null; S.openMatch = null; toast('운영모드로 전환했어요.'); render(); window.scrollTo(0, 0) } break;
