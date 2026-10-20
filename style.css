@@ -372,7 +372,13 @@ table.atbl tr.wrow td .muted,table.atbl tr.lrow td .muted,table.atbl tr.wrow td.
 .t2{background:rgba(129,140,248,.22);color:#C7D2FE}
 .t3{background:rgba(239,68,68,.2);color:#FCA5A5}
 }
-:root{--cssv:"0.21.62"}
+:root{--cssv:"0.21.63"}
+.dn-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+.dn-row>span{font-size:14px;font-weight:700;color:var(--muted)}
+.stepper{display:flex;align-items:center;gap:10px}
+.stepper .btn{width:40px;padding:0;font-size:20px}
+.stepper b{font-size:18px;font-weight:900;min-width:44px;text-align:center}
+.hp-pill.spin{transform:scale(1.06);transition:transform .08s}
 /* 0.21.62 팀원조정 채팅 칸 제거(모바일), 키보드 고정, 출석 현황 */
 .chatdock.nolog .cd-log{display:none!important}
 .chatdock{transition:transform .12s ease-out}

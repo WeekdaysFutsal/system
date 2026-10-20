@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.62';
+const APP_VERSION = '0.21.63';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -848,7 +848,13 @@ function vCaptain(s) {
       return `<div class="hp-card"><div class="hp-sub"><b>${ico} ${nm}</b><small>${sel.length ? `${sel.length}명 지정` : '미지정'} · 신청 ${dutyReqs(s, kind).length}명</small></div>
         <div class="hp-list">${cand.length ? cand.map(id => closed ? `<button class="hp-pill tog ${sel.includes(id) ? 'win' : ''}" data-act="dutytog" data-kind="${kind}" data-id="${id}" data-sid="${sid}">${sel.includes(id) ? '✓ ' : ''}<b>${esc(pname(id))}</b>${dutyReqs(s, kind).includes(id) ? '<small>🙋 신청</small>' : ''}</button>` : `<span class="hp-pill"><b>${esc(pname(id))}</b><small>🙋 신청</small></span>`).join('') : '<span class="hp-empty">아직 신청자가 없어요</span>'}</div>
         <div class="hp-btns"><button class="btn" data-act="dutyedit" data-id="${sid}">${closed ? '전체 명단에서 고르기' : '신청 현황 보기'}</button></div></div>` };
-    h += `<section class="hp-sec"><div class="hp-hd"><b>🧺 공당 · 물당</b><small>${closed ? '이름을 누르면 지정 · 해제돼요' : '신청이 마감되면 지정할 수 있어요'}</small></div><div class="hp-two">${duty('ball', '⚽', '공당')}${duty('drink', '🥤', '물당')}</div></section>`;
+    const ball = d.ball || [], drink = d.drink || [], dn = Math.max(1, +s.drinkN || 1); const dpool = participants(s).filter(id => !ball.includes(id)); const spin = S.dspin && S.dspin.sid === sid;
+    const drinkCard = `<div class="hp-card"><div class="hp-sub"><b>🥤 물당</b><small>${drink.length ? `${drink.length}명 추첨됨` : '미추첨'} · 공당 제외 ${dpool.length}명 중</small></div>
+      <div class="hp-list">${spin ? dpool.map(id => `<span class="hp-pill ${S.dspin.hl.includes(id) ? 'win spin' : ''}"><b>${esc(pname(id))}</b></span>`).join('') : drink.length ? drink.map(id => `<span class="hp-pill win"><b>${esc(pname(id))}</b></span>`).join('') : `<span class="hp-empty">${ball.length ? '추첨 버튼을 눌러 뽑아요' : '공당을 먼저 지정해 주세요'}</span>`}</div>
+      <div class="dn-row"><span>추첨 인원</span><div class="stepper"><button class="btn sm" data-act="drinkn" data-d="-1" data-id="${sid}" ${dn <= 1 ? 'disabled' : ''} aria-label="줄이기">−</button><b>${dn}명</b><button class="btn sm" data-act="drinkn" data-d="1" data-id="${sid}" ${dn >= Math.max(1, dpool.length) ? 'disabled' : ''} aria-label="늘리기">＋</button></div></div>
+      <div class="hp-btns"><button class="btn primary" data-act="drinkdraw" data-id="${sid}" ${closed && ball.length && dpool.length && !spin ? '' : 'disabled'}>🎲 ${drink.length ? '다시 추첨' : `물당 ${dn}명 추첨`}</button>${drink.length ? `<button class="btn" data-act="drinkclear" data-id="${sid}">추첨 취소</button>` : ''}</div>
+      ${!closed ? '<p class="hp-note">신청이 마감되면 추첨할 수 있어요.</p>' : !ball.length ? '<p class="hp-note">① 공당을 먼저 지정하면 ② 나머지 참가자 중에서 물당을 뽑아요.</p>' : ''}</div>`;
+    h += `<section class="hp-sec"><div class="hp-hd"><b>🧺 공당 · 물당</b><small>① 공당은 운영진이 지정 → ② 물당은 공당을 뺀 참가자 중 추첨</small></div><div class="hp-two">${duty('ball', '⚽', '공당')}${drinkCard}</div></section>`;
     // 참관자
     const vs = s.viewers || []; const pool = byName(Object.keys(S.players).filter(id => mstatus(S.players[id]) !== 'dormant' && !captainsOf(s).includes(id)));
     h += `<section class="hp-sec"><div class="hp-hd"><b>👀 드래프트 참관자</b><small>지정한 회원만 드래프트를 볼 수 있어요 · ${vs.length}명</small></div><div class="hp-card"><div class="dpick">${pool.map(id => `<button class="chip ${vs.includes(id) ? 'sel' : ''}" data-act="viewertog" data-id="${id}">${vs.includes(id) ? '👀 ' : ''}${esc(pname(id))}</button>`).join('')}</div></div></section>`;
@@ -1208,6 +1214,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.63', '2026.10.20', ['공당·물당 정하는 방식을 바꿨어요. 공당은 운영진이 먼저 지정하고, 물당은 공당을 뺀 경기 참가자 중에서 운영진이 정한 인원만큼 랜덤으로 추첨해요']],
   ['0.21.62', '2026.10.20', ['경기결과 메뉴에 \'출석 현황\'을 추가했어요. 회원별 출석 수·출석률·최근 출석·연속 출석을 볼 수 있고, 이름을 누르면 출석한 날짜가 나와요 (운영모드는 회원 메뉴에서)', '모바일 팀원조정 화면에서도 채팅 내용 칸을 없애고 팀 현황을 더 넓게 보여줘요', '채팅 입력할 때 화면이 들썩이지 않고 그대로 있고, 입력창만 키보드 위로 올라와요']],
   ['0.21.61', '2026.10.20', ['운영모드 두 번째 단계를 \'도우미 지정\'으로 바꿨어요. 주장 3명을 가로 카드로 크게 보여주고, 같은 화면에서 주차 추첨과 공당·물당 지정까지 바로 할 수 있어요', '버튼 크기와 색을 정리해 누를 곳이 더 잘 보이게 했어요']],
   ['0.21.60', '2026.10.20', ['주차 추첨, 공당·물당, 신청자 관리, 달력 등 배경과 글씨색이 비슷해 잘 안 보이던 곳을 모두 찾아 글씨가 잘 보이게 고쳤어요 (특히 다크 모드)']],
@@ -1856,7 +1863,8 @@ function dutyBox(s) {
   const me = myPid(); if (!me || s.stage === 'match') return ''; const d = s.duty || {}; const rq = s.dutyReq || {};
   const one = (k, ico, nm) => { const set = d[k] || []; if (set.length) return set.includes(me) ? `<span class="xpill fixed"><b>${ico} ${nm}</b><small>지정됐어요</small></span>` : '';
     const on = !!rq[k]?.[me]; return `<button class="xpill ${on ? 'on' : ''}" data-act="dutyreq" data-k="${k}" data-id="${s.date}" aria-pressed="${on}"><b>${ico} ${nm}</b><small>${on ? '신청함 ✓' : '신청하기'}</small></button>` };
-  return one('ball', '⚽', '공당') + one('drink', '🥤', '물당');
+  const dk = d.drink || []; // 물당은 추첨이라 신청 버튼 없이, 뽑혔을 때만 표시
+  return one('ball', '⚽', '공당') + (dk.includes(me) ? `<span class="xpill fixed"><b>🥤 물당</b><small>추첨됐어요</small></span>` : '');
 }
 function parkBox(s) {
   const me = myPid(); if (!me) return ''; const mine = s.park?.[me]; const won = (s.parkWin || []).includes(me); const drawn = !!s.parkDrawAt; const open = sStatus(s).k === 'open';
@@ -2878,6 +2886,12 @@ document.addEventListener('click', async e => {
     case 'mview': S.mview = el.dataset.k; render(); window.scrollTo(0, 0); break;
     case 'attper': S.attPer = el.dataset.k; S.attOpen = null; render(); break;
     case 'attopen': S.attOpen = S.attOpen === id ? null : id; render(); break;
+    case 'drinkn': { if (!needAdmin()) break; const ss = S.sessions[id]; const pool = participants(ss).filter(p => !(ss.duty?.ball || []).includes(p)); const v = Math.min(Math.max(1, pool.length), Math.max(1, (+ss.drinkN || 1) + (+el.dataset.d))); await w(() => S.store.update(sp(id), { drinkN: v })); break }
+    case 'drinkdraw': { if (!needAdmin()) break; const ss = S.sessions[id]; const ball = ss.duty?.ball || []; if (!ball.length) { toast('공당을 먼저 지정해 주세요.'); break } const pool = participants(ss).filter(p => !ball.includes(p)); if (!pool.length) break;
+      const n = Math.min(pool.length, Math.max(1, +ss.drinkN || 1)); const sh = a => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]] } return b };
+      const pick = sh(pool).slice(0, n); const t0 = Date.now(); S.dspin = { sid: id, hl: [] }; const tick = () => { if (Date.now() - t0 > 1400) { clearInterval(S.dspinT); S.dspin = null; w(() => S.store.update(sp(id), { 'duty.drink': pick }), `물당: ${pick.map(pname).join(', ')}`); return } S.dspin.hl = sh(pool).slice(0, n); render() };
+      clearInterval(S.dspinT); S.dspinT = setInterval(tick, 110); tick(); break }
+    case 'drinkclear': { if (!needAdmin()) break; if (!confirm('물당 추첨 결과를 지울까요?')) break; await w(() => S.store.update(sp(id), { 'duty.drink': [] }), '물당 추첨을 취소했어요.'); break }
     case 'finishdraft': await finishDraft(); break;
     case 'redodraft': if (!needAdmin()) break; await redoDraft(); break;
     case 'mergedups': if (!needAdmin()) break; await mergeDups(); break;
