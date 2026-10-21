@@ -1,7 +1,7 @@
 // 푸시 알림(Firebase Cloud Messaging): 앱이 꺼져 있어도 알림을 받아요.
 try {
   importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js', 'https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
-  firebase.initializeApp({ apiKey: 'AIzaSyCIqUafpA6VmPXEThUlqNh0Ha_Bt27uGaw', authDomain: 'fcshootdori.firebaseapp.com', projectId: 'fcshootdori', storageBucket: 'fcshootdori.firebasestorage.app', messagingSenderId: '829286691076', appId: '1:829286691076:web:2b4b9d7fa5f5089bb1a051' });
+  firebase.initializeApp({ apiKey: 'AIzaSyCvO0DUvGG0i8gRJ74Ppn1aqUZ3QiG5pFs', authDomain: 'wd-futsal.firebaseapp.com', projectId: 'wd-futsal', storageBucket: 'wd-futsal.firebasestorage.app', messagingSenderId: '663428055388', appId: '1:663428055388:web:92aaceb1b0c5088176c199' });
   firebase.messaging();
 } catch (e) { /* 오프라인 등으로 못 불러와도 앱은 정상 동작 */ }
 self.addEventListener('notificationclick', e => { e.notification.close(); const url = e.notification?.data?.FCM_MSG?.fcmOptions?.link || e.notification?.data?.link || self.registration.scope;
@@ -9,7 +9,7 @@ self.addEventListener('notificationclick', e => { e.notification.close(); const 
 // WD_FUTSAL service worker
 // - 버전이 붙은 파일(app.js?v=, style.css?v=, config.js?v=)과 이미지: 저장본을 바로 쓰고(빠름), 새 버전은 주소가 달라져 자동으로 새로 받아요.
 // - 앱 첫 화면(HTML): 항상 서버의 최신본을 먼저 확인하고, 오프라인이면 저장본을 써요.
-const C = 'wf-0.21.73';
+const C = 'wf-0.21.74';
 self.addEventListener('install', e => { self.skipWaiting() });
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C).map(k => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', e => {
