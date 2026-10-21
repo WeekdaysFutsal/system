@@ -1,16 +1,17 @@
 // ─────────────────────────────────────────────────────────────
 // WD_FUTSAL 설정 파일
-// Firebase 프로젝트: wd-futsal
+// Firebase 프로젝트: fcshootdori
 // ─────────────────────────────────────────────────────────────
 window.WF_CONFIG = {
   // Firebase 콘솔 > 프로젝트 설정 > 내 앱 > SDK 설정 및 구성 에서 복사한 값을 붙여넣으세요.
   firebase: {
-    apiKey: "AIzaSyCvO0DUvGG0i8gRJ74Ppn1aqUZ3QiG5pFs",
-    authDomain: "wd-futsal.firebaseapp.com",
-    projectId: "wd-futsal",
-    storageBucket: "wd-futsal.firebasestorage.app",
-    messagingSenderId: "663428055388",
-    appId: "1:663428055388:web:92aaceb1b0c5088176c199"
+    apiKey: "AIzaSyCIqUafpA6VmPXEThUlqNh0Ha_Bt27uGaw",
+    authDomain: "fcshootdori.firebaseapp.com",
+    projectId: "fcshootdori",
+    storageBucket: "fcshootdori.firebasestorage.app",
+    messagingSenderId: "829286691076",
+    appId: "1:829286691076:web:2b4b9d7fa5f5089bb1a051",
+    measurementId: "G-EV052CP0TG"
   },
 
   // 기록 시트(구글 시트 Apps Script 웹 앱) 주소: 경기 기록·출석은 시트, 실시간 데이터는 Firebase

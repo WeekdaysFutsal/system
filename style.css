@@ -372,7 +372,7 @@ table.atbl tr.wrow td .muted,table.atbl tr.lrow td .muted,table.atbl tr.wrow td.
 .t2{background:rgba(129,140,248,.22);color:#C7D2FE}
 .t3{background:rgba(239,68,68,.2);color:#FCA5A5}
 }
-:root{--cssv:"0.21.72"}
+:root{--cssv:"0.21.73"}
 .sheetcard .sc-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
 .sheetcard .sc-row span{flex:1;font-size:14px;color:var(--muted);font-weight:600}
 .sheetcard .sc-row b{font-size:14px}
