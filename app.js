@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.68';
+const APP_VERSION = '0.21.69';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1232,6 +1232,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.69', '2026.10.21', ['WDFS 출석부(2025·2026 시즌, 88경기)를 출석 현황에 기본으로 넣었어요. 따로 올리지 않아도 바로 반영돼요']],
   ['0.21.68', '2026.10.21', ['출석 관리의 \'지난 출석 기록 올리기\'에서 출석부 엑셀(.xlsx) 파일을 바로 올릴 수 있어요. 이름 뒤 생년월일·(M) 표시는 자동으로 빼고 맞추고, 아직 회원이 아닌 이름도 저장해 뒀다가 나중에 회원을 추가하면 이어져요']],
   ['0.21.67', '2026.10.20', ['공당·물당: 신청자는 자동으로 포함하고, 운영진이 정한 인원보다 신청자가 많으면 신청자 중에서, 모자라면 나머지 참가자 중에서 추첨해 확정해요 (공당 먼저, 물당은 공당 제외). 물당 신청도 다시 할 수 있어요', '드래프트 팀 색 고르기 버튼을 크게 키웠어요', '운영진이 여러 명 들어오면 위쪽 운영진 박스에 이름이 하나씩 보여요', '운영진 말풍선이 축구장 쪽(아래)으로 떠요']],
   ['0.21.65', '2026.10.20', ['화면마다 제각각이던 버튼식 메뉴를 \'상위 메뉴 → 하위 메뉴\' 모양으로 통일했어요 (예: 운영모드 회원 → 회원 관리 · 출석 관리, 일정 → 달력 · 목록, 공지 → 팀 공지 · 월간 일정표 · 신청 안내 글 · 알림 보내기, 경기결과 → 경기 결과 · 출석 현황)']],
@@ -1507,10 +1508,14 @@ function vResultDetail(s) {
 }
 /* ───────── 출석 현황 ───────── */
 function attPids(s) { const ps = new Set(); KEYS.forEach(k => (s.teams?.[k]?.players || []).forEach(p => p && ps.add(p))); if (!ps.size) (s.applicants || []).forEach(p => p && ps.add(p)); return [...ps] }
+function attFind(n) { const id = findPlayer(n); if (id) return id; const k = normName(String(n).replace(/\(M\)|\d+/gi, '')); if (!k) return null; const hit = Object.entries(S.players).filter(([, p]) => normName(String(p.name || '').replace(/\(M\)|\d+/gi, '')) === k); return hit.length === 1 ? hit[0][0] : null }
+// 출석부(엑셀)에서 옮긴 지난 출석 기록: 앱과 함께 배포되는 att-seed.json
+function loadAttSeed() { if (S.attSeedP) return; S.attSeedP = fetch('att-seed.json?v=' + APP_VERSION).then(r => r.ok ? r.json() : null).then(j => { S.attSeed = j?.named || {}; render() }).catch(() => { S.attSeed = {} }) }
 function attUp() { return S.meta?.att || {} } // 업로드한 지난 출석 기록 { dates: {날짜: [pid]}, base: {pid: 횟수}, baseTotal }
 function attEntries(period) { const t = today(); const up = attUp().dates || {}; const E = {};
   Object.keys(S.sessions).forEach(id => { const s = S.sessions[id]; if (id <= t && (s.stage === 'match' || s.imported)) { const ps = attPids(s); if (ps.length) E[id] = ps } });
-  const nm = attUp().named || {}; [...new Set([...Object.keys(up), ...Object.keys(nm)])].forEach(d => { if (d > t || E[d]) return; const ps = new Set((up[d] || []).filter(p => S.players[p])); (nm[d] || []).forEach(n => { const id = findPlayer(n); if (id) ps.add(id) }); if ((up[d] || []).length || (nm[d] || []).length) E[d] = [...ps] });
+  loadAttSeed(); const seed = S.attSeed || {}; const nm0 = attUp().named || {}; const nm = {}; Object.keys(seed).forEach(d => { if (!up[d] && !nm0[d]) nm[d] = seed[d] }); Object.assign(nm, nm0);
+  [...new Set([...Object.keys(up), ...Object.keys(nm)])].forEach(d => { if (d > t || E[d]) return; const ps = new Set((up[d] || []).filter(p => S.players[p])); (nm[d] || []).forEach(n => { const id = attFind(n); if (id) ps.add(id) }); if ((up[d] || []).length || (nm[d] || []).length) E[d] = [...ps] });
   let ids = Object.keys(E).sort();
   if (period === 'year') ids = ids.filter(id => id.startsWith(t.slice(0, 4)));
   else if (period === '3m') { const d = new Date(); d.setMonth(d.getMonth() - 3); const cut = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`; ids = ids.filter(id => id >= cut) }
@@ -1554,7 +1559,7 @@ function attFromSheets(sheets) { const res = { kind: 'xlsx', dates: {}, named: {
     const yr = {}; dcols.forEach(([, d]) => yr[d.slice(0, 4)] = (yr[d.slice(0, 4)] || 0) + 1); const Y = Object.entries(yr).sort((a, b) => b[1] - a[1])[0][0]; const got = {};
     R.slice(hi + 1).forEach(r => { const raw = r?.[nc]; if (typeof raw !== 'string') return; if (/총인원|표기법|^\s*[(\-]/.test(raw)) return; const nm = raw.replace(/\(M\)|\(m\)|\d+|\?/g, '').trim(); if (!nm) return;
       dcols.forEach(([j, d]) => { const v = r[j]; if ((typeof v === 'number' && v > 0) || (typeof v === 'string' && yes.test(v.trim()))) (got[d] ??= new Set()).add(nm) }) });
-    let used = 0; Object.entries(got).forEach(([d, set]) => { const dd = d.slice(0, 4) === Y ? d : Y + d.slice(4); used++; set.forEach(nm => { const id = findPlayer(nm); if (id) { if (!(res.dates[dd] ??= []).includes(id)) res.dates[dd].push(id) } else { res.unknown.add(nm); if (!(res.named[dd] ??= []).includes(nm)) res.named[dd].push(nm) } }) });
+    let used = 0; Object.entries(got).forEach(([d, set]) => { const dd = d.slice(0, 4) === Y ? d : Y + d.slice(4); used++; set.forEach(nm => { const id = attFind(nm); if (id) { if (!(res.dates[dd] ??= []).includes(id)) res.dates[dd].push(id) } else { res.unknown.add(nm); if (!(res.named[dd] ??= []).includes(nm)) res.named[dd].push(nm) } }) });
     if (used) res.sheets.push(`${sh.name} ${used}경기`) }
   return res }
 function attImpSheet() { const st = S.attImp || {}; const r = st.res; const up = attUp(); const nd = new Set([...Object.keys(up.dates || {}), ...Object.keys(up.named || {})]).size, nb = Object.keys(up.base || {}).length;

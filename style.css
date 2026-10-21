@@ -372,7 +372,7 @@ table.atbl tr.wrow td .muted,table.atbl tr.lrow td .muted,table.atbl tr.wrow td.
 .t2{background:rgba(129,140,248,.22);color:#C7D2FE}
 .t3{background:rgba(239,68,68,.2);color:#FCA5A5}
 }
-:root{--cssv:"0.21.68"}
+:root{--cssv:"0.21.69"}
 /* 0.21.67 운영진 여러 명 이름, 팀 색 버튼 크게 */
 .hb-names{display:flex;flex-wrap:wrap;gap:3px 4px;margin-top:2px}
 .hb-names i{font-style:normal;font-size:11.5px;font-weight:800;padding:1px 7px;border-radius:99px;background:rgba(255,210,31,.18);color:#FFE14D}
