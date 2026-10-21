@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.75';
+const APP_VERSION = '0.21.76';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1233,6 +1233,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.76', '2026.10.21', ['클럽 엠블럼을 디자인 곳곳에 넣었어요: 홈 경기 카드·지난 경기 카드·나의 출석 카드 배경, 드래프트 축구장 가운데, 운영진 표시, 내 정보 카드']],
   ['0.21.75', '2026.10.21', ['앱 디자인을 새로 바꿨어요: 어두운 바탕에 라임색 강조, 굵은 숫자 글꼴, 이모지 대신 선 아이콘', '홈 경기 카드·하단 메뉴·기록실·출석 카드를 새 디자인으로 정리했어요', '드래프트 화면: 어두운 축구장, 주장 카드 위쪽 팀 이름 영역 전체를 팀 색으로 표시']],
   ['0.21.72', '2026.10.21', ['운영진 화면(기록실·출석 관리·설정)에 기록 시트 원본으로 바로 가는 링크를 넣었어요', '설정 → 기록 시트 연동에서 시트 원본 주소와 웹 앱 주소를 바꿀 수 있어요. 바꾸면 모든 운영진 기기에 함께 적용돼요', '출석 기록은 이제 기록 시트에서만 읽어요. 앱에 함께 올라가 있던 출석부 사본은 지웠어요']],
   ['0.21.71', '2026.10.21', ['경기 기록을 구글 시트(기록 시트)에도 저장해요. 운영진 기기에 연동 키를 넣으면 팀 구성·경기 결과·골·출석이 자동으로 시트에 쌓이고, 기록실 출석 현황은 시트 기록을 읽어 와요', '설정 → 기록 시트 연동에서 지금까지의 경기 기록과 출석부를 한 번에 시트로 옮길 수 있어요']],

@@ -665,3 +665,18 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .scd.has.st-open .ev{background:rgba(0,0,0,.28)!important}
 
 :root{--cssv:"0.21.75"}
+/* 0.21.76 팀 엠블럼을 디자인 요소로 */
+:root{--emk:url(assets/emblem-mark.png)}
+.hero,.review,.att-me,.panel.logged,.felt{position:relative;overflow:hidden}
+.hero>*,.review>*,.att-me>*,.panel.logged>*{position:relative;z-index:1}
+.hero::after,.review::after,.att-me::after,.panel.logged::after{content:""!important;display:block!important;position:absolute;pointer-events:none;z-index:0;-webkit-mask:var(--emk) center/contain no-repeat;mask:var(--emk) center/contain no-repeat}
+.hero::after{width:230px;height:230px;right:-62px;bottom:-58px;background:var(--accent);opacity:.08}
+.review::after{width:150px;height:150px;right:-38px;top:-34px;background:#fff;opacity:.05}
+.att-me::after{width:170px;height:170px;right:-40px;bottom:-50px;background:var(--accent-ink);opacity:.1}
+.panel.logged::after{width:140px;height:140px;right:-30px;top:-30px;background:#fff;opacity:.05}
+.felt::after{content:""!important;display:block!important;position:absolute;left:50%;top:50%;width:84px;height:84px;margin:-42px 0 0 -42px;pointer-events:none;z-index:0;background:#fff;opacity:.09;-webkit-mask:var(--emk) center/contain no-repeat;mask:var(--emk) center/contain no-repeat;border:0!important;border-radius:0!important}
+.felt>*{position:relative;z-index:1}
+.hero-empty::before{content:"";display:block;width:64px;height:64px;margin:0 0 12px;background:var(--accent);-webkit-mask:var(--emk) center/contain no-repeat;mask:var(--emk) center/contain no-repeat}
+.hb-av{font-size:0!important;background:var(--accent)!important;position:relative}
+.hb-av::after{content:"";position:absolute;inset:4px;background:var(--accent-ink);-webkit-mask:var(--emk) center/contain no-repeat;mask:var(--emk) center/contain no-repeat}
+:root{--cssv:"0.21.76"}
