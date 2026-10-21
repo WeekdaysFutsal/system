@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.74';
+const APP_VERSION = '0.21.75';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -810,11 +810,12 @@ function appbar() {
   const s = S.sid ? S.sessions[S.sid] : null; const back = false;
   return `<header class="appbar"><div class="in">${back ? '<button class="back" data-act="home" aria-label="경기일 목록">‹</button>' : `<img src="${EMBLEM_SRC}" alt="홈으로" data-act="gohome" style="cursor:pointer">`}
   <div class="ttl" data-act="gohome" role="button" tabindex="0" aria-label="홈으로"><b>${esc(CFG.club?.name || 'WEEKDAYS FUTSAL CLUB')}</b><span></span></div>
-  ${!S.dm && !S.admin && S.auth ? `<button class="mmtop ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" aria-label="${S.tab === 'mm' ? '일반모드로 돌아가기' : '경기모드 열기'}"><span class="mmball">⚽</span><b>${S.tab === 'mm' ? '일반모드' : '경기모드'}</b>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : ''}${S.auth && !S.admin ? (() => { const n = (S.inbox || []).filter(x => !x.read).length; return `<button class="bell" data-act="inbox" aria-label="받은 알림${n ? ' ' + n + '개 안 읽음' : ''}">🔔${n ? `<i>${n > 9 ? '9+' : n}</i>` : ''}</button>` })() : ''}${!S.admin && capSid() ? `<button class="capico" data-act="gocap" data-id="${capSid()}" aria-label="팀 드래프트 입장" title="팀 드래프트 입장">👑<b>드래프트</b></button>` : !S.admin && viewSid() && S.sessions[viewSid()]?.draftStatus !== 'done' ? `<button class="capico view" data-act="gocap" data-id="${viewSid()}" aria-label="드래프트 참관" title="드래프트 참관">👀<b>참관</b></button>` : ''}${canOp() ? `<button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">운영모드</button>` : ''}</div>${capStrip()}</header>`;
+  ${!S.dm && !S.admin && S.auth ? `<button class="mmtop ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" aria-label="${S.tab === 'mm' ? '일반모드로 돌아가기' : '경기모드 열기'}"><span class="mmball">${XICO.mm}</span><b>${S.tab === 'mm' ? '일반모드' : '경기모드'}</b>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : ''}${S.auth && !S.admin ? (() => { const n = (S.inbox || []).filter(x => !x.read).length; return `<button class="bell" data-act="inbox" aria-label="받은 알림${n ? ' ' + n + '개 안 읽음' : ''}">${XICO.bell}${n ? `<i>${n > 9 ? '9+' : n}</i>` : ''}</button>` })() : ''}${!S.admin && capSid() ? `<button class="capico" data-act="gocap" data-id="${capSid()}" aria-label="팀 드래프트 입장" title="팀 드래프트 입장">👑<b>드래프트</b></button>` : !S.admin && viewSid() && S.sessions[viewSid()]?.draftStatus !== 'done' ? `<button class="capico view" data-act="gocap" data-id="${viewSid()}" aria-label="드래프트 참관" title="드래프트 참관">👀<b>참관</b></button>` : ''}${canOp() ? `<button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">운영모드</button>` : ''}</div>${capStrip()}</header>`;
 }
 function tabs() {
   const t = S.admin ? [['manage', '일정'], ['run', '경기'], ['notice', '공지'], ['members', '회원'], ['settings', '설정']] : [['mhome', '홈'], ['sched', '일정'], ...(isDesk() ? [] : [['mm', '경기모드']]), ['results', '기록실'], ['settings', '내 정보']]; // 아래 메뉴는 항상 고정 — 드래프트는 오른쪽 위 버튼으로 입장
-  return `<div class="tabs"><nav style="grid-template-columns:repeat(${t.length},1fr)">${t.map(([k, n]) => k === 'mm' ? `<button class="mmtab ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" ${S.tab === 'mm' ? 'aria-current="page"' : ''}><span class="mmball">⚽</span><span>${S.tab === 'mm' ? '일반모드' : n}</span>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : `<button data-act="tab" data-v="${k}" ${S.tab === k ? 'aria-current="page"' : ''}>${n}</button>`).join('')}</nav></div>` }
+  return `<div class="tabs"><nav style="grid-template-columns:repeat(${t.length},1fr)">${t.map(([k, n]) => k === 'mm' ? `<button class="mmtab ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" ${S.tab === 'mm' ? 'aria-current="page"' : ''}><span class="mmball">${XICO.mm}</span><span>${S.tab === 'mm' ? '일반모드' : n}</span>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : `<button data-act="tab" data-v="${k}" ${S.tab === k ? 'aria-current="page"' : ''}>${XICO[S.admin && k === 'settings' ? 'gear' : TAB_ICO[k]] || ''}<span>${n}</span></button>`).join('')}</nav></div>` }
+const TAB_ICO = { mhome: 'home', sched: 'cal', results: 'chart', settings: 'user', draft: 'run', manage: 'cal', run: 'run', notice: 'mega', members: 'users' }; // 하단 메뉴 아이콘
 function liveAny() { return Object.values(S.matches).some(m => m.status === 'live' && m.timer?.running) }
 function sessionPicker() { const ids = Object.keys(S.sessions).sort().reverse(); if (ids.length < 2) return '';
   return `<label class="sr" for="sidpick">경기일 선택</label><select id="sidpick" class="inp" style="margin-top:12px" data-in="sidpick">${ids.map(id => `<option value="${id}" ${id === S.sid ? 'selected' : ''}>${fmtDate(id)} ${esc(S.sessions[id].time || '')}</option>`).join('')}</select>` }
@@ -1232,6 +1233,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.75', '2026.10.21', ['앱 디자인을 새로 바꿨어요: 어두운 바탕에 라임색 강조, 굵은 숫자 글꼴, 이모지 대신 선 아이콘', '홈 경기 카드·하단 메뉴·기록실·출석 카드를 새 디자인으로 정리했어요', '드래프트 화면: 어두운 축구장, 주장 카드 위쪽 팀 이름 영역 전체를 팀 색으로 표시']],
   ['0.21.72', '2026.10.21', ['운영진 화면(기록실·출석 관리·설정)에 기록 시트 원본으로 바로 가는 링크를 넣었어요', '설정 → 기록 시트 연동에서 시트 원본 주소와 웹 앱 주소를 바꿀 수 있어요. 바꾸면 모든 운영진 기기에 함께 적용돼요', '출석 기록은 이제 기록 시트에서만 읽어요. 앱에 함께 올라가 있던 출석부 사본은 지웠어요']],
   ['0.21.71', '2026.10.21', ['경기 기록을 구글 시트(기록 시트)에도 저장해요. 운영진 기기에 연동 키를 넣으면 팀 구성·경기 결과·골·출석이 자동으로 시트에 쌓이고, 기록실 출석 현황은 시트 기록을 읽어 와요', '설정 → 기록 시트 연동에서 지금까지의 경기 기록과 출석부를 한 번에 시트로 옮길 수 있어요']],
   ['0.21.70', '2026.10.21', ['아래 메뉴의 \'경기결과\' 이름을 \'기록실\'로 바꿨어요 (경기 결과 · 출석 현황)']],
@@ -1446,6 +1448,7 @@ function myPid() { return S.auth?.pid && S.players[S.auth.pid] ? S.auth.pid : nu
 function myTeamIn(s) { const me = myPid(); return me ? KEYS.find(k => teamPlayers(s, k).includes(me)) || null : null }
 function backbar(label) { return `<button class="backlink" data-act="sub" data-v="">‹ ${label}</button>` }
 
+const XICO = { park: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14M6 17V11l2-5h8l2 5v6"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="17" r="2"/></svg>', ball: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m12 7 4.5 3.3-1.7 5.2H9.2L7.5 10.3z"/></svg>', drink: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10l-1 18H8z"/><path d="M7.5 9h9"/></svg>', pin: '<svg class="xi xpin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>', bell: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>', home: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/></svg>', cal: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>', chart: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>', user: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>', run: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v16M5 5h11l-2 4 2 4H5"/></svg>', mega: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11v2l13 5V6zM16 9.5a3 3 0 0 1 0 5M7 13.5V19h3v-4.3"/></svg>', users: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5c1.8.6 3 2.4 3.5 5.5"/></svg>', gear: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>', mm: '<svg class="xi mmi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m12 7 4.5 3.3-1.7 5.2H9.2L7.5 10.3z"/></svg>' }; // A안 선 아이콘
 function viewMHome() {
   if (S.sub) { const s = cur(); if (!s) { S.sub = null } else {
     const body = S.sub === 'draft' ? (s.draftStatus === 'done' ? vTrade(s) : vDraft(s)) : S.sub === 'poster' ? vNotice(s) : vMatchDay(s);
@@ -1470,9 +1473,9 @@ function viewMHome() {
   else { S.sid = sid; const s = S.sessions[sid]; const st = sStatus(s); const n = appTotal(s); const cap = s.capacity || 0; const [, m, d] = sid.split('-');
     h += `<div class="hero"><div class="hero-top"><span class="st st-${st.k}">${st.label}</span><span class="dday">${dday(sid)}</span></div>
       <div class="hero-date">${m}.${d}<small>${dow(sid)}요일</small></div><div class="hero-time">${esc(s.time || '')}</div>
-      <div class="hero-venue">📍 ${esc(s.venue || '장소 미정')}</div>
+      <div class="hero-venue">${XICO.pin}${esc(s.venue || '장소 미정')}</div>
       ${st.k === 'open' && s.applyClose ? `<div class="hero-status"><span>${fmtDT(s.applyClose)} 신청 마감</span></div>` : st.k === 'soon' && s.applyOpen ? `<div class="hero-status"><span>${fmtDT(s.applyOpen)} 신청 오픈</span></div>` : ''}
-      <div class="cap capbtn" role="button" tabindex="0" data-act="applist" data-id="${sid}" aria-label="신청 현황 보기"><div class="cap-row"><span>신청 인원${appCounts(s).wait ? ` · 대기 ${appCounts(s).wait}` : ''}<em class="caplink">👥 신청 현황 보기 ›</em></span><b>${n}<small> / ${cap || '-'}명</small></b></div>${cap ? `<div class="bar"><i style="width:${Math.min(100, n / cap * 100)}%"></i></div>` : ''}</div></div>`;
+      <div class="cap capbtn" role="button" tabindex="0" data-act="applist" data-id="${sid}" aria-label="신청 현황 보기"><div class="cap-row"><span>신청 인원${appCounts(s).wait ? ` · 대기 ${appCounts(s).wait}` : ''}<em class="caplink">신청 현황 ›</em></span><b>${n}<small> / ${cap || '-'}명</small></b></div>${cap ? `<div class="bar"><i style="width:${Math.min(100, n / cap * 100)}%"></i></div>` : ''}</div></div>`;
     h += homeAction(s, st, fit);
     if (fit) { const a = applyState(s); if (st.k === 'open' || st.k === 'soon' || (st.k === 'closed' && a.k !== 'none' && s.stage !== 'match')) { const ab = applyBox(s, true); if (ab) h += `<div class="inline-apply">${ab}</div>` } }
   }
@@ -1994,13 +1997,13 @@ function dutySpin(sid, kind, done) { const ss = S.sessions[sid]; const pool = du
 function dutyReqLabel(s) { const b = dutyReqs(s, 'ball').length, d = dutyReqs(s, 'drink').length; return b || d ? `신청 공 ${b} · 물 ${d}` : '' }
 function dutyBox(s) {
   const me = myPid(); if (!me || s.stage === 'match') return ''; const d = s.duty || {}; const rq = s.dutyReq || {};
-  const one = (k, ico, nm) => { const set = d[k] || []; if (set.length) return set.includes(me) ? `<span class="xpill fixed"><b>${ico} ${nm}</b><small>지정됐어요</small></span>` : '';
-    const on = !!rq[k]?.[me]; return `<button class="xpill ${on ? 'on' : ''}" data-act="dutyreq" data-k="${k}" data-id="${s.date}" aria-pressed="${on}"><b>${ico} ${nm}</b><small>${on ? '신청함 ✓' : '신청하기'}</small></button>` };
+  const one = (k, ico, nm) => { const set = d[k] || []; if (set.length) return set.includes(me) ? `<span class="xpill fixed"><b>${XICO[k] || ico} ${nm}</b><small>지정됐어요</small></span>` : '';
+    const on = !!rq[k]?.[me]; return `<button class="xpill ${on ? 'on' : ''}" data-act="dutyreq" data-k="${k}" data-id="${s.date}" aria-pressed="${on}"><b>${XICO[k] || ico} ${nm}</b><small>${on ? '신청함 ✓' : '신청하기'}</small></button>` };
   return one('ball', '⚽', '공당') + one('drink', '🥤', '물당');
 }
 function parkBox(s) {
   const me = myPid(); if (!me) return ''; const mine = s.park?.[me]; const won = (s.parkWin || []).includes(me); const drawn = !!s.parkDrawAt; const open = sStatus(s).k === 'open';
-  const pill = (cls, sub, attrs) => `<${attrs ? 'button' : 'span'} class="xpill ${cls}" ${attrs || ''}><b>🚗 주차</b><small>${sub}</small></${attrs ? 'button' : 'span'}>`;
+  const pill = (cls, sub, attrs) => `<${attrs ? 'button' : 'span'} class="xpill ${cls}" ${attrs || ''}><b>${XICO.park} 주차</b><small>${sub}</small></${attrs ? 'button' : 'span'}>`;
   if (drawn) return mine?.car ? pill(won ? 'fixed' : 'off', won ? `당첨! ${esc(mine.car)}` : '추첨 미당첨') : '';
   if (mine?.car) return open ? pill('on', `신청함 ✓ ${esc(mine.car)}`, `data-act="parkcancel" data-id="${s.date}" aria-pressed="true"`) : pill('on', `신청함 ✓ ${esc(mine.car)}`);
   if (!open) return '';
