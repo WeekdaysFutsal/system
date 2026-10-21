@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.80';
+const APP_VERSION = '0.21.81';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1234,6 +1234,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.81', '2026.10.21', ['경기모드: 진행자 화면 아래 \'경기 셋팅 초기화\' 버튼으로 대진·경기 시간 설정을 처음부터 다시 할 수 있어요 (진행한 경기와 골 기록이 있으면 두 번 확인한 뒤 함께 지워요)']],
   ['0.21.80', '2026.10.21', ['경기모드: 게임마다 양 팀 선수 목록이 나오고, 이름을 누르면 그 선수 골로 기록돼요. \'자책골\'을 누른 뒤 이름을 누르면 상대 팀 득점(자책)으로 기록돼요', '경기모드: 아래 득점 기록 버튼을 누르면 그 골을 취소할 수 있어요', '경기모드: 게임 시작 전에 왼쪽·오른쪽 팀 색을 바꿀 수 있고, 선수 목록도 따라 바뀌어요. 1라운드에서 바꾸면 2·3라운드 같은 순서 경기도 함께 바뀌어요']],
   ['0.21.78', '2026.10.21', ['홈 경기 카드의 경기 시간과 장소를 크게, 아이콘과 함께 보이게 했어요']],
   ['0.21.77', '2026.10.21', ['팀이 정해진 뒤부터 경기가 끝날 때까지 홈 화면에 공당·물당·주차 담당과 팀 명단이 바로 보여요 (공지 이미지 대신 목록으로). 휴대폰에서는 \'팀 명단 보기\'를 누르면 팀별 명단이 떠요']],
@@ -2499,7 +2500,7 @@ function mmTimeView(s) {
   return `<div class="mm-card"><h3>② 경기 시간 설정</h3><p class="mm-note">한 경기는 전반 → GK 교체 → 후반으로 진행돼요. 시작, 전반 종료, 후반 시작, 경기 종료 때 휘슬이 울려요.</p>
     ${st('h1', '전반', '분', 0.5)}${st('gk', 'GK 교체', '초', 1)}${st('h2', '후반', '분', 0.5)}
     <p class="mm-sum">한 경기 ${Math.floor((f.h1 * 60 + f.gk + f.h2 * 60) / 60)}분 ${Math.round((f.h1 * 60 + f.gk + f.h2 * 60) % 60)}초</p>
-    <button class="btn primary block mm-go cta" data-act="mmtimesave">설정 완료</button><button class="btn block mm-back" data-act="mmstage" data-v="pair">← 이전 화면</button></div>`;
+    <button class="btn primary block mm-go cta" data-act="mmtimesave">설정 완료</button><button class="btn block mm-back" data-act="mmstage" data-v="pair">← 이전 화면</button>${mmReady(s) ? '<button class="btn danger block mm-reset" data-act="mmreset">⟲ 경기 셋팅 초기화</button>' : ''}</div>`;
 }
 /* ── 경기모드 전체화면 점수판 (가로 화면 지원) ── */
 /* 시계 글자 크기를 화면 남는 공간에 꽉 차게 자동 맞춤 (글꼴·화면 방향과 상관없이) */
@@ -2558,6 +2559,7 @@ function mmPlayView(s, ctl) {
       : allDone ? `<div class="mm-done">🎉 오늘 9경기가 모두 끝났어요!</div>` : ''}</div>
     ${mmRoster(s, m, ctl, ctl && (m.status === 'live' || editing))}
     <div class="mm-list">${ms.map(x => { const [a, b] = score(x); const X = team(s, x.home), Y = team(s, x.away); return `<button class="mm-li ${x.id === m.id ? 'cur' : ''} st-${x.status}" data-act="mmsel" data-id="${x.status === 'done' ? x.id : ''}" ${ctl && (x.status === 'done' || x.id === curM.id) ? '' : 'disabled'} aria-label="${x.n}경기${x.status === 'done' ? ' 점수 수정' : ''}"><em>${x.n}</em><i style="background:${X.color}"></i><span>${x.status === 'pending' ? 'vs' : a + ':' + b}</span><i style="background:${Y.color}"></i></button>` }).join('')}</div>
+    ${ctl ? '<button class="btn danger block mm-reset" data-act="mmreset">⟲ 경기 셋팅 초기화</button>' : ''}
     <p class="mm-note">${ctl ? '끝난 경기는 아래 목록에서 눌러 점수를 고칠 수 있어요. ' : ''}경기모드 화면에 있는 동안은 화면이 꺼지지 않아요. ${ctl ? '다른 메뉴로 가도 시간과 휘슬은 계속 이어져요.' : '휘슬은 진행자 폰에서 울려요.'}</p></div>`;
   return h;
 }
@@ -2987,6 +2989,11 @@ document.addEventListener('click', async e => {
     case 'mmteam': { const m = M(id); if (!m || m.status !== 'pending') break; const k = el.dataset.k; const pos = el.dataset.side; let nh = m.home, na = m.away;
       if (pos === 'h') { if (k === m.home) break; if (k === m.away) { nh = m.away; na = m.home } else nh = k } else { if (k === m.away) break; if (k === m.home) { nh = m.away; na = m.home } else na = k }
       await mmSetTeams(m, nh, na); break }
+    case 'mmreset': { const s = S.sessions[S.mmSid]; if (!s || !mmCtl(s).mine) break; const ms = sessMatches(s.date); const ids = new Set(ms.map(x => x.id)); const evs = Object.keys(S.events).filter(k => ids.has(S.events[k].match)); const played = ms.filter(x => x.status !== 'pending').length;
+      if (!confirm(`경기 셋팅을 처음으로 되돌릴까요?\n대진과 경기 시간 설정이 지워지고 처음부터 다시 정해요.${played || evs.length ? `\n\n⚠️ 진행한 경기 ${played}개와 기록된 골 ${evs.length}개도 모두 지워져요.` : ''}`)) break;
+      if ((played || evs.length) && !confirm('정말 지울까요? 지운 기록은 되돌릴 수 없어요.')) break;
+      const ok = await w(async () => { for (const k of evs) await S.store.del('events/' + k); for (const x of ms) await S.store.del(mp(x.id)); await S.store.update(sp(s.date), { mm: null }) }, '경기 셋팅을 초기화했어요. 대진부터 다시 정해 주세요.');
+      if (ok) { S.mmStage = null; S.mmDraft = null; S.mmPairs = null; S.mmT = null; S.mmSel = null; S.mmOg = {}; render(); window.scrollTo(0, 0) } break }
     case 'mmsidesw': { const m = M(id); if (!m || m.status !== 'pending') break; await w(() => S.store.update(mp(id), { home: m.away, away: m.home }), '진영을 바꿨어요.'); break }
     case 'mmsel': S.mmSel = id || null; render(); break;
     case 'mmungoal': { const s = S.sessions[S.mmSid]; const m = (el.dataset.id && M(el.dataset.id)) || sessMatches(s.date).find(x => x.status === 'live'); if (!m) break; const k = el.dataset.k; const evs = Object.entries(S.events).filter(([, e]) => e.match === m.id && e.team === k).sort((a, b) => b[1].at - a[1].at); if (!evs.length) break;
