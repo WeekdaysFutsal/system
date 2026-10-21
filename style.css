@@ -680,3 +680,48 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .hb-av{font-size:0!important;background:var(--accent)!important;position:relative}
 .hb-av::after{content:"";position:absolute;inset:4px;background:var(--accent-ink);-webkit-mask:var(--emk) center/contain no-repeat;mask:var(--emk) center/contain no-repeat}
 :root{--cssv:"0.21.76"}
+/* 0.21.77 매치데이 카드: 공당·물당·주차 + 팀 명단 */
+.mdcard{margin-top:12px;border-radius:24px;background:var(--surface);border:1px solid var(--line);padding:16px 14px 14px;display:flex;flex-direction:column;gap:12px}
+.md-lab{display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:700;letter-spacing:1.6px;color:var(--muted)}
+.md-lab i{font-style:normal;font-size:11px;font-weight:800;letter-spacing:.5px;padding:3px 8px;border-radius:999px}
+.mdlive{background:#FF4D4F;color:#fff}
+.mdadj{background:var(--line);color:var(--ink)}
+.mdh{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.mdt{border-radius:16px;background:var(--surface2);border:1px solid var(--line);padding:10px 10px 11px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.mdt-hd{display:flex;align-items:center;gap:5px;font-size:13px}
+.mdt-hd .xi{width:17px;height:17px;color:var(--accent)}
+.mdt-hd b{font-weight:800}
+.mdt-ns{display:flex;flex-direction:column;gap:2px}
+.mdt-ns span{font-size:16px;font-weight:800;letter-spacing:-.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mdt-ns span.me{color:var(--accent)}
+.mdt-ns em{font-style:normal;font-size:14px;color:var(--muted)}
+.mdt small{font-size:11px;color:var(--accent);font-weight:700}
+.mdt.mine{background:rgba(198,255,61,.1);border-color:var(--accent)}
+.mdt-me{font-style:normal;font-size:10px;font-weight:900;padding:1px 6px;border-radius:999px;background:var(--accent);color:var(--accent-ink);margin-left:auto}
+.md-team{display:flex;gap:8px;align-items:stretch}
+.md-my{flex:1;min-width:0;border-radius:16px;background:var(--tc);color:var(--ti);padding:10px 14px;display:flex;flex-direction:column;line-height:1.2}
+.md-my span{font-size:11px;font-weight:700;opacity:.85}
+.md-my b{font-family:var(--latin);font-weight:800;font-size:24px;letter-spacing:1px}
+.md-my small{font-size:12px;font-weight:600;opacity:.9}
+.md-my.none{background:var(--surface2);color:var(--ink)}
+.md-rbtn{flex:none;min-height:auto!important;padding:0 16px!important;border-radius:16px!important;background:#F2F4F7!important;color:#0B0D10!important;border:0!important;font-weight:800}
+.rgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.rcard{border-radius:16px;background:var(--surface2);border:1.5px solid var(--line);overflow:hidden;min-width:0}
+.rcard.mine{border-color:var(--tc)}
+.rcard-hd{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--tc);color:var(--ti)}
+.rcard-hd b{font-family:var(--latin);font-weight:800;font-size:16px;letter-spacing:.8px}
+.rcard-hd span{font-size:12px;font-weight:700}
+.rcard ol{list-style:none;margin:0;padding:6px 10px 10px;display:flex;flex-direction:column;gap:2px}
+.rcard li{display:flex;align-items:center;gap:5px;min-height:28px;font-size:14px;font-weight:600;border-bottom:1px solid var(--line2)}
+.rcard li:last-child{border-bottom:0}
+.rcard li span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rcard li.me span{color:var(--accent);font-weight:800}
+.rcard .cb{font-style:normal;font-family:var(--latin);font-weight:800;font-size:11px;width:17px;height:17px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;background:var(--tc);color:var(--ti);flex:none}
+.sheet .rgrid{margin-top:12px}
+@media (max-width:360px){.mdt-ns span{font-size:14px}.rcard li{font-size:13px}}
+:root{--cssv:"0.21.77"}
+.hero.md .cap{display:none!important}
+.capstrip{background:rgba(198,255,61,.12)!important;color:var(--ink)!important;border-bottom:1px solid rgba(198,255,61,.35)!important}
+.capstrip span{background:var(--accent)!important;color:var(--accent-ink)!important}
+.rcard-hd span{margin-left:6px;white-space:nowrap}
+@media (max-width:420px){.rcard-hd{padding:8px 8px}.rcard-hd b{font-size:14px;letter-spacing:.4px}.rcard-hd span{font-size:11px}}
