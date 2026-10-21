@@ -13,6 +13,9 @@ window.WF_CONFIG = {
     appId: "1:663428055388:web:92aaceb1b0c5088176c199"
   },
 
+  // 기록 시트(구글 시트 Apps Script 웹 앱) 주소: 경기 기록·출석은 시트, 실시간 데이터는 Firebase
+  recordSheet: "https://script.google.com/macros/s/AKfycbwkeSy5NYuPV9HHH_gszDrWZbZIqC2SFSYgT1IlTXM1kcd8om3nfvOE6zrsH2fOqPwW5A/exec",
+
   // 운영진 모드 비밀번호 (운영진, 기록 담당자에게만 알려 주세요)
   // 주차 추첨 인원
   parkingSlots: 2,
