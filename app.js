@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.84';
+const APP_VERSION = '0.21.85';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -113,6 +113,16 @@ const canOp = () => S.admin || !S.auth || ['staff', 'special'].includes(mstatus(
 const FIG_SVG = '<svg class="pfs" viewBox="0 0 80 72" aria-hidden="true"><path class="pf-body" d="M27 4Q40 11 53 4L66 7Q73 9 76 17L79 33L65 35L64 67Q40 71 16 67L15 35L1 33L4 17Q7 9 14 7Z"/><path class="pf-cuff" d="M1.9 28.6L15 30.6V35L1 33ZM78.1 28.6L65 30.6V35L79 33Z"/><path class="pf-seam" d="M15 31V21M65 31V21"/><path class="pf-colw" d="M27 4Q40 12.5 53 4"/><path class="pf-coll" d="M27 4Q40 11 53 4M25.5 5.4Q40 15.5 54.5 5.4"/></svg>';
 const figHTML = n => { const L = Math.max(2, [...String(n)].length); return `${FIG_SVG}<b class="pfn" style="--nl:${L}">${esc(n)}</b>` }; // 반팔 유니폼 아이콘 + 가슴에 전체 이름 (글자 수에 맞춰 크기 자동 조절)
 const PICO = '<i class="pico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="4.3"/><path d="M3.6 21.5c0-4.6 3.8-8 8.4-8s8.4 3.4 8.4 8z"/></svg></i>'; // 드래프트 이름표의 사람 아이콘
+const DKC = {}; // 어두운 팀 색(예: BLACK)은 어두운 배경에서 안 보여서 밝은 테두리를 붙여요
+function isDarkC(c) { c = String(c || '').trim(); if (c in DKC) return DKC[c]; let r = null;
+  const m = c.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i); if (m) { let h = m[1]; if (h.length === 3) h = [...h].map(x => x + x).join(''); r = [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16)) }
+  else { const q = c.match(/^rgba?\(([^)]+)\)/i); if (q) { const v = q[1].split(/[ ,\/]+/).map(Number); if (v.length < 4 || v[3] > .5) r = v.slice(0, 3) } }
+  const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4) };
+  return DKC[c] = r ? (.2126 * f(r[0]) + .7152 * f(r[1]) + .0722 * f(r[2])) < .03 : null }
+function markDark(root) { if (!root || root.nodeType !== 1) return; const els = root.matches?.('[style]') ? [root, ...root.querySelectorAll('[style]')] : root.querySelectorAll('[style]');
+  for (const el of els) { const st = el.style; const c = st.getPropertyValue('--tc') || (st.background || st.backgroundColor ? st.backgroundColor : ''); if (!c) continue; const d = isDarkC(c); if (d === null) continue; el.classList.toggle('tdk', d); el.classList.toggle('tnd', !d) } }
+(() => { const go = () => { const app = document.getElementById('app'); if (!app) return setTimeout(go, 50); markDark(app);
+  new MutationObserver(ms => { for (const m of ms) { if (m.type === 'attributes') markDark(m.target); else m.addedNodes.forEach(markDark) } }).observe(app, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] }) }; go() })();
 function bib(c) { return `<span class="bib" style="background:${c}"></span>` }
 function tag(t) { return `<span class="teamtag" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}</span>` }
 function timing(s) { return { ...DEF_TIMING, ...(s?.timing || {}) } }
@@ -1232,6 +1242,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.85', '2026.10.21', ['디자인: BLACK처럼 어두운 팀 색이 어두운 배경에서 잘 안 보이던 곳(팀 색 표시, 팀 이름표, 드래프트 유니폼·좌석, 경기모드 팀 칸, 득점 칩, 순위 등)에 밝은 테두리를 넣어 구분되게 했어요']],
   ['0.21.84', '2026.10.21', ['경기 기록: 골 기록에 팀 대신 득점한 선수 이름이 나와요 (자책골·도움 표시 포함)', '경기 결과: 경기별 결과 아래에 득점자가 나오고, 그날의 득점 순위(골·도움)를 볼 수 있어요. 자책골은 개인 득점에서 빠져요']],
   ['0.21.83', '2026.10.21', ['경기모드: 게임 사이에 나오던 노란색 휴식 카운트다운을 없앴어요. 경기가 끝나면 바로 다음 경기 \'시작 대기\'로 보여요']],
   ['0.21.82', '2026.10.21', ['경기모드 휘슬이 경기 시간과 정확히 맞게 울리도록 고쳤어요. 화면이 잠깐 꺼지거나 소리가 멈췄다 돌아와도 남은 시간 기준으로 다시 맞춰요']],

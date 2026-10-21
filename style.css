@@ -778,7 +778,7 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.84"}
+:root{--cssv:"0.21.85"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
@@ -818,3 +818,13 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .ev .who b{font-size:15px}
 .ev .who small{margin-left:0;font-size:12px}
 .rdsc:last-child{border-bottom:0}
+/* 0.21.85 어두운 팀 색(BLACK 등) 구분 테두리 */
+:is(.tdk:is(.bib,.teamtag,.tok,.tok2,.seat.picked,.gt,.mm-team,.fs-team,.md-my,.mm-tb.on,.mr-sw.on,.flow span,.flow2 i,.rkb),.tdk :is(.bib,.teamtag,.tok,.tok2,.seat.picked,.flow span,.tchd,.tcard li.cap em,.cl b.tm,.rdt-hd,.rdt li em,.mm-tb.on,.gt,.mm-team,.fs-team,.shd,.md-my,.rcard-hd,.rcard .cb,.mr-sw.on,.mr-hd,.mr-p .cb,.mr-chip i,.rkb,.ocard.up small):not(.tnd)){outline:1.5px solid rgba(255,255,255,.62);outline-offset:-1.5px}
+.bib.tdk{box-shadow:0 0 0 1.5px rgba(255,255,255,.62) inset}
+.tdk.rdt,.tdk.rcard,.tdk.mr-col{border-color:rgba(255,255,255,.38)}
+.tdk.rcard.mine,.tdk.nb.pend{border-color:rgba(255,255,255,.75)}
+.board-table .seat.onturn.tdk{border-color:rgba(255,255,255,.85)!important;box-shadow:0 0 0 4px rgba(255,255,255,.18)!important}
+.tdk.mr-sw::before,.tdk .mr-sw::before{box-shadow:0 0 0 1px rgba(255,255,255,.6)}
+.tdk.jf,.tdk .jf:not(.tnd),.jf.tdk{--jst:rgba(255,255,255,.78);--trim:#4A5160}
+.tdk.mr-chip,.tdk .mr-chip:not(.tnd){border-color:rgba(255,255,255,.3)}
+.tdk .shd .tok,.tdk .shd .tok2{outline:0!important}
