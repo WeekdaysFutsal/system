@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.78';
+const APP_VERSION = '0.21.79';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1234,7 +1234,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
-  ['0.21.78', '2026.10.21', ['홈 경기 카드의 경기 시간과 장소를 크게, 아이콘과 함께 보이게 했어요. 장소 옆 \'지도\'를 누르면 네이버 지도에서 바로 찾아요']],
+  ['0.21.78', '2026.10.21', ['홈 경기 카드의 경기 시간과 장소를 크게, 아이콘과 함께 보이게 했어요']],
   ['0.21.77', '2026.10.21', ['팀이 정해진 뒤부터 경기가 끝날 때까지 홈 화면에 공당·물당·주차 담당과 팀 명단이 바로 보여요 (공지 이미지 대신 목록으로). 휴대폰에서는 \'팀 명단 보기\'를 누르면 팀별 명단이 떠요']],
   ['0.21.76', '2026.10.21', ['클럽 엠블럼을 디자인 곳곳에 넣었어요: 홈 경기 카드·지난 경기 카드·나의 출석 카드 배경, 드래프트 축구장 가운데, 운영진 표시, 내 정보 카드']],
   ['0.21.75', '2026.10.21', ['앱 디자인을 새로 바꿨어요: 어두운 바탕에 라임색 강조, 굵은 숫자 글꼴, 이모지 대신 선 아이콘', '홈 경기 카드·하단 메뉴·기록실·출석 카드를 새 디자인으로 정리했어요', '드래프트 화면: 어두운 축구장, 주장 카드 위쪽 팀 이름 영역 전체를 팀 색으로 표시']],
@@ -1479,7 +1479,7 @@ function viewMHome() {
   else { S.sid = sid; const s = S.sessions[sid]; const st = sStatus(s); const n = appTotal(s); const cap = s.capacity || 0; const [, m, d] = sid.split('-');
     h += `<div class="hero ${s.draftStatus === 'done' ? 'md' : ''}"><div class="hero-top"><span class="st st-${st.k}">${st.label}</span><span class="dday">${dday(sid)}</span></div>
       <div class="hero-date">${m}.${d}<small>${dow(sid)}요일</small></div><div class="hero-info"><div class="hi-row hi-time"><span class="hi-ico">${XICO.clock}</span><b>${esc(s.time || '시간 미정')}</b><small>킥오프</small></div>
-      <div class="hi-row hi-venue"><span class="hi-ico">${XICO.pin}</span><b>${esc(s.venue || '장소 미정')}</b>${s.venue ? `<a class="hi-map" href="https://map.naver.com/p/search/${encodeURIComponent(s.venue)}" target="_blank" rel="noopener">지도 ›</a>` : ''}</div></div>
+      <div class="hi-row hi-venue"><span class="hi-ico">${XICO.pin}</span><b>${esc(s.venue || '장소 미정')}</b></div></div>
       ${st.k === 'open' && s.applyClose ? `<div class="hero-status"><span>${fmtDT(s.applyClose)} 신청 마감</span></div>` : st.k === 'soon' && s.applyOpen ? `<div class="hero-status"><span>${fmtDT(s.applyOpen)} 신청 오픈</span></div>` : ''}
       <div class="cap capbtn" role="button" tabindex="0" data-act="applist" data-id="${sid}" aria-label="신청 현황 보기"><div class="cap-row"><span>신청 인원${appCounts(s).wait ? ` · 대기 ${appCounts(s).wait}` : ''}<em class="caplink">신청 현황 ›</em></span><b>${n}<small> / ${cap || '-'}명</small></b></div>${cap ? `<div class="bar"><i style="width:${Math.min(100, n / cap * 100)}%"></i></div>` : ''}</div></div>`;
     h += homeAction(s, st, fit);
