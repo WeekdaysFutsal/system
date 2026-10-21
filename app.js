@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.83';
+const APP_VERSION = '0.21.84';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1173,7 +1173,7 @@ function viewMatch() {
     h += '</div>' } else h += `<p class="note">기록은 운영진 모드에서 할 수 있어요.</p>`;
   const evs = evsOf(m.id).reverse();
   h += `</section><section><h2>골 기록</h2><div class="panel">${evs.length ? evs.map(e => { const t = team(s, e.team); const second = e.half === 'h2' || e.half === 'full' || e.sec >= T.h1 + T.gk; const mn = second ? Math.floor((e.sec - T.h1 - T.gk) / 60) + 1 : Math.floor(e.sec / 60) + 1;
-    return `<div class="ev"><span class="min">${second ? '후' : '전'} ${Math.max(1, mn)}'</span>${bib(t.color)}<span class="who">${esc(t.name)} 골</span>${can ? `<button class="x" data-act="delev" data-id="${e.id}" aria-label="골 기록 삭제">×</button>` : ''}</div>` }).join('') : '<p class="empty">골이 나면 위의 팀 버튼을 누르세요.</p>'}</div></section></div></div></div>`;
+    return `<div class="ev"><span class="min">${second ? '후' : '전'} ${Math.max(1, mn)}'</span>${bib(t.color)}<span class="who"><b>${e.scorer ? esc(pname(e.scorer)) : esc(t.name) + ' 골'}</b>${e.scorer ? `<small>${e.og ? esc(t.name) + ' 득점 · 자책골' : esc(t.name)}</small>` : ''}${e.assist ? `<small>도움 ${esc(pname(e.assist))}</small>` : ''}</span>${can ? `<button class="x" data-act="delev" data-id="${e.id}" aria-label="골 기록 삭제">×</button>` : ''}</div>` }).join('') : '<p class="empty">골이 나면 위의 팀 버튼을 누르세요.</p>'}</div></section></div></div></div>`;
   return h;
 }
 function viewSheet() {
@@ -1232,6 +1232,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.84', '2026.10.21', ['경기 기록: 골 기록에 팀 대신 득점한 선수 이름이 나와요 (자책골·도움 표시 포함)', '경기 결과: 경기별 결과 아래에 득점자가 나오고, 그날의 득점 순위(골·도움)를 볼 수 있어요. 자책골은 개인 득점에서 빠져요']],
   ['0.21.83', '2026.10.21', ['경기모드: 게임 사이에 나오던 노란색 휴식 카운트다운을 없앴어요. 경기가 끝나면 바로 다음 경기 \'시작 대기\'로 보여요']],
   ['0.21.82', '2026.10.21', ['경기모드 휘슬이 경기 시간과 정확히 맞게 울리도록 고쳤어요. 화면이 잠깐 꺼지거나 소리가 멈췄다 돌아와도 남은 시간 기준으로 다시 맞춰요']],
   ['0.21.81', '2026.10.21', ['경기모드: 진행자 화면 아래 \'경기 셋팅 초기화\' 버튼으로 대진·경기 시간 설정을 처음부터 다시 할 수 있어요 (진행한 경기와 골 기록이 있으면 두 번 확인한 뒤 함께 지워요)']],
@@ -1558,6 +1559,17 @@ function viewSchedule() {
   return `<div class="schwrap${fit ? ' schfit' : ''}">${cal}<div class="schdetail">${det}</div></div>${dock}`;
 }
 
+function sessEvents(s) { const ids = new Set(sessMatches(s.date).map(m => m.id)); return Object.entries(S.events).filter(([, e]) => ids.has(e.match)).map(([id, e]) => ({ id, ...e })).sort((a, b) => (a.sec ?? 0) - (b.sec ?? 0)) }
+function pTeamK(s, id) { return KEYS.find(k => (s.teams?.[k]?.players || []).includes(id)) }
+function scorerRank(s) { const R = {}; let ogN = 0; const g = id => (R[id] ??= { id, g: 0, a: 0 });
+  sessEvents(s).forEach(e => { if (e.og) { ogN++; return } if (e.scorer) g(e.scorer).g++; if (e.assist) g(e.assist).a++ });
+  const list = Object.values(R).filter(r => r.g > 0).sort((x, y) => y.g - x.g || y.a - x.a || pname(x.id).localeCompare(pname(y.id), 'ko'));
+  list.forEach((r, i) => { r.rank = i && list[i - 1].g === r.g && list[i - 1].a === r.a ? list[i - 1].rank : i + 1; const k = pTeamK(s, r.id); if (k) { const t = team(s, k); r.color = t.color; r.tname = t.name } });
+  list.ogN = ogN; return list }
+function rdScorers(s, m) { const evs = Object.values(S.events).filter(e => e.match === m.id).sort((a, b) => (a.sec ?? 0) - (b.sec ?? 0)); if (!evs.length) return '';
+  const col = k => { const map = new Map(); evs.filter(e => e.team === k).forEach(e => { const key = e.og ? 'og:' + (e.scorer || '') : (e.scorer || '-'); const o = map.get(key) || { n: 0, e }; o.n++; map.set(key, o) });
+    return [...map.values()].map(({ n, e }) => `<span class="${e.og ? 'og' : ''}">${e.scorer ? esc(pname(e.scorer)) : '미지정'}${n > 1 ? ` <b>×${n}</b>` : ''}${e.og ? ' <small>자책</small>' : ''}</span>`).join('') };
+  return `<div class="rdsc"><div class="h">${col(m.home)}</div><i aria-hidden="true">⚽</i><div class="a">${col(m.away)}</div></div>` }
 function vResultDetail(s) {
   const sid = s.date; const ms = sessMatches(sid); const done = ms.filter(m => m.status === 'done').length; const rows = standings(sid); const me = myPid();
   const st = `<div class="panel tblwrap"><table class="rdst"><thead><tr><th>순위</th><th class="l">팀</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득</th><th>실</th><th>득실</th><th>승점</th></tr></thead><tbody>
@@ -1566,10 +1578,13 @@ function vResultDetail(s) {
   const tm = `<div class="rdteams">${KEYS.map(k => { const t = team(s, k); const ps = teamPlayers(s, k); const rk = rows.find(r => r.k === k);
     return `<div class="rdt" style="--tc:${t.color};--ti:${inkOn(t.color)}"><div class="rdt-hd"><b>${esc(t.name)}</b><small>${rk && rk.p ? rk.rank + '위' : ''}</small></div><ul>${ps.map((id, i) => `<li class="${id === me ? 'me' : ''}">${i === 0 && captainOf(s, k) === id ? '<em>C</em>' : ''}${esc(pname(id))}</li>`).join('')}</ul></div>` }).join('')}</div>`;
   const mrowR = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); const win = m.status === 'done' ? (a > b ? 'win-h' : a < b ? 'win-a' : '') : '';
-    return `<button class="mrow ${win}" data-act="open" data-id="${m.id}"><span class="side">${bib(H.color)}<span>${esc(H.name)}</span></span><span class="mid"><span class="sc">${m.status === 'pending' ? 'vs' : a + ' : ' + b}</span><span class="st">${m.n}경기${m.status === 'done' ? '' : m.status === 'live' ? ' · 진행 중' : ' · 예정'}</span></span><span class="side r"><span>${esc(A.name)}</span>${bib(A.color)}</span></button>` };
+    return `<button class="mrow ${win}" data-act="open" data-id="${m.id}"><span class="side">${bib(H.color)}<span>${esc(H.name)}</span></span><span class="mid"><span class="sc">${m.status === 'pending' ? 'vs' : a + ' : ' + b}</span><span class="st">${m.n}경기${m.status === 'done' ? '' : m.status === 'live' ? ' · 진행 중' : ' · 예정'}</span></span><span class="side r"><span>${esc(A.name)}</span>${bib(A.color)}</span></button>${rdScorers(s, m)}` };
   const rounds = [1, 2, 3].map(r => { const list = ms.filter(m => m.round === r); return list.length ? `<div class="rdround"><h3>${r}라운드</h3><div class="panel">${list.map(mrowR).join('')}</div></div>` : '' }).join('');
+  const rk = scorerRank(s); const myRank = rk.find(r => r.id === me);
+  const rkHtml = rk.length ? `<div class="panel rdrank">${rk.map(r => `<div class="rkrow ${r.id === me ? 'me' : ''}" style="--tc:${r.color || 'var(--line)'}"><em class="rkn ${r.rank <= 3 ? 'top' : ''}">${r.rank}</em><i class="rkb"></i><span class="rknm"><b>${esc(pname(r.id))}</b>${r.tname ? `<small>${esc(r.tname)}</small>` : ''}</span><span class="rkst"><span class="g"><b>${r.g}</b><small>골</small></span>${r.a ? `<span class="a"><b>${r.a}</b><small>도움</small></span>` : ''}</span></div>`).join('')}</div>${rk.ogN ? `<p class="note">자책골 ${rk.ogN}골은 개인 득점에서 빠져요.</p>` : ''}` : '<div class="panel"><p class="empty">선수 이름으로 기록된 골이 없어요.</p></div>';
   return `<div class="rdgrid"><section class="rd-st"><h2>팀 순위${done === ms.length && ms.length ? '<span class="final">최종</span>' : ''}</h2>${st}</section>
   <section class="rd-tm"><h2>팀 구성</h2>${tm}</section>
+  <section class="rd-rk"><h2>득점 순위${myRank ? `<small>나 ${myRank.rank}위 · ${myRank.g}골</small>` : ''}</h2>${rkHtml}</section>
   <section class="rd-ms"><h2>경기별 결과</h2>${ms.length ? `<div class="rounds3">${rounds}</div>` : '<div class="panel"><p class="empty">경기 기록이 없어요.</p></div>'}</section></div>`;
 }
 /* ───────── 출석 현황 ───────── */

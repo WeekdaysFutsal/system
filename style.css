@@ -778,9 +778,43 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.83"}
+:root{--cssv:"0.21.84"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
 .mm-list{margin-top:12px}
 .mm-reset{margin-top:14px}
+/* 0.21.84 득점자 · 득점 순위 */
+.rdgrid{grid-template-areas:"st" "rk" "tm" "ms"}
+.rd-rk{grid-area:rk;min-width:0}
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){.rdgrid{grid-template-areas:"st rk" "tm tm" "ms ms"}}
+.rd-rk h2 small,.rd-st h2 small{margin-left:8px;font-size:12px;font-weight:700;color:var(--accent)}
+.rdrank{padding:4px 0}
+.rkrow{display:flex;align-items:center;gap:10px;padding:9px 14px;border-top:1px solid var(--line)}
+.rkrow:first-child{border-top:0}
+.rkrow.me{background:rgba(198,255,61,.08)}
+.rkn{width:22px;text-align:center;font-style:normal;font-family:var(--latin);font-weight:800;font-size:19px;color:var(--muted)}
+.rkn.top{color:var(--accent)}
+.rkb{width:6px;height:26px;border-radius:3px;background:var(--tc);flex:none;box-shadow:0 0 0 1px rgba(255,255,255,.12)}
+.rknm{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.2}
+.rknm b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rknm small{font-size:11px;color:var(--muted)}
+.rkst{display:flex;gap:12px;align-items:baseline}
+.rkst span{display:flex;align-items:baseline;gap:2px}
+.rkst b{font-family:var(--latin);font-weight:800;font-size:22px;line-height:1}
+.rkst .a b{font-size:17px;color:var(--muted)}
+.rkst small{font-size:11px;color:var(--muted)}
+.mrow:has(+.rdsc){border-bottom:0;padding-bottom:4px;min-height:52px}
+.rdsc{display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:start;padding:0 12px 10px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
+.rdsc i{font-style:normal;font-size:11px;opacity:.6;padding-top:1px}
+.rdsc div{display:flex;flex-wrap:wrap;gap:2px 8px;min-width:0}
+.rdsc .h{justify-content:flex-start}
+.rdsc .a{justify-content:flex-end;text-align:right}
+.rdsc span{color:var(--ink);white-space:nowrap}
+.rdsc span b{color:var(--accent);font-weight:800}
+.rdsc span small{color:var(--muted);font-size:10px}
+.rdsc span.og{color:var(--muted)}
+.ev .who{display:flex;flex-direction:column;line-height:1.25}
+.ev .who b{font-size:15px}
+.ev .who small{margin-left:0;font-size:12px}
+.rdsc:last-child{border-bottom:0}
