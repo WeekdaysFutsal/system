@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.82';
+const APP_VERSION = '0.21.83';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -242,7 +242,6 @@ function clockInfo(m) {
   if (m.status === 'pending' && !run && e < .5) {
     const pr = prevMatch(m);
     if (pr && pr.status === 'done' && pr.endedAt) { const restEnd = pr.endedAt + T.rest * 1000; const r = (restEnd - nowS()) / 1000;
-      if (r > 0) return { label: '휴식', time: fmt(Math.ceil(r)), phase: 'rest', e, a, b, c, restEnd };
       return { label: '시작 대기', time: fmt(a), phase: 'ready', e, a, b, c, restEnd } }
     return { label: '시작 전', time: fmt(a), phase: 'ready', e, a, b, c };
   }
@@ -317,8 +316,7 @@ function watchPhases() {
     else if (sch && (S.schedMarks?.[m.id] || []).includes(ci.phase)) { } // 오디오로 예약된 휘슬이 울려요
     else if (prev === 'h1' && ci.phase === 'gk' && e - ci.a < 3) whistle([.3, .3]);
     else if (prev === 'gk' && ci.phase === 'h2' && e - ci.b < 3) whistle([.9]);
-    else if (prev === 'h2' && ci.phase === 'full' && e - ci.c < 3) whistle([.3, .3, 1.3]);
-    else if (prev === 'rest' && ci.phase === 'ready' && ci.restEnd && nowS() - ci.restEnd < 3000) whistle([.6, .6]) }
+    else if (prev === 'h2' && ci.phase === 'full' && e - ci.c < 3) whistle([.3, .3, 1.3]); }
 }
 
 /* ───────── actions ───────── */
@@ -1234,6 +1232,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.83', '2026.10.21', ['경기모드: 게임 사이에 나오던 노란색 휴식 카운트다운을 없앴어요. 경기가 끝나면 바로 다음 경기 \'시작 대기\'로 보여요']],
   ['0.21.82', '2026.10.21', ['경기모드 휘슬이 경기 시간과 정확히 맞게 울리도록 고쳤어요. 화면이 잠깐 꺼지거나 소리가 멈췄다 돌아와도 남은 시간 기준으로 다시 맞춰요']],
   ['0.21.81', '2026.10.21', ['경기모드: 진행자 화면 아래 \'경기 셋팅 초기화\' 버튼으로 대진·경기 시간 설정을 처음부터 다시 할 수 있어요 (진행한 경기와 골 기록이 있으면 두 번 확인한 뒤 함께 지워요)']],
   ['0.21.80', '2026.10.21', ['경기모드: 게임마다 양 팀 선수 목록이 나오고, 이름을 누르면 그 선수 골로 기록돼요. \'자책골\'을 누른 뒤 이름을 누르면 상대 팀 득점(자책)으로 기록돼요', '경기모드: 아래 득점 기록 버튼을 누르면 그 골을 취소할 수 있어요', '경기모드: 게임 시작 전에 왼쪽·오른쪽 팀 색을 바꿀 수 있고, 선수 목록도 따라 바뀌어요. 1라운드에서 바꾸면 2·3라운드 같은 순서 경기도 함께 바뀌어요']],
