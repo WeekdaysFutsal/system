@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.81';
+const APP_VERSION = '0.21.82';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -314,7 +314,7 @@ function watchPhases() {
   for (const m of sessMatches(sid)) { const ci = clockInfo(m); const prev = S.prev[m.id]; S.prev[m.id] = ci.phase; if (m.timer?.running) run = true;
     if (prev === undefined || prev === ci.phase) continue; const e = ci.e;
     const sch = !!S.schedSig[m.id]; if ((prev === 'ready' || prev === 'rest') && ci.phase === 'h1' && e < 3) { if (!(S.startBlown[m.id] && Date.now() - S.startBlown[m.id] < 5000)) whistle([.9]) }
-    else if (sch && ['gk', 'h2', 'full'].includes(ci.phase)) { }
+    else if (sch && (S.schedMarks?.[m.id] || []).includes(ci.phase)) { } // 오디오로 예약된 휘슬이 울려요
     else if (prev === 'h1' && ci.phase === 'gk' && e - ci.a < 3) whistle([.3, .3]);
     else if (prev === 'gk' && ci.phase === 'h2' && e - ci.b < 3) whistle([.9]);
     else if (prev === 'h2' && ci.phase === 'full' && e - ci.c < 3) whistle([.3, .3, 1.3]);
@@ -362,7 +362,7 @@ async function createMatches() {
   if (ok) { S.tab = 'run'; S.step = 'match'; render(); window.scrollTo(0, 0) }
 }
 const mp = id => 'matches/' + id;
-async function startClock(m) { audio(); await w(() => S.store.update(mp(m.id), { status: 'live', timer: { running: true, startedAt: nowS(), acc: m.timer?.acc || 0 } })) }
+async function startClock(m, at) { audio(); await w(() => S.store.update(mp(m.id), { status: 'live', timer: { running: true, startedAt: Math.min(at || nowS(), nowS()), acc: m.timer?.acc || 0 } })) } // 시작 휘슬이 울린 순간을 0초로
 async function pauseClock(m) { await w(() => S.store.update(mp(m.id), { timer: { running: false, startedAt: 0, acc: Math.floor(elapsed(m)) } })) }
 async function resetClock(m) { if (!confirm('타이머를 처음으로 되돌릴까요?')) return; await w(() => S.store.update(mp(m.id), { timer: { running: false, startedAt: 0, acc: 0 } })) }
 async function endMatch(m) { await w(() => S.store.update(mp(m.id), { status: 'done', endedAt: nowS(), timer: { running: false, startedAt: 0, acc: Math.floor(elapsed(m)) } }), '경기를 종료했어요.') }
@@ -1234,6 +1234,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.82', '2026.10.21', ['경기모드 휘슬이 경기 시간과 정확히 맞게 울리도록 고쳤어요. 화면이 잠깐 꺼지거나 소리가 멈췄다 돌아와도 남은 시간 기준으로 다시 맞춰요']],
   ['0.21.81', '2026.10.21', ['경기모드: 진행자 화면 아래 \'경기 셋팅 초기화\' 버튼으로 대진·경기 시간 설정을 처음부터 다시 할 수 있어요 (진행한 경기와 골 기록이 있으면 두 번 확인한 뒤 함께 지워요)']],
   ['0.21.80', '2026.10.21', ['경기모드: 게임마다 양 팀 선수 목록이 나오고, 이름을 누르면 그 선수 골로 기록돼요. \'자책골\'을 누른 뒤 이름을 누르면 상대 팀 득점(자책)으로 기록돼요', '경기모드: 아래 득점 기록 버튼을 누르면 그 골을 취소할 수 있어요', '경기모드: 게임 시작 전에 왼쪽·오른쪽 팀 색을 바꿀 수 있고, 선수 목록도 따라 바뀌어요. 1라운드에서 바꾸면 2·3라운드 같은 순서 경기도 함께 바뀌어요']],
   ['0.21.78', '2026.10.21', ['홈 경기 카드의 경기 시간과 장소를 크게, 아이콘과 함께 보이게 했어요']],
@@ -2577,8 +2578,8 @@ function beepAt(t, freq, dur) { const ctx = AC; const nodes = []; const o = ctx.
 function mmCountdown(m) {
   if (S.cdBusy && Date.now() - S.cdBusy < 5000) return; S.cdBusy = Date.now(); setTimeout(() => { S.cdBusy = 0 }, 3700);
   const ctx = audio(); keepAwake(true); if (ctx && ctx.state === 'suspended') ctx.resume();
-  if (ctx && S.whistle) { const t0 = ctx.currentTime + .05; beepAt(t0, 1320, .18); beepAt(t0 + 1, 1320, .18); beepAt(t0 + 2, 1320, .18); let t = t0 + 3; blowN(t, .9) } let n = 3; const ov = document.createElement('div'); ov.className = 'mm-cd'; document.body.appendChild(ov);
-  const step = () => { if (n > 0) { ov.innerHTML = `<b>${n}</b>`; try { navigator.vibrate?.(80) } catch { } n--; setTimeout(step, 1000) } else { ov.innerHTML = '<b class="go">START</b>'; setTimeout(() => ov.remove(), 600); S.startBlown[m.id] = Date.now(); if (!ctx || !S.whistle) whistle([.9]); startClock(m) } };
+  const startAt = nowS() + 3050; if (ctx && S.whistle) { const t0 = ctx.currentTime + .05; beepAt(t0, 1320, .18); beepAt(t0 + 1, 1320, .18); beepAt(t0 + 2, 1320, .18); let t = t0 + 3; blowN(t, .9) } let n = 3; const ov = document.createElement('div'); ov.className = 'mm-cd'; document.body.appendChild(ov);
+  const step = () => { if (n > 0) { ov.innerHTML = `<b>${n}</b>`; try { navigator.vibrate?.(80) } catch { } n--; setTimeout(step, 1000) } else { ov.innerHTML = '<b class="go">START</b>'; setTimeout(() => ov.remove(), 600); S.startBlown[m.id] = Date.now(); if (!ctx || !S.whistle) whistle([.9]); startClock(m, startAt) } };
   step();
 }
 /* native app (Capacitor) hooks: system alarms play the whistle even when the screen is off or the app sleeps */
@@ -2600,17 +2601,25 @@ function blowN(t, d) { const ctx = AC; const nodes = []; const o1 = ctx.createOs
   const lfo = ctx.createOscillator(); lfo.frequency.value = 34; const fm = ctx.createGain(); fm.gain.value = 180; lfo.connect(fm); fm.connect(o1.frequency); fm.connect(o2.frequency);
   const amp = ctx.createGain(); amp.gain.setValueAtTime(0, t); amp.gain.linearRampToValueAtTime(.95, t + .02); amp.gain.setValueAtTime(.95, t + d - .05); amp.gain.linearRampToValueAtTime(0, t + d);
   o1.connect(amp); o2.connect(amp); amp.connect(MASTER); [o1, o2, lfo].forEach(o => { o.start(t); o.stop(t + d + .05); nodes.push(o) }); return nodes }
+/* 휘슬 예약: 오디오 시계(ctx.currentTime)와 경기 시계(elapsed)를 매 0.25초 비교해서 어긋나면(화면 꺼짐·오디오 일시정지·서버 시간 보정 등) 다시 맞춰 예약해요 */
+const WH_DRIFT = 0.12;
+function whPlan(T) { const a = T.h1, b = a + T.gk, c = b + T.h2; const L = [];
+  for (const k of [3, 2, 1]) { const at = b - k; if (at >= a + .9) L.push({ at, beep: true }) }
+  L.push({ at: a, pat: [.3, .3], mark: 'gk' }, { at: b, pat: [.9], mark: 'h2' }, { at: c, pat: [.3, .3, 1.3], mark: 'full' }); return L }
+function whSchedule(ctx, anchor, plan, nodes, done) { const now = ctx.currentTime;
+  for (const x of plan) { const t0 = anchor + x.at; if (t0 - now < .05) continue; if (x.beep) nodes.push(...beepAt(t0, 1320, .18)); else { let t = t0; for (const d of x.pat) { nodes.push(...blowN(t, d)); t += d + .14 } done.push(x.mark) } } }
 function scheduleWhistles() {
   const sid = S.mmSid || S.sid; if (!sid || !S.sessions[sid]) return; let anyRun = false;
-  const canBlow = mmIsCtl() || (S.admin && !!S.openMatch);
-  for (const m of sessMatches(sid)) { const run = canBlow && m.status === 'live' && m.timer?.running; const sig = run ? m.timer.startedAt + ':' + (m.timer.acc || 0) + ':' + (S.whistle ? 1 : 0) : '';
-    if (run) anyRun = true; if ((S.schedSig[m.id] || '') === sig) continue;
-    (SCHED[m.id] || []).forEach(n => { try { n.stop() } catch { } }); SCHED[m.id] = []; S.schedSig[m.id] = sig;
-    if (CAP()?.LocalNotifications) { nativeSchedule(m, timing(S.sessions[sid]), run); continue }
-    if (!run || !S.whistle) continue; const ctx = audio(); if (!ctx) continue; if (ctx.state === 'suspended') ctx.resume();
-    const T = timing(S.sessions[sid]); const e = elapsed(m); const a = T.h1, b = a + T.gk, c = b + T.h2;
-    for (const k of [3, 2, 1]) { const at = b - k; const dt = at - e; if (at >= a + .9 && dt > .25) SCHED[m.id].push(...beepAt(ctx.currentTime + dt, 1320, .18)) }
-    for (const [at, pat] of [[a, [.3, .3]], [b, [.9]], [c, [.3, .3, 1.3]]]) { const dt = at - e; if (dt > .25) { let t = ctx.currentTime + dt; for (const d of pat) { SCHED[m.id].push(...blowN(t, d)); t += d + .14 } } } }
+  const canBlow = mmIsCtl() || (S.admin && !!S.openMatch); S.schedAnchor ??= {}; S.schedMarks ??= {};
+  for (const m of sessMatches(sid)) { const run = canBlow && m.status === 'live' && m.timer?.running; if (run) anyRun = true;
+    if (CAP()?.LocalNotifications) { const sig = run ? m.timer.startedAt + ':' + (m.timer.acc || 0) + ':' + (S.whistle ? 1 : 0) + ':' + (S.skew || 0) : ''; if ((S.schedSig[m.id] || '') !== sig) { S.schedSig[m.id] = sig; nativeSchedule(m, timing(S.sessions[sid]), run) } continue }
+    const ctx = run && S.whistle ? audio() : null; if (ctx && ctx.state !== 'running') { try { ctx.resume() } catch { } }
+    const ready = !!ctx && ctx.state === 'running'; const anchor = ready ? ctx.currentTime - elapsed(m) : null; // 경기 시계 0초가 오디오 시계로 몇 초인지
+    const sig = ready ? m.timer.startedAt + ':' + (m.timer.acc || 0) : '';
+    const same = (S.schedSig[m.id] || '') === sig && (!sig || Math.abs(anchor - S.schedAnchor[m.id]) < WH_DRIFT);
+    if (same) continue;
+    (SCHED[m.id] || []).forEach(n => { try { n.stop() } catch { } }); SCHED[m.id] = []; S.schedSig[m.id] = sig; S.schedAnchor[m.id] = anchor; S.schedMarks[m.id] = [];
+    if (sig) whSchedule(ctx, anchor, whPlan(timing(S.sessions[sid])), SCHED[m.id], S.schedMarks[m.id]) }
   const ctx = AC; if (anyRun && ctx && !KEEP) { try { KEEP = ctx.createOscillator(); const g = ctx.createGain(); g.gain.value = .0008; KEEP.frequency.value = 40; KEEP.connect(g); g.connect(ctx.destination); KEEP.start() } catch { KEEP = null } }
   if (!anyRun && KEEP) { try { KEEP.stop() } catch { } KEEP = null }
 }
@@ -2635,10 +2644,10 @@ function manStandings() { const row = {}; S.man.teams.forEach(t => row[t.k] = { 
     if (a > b) { H.w++; A.l++; H.pts += 3 } else if (a < b) { A.w++; H.l++; A.pts += 3 } else { H.d++; A.d++; H.pts++; A.pts++ } });
   return Object.values(row).sort((x, y) => y.pts - x.pts || (y.gf - y.ga) - (x.gf - x.ga) || y.gf - x.gf) }
 let MANSCHED = [];
-function manSchedule(m) { MANSCHED.forEach(n => { try { n.stop() } catch { } }); MANSCHED = []; if (!m || !m.timer?.running || !S.whistle) return; const ctx = audio(); if (!ctx) return; if (ctx.state === 'suspended') ctx.resume();
-  const T = S.man.timing, e = manElapsed(m), a = T.h1, b = a + T.gk, c = b + T.h2;
-  for (const k of [3, 2, 1]) { const at = b - k; if (at >= a + .9 && at - e > .25) MANSCHED.push(...beepAt(ctx.currentTime + at - e, 1320, .18)) }
-  for (const [at, pat] of [[a, [.3, .3]], [b, [.9]], [c, [.3, .3, 1.3]]]) { const dt = at - e; if (dt > .25) { let t = ctx.currentTime + dt; for (const d of pat) { MANSCHED.push(...blowN(t, d)); t += d + .14 } } } }
+function manSchedule(m) { MANSCHED.forEach(n => { try { n.stop() } catch { } }); MANSCHED = []; S.manAnchor = null; if (!m || !m.timer?.running || !S.whistle) return; const ctx = audio(); if (!ctx) return; if (ctx.state !== 'running') { try { ctx.resume() } catch { } return }
+  S.manAnchor = ctx.currentTime - manElapsed(m); S.manAnchorId = m.id; whSchedule(ctx, S.manAnchor, whPlan(S.man.timing), MANSCHED, []) }
+setInterval(() => { if (!S.man || !S.whistle) return; const m = S.man.matches?.find(x => x.status === 'live' && x.timer?.running); if (!m) { if (MANSCHED.length) manSchedule(null); return } const ctx = AC; if (!ctx || ctx.state !== 'running') { if (ctx) try { ctx.resume() } catch { } return }
+  const anchor = ctx.currentTime - manElapsed(m); if (S.manAnchorId !== m.id || S.manAnchor == null || Math.abs(anchor - S.manAnchor) > WH_DRIFT) manSchedule(m) }, 250); // 직접 설정 경기도 시간과 휘슬을 계속 맞춰요
 setInterval(() => { if (S.tab !== 'mm' || !S.mmManual || !S.man) return; const m = S.man.matches.find(x => x.id === S.manCur); if (!m) return; const ci = manClock(m);
   document.querySelectorAll('[data-manclock]').forEach(el => { el.textContent = ci.time; el.className = (el.classList.contains('fs-clock') ? 'fs-clock ' : '') + 'mm-clock ' + ci.phase }); document.querySelectorAll('[data-manph]').forEach(lb => lb.textContent = ci.label) }, 250);
 function viewManual() {
