@@ -372,7 +372,7 @@ table.atbl tr.wrow td .muted,table.atbl tr.lrow td .muted,table.atbl tr.wrow td.
 .t2{background:rgba(129,140,248,.22);color:#C7D2FE}
 .t3{background:rgba(239,68,68,.2);color:#FCA5A5}
 }
-:root{--cssv:"0.21.71"}
+:root{--cssv:"0.21.72"}
 .sheetcard .sc-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
 .sheetcard .sc-row span{flex:1;font-size:14px;color:var(--muted);font-weight:600}
 .sheetcard .sc-row b{font-size:14px}
@@ -534,3 +534,5 @@ body.kb-on .tabs,body.kb-on .mmtab{visibility:hidden}
 
 /* 0.21.62 모바일 팀원조정: 팀 현황 크게 */
 @media (max-width:760px){.tcards{margin-top:28px;gap:8px}.tcard{min-height:calc(100dvh - var(--abh,64px) - 400px)}.tcard li{font-size:16px!important;padding:10px 2px!important}.tcard ol{padding:6px 8px 12px}.tcard .tchd{padding:14px 6px 12px}}
+.sheetcard .sc-row{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:10px}.sheetcard .sc-row>span:first-child{flex:none}.sheetcard .sc-row b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sheetcard .sc-row b.url{font-weight:500;font-size:13px;color:var(--ink)}.sheetcard .sc-row b em{font-style:normal;color:var(--muted);font-weight:400}.sheetcard .sc-btns{display:flex;gap:6px;flex:none!important}.sheetlink{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--accent);font-weight:700}.sheetlink.btn{color:var(--accent)}.sheetlink .ext{font-size:12px;opacity:.7;flex:none;color:inherit;font-weight:700}.reslink{display:flex;justify-content:flex-end;margin:-2px 0 6px}.att-adm{align-items:center}
+@media (max-width:420px){.sheetcard .sc-row{grid-template-columns:minmax(0,1fr) auto}.sheetcard .sc-row>span:first-child{grid-column:1/-1;margin-bottom:-6px}}

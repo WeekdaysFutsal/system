@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.71';
+const APP_VERSION = '0.21.72';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1232,6 +1232,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.72', '2026.10.21', ['운영진 화면(기록실·출석 관리·설정)에 기록 시트 원본으로 바로 가는 링크를 넣었어요', '설정 → 기록 시트 연동에서 시트 원본 주소와 웹 앱 주소를 바꿀 수 있어요. 바꾸면 모든 운영진 기기에 함께 적용돼요', '출석 기록은 이제 기록 시트에서만 읽어요. 앱에 함께 올라가 있던 출석부 사본은 지웠어요']],
   ['0.21.71', '2026.10.21', ['경기 기록을 구글 시트(기록 시트)에도 저장해요. 운영진 기기에 연동 키를 넣으면 팀 구성·경기 결과·골·출석이 자동으로 시트에 쌓이고, 기록실 출석 현황은 시트 기록을 읽어 와요', '설정 → 기록 시트 연동에서 지금까지의 경기 기록과 출석부를 한 번에 시트로 옮길 수 있어요']],
   ['0.21.70', '2026.10.21', ['아래 메뉴의 \'경기결과\' 이름을 \'기록실\'로 바꿨어요 (경기 결과 · 출석 현황)']],
   ['0.21.69', '2026.10.21', ['WDFS 출석부(2025·2026 시즌, 88경기)를 출석 현황에 기본으로 넣었어요. 따로 올리지 않아도 바로 반영돼요']],
@@ -1364,12 +1365,16 @@ function inboxSheet() { const L = S.inbox || []; const ico = { open: '📢', clo
 async function markInboxRead() { const pid = myPid(); const un = (S.inbox || []).filter(x => !x.read && x.id); un.forEach(x => x.read = true); for (const x of un) { try { await S.store.update(`inbox/${pid}/items/${x.id}`, { read: true }) } catch { } } }
 async function queuePush(doc) { try { await S.store.add('pushQueue', { ...doc, by: myPid() || (S.admin ? 'admin' : ''), at: Date.now() }) } catch (e) { console.warn('push queue', e) } }
 /* ───────── 기록 시트(구글 시트) 연동: 경기 기록은 시트, 실시간 데이터는 Firebase ───────── */
-const SHEET_URL = CFG.recordSheet || '';
+// 시트 주소: 운영모드 → 설정에서 바꿀 수 있어요 (Firebase meta/sheet). 비어 있으면 config.js 값
+const sheetCfg = () => S.meta?.sheet || {};
+const sheetUrl = () => String(sheetCfg().exec || CFG.recordSheet || '').trim();
+const sheetView = () => String(sheetCfg().view || CFG.recordSheetView || '').trim();
+const sheetLink = (cls = 'btn sm') => sheetView() ? `<a class="${cls} sheetlink" href="${esc(sheetView())}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>시트 원본 열기<span class="ext">↗</span></a>` : '';
 const sheetKey = () => load('sheetKey', '');
-async function sheetGet(q) { if (!SHEET_URL) throw new Error('시트 주소가 없어요'); const r = await fetch(SHEET_URL + '?' + new URLSearchParams(q)); const j = await r.json(); if (!j.ok) throw new Error(j.error || '시트 오류'); return j.data }
-async function sheetPost(body) { if (!SHEET_URL) throw new Error('시트 주소가 없어요'); const r = await fetch(SHEET_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ key: sheetKey(), ...body }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error || '시트 오류'); return j.result }
+async function sheetGet(q) { if (!sheetUrl()) throw new Error('시트 주소가 없어요'); const r = await fetch(sheetUrl() + '?' + new URLSearchParams(q)); const j = await r.json(); if (!j.ok) throw new Error(j.error || '시트 오류'); return j.data }
+async function sheetPost(body) { if (!sheetUrl()) throw new Error('시트 주소가 없어요'); const r = await fetch(sheetUrl(), { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ key: sheetKey(), ...body }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error || '시트 오류'); return j.result }
 // 시트에 있는 기록 읽기 (기기에 10분 저장)
-function loadSheetRec(force) { if (!SHEET_URL || (S.sheetRecP && !force)) return; const c = load('sheetRec', null); if (c && !force) { S.sheetRec = c.d; if (Date.now() - c.at < 6e5) { S.sheetRecP = Promise.resolve(); return } }
+function loadSheetRec(force) { if (!sheetUrl() || (S.sheetRecP && !force)) return; const c = load('sheetRec', null); if (c && !force) { S.sheetRec = c.d; if (Date.now() - c.at < 6e5) { S.sheetRecP = Promise.resolve(); return } }
   S.sheetRecP = sheetGet({ action: 'all' }).then(d => { S.sheetRec = d; save('sheetRec', { at: Date.now(), d }); render() }).catch(() => { }) }
 function sheetAttNamed() { const out = {}; (S.sheetRec?.attendance || []).forEach(r => { if (!r.date || !r.name) return; (out[r.date] ??= []); if (!out[r.date].includes(r.name)) out[r.date].push(r.name) }); return out }
 // 한 경기(날짜)의 기록 묶음
@@ -1383,16 +1388,18 @@ function sheetPayload(sid) { const s = S.sessions[sid]; if (!s) return null; con
   return { session: { date: sid, no: s.no || '', time: s.time || '', venue: s.venue || '', capacity: s.capacity || '', stage: s.stage || '', players: attPids(s).length, ball: names(s.duty?.ball), drink: names(s.duty?.drink), park: names(s.parkWin) }, rosters, attendance, matches, events } }
 async function sheetSyncDate(sid) { const p = sheetPayload(sid); if (!p) return; return sheetPost({ action: 'batch', ops: [{ action: 'saveSession', session: p.session, rosters: p.rosters, attendance: p.attendance }, { action: 'saveMatches', date: sid, matches: p.matches }, { action: 'saveEvents', date: sid, events: p.events }] }) }
 // 운영진 기기: 경기 기록이 바뀌면 조용히 시트에 저장 (같은 내용은 다시 안 보냄)
-function sheetAutoSync() { if (!S.admin || !SHEET_URL || !sheetKey() || S.ready < 3) return; clearTimeout(S.sheetT); S.sheetT = setTimeout(async () => { const t = today(); const H = load('sheetHash', {});
+function sheetAutoSync() { if (!S.admin || !sheetUrl() || !sheetKey() || S.ready < 3) return; clearTimeout(S.sheetT); S.sheetT = setTimeout(async () => { const t = today(); const H = load('sheetHash', {});
   for (const sid of Object.keys(S.sessions)) { const s = S.sessions[sid]; if (sid > t || !(s.stage === 'match' || s.draftStatus === 'done')) continue; const p = sheetPayload(sid); if (!p || (!p.matches.length && !p.rosters.length)) continue;
     const h = JSON.stringify(p).length + ':' + [...JSON.stringify(p)].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) | 0, 0); if (H[sid] === h) continue;
     try { await sheetSyncDate(sid); H[sid] = h; save('sheetHash', H); S.sheetLast = Date.now() } catch (e) { S.sheetErr = e.message; break } } }, 4000) }
-function sheetCard() { if (!S.admin) return ''; const k = sheetKey(); const st = S.sheetPing;
+function sheetCard() { if (!S.admin) return ''; const k = sheetKey(); const st = S.sheetPing; const ex = sheetUrl(), vw = sheetView(); const short = u => u ? esc(u.replace(/^https:\/\//, '').replace(/(.{34}).+(.{10})$/, '$1…$2')) : '<em>없음</em>';
   return `<h2>기록 시트 연동<small>경기 기록은 구글 시트에, 실시간 데이터는 Firebase에</small></h2><div class="panel pad sheetcard">
-    ${SHEET_URL ? `<div class="sc-row"><span>시트 연결</span><b class="${st === true ? 'ok' : st === false ? 'bad' : ''}">${st === true ? '✅ 연결됨' : st === false ? '⚠️ 연결 안 됨' : '확인 전'}</b><button class="btn sm" data-act="sheetping">연결 확인</button></div>` : '<p class="warn">config.js에 recordSheet(시트 웹 앱 주소)가 없어요.</p>'}
+    <div class="sc-row"><span>시트 원본</span><b class="url">${vw ? short(vw) : '<em>주소 없음</em>'}</b><span class="sc-btns">${sheetLink()}<button class="btn sm" data-act="sheeturl" data-f="view">${vw ? '수정' : '입력'}</button></span></div>
+    <div class="sc-row"><span>웹 앱 주소</span><b class="url">${short(ex)}${sheetCfg().exec ? '' : ex ? ' <small class="muted">(기본값)</small>' : ''}</b><button class="btn sm" data-act="sheeturl" data-f="exec">수정</button></div>
+    ${ex ? `<div class="sc-row"><span>시트 연결</span><b class="${st === true ? 'ok' : st === false ? 'bad' : ''}">${st === true ? `✅ 연결됨${S.sheetName ? ' · ' + esc(S.sheetName) : ''}` : st === false ? '⚠️ 연결 안 됨' : '확인 전'}</b><button class="btn sm" data-act="sheetping">연결 확인</button></div>` : ''}
     <div class="sc-row"><span>이 기기의 연동 키</span><b>${k ? '입력됨 ••••' + esc(k.slice(-4)) : '없음'}</b><button class="btn sm" data-act="sheetkey">${k ? '바꾸기' : '입력하기'}</button></div>
-    <p class="note">연동 키가 있는 운영진 기기에서 경기 기록(팀 구성·결과·골·출석)이 바뀌면 자동으로 시트에 저장돼요.${S.sheetLast ? ` 마지막 저장 ${new Date(S.sheetLast).toTimeString().slice(0, 5)}` : ''}${S.sheetErr ? ` · 오류: ${esc(S.sheetErr)}` : ''}</p>
-    <div class="row"><button class="btn primary" data-act="sheetmigrate" ${k && SHEET_URL ? '' : 'disabled'}>⬆ 지금까지 기록 모두 시트로 옮기기</button><button class="btn" data-act="sheetsum" ${k && SHEET_URL ? '' : 'disabled'}>선수기록 다시 계산</button></div>
+    <p class="note">시트 주소는 모든 운영진 기기에 함께 적용되고, 연동 키는 기기마다 따로 넣어요. 연동 키가 있는 운영진 기기에서 경기 기록(팀 구성·결과·골·출석)이 바뀌면 자동으로 시트에 저장돼요.${S.sheetLast ? ` 마지막 저장 ${new Date(S.sheetLast).toTimeString().slice(0, 5)}` : ''}${S.sheetErr ? ` · 오류: ${esc(S.sheetErr)}` : ''}</p>
+    <div class="row"><button class="btn primary" data-act="sheetmigrate" ${k && ex ? '' : 'disabled'}>⬆ 지금까지 기록 모두 시트로 옮기기</button><button class="btn" data-act="sheetsum" ${k && ex ? '' : 'disabled'}>선수기록 다시 계산</button></div>
     ${S.sheetMig ? `<p class="note">${esc(S.sheetMig)}</p>` : ''}</div>` }
 function viewSettings() {
   return `<div class="setwrap"><h2>내 정보<small>이름 + 비밀번호 4자리로 로그인해요</small></h2>${loginCard()}
@@ -1543,12 +1550,10 @@ function vResultDetail(s) {
 /* ───────── 출석 현황 ───────── */
 function attPids(s) { const ps = new Set(); KEYS.forEach(k => (s.teams?.[k]?.players || []).forEach(p => p && ps.add(p))); if (!ps.size) (s.applicants || []).forEach(p => p && ps.add(p)); return [...ps] }
 function attFind(n) { const id = findPlayer(n); if (id) return id; const k = normName(String(n).replace(/\(M\)|\d+/gi, '')); if (!k) return null; const hit = Object.entries(S.players).filter(([, p]) => normName(String(p.name || '').replace(/\(M\)|\d+/gi, '')) === k); return hit.length === 1 ? hit[0][0] : null }
-// 출석부(엑셀)에서 옮긴 지난 출석 기록: 앱과 함께 배포되는 att-seed.json
-function loadAttSeed() { if (S.attSeedP) return; S.attSeedP = fetch('att-seed.json?v=' + APP_VERSION).then(r => r.ok ? r.json() : null).then(j => { S.attSeed = j?.named || {}; render() }).catch(() => { S.attSeed = {} }) }
 function attUp() { return S.meta?.att || {} } // 업로드한 지난 출석 기록 { dates: {날짜: [pid]}, base: {pid: 횟수}, baseTotal }
 function attEntries(period) { const t = today(); const up = attUp().dates || {}; const E = {};
   Object.keys(S.sessions).forEach(id => { const s = S.sessions[id]; if (id <= t && (s.stage === 'match' || s.imported)) { const ps = attPids(s); if (ps.length) E[id] = ps } });
-  loadSheetRec(); const shA = sheetAttNamed(); const useSeed = !Object.keys(shA).length; if (useSeed) loadAttSeed(); const seed = useSeed ? (S.attSeed || {}) : shA; const nm0 = attUp().named || {}; const nm = {}; Object.keys(seed).forEach(d => { if (!up[d] && !nm0[d]) nm[d] = seed[d] }); Object.assign(nm, nm0);
+  loadSheetRec(); const seed = sheetAttNamed(); const nm0 = attUp().named || {}; const nm = {}; Object.keys(seed).forEach(d => { if (!up[d] && !nm0[d]) nm[d] = seed[d] }); Object.assign(nm, nm0);
   [...new Set([...Object.keys(up), ...Object.keys(nm)])].forEach(d => { if (d > t || E[d]) return; const ps = new Set((up[d] || []).filter(p => S.players[p])); (nm[d] || []).forEach(n => { const id = attFind(n); if (id) ps.add(id) }); if ((up[d] || []).length || (nm[d] || []).length) E[d] = [...ps] });
   let ids = Object.keys(E).sort();
   if (period === 'year') ids = ids.filter(id => id.startsWith(t.slice(0, 4)));
@@ -1618,7 +1623,7 @@ function attPersonSheet(id) { const { rows, total } = attRows('all'); const r = 
 function viewAttendance() { const per = S.attPer || 'all'; const { ids, rows, total } = attRows(per); const me = myPid(); const mine = rows.find(r => r.id === me);
   const pct = r => Math.round(r.rate * 100); const md = id => { const [, mm, dd] = id.split('-'); return `${+mm}.${+dd}` };
   let h = `<div class="att"><div class="att-hd"><div><b>출석 현황</b><small>끝난 경기 ${total}회 기준${total !== ids.length ? ` (올린 기록 포함)` : ''}</small></div><div class="seg att-seg">${[['all', '전체'], ['year', '올해'], ['3m', '최근 3개월']].map(([k, n]) => `<button role="tab" data-act="attper" data-k="${k}" aria-selected="${per === k}">${n}</button>`).join('')}</div></div>`;
-  if (S.admin) h += `<div class="row att-adm"><button class="btn sm" data-act="attimp">⬆ 지난 출석 기록 올리기</button></div>`;
+  if (S.admin) h += `<div class="row att-adm"><button class="btn sm" data-act="attimp">⬆ 지난 출석 기록 올리기</button>${sheetLink()}</div>${sheetUrl() && S.sheetRec && !(S.sheetRec.attendance || []).length ? '<p class="notice warn">기록 시트에 아직 출석 기록이 없어요. 설정 → 기록 시트 연동에서 ‘지금까지 기록 모두 시트로 옮기기’를 누르거나, 출석부 엑셀을 다시 올려 주세요.</p>' : ''}`;
   if (!total) return h + `<div class="panel"><p class="empty">이 기간에 끝난 경기가 없어요.</p></div></div>`;
   if (mine && !S.admin) h += `<div class="att-me"><div class="am-top"><span>나의 출석</span><b>${mine.n}<small>/${total}경기</small></b><em>${pct(mine)}%</em></div><div class="att-bar big"><i style="width:${pct(mine)}%"></i></div>
     <div class="am-sub">${mine.last ? `최근 출석 ${fmtDate(mine.last)}` : '아직 출석 기록이 없어요'}${mine.streak > 1 ? ` · 🔥 ${mine.streak}경기 연속 출석 중` : ''}</div>
@@ -1631,7 +1636,7 @@ function viewAttendance() { const per = S.attPer || 'all'; const { ids, rows, to
 /* 화면 상단 하위 메뉴 (모든 화면 공통 모양) */
 function subnav(items, cur, act) { return `<nav class="subnav" role="tablist">${items.map(([k, n]) => `<button role="tab" data-act="${act}" data-k="${k}" aria-selected="${cur === k}">${n}</button>`).join('')}</nav>` }
 function viewResults() { const tg = subnav([['res', '경기 결과'], ['att', '출석 현황']], S.resv === 'att' ? 'att' : 'res', 'resv');
-  if (S.resv === 'att') return tg + viewAttendance(); return tg + viewResults0() }
+  const lk = canOp() && sheetView() ? `<div class="reslink">${sheetLink('linkbtn')}</div>` : ''; if (S.resv === 'att') return tg + lk + viewAttendance(); return tg + lk + viewResults0() }
 function viewResults0() {
   const ids = pastSids(); if (!ids.length) return `<div class="panel"><p class="empty">아직 끝난 경기가 없어요.</p></div>`;
   if (!S.detail || !ids.includes(S.detail)) S.detail = ids[0];
@@ -3026,15 +3031,20 @@ document.addEventListener('click', async e => {
       nx.named = { ...(up.named || {}) }; if (r.kind === 'summary') { nx.base = r.base; nx.baseTotal = r.baseTotal } else { const ds = new Set([...Object.keys(r.dates), ...Object.keys(r.named || {})]); ds.forEach(d => { nx.dates[d] = r.dates[d] || []; if ((r.named || {})[d]?.length) nx.named[d] = r.named[d]; else delete nx.named[d] }) }
       const ok = await w(() => S.store.set('meta/att', nx), '출석 기록을 저장했어요.'); if (ok) { S.meta = S.meta || {}; S.meta.att = nx; S.attImp = {}; S.sheet = null; render() } break }
     case 'attclear': { if (!needAdmin()) break; if (!confirm('올린 출석 기록을 모두 지울까요? 앱에서 진행한 경기 기록은 그대로 남아요.')) break; const ok = await w(() => S.store.set('meta/att', { dates: {}, named: {}, base: {}, baseTotal: 0, at: Date.now() }), '올린 기록을 지웠어요.'); if (ok) { S.meta.att = { dates: {}, named: {}, base: {}, baseTotal: 0 }; render() } break }
-    case 'sheetping': try { await sheetGet({ action: 'ping' }); S.sheetPing = true } catch { S.sheetPing = false } render(); break;
+    case 'sheetping': try { const d = await sheetGet({ action: 'ping' }); S.sheetPing = true; S.sheetName = d?.name || ''; if (d?.url && !sheetCfg().view && S.admin) { await S.store.set('meta/sheet', { ...sheetCfg(), view: d.url, at: Date.now() }).catch(() => { }) } } catch { S.sheetPing = false } render(); break;
+    case 'sheeturl': { if (!needAdmin()) break; const f = el.dataset.f; const cur = f === 'exec' ? sheetUrl() : sheetView();
+      const v = prompt(f === 'exec' ? '기록 시트 웹 앱 주소 (Apps Script 배포 → 웹 앱 URL, …/exec 로 끝나요)\n비우면 기본 주소로 돌아가요.' : '기록 시트 원본 주소 (구글 시트를 열었을 때 주소창의 주소)\n비우면 링크가 사라져요.', cur); if (v == null) break; const t = v.trim();
+      if (t && f === 'exec' && !/^https:\/\/script\.google\.com\/.+\/exec(\?.*)?$/.test(t)) { toast('웹 앱 주소는 https://script.google.com/…/exec 형식이어야 해요.'); break }
+      if (t && f === 'view' && !/^https:\/\/docs\.google\.com\/spreadsheets\//.test(t)) { toast('구글 시트 주소(https://docs.google.com/spreadsheets/…)를 넣어 주세요.'); break }
+      const nx = { ...sheetCfg(), [f]: t, at: Date.now() }; if (await w(() => S.store.set('meta/sheet', nx), t ? '시트 주소를 바꿨어요. 모든 운영진 기기에 적용돼요.' : '기본값으로 돌렸어요.')) { S.meta = S.meta || {}; S.meta.sheet = nx; S.sheetPing = null; S.sheetRecP = null; save('sheetRec', null); if (f === 'exec') save('sheetHash', {}); render() } break }
     case 'sheetkey': { if (!needAdmin()) break; const v = prompt('기록 시트의 연동 키를 입력하세요 (시트 메뉴 WD 기록 → 연동 키 보기)', sheetKey()); if (v == null) break; save('sheetKey', v.trim()); save('sheetHash', {}); toast(v.trim() ? '연동 키를 저장했어요.' : '연동 키를 지웠어요.'); render(); sheetAutoSync(); break }
     case 'sheetsum': try { await sheetPost({ action: 'rebuildSummary' }); toast('시트의 선수기록을 다시 계산했어요.') } catch (e) { toast('실패: ' + e.message) } break;
     case 'sheetmigrate': { if (!needAdmin()) break; if (!confirm('지금까지의 경기 기록과 출석부를 기록 시트로 옮길까요?\n이미 있는 날짜는 새 내용으로 바뀌어요.')) break;
       try { const t = today(); const ids = Object.keys(S.sessions).filter(id => id <= t && (S.sessions[id].stage === 'match' || S.sessions[id].draftStatus === 'done' || S.sessions[id].imported)).sort(); let n = 0;
         for (const sid of ids) { S.sheetMig = `경기 기록 옮기는 중… ${++n}/${ids.length} (${fmtDate(sid)})`; render(); await sheetSyncDate(sid) }
-        loadAttSeed(); await S.attSeedP; const up = attUp(); const rows = []; const seen = new Set(ids);
+        const up = attUp(); const rows = []; const seen = new Set(ids);
         const addRows = (d, list, toName) => { if (seen.has(d)) return; (list || []).forEach(x => rows.push({ date: d, name: toName(x), pid: S.players[x] ? x : (attFind(toName(x)) || ''), type: '참석', source: 'import' })) };
-        Object.entries(S.attSeed || {}).forEach(([d, ns]) => addRows(d, ns, x => x)); Object.entries(up.named || {}).forEach(([d, ns]) => addRows(d, ns, x => x)); Object.entries(up.dates || {}).forEach(([d, ps]) => addRows(d, ps, x => pname(x) || x));
+        Object.entries(up.named || {}).forEach(([d, ns]) => addRows(d, ns, x => x)); Object.entries(up.dates || {}).forEach(([d, ps]) => addRows(d, ps, x => pname(x) || x));
         const uniq = {}; rows.forEach(r => uniq[r.date + '|' + r.name] = r); const all = Object.values(uniq);
         S.sheetMig = `지난 출석부 ${all.length}건 옮기는 중…`; render(); for (let i = 0; i < all.length; i += 400) await sheetPost({ action: 'importAttendance', rows: all.slice(i, i + 400), replace: i === 0 ? true : false });
         await sheetPost({ action: 'saveMembers', members: Object.entries(S.players).map(([pid, p]) => ({ pid, name: p.name, status: MSTAT[mstatus(p)] || '' })) });

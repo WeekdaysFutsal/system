@@ -15,6 +15,7 @@ window.WF_CONFIG = {
 
   // 기록 시트(구글 시트 Apps Script 웹 앱) 주소: 경기 기록·출석은 시트, 실시간 데이터는 Firebase
   recordSheet: "https://script.google.com/macros/s/AKfycbwkeSy5NYuPV9HHH_gszDrWZbZIqC2SFSYgT1IlTXM1kcd8om3nfvOE6zrsH2fOqPwW5A/exec",
+  recordSheetView: "", // 기록 시트 원본 주소(선택) — 앱 설정에서 바꾸면 그 값이 우선
 
   // 운영진 모드 비밀번호 (운영진, 기록 담당자에게만 알려 주세요)
   // 주차 추첨 인원
