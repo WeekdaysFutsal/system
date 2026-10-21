@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.67';
+const APP_VERSION = '0.21.68';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1232,6 +1232,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.68', '2026.10.21', ['출석 관리의 \'지난 출석 기록 올리기\'에서 출석부 엑셀(.xlsx) 파일을 바로 올릴 수 있어요. 이름 뒤 생년월일·(M) 표시는 자동으로 빼고 맞추고, 아직 회원이 아닌 이름도 저장해 뒀다가 나중에 회원을 추가하면 이어져요']],
   ['0.21.67', '2026.10.20', ['공당·물당: 신청자는 자동으로 포함하고, 운영진이 정한 인원보다 신청자가 많으면 신청자 중에서, 모자라면 나머지 참가자 중에서 추첨해 확정해요 (공당 먼저, 물당은 공당 제외). 물당 신청도 다시 할 수 있어요', '드래프트 팀 색 고르기 버튼을 크게 키웠어요', '운영진이 여러 명 들어오면 위쪽 운영진 박스에 이름이 하나씩 보여요', '운영진 말풍선이 축구장 쪽(아래)으로 떠요']],
   ['0.21.65', '2026.10.20', ['화면마다 제각각이던 버튼식 메뉴를 \'상위 메뉴 → 하위 메뉴\' 모양으로 통일했어요 (예: 운영모드 회원 → 회원 관리 · 출석 관리, 일정 → 달력 · 목록, 공지 → 팀 공지 · 월간 일정표 · 신청 안내 글 · 알림 보내기, 경기결과 → 경기 결과 · 출석 현황)']],
   ['0.21.64', '2026.10.20', ['운영모드 회원 메뉴 표에 회원별 출석 횟수·출석률·최근 출석이 나와요. 출석 횟수를 누르면 참석한 경기 날짜를 볼 수 있어요', '지난 출석 기록을 붙여넣기로 올릴 수 있어요 (출석표, 날짜별 명단, 횟수 요약 형식)', '운영모드 화면 아래 \'경기 도구\' 줄을 없앴어요']],
@@ -1509,7 +1510,7 @@ function attPids(s) { const ps = new Set(); KEYS.forEach(k => (s.teams?.[k]?.pla
 function attUp() { return S.meta?.att || {} } // 업로드한 지난 출석 기록 { dates: {날짜: [pid]}, base: {pid: 횟수}, baseTotal }
 function attEntries(period) { const t = today(); const up = attUp().dates || {}; const E = {};
   Object.keys(S.sessions).forEach(id => { const s = S.sessions[id]; if (id <= t && (s.stage === 'match' || s.imported)) { const ps = attPids(s); if (ps.length) E[id] = ps } });
-  Object.entries(up).forEach(([d, ps]) => { if (d <= t && !E[d] && (ps || []).length) E[d] = ps.filter(p => S.players[p]) });
+  const nm = attUp().named || {}; [...new Set([...Object.keys(up), ...Object.keys(nm)])].forEach(d => { if (d > t || E[d]) return; const ps = new Set((up[d] || []).filter(p => S.players[p])); (nm[d] || []).forEach(n => { const id = findPlayer(n); if (id) ps.add(id) }); if ((up[d] || []).length || (nm[d] || []).length) E[d] = [...ps] });
   let ids = Object.keys(E).sort();
   if (period === 'year') ids = ids.filter(id => id.startsWith(t.slice(0, 4)));
   else if (period === '3m') { const d = new Date(); d.setMonth(d.getMonth() - 3); const cut = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`; ids = ids.filter(id => id >= cut) }
@@ -1533,18 +1534,42 @@ function attParse(text, total) { const lines = String(text || '').split(/\r?\n/)
     lines.slice(1).forEach(l => { const cs = split(l).map(x => x.trim()); const id = pid(cs[0]); if (!id) return; hd.forEach((d, i) => { if (d && yes.test(cs[i + 1] || '')) (res.dates[d] ??= []).push(id) }) }); return res }
   if (attDate(split(lines[0])[0])) { res.kind = 'dates'; lines.forEach(l => { const cs = split(l).map(x => x.trim()).filter(Boolean); const d = attDate(cs[0]); if (!d) return; cs.slice(1).forEach(n => { const id = pid(n); if (id && !(res.dates[d] ??= []).includes(id)) res.dates[d].push(id) }) }); return res }
   res.kind = 'summary'; res.baseTotal = Math.max(0, +total || 0); lines.forEach(l => { const cs = split(l).map(x => x.trim()).filter(Boolean); const num = cs.find(x => /^\d+$/.test(x)); const nm = cs.filter(x => !/^\d+$/.test(x)).join(''); if (!num || !nm) return; const id = pid(nm); if (id) res.base[id] = +num }); return res }
-function attImpSheet() { const st = S.attImp || {}; const r = st.res; const up = attUp(); const nd = Object.keys(up.dates || {}).length, nb = Object.keys(up.base || {}).length;
+/* 엑셀(.xlsx) 읽기: 외부 라이브러리 없이 압축을 풀고 시트 XML을 읽어요 */
+async function readXlsx(buf) { const u8 = new Uint8Array(buf), dv = new DataView(buf); let eocd = -1; for (let i = u8.length - 22; i >= Math.max(0, u8.length - 70000); i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break }
+  if (eocd < 0) throw new Error('엑셀 파일이 아니에요'); const n = dv.getUint16(eocd + 10, true); let p = dv.getUint32(eocd + 16, true); const files = {};
+  for (let k = 0; k < n; k++) { const meth = dv.getUint16(p + 10, true), csz = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), lo = dv.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(u8.subarray(p + 46, p + 46 + nl)); files[name] = { meth, csz, lo }; p += 46 + nl + xl + cl }
+  const get = async name => { const f = files[name]; if (!f) return null; const ds = f.lo + 30 + dv.getUint16(f.lo + 26, true) + dv.getUint16(f.lo + 28, true); const raw = u8.subarray(ds, ds + f.csz);
+    if (f.meth === 0) return new TextDecoder().decode(raw); const s = new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw')); return await new Response(s).text() };
+  const X = t => new DOMParser().parseFromString(t || '<x/>', 'application/xml'); const ss = [...X(await get('xl/sharedStrings.xml')).getElementsByTagName('si')].map(e => e.textContent);
+  const wb = X(await get('xl/workbook.xml')), rel = X(await get('xl/_rels/workbook.xml.rels')); const rmap = {}; [...rel.getElementsByTagName('Relationship')].forEach(r => rmap[r.getAttribute('Id')] = r.getAttribute('Target'));
+  const out = []; for (const sh of wb.getElementsByTagName('sheet')) { const rid = sh.getAttribute('r:id') || sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id'); let tg = rmap[rid] || ''; tg = tg.replace(/^\/?xl\//, ''); const doc = X(await get('xl/' + tg)); const rows = [];
+    for (const c of doc.getElementsByTagName('c')) { const ref = c.getAttribute('r') || ''; const m = ref.match(/^([A-Z]+)(\d+)$/); if (!m) continue; let col = 0; for (const ch of m[1]) col = col * 26 + ch.charCodeAt(0) - 64; const row = +m[2] - 1; const t = c.getAttribute('t'); const v = c.getElementsByTagName('v')[0]?.textContent;
+      let val = t === 's' ? ss[+v] : t === 'inlineStr' ? c.textContent : t === 'b' ? v === '1' : t === 'str' ? v : v != null && v !== '' ? +v : null; (rows[row] ??= [])[col - 1] = val }
+    out.push({ name: sh.getAttribute('name'), rows }) } return out }
+function attFromSheets(sheets) { const res = { kind: 'xlsx', dates: {}, named: {}, unknown: new Set(), sheets: [], base: {}, baseTotal: 0 }; const yes = /^(o|ㅇ|○|●|◯|v|✓|✔|y|1|출|출석|참|참석|주|당|true)$/i;
+  const toD = v => { if (typeof v === 'number' && v > 30000 && v < 70000) { const d = new Date(Date.UTC(1899, 11, 30) + v * 864e5); return `${d.getUTCFullYear()}-${p2(d.getUTCMonth() + 1)}-${p2(d.getUTCDate())}` } return typeof v === 'string' ? attDate(v) : null };
+  const pick = sheets.filter(s => /출결|출석/.test(s.name) && !/용어|설정|test/i.test(s.name)); for (const sh of (pick.length ? pick : sheets.filter(s => !/test/i.test(s.name)))) { const R = sh.rows; let hi = -1, dcols = []; for (let i = 0; i < Math.min(R.length, 15); i++) { const ds = (R[i] || []).map((v, j) => [j, toD(v)]).filter(x => x[1]); if (ds.length >= 3) { hi = i; dcols = ds; break } } if (hi < 0) continue;
+    const first = dcols[0][0]; let nc = 0, best = -1; for (let j = 0; j < first; j++) { const cnt = R.slice(hi + 1).filter(r => typeof r?.[j] === 'string' && r[j].trim()).length; if (cnt > best) { best = cnt; nc = j } }
+    const yr = {}; dcols.forEach(([, d]) => yr[d.slice(0, 4)] = (yr[d.slice(0, 4)] || 0) + 1); const Y = Object.entries(yr).sort((a, b) => b[1] - a[1])[0][0]; const got = {};
+    R.slice(hi + 1).forEach(r => { const raw = r?.[nc]; if (typeof raw !== 'string') return; if (/총인원|표기법|^\s*[(\-]/.test(raw)) return; const nm = raw.replace(/\(M\)|\(m\)|\d+|\?/g, '').trim(); if (!nm) return;
+      dcols.forEach(([j, d]) => { const v = r[j]; if ((typeof v === 'number' && v > 0) || (typeof v === 'string' && yes.test(v.trim()))) (got[d] ??= new Set()).add(nm) }) });
+    let used = 0; Object.entries(got).forEach(([d, set]) => { const dd = d.slice(0, 4) === Y ? d : Y + d.slice(4); used++; set.forEach(nm => { const id = findPlayer(nm); if (id) { if (!(res.dates[dd] ??= []).includes(id)) res.dates[dd].push(id) } else { res.unknown.add(nm); if (!(res.named[dd] ??= []).includes(nm)) res.named[dd].push(nm) } }) });
+    if (used) res.sheets.push(`${sh.name} ${used}경기`) }
+  return res }
+function attImpSheet() { const st = S.attImp || {}; const r = st.res; const up = attUp(); const nd = new Set([...Object.keys(up.dates || {}), ...Object.keys(up.named || {})]).size, nb = Object.keys(up.base || {}).length;
   return `<h4>⬆ 지난 출석 기록 올리기</h4><p>엑셀·구글시트에서 복사해서 붙여넣으면 돼요. 아래 세 가지 형식을 자동으로 알아봐요.</p>
   <div class="panel pad att-fmt"><b>① 출석표</b> 첫 줄에 날짜, 각 줄에 이름과 O/X (1, ✓, 출석도 돼요)<pre>이름	9.1	9.14	9.28\n김일	O		O\n이이	O	O	O</pre>
     <b>② 날짜별 명단</b> 줄마다 날짜와 그날 온 사람<pre>2026.09.01 김일 이이 박삼\n2026.09.14 이이 정오</pre>
     <b>③ 횟수 요약</b> 이름과 출석 횟수 (날짜 없이 합계만 있을 때)<pre>김일 12\n이이 15</pre></div>
-  <label class="field"><span>붙여넣기</span><textarea id="att-txt" class="inp" rows="8" placeholder="여기에 붙여넣으세요">${esc(st.text || '')}</textarea></label>
+  <div class="panel pad att-file"><b>📄 엑셀 파일로 올리기</b><p class="muted" style="margin:4px 0 8px">출석부 엑셀(.xlsx)을 고르면 '출결' 시트들을 읽어서 날짜별로 넣어요. 이름 뒤 생년월일·(M) 표시는 자동으로 빼고 맞춰요.</p><input type="file" id="att-file" accept=".xlsx"></div>
+  <label class="field"><span>또는 붙여넣기</span><textarea id="att-txt" class="inp" rows="8" placeholder="여기에 붙여넣으세요">${esc(st.text || '')}</textarea></label>
   <label class="field"><span>③ 요약일 때 전체 경기 수 (출석률 계산용)</span><input id="att-tot" class="inp" type="number" min="0" value="${esc(st.total || '')}" placeholder="예: 20"></label>
   <div class="row"><button class="btn" data-act="attparse">확인하기</button></div>
-  ${r ? `<div class="panel pad att-prev"><b>${{ table: '① 출석표로', dates: '② 날짜별 명단으로', summary: '③ 횟수 요약으로' }[r.kind] || '알 수 없는 형식이에요. 예시를 확인해 주세요'}${r.kind ? ' 읽었어요' : ''}</b>
-    <p>${r.kind === 'summary' ? `${Object.keys(r.base).length}명의 출석 횟수 · 전체 경기 ${r.baseTotal || '(입력 안 함)'}회` : `${Object.keys(r.dates).length}경기 · 출석 ${Object.values(r.dates).reduce((a, b) => a + b.length, 0)}건 (${Object.keys(r.dates).sort()[0] || '-'} ~ ${Object.keys(r.dates).sort().slice(-1)[0] || '-'})`}</p>
-    ${r.unknown.size ? `<p class="warn">⚠️ 회원 명단에 없는 이름 ${r.unknown.size}개는 빼고 저장해요: ${[...r.unknown].slice(0, 12).map(esc).join(', ')}${r.unknown.size > 12 ? ' …' : ''}</p>` : ''}
-    <button class="btn primary block" data-act="attsave" ${(r.kind === 'summary' ? Object.keys(r.base).length : Object.keys(r.dates).length) ? '' : 'disabled'}>저장하기</button></div>` : ''}
+  ${r ? `<div class="panel pad att-prev"><b>${{ xlsx: `엑셀 파일(${esc(st.fname || '')})을`, table: '① 출석표로', dates: '② 날짜별 명단으로', summary: '③ 횟수 요약으로' }[r.kind] || '알 수 없는 형식이에요. 예시를 확인해 주세요'}${r.kind ? ' 읽었어요' : ''}</b>${r.kind === 'xlsx' ? `<p class="muted" style="margin:4px 0 0">${r.sheets.map(esc).join(' · ') || '출결 시트를 찾지 못했어요'}</p>` : ''}
+    <p>${r.kind === 'summary' ? `${Object.keys(r.base).length}명의 출석 횟수 · 전체 경기 ${r.baseTotal || '(입력 안 함)'}회` : `${new Set([...Object.keys(r.dates), ...Object.keys(r.named || {})]).size}경기 · 출석 ${Object.values(r.dates).reduce((a, b) => a + b.length, 0) + Object.values(r.named || {}).reduce((a, b) => a + b.length, 0)}건 (${Object.keys(r.dates).sort()[0] || '-'} ~ ${Object.keys(r.dates).sort().slice(-1)[0] || '-'})`}</p>
+    ${r.unknown.size && r.kind === 'xlsx' ? `<p class="warn">ℹ️ 지금 회원 명단에 없는 이름 ${r.unknown.size}명도 이름으로 저장해 둬요. 나중에 같은 이름으로 회원을 추가하면 자동으로 출석이 이어져요: ${[...r.unknown].slice(0, 20).map(esc).join(', ')}${r.unknown.size > 20 ? ' …' : ''}</p>` : ''}${r.unknown.size && r.kind !== 'xlsx' ? `<p class="warn">⚠️ 회원 명단에 없는 이름 ${r.unknown.size}개는 빼고 저장해요: ${[...r.unknown].slice(0, 12).map(esc).join(', ')}${r.unknown.size > 12 ? ' …' : ''}</p>` : ''}
+    <button class="btn primary block" data-act="attsave" ${(r.kind === 'summary' ? Object.keys(r.base).length : Object.keys(r.dates).length + Object.keys(r.named || {}).length) ? '' : 'disabled'}>저장하기</button></div>` : ''}
   ${nd || nb ? `<div class="panel pad" style="margin-top:10px"><b>지금 올라가 있는 기록</b><p class="muted" style="margin:4px 0 8px">${nd ? `날짜별 ${nd}경기` : ''}${nd && nb ? ' · ' : ''}${nb ? `횟수 요약 ${nb}명 (전체 ${up.baseTotal || 0}경기)` : ''}</p><button class="btn sm danger" data-act="attclear">올린 기록 모두 지우기</button></div>` : ''}
   <p class="note">같은 날짜를 다시 올리면 새 내용으로 바뀌어요. 앱에서 진행한 경기와 날짜가 겹치면 앱 기록이 우선이에요. 횟수 요약은 '전체' 기간에만 더해져요.</p>` }
 function attPersonSheet(id) { const { rows, total } = attRows('all'); const r = rows.find(x => x.id === id) || { n: 0, rate: 0, dates: [], base: 0 }; const md = d => { const [y, mm, dd] = d.split('-'); return `${y.slice(2)}.${+mm}.${+dd}` };
@@ -2727,6 +2752,7 @@ document.addEventListener('input', e => { const el = e.target; const k = el.data
   if (k === 'mq') { S.mq = el.value; clearTimeout(S.mqT); S.mqT = setTimeout(() => { const pos = el.selectionStart; S.pending = false; const a = document.activeElement; a && a.blur(); render(); const n = document.getElementById('mq'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos) } catch { } } }, 250); return }
   if (k === 'sfield' && S.admin) { const f = el.dataset.f; clearTimeout(saveT[f]); saveT[f] = setTimeout(async () => { await w(() => S.store.update(sp(S.sid), { [f]: el.value })); if (f === 'evpw' || f === 'notice') { clearThumbs('team', S.sid); document.querySelectorAll('.pth[data-k="team"] img').forEach(x => x.remove()); refreshPoster(); fillThumbs('team', S.sid) } }, 600) } });
 document.addEventListener('change', e => { const el = e.target;
+  if (el.id === 'att-file' && el.files?.[0]) { const f = el.files[0]; f.arrayBuffer().then(readXlsx).then(sh => { S.attImp = { fname: f.name, res: attFromSheets(sh) }; render() }).catch(err => toast('엑셀을 읽지 못했어요: ' + (err.message || err))); return }
   if (el.dataset?.in === 'pairsel') { const m = M(el.dataset.id); if (!m) return; const D = (S.pairDraft ??= {}); const cur0 = D[m.id] || [m.home, m.away]; const nx = [...cur0]; const i = el.dataset.side === 'h' ? 0 : 1; nx[i] = el.value; if (nx[0] === nx[1]) nx[1 - i] = cur0[i]; D[m.id] = nx; render(); return }
   if (el.dataset.in === 'schedym') { S.schedYm = el.value; render(); return }
   if (el.dataset.in === 'nsid') { S.nsid = el.value; render(); return }
@@ -2953,6 +2979,14 @@ document.addEventListener('click', async e => {
     case 'dutydraw': { if (!needAdmin()) break; const k = el.dataset.kind; const sid0 = id; dutySpin(sid0, k, pick => w(() => S.store.update(sp(sid0), { [`duty.${k}`]: pick }), `${k === 'drink' ? '물당' : '공당'}: ${pick.map(pname).join(', ')}`)); break }
     case 'dutyboth': { if (!needAdmin()) break; const sid0 = id; dutySpin(sid0, 'ball', async b => { await w(() => S.store.update(sp(sid0), { 'duty.ball': b })); const ss = S.sessions[sid0]; ss.duty = { ...(ss.duty || {}), ball: b };
       dutySpin(sid0, 'drink', dk => w(() => S.store.update(sp(sid0), { 'duty.drink': dk }), `공당: ${b.map(pname).join(', ')} · 물당: ${dk.map(pname).join(', ')}`)) }); break }
+    case 'presopen': S.presOpen = !S.presOpen; drawPres(); break;
+    case 'attp': S.sheet = { type: 'attp', id }; render(); break;
+    case 'attimp': if (!needAdmin()) break; S.attImp = {}; S.sheet = { type: 'attimp' }; render(); break;
+    case 'attparse': { const text = document.getElementById('att-txt')?.value || '', total = document.getElementById('att-tot')?.value || ''; S.attImp = { text, total, res: attParse(text, total) }; render(); break }
+    case 'attsave': { if (!needAdmin()) break; const r = S.attImp?.res; if (!r) break; const up = attUp(); const nx = { dates: { ...(up.dates || {}) }, base: { ...(up.base || {}) }, baseTotal: +up.baseTotal || 0, at: Date.now() };
+      nx.named = { ...(up.named || {}) }; if (r.kind === 'summary') { nx.base = r.base; nx.baseTotal = r.baseTotal } else { const ds = new Set([...Object.keys(r.dates), ...Object.keys(r.named || {})]); ds.forEach(d => { nx.dates[d] = r.dates[d] || []; if ((r.named || {})[d]?.length) nx.named[d] = r.named[d]; else delete nx.named[d] }) }
+      const ok = await w(() => S.store.set('meta/att', nx), '출석 기록을 저장했어요.'); if (ok) { S.meta = S.meta || {}; S.meta.att = nx; S.attImp = {}; S.sheet = null; render() } break }
+    case 'attclear': { if (!needAdmin()) break; if (!confirm('올린 출석 기록을 모두 지울까요? 앱에서 진행한 경기 기록은 그대로 남아요.')) break; const ok = await w(() => S.store.set('meta/att', { dates: {}, named: {}, base: {}, baseTotal: 0, at: Date.now() }), '올린 기록을 지웠어요.'); if (ok) { S.meta.att = { dates: {}, named: {}, base: {}, baseTotal: 0 }; render() } break }
     case 'finishdraft': await finishDraft(); break;
     case 'redodraft': if (!needAdmin()) break; await redoDraft(); break;
     case 'mergedups': if (!needAdmin()) break; await mergeDups(); break;
