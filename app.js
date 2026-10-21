@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.69';
+const APP_VERSION = '0.21.70';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -813,7 +813,7 @@ function appbar() {
   ${!S.dm && !S.admin && S.auth ? `<button class="mmtop ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" aria-label="${S.tab === 'mm' ? '일반모드로 돌아가기' : '경기모드 열기'}"><span class="mmball">⚽</span><b>${S.tab === 'mm' ? '일반모드' : '경기모드'}</b>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : ''}${S.auth && !S.admin ? (() => { const n = (S.inbox || []).filter(x => !x.read).length; return `<button class="bell" data-act="inbox" aria-label="받은 알림${n ? ' ' + n + '개 안 읽음' : ''}">🔔${n ? `<i>${n > 9 ? '9+' : n}</i>` : ''}</button>` })() : ''}${!S.admin && capSid() ? `<button class="capico" data-act="gocap" data-id="${capSid()}" aria-label="팀 드래프트 입장" title="팀 드래프트 입장">👑<b>드래프트</b></button>` : !S.admin && viewSid() && S.sessions[viewSid()]?.draftStatus !== 'done' ? `<button class="capico view" data-act="gocap" data-id="${viewSid()}" aria-label="드래프트 참관" title="드래프트 참관">👀<b>참관</b></button>` : ''}${canOp() ? `<button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">운영모드</button>` : ''}</div>${capStrip()}</header>`;
 }
 function tabs() {
-  const t = S.admin ? [['manage', '일정'], ['run', '경기'], ['notice', '공지'], ['members', '회원'], ['settings', '설정']] : [['mhome', '홈'], ['sched', '일정'], ...(isDesk() ? [] : [['mm', '경기모드']]), ['results', '경기결과'], ['settings', '내 정보']]; // 아래 메뉴는 항상 고정 — 드래프트는 오른쪽 위 버튼으로 입장
+  const t = S.admin ? [['manage', '일정'], ['run', '경기'], ['notice', '공지'], ['members', '회원'], ['settings', '설정']] : [['mhome', '홈'], ['sched', '일정'], ...(isDesk() ? [] : [['mm', '경기모드']]), ['results', '기록실'], ['settings', '내 정보']]; // 아래 메뉴는 항상 고정 — 드래프트는 오른쪽 위 버튼으로 입장
   return `<div class="tabs"><nav style="grid-template-columns:repeat(${t.length},1fr)">${t.map(([k, n]) => k === 'mm' ? `<button class="mmtab ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" ${S.tab === 'mm' ? 'aria-current="page"' : ''}><span class="mmball">⚽</span><span>${S.tab === 'mm' ? '일반모드' : n}</span>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : `<button data-act="tab" data-v="${k}" ${S.tab === k ? 'aria-current="page"' : ''}>${n}</button>`).join('')}</nav></div>` }
 function liveAny() { return Object.values(S.matches).some(m => m.status === 'live' && m.timer?.running) }
 function sessionPicker() { const ids = Object.keys(S.sessions).sort().reverse(); if (ids.length < 2) return '';
@@ -1232,6 +1232,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.70', '2026.10.21', ['아래 메뉴의 \'경기결과\' 이름을 \'기록실\'로 바꿨어요 (경기 결과 · 출석 현황)']],
   ['0.21.69', '2026.10.21', ['WDFS 출석부(2025·2026 시즌, 88경기)를 출석 현황에 기본으로 넣었어요. 따로 올리지 않아도 바로 반영돼요']],
   ['0.21.68', '2026.10.21', ['출석 관리의 \'지난 출석 기록 올리기\'에서 출석부 엑셀(.xlsx) 파일을 바로 올릴 수 있어요. 이름 뒤 생년월일·(M) 표시는 자동으로 빼고 맞추고, 아직 회원이 아닌 이름도 저장해 뒀다가 나중에 회원을 추가하면 이어져요']],
   ['0.21.67', '2026.10.20', ['공당·물당: 신청자는 자동으로 포함하고, 운영진이 정한 인원보다 신청자가 많으면 신청자 중에서, 모자라면 나머지 참가자 중에서 추첨해 확정해요 (공당 먼저, 물당은 공당 제외). 물당 신청도 다시 할 수 있어요', '드래프트 팀 색 고르기 버튼을 크게 키웠어요', '운영진이 여러 명 들어오면 위쪽 운영진 박스에 이름이 하나씩 보여요', '운영진 말풍선이 축구장 쪽(아래)으로 떠요']],
