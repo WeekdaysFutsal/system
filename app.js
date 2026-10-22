@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.91';
+const APP_VERSION = '0.21.92';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1242,6 +1242,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.92', '2026.10.22', ['사용 가이드: 앱 설치 방법을 아이폰(사파리)·갤럭시(삼성인터넷)·안드로이드(크롬)별로 실제 화면과 함께 한 단계씩 넘겨 보며 따라 할 수 있게 바꿨어요']],
   ['0.21.91', '2026.10.22', ['사용 가이드: 일부 화면 이미지가 세로로 늘어져 보이던 문제를 고쳤어요']],
   ['0.21.90', '2026.10.22', ['사용 가이드(manual.html)를 지금 화면과 기능으로 새로 만들었어요: 새 디자인 화면·영상, 경기 당일 홈, 공당·물당·주차 신청, 득점 순위·출석 현황, 선수 이름으로 골 기록, 자책골, 전광판 좌우 바꾸기']],
   ['0.21.89', '2026.10.22', ['경기모드 전체화면(보기 전용): 점수가 팀 이름보다 화면 가장자리 쪽에 오도록 바꿨어요 (1 BLUE ······ RED 0)']],
