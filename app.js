@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.87';
+const APP_VERSION = '0.21.88';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1242,6 +1242,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.88', '2026.10.22', ['경기모드 전체화면(보기 전용): 오른쪽에 보이는 팀은 이름과 점수가 오른쪽에 붙도록 좌우 대칭으로 정렬했어요']],
   ['0.21.87', '2026.10.22', ['경기모드 전체화면(크게 보기): 위쪽 ⇄ 좌우 바꾸기 버튼으로 두 팀 자리를 이 기기 화면에서만 바꿀 수 있어요. 반대편에서 보는 전광판용 기기에 쓰면 진영이 맞게 보여요 (점수·기록은 그대로, 설정은 기기에 저장돼요)']],
   ['0.21.86', '2026.10.22', ['경기모드 휘슬을 다시 만들었어요: 시작·전반 종료·후반 시작·경기 종료 휘슬이 화면의 경기 시간에 맞춰 울려요', '경기 중에 전반·GK·후반 시간을 바꾸거나 일시정지·재개해도 남은 휘슬이 바뀐 시간에 맞춰 다시 예약돼요', '울리고 있는 휘슬이 중간에 끊기거나 두 번 울리던 문제를 고쳤고, 블루투스 스피커처럼 소리가 늦게 나는 기기는 그만큼 미리 울려요', '화면 시계를 더 자주(0.1초마다) 고쳐 그려서 휘슬과 숫자가 같이 바뀌어요']],
   ['0.21.85', '2026.10.21', ['디자인: BLACK처럼 어두운 팀 색이 어두운 배경에서 잘 안 보이던 곳(팀 색 표시, 팀 이름표, 드래프트 유니폼·좌석, 경기모드 팀 칸, 득점 칩, 순위 등)에 밝은 테두리를 넣어 구분되게 했어요']],
