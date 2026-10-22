@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.86';
+const APP_VERSION = '0.21.87';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -86,7 +86,7 @@ const S = {
   store: null, ready: 0, err: '',
   players: {}, sessions: {}, matches: {}, events: {}, chat: [], chatSid: null, unsubChat: null,
   tab: load('admin', false) ? 'manage' : 'mhome', mfilter: 'up', cal: null, sub: null, detail: null, rankKey: 'g', sid: null, step: null, openMatch: null, sheet: null, sel: null, statsSort: 'pts',
-  adminOn: load('admin', false), me: load('me', ''), auth: null, schedSig: {}, startBlown: {}, capLinks: load('caplinks', {}), linkErr: '', whistle: load('whistle', true),
+  adminOn: load('admin', false), me: load('me', ''), auth: null, schedSig: {}, startBlown: {}, capLinks: load('caplinks', {}), linkErr: '', whistle: load('whistle', true), fsFlip: load('fsflip', false),
   prev: {}, pending: false, poster: {}
 };
 
@@ -1242,6 +1242,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.87', '2026.10.22', ['경기모드 전체화면(크게 보기): 위쪽 ⇄ 좌우 바꾸기 버튼으로 두 팀 자리를 이 기기 화면에서만 바꿀 수 있어요. 반대편에서 보는 전광판용 기기에 쓰면 진영이 맞게 보여요 (점수·기록은 그대로, 설정은 기기에 저장돼요)']],
   ['0.21.86', '2026.10.22', ['경기모드 휘슬을 다시 만들었어요: 시작·전반 종료·후반 시작·경기 종료 휘슬이 화면의 경기 시간에 맞춰 울려요', '경기 중에 전반·GK·후반 시간을 바꾸거나 일시정지·재개해도 남은 휘슬이 바뀐 시간에 맞춰 다시 예약돼요', '울리고 있는 휘슬이 중간에 끊기거나 두 번 울리던 문제를 고쳤고, 블루투스 스피커처럼 소리가 늦게 나는 기기는 그만큼 미리 울려요', '화면 시계를 더 자주(0.1초마다) 고쳐 그려서 휘슬과 숫자가 같이 바뀌어요']],
   ['0.21.85', '2026.10.21', ['디자인: BLACK처럼 어두운 팀 색이 어두운 배경에서 잘 안 보이던 곳(팀 색 표시, 팀 이름표, 드래프트 유니폼·좌석, 경기모드 팀 칸, 득점 칩, 순위 등)에 밝은 테두리를 넣어 구분되게 했어요']],
   ['0.21.84', '2026.10.21', ['경기 기록: 골 기록에 팀 대신 득점한 선수 이름이 나와요 (자책골·도움 표시 포함)', '경기 결과: 경기별 결과 아래에 득점자가 나오고, 그날의 득점 순위(골·도움)를 볼 수 있어요. 자책골은 개인 득점에서 빠져요']],
@@ -2542,8 +2543,8 @@ async function fsExit() { S.fs = false; try { screen.orientation?.unlock?.() } c
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && S.fs) { S.fs = false; try { screen.orientation?.unlock?.() } catch { } render() } });
 function fsBoard({ H, A, hs, as, clockAttr, phaseAttr, time, label, phase, ctl, goals, goal, ungoal, ctlBtns, title }) {
   const side = (T, sc, k) => `<div class="fs-team fs-${k}" style="--tc:${T.color};--ti:${inkOn(T.color)}"><div class="fs-tx"><b class="fs-nm">${esc(T.name)}</b><em class="fs-sc">${sc}</em></div>${goals ? `<div class="fs-gb"><button class="fs-g" ${goal(k)}>+ 골</button><button class="fs-ug" ${ungoal(k)} ${sc ? '' : 'disabled'} aria-label="${esc(T.name)} 골 취소">−</button></div>` : ''}</div>`;
-  return `<div class="mmfs" role="dialog" aria-label="전체화면 점수판"><div class="fs-top"><span>${title}</span><span class="fs-ph" ${phaseAttr}>${label}</span><button class="fs-x" data-act="fsoff" aria-label="전체화면 닫기">✕</button></div>
-    <div class="fs-main"><div class="fs-cl"><div class="fs-clock mm-clock ${phase}" ${clockAttr}>${time}</div></div>${side(H, hs, 'h')}<div class="fs-mid">${ctl && ctlBtns ? `<div class="fs-ctl">${ctlBtns}</div>` : ''}</div>${side(A, as, 'a')}</div></div>` }
+  return `<div class="mmfs" role="dialog" aria-label="전체화면 점수판"><div class="fs-top"><span>${title}</span><span class="fs-ph" ${phaseAttr}>${label}</span><button class="fs-flip ${S.fsFlip ? 'on' : ''}" data-act="fsflip" aria-pressed="${!!S.fsFlip}" title="이 기기 화면에서만 두 팀 자리를 바꿔요">⇄ ${S.fsFlip ? '좌우 바뀜' : '좌우 바꾸기'}</button><button class="fs-x" data-act="fsoff" aria-label="전체화면 닫기">✕</button></div>
+    <div class="fs-main${S.fsFlip ? ' flip' : ''}"><div class="fs-cl"><div class="fs-clock mm-clock ${phase}" ${clockAttr}>${time}</div></div>${side(H, hs, 'h')}<div class="fs-mid">${ctl && ctlBtns ? `<div class="fs-ctl">${ctlBtns}</div>` : ''}</div>${side(A, as, 'a')}</div></div>` }
 function fsSched(s, ctl) { const ms = sessMatches(s.date); const curM = ms.find(x => x.status === 'live') || ms.find(x => x.status === 'pending') || ms[ms.length - 1]; if (!curM) return ''; const m = (ctl && S.mmSel && ms.find(x => x.id === S.mmSel)) || curM;
   const H = team(s, m.home), A = team(s, m.away); const [hs, as] = score(m); const ci = clockInfo(m); const run = !!m.timer?.running; const key = k => k === 'h' ? m.home : m.away;
   const ctlBtns = m.status === 'pending' ? `<button class="fs-b go" data-act="mmstart" data-id="${m.id}">▶ 시작</button>` : m.status === 'live' ? `${run ? `<button class="fs-b" data-act="mmpause" data-id="${m.id}">일시정지</button>` : `<button class="fs-b go" data-act="mmresume" data-id="${m.id}">▶ 재개</button>`}<button class="fs-b" data-act="mmend" data-id="${m.id}">종료</button>` : '';
@@ -2965,6 +2966,7 @@ document.addEventListener('click', async e => {
     case 'noop': break;
     case 'fson': await fsEnter(); break;
     case 'fsoff': await fsExit(); break;
+    case 'fsflip': S.fsFlip = !S.fsFlip; save('fsflip', S.fsFlip); render(); break;
     case 'pushon': await pushEnable(); break;
     case 'inbox': S.sheet = { type: 'inbox' }; render(); markInboxRead(); break;
     case 'ibdel': { const pid = myPid(); if (!pid) break; S.inbox = (S.inbox || []).filter(x => x.id !== id); render(); try { await S.store.del(`inbox/${pid}/items/${id}`) } catch (e) { toast(errMsg(e)) } break }
