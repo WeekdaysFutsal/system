@@ -778,7 +778,7 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.88"}
+:root{--cssv:"0.21.89"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
@@ -834,6 +834,6 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .fs-main.flip .fs-a{grid-area:h}
 .fs-flip{flex:none;height:40px;padding:0 14px;border-radius:999px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap}
 .fs-flip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-/* 0.21.88 전체화면(보기 전용): 오른쪽 팀은 오른쪽 정렬·좌우 대칭 */
+/* 0.21.89 전체화면(보기 전용): 오른쪽 팀은 오른쪽 정렬, 점수가 팀명보다 바깥쪽 */
 @media (orientation:landscape){:is(.fs-main:not(.flip) .fs-a,.fs-main.flip .fs-h):not(:has(.fs-gb)){justify-content:flex-end}
-:is(.fs-main:not(.flip) .fs-a,.fs-main.flip .fs-h):not(:has(.fs-gb)) .fs-tx{flex-direction:row-reverse}}
+:is(.fs-main:not(.flip) .fs-h,.fs-main.flip .fs-a):not(:has(.fs-gb)) .fs-tx{flex-direction:row-reverse}}
