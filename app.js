@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.94';
+const APP_VERSION = '0.21.95';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1242,6 +1242,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.95', '2026.10.23', ['홈(휴대폰): 경기에 신청한 뒤에는 지난 경기 요약을 한 줄로 줄여서, 신청 상태와 주차·공당·물당 신청 버튼까지 한 화면에 바로 보여요']],
   ['0.21.94', '2026.10.22', ['사용 가이드: 어떤 화면 크기에서도 세로 스크롤 없이 한 장이 한 화면에 꼭 맞게 들어가도록 했어요 (작은 폰은 그 장만 살짝 줄여서 보여 줘요)']],
   ['0.21.93', '2026.10.22', ['사용 가이드: 아래로 길게 내리는 대신 한 화면씩 좌우로 넘겨 보는 방식으로 바꿨어요 (위쪽 목차로 바로 이동, 아래 이전·다음 버튼, PC는 ←·→ 키)']],
   ['0.21.92', '2026.10.22', ['사용 가이드: 앱 설치 방법을 아이폰(사파리)·갤럭시(삼성인터넷)·안드로이드(크롬)별로 실제 화면과 함께 한 단계씩 넘겨 보며 따라 할 수 있게 바꿨어요']],
@@ -1486,8 +1487,12 @@ function viewMHome() {
   // ── MATCH REVIEW ──
   const mdOn = !!(sid && S.sessions[sid]?.draftStatus === 'done'); // 팀 확정 후: 휴대폰에서는 오늘 경기 정보가 먼저 보이게 지난 경기 요약은 숨겨요
   const last = fit && mdOn ? null : pastSids().find(id => id !== sid);
-  if (!(fit && mdOn)) h += `<div class="sec-lab"><span>MATCH REVIEW</span>${last ? `<small>${fmtDate(last)}</small>` : ''}</div>`;
+  // 휴대폰에서 이미 신청했으면 지난 경기 요약을 한 줄로 줄여서 신청 상태·주차·공당·물당 버튼까지 한 화면에 보이게 해요
+  const miniRv = fit && !mdOn && !!last && !!sid && applyState(S.sessions[sid]).k !== 'none';
+  if (!(fit && mdOn) && !miniRv) h += `<div class="sec-lab"><span>MATCH REVIEW</span>${last ? `<small>${fmtDate(last)}</small>` : ''}</div>`;
   if (fit && mdOn) { }
+  else if (miniRv) { const s = S.sessions[last]; const top = standings(last).filter(r => r.rank === 1).map(r => team(s, r.k)); const mt = myTeamIn(s); const myR = mt ? standings(last).find(r => r.k === mt) : null;
+    h += `<button class="review-mini" data-act="result" data-id="${last}"><span class="rm-lab">지난 경기<small>${fmtDate(last)}</small></span><span class="rm-win">🏆 ${top.map(t => `${bib(t.color)}<b>${esc(t.name)}</b>`).join(' ')}</span>${myR ? `<span class="rm-my"><i class="mytag">MY</i>${myR.rank}위</span>` : ''}<span class="rm-go">결과 ›</span></button>` }
   else if (!last) h += `<div class="review empty-r">아직 지난 경기가 없어요.</div>`;
   else { const s = S.sessions[last]; const rows = standings(last); const mt = myTeamIn(s); const done = sessMatches(last).filter(m => m.status === 'done').length;
     h += `<button class="review" data-act="result" data-id="${last}">${done < 9 ? `<div class="rv-note">${done}/9경기 기준</div>` : ''}

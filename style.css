@@ -778,7 +778,7 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.94"}
+:root{--cssv:"0.21.95"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
@@ -837,3 +837,11 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 /* 0.21.89 전체화면(보기 전용): 오른쪽 팀은 오른쪽 정렬, 점수가 팀명보다 바깥쪽 */
 @media (orientation:landscape){:is(.fs-main:not(.flip) .fs-a,.fs-main.flip .fs-h):not(:has(.fs-gb)){justify-content:flex-end}
 :is(.fs-main:not(.flip) .fs-h,.fs-main.flip .fs-a):not(:has(.fs-gb)) .fs-tx{flex-direction:row-reverse}}
+/* 0.21.95 신청 후 홈: 지난 경기 한 줄 요약 */
+.review-mini{display:flex;align-items:center;gap:10px;width:100%;margin:2px 0 10px;padding:10px 14px;border-radius:16px;background:var(--surface);border:1px solid var(--line);color:var(--ink);text-align:left;font-size:13.5px;min-height:48px}
+.review-mini .rm-lab{display:flex;flex-direction:column;line-height:1.2;flex:none;font-family:var(--latin);font-size:12px;letter-spacing:1px;color:var(--muted)}
+.review-mini .rm-lab small{font-family:var(--body);letter-spacing:0;font-size:11.5px}
+.review-mini .rm-win{flex:1;min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden;white-space:nowrap}
+.review-mini .rm-win b{font-family:var(--latin);font-weight:800;font-size:15px;letter-spacing:.5px}
+.review-mini .rm-my{flex:none;display:flex;align-items:center;gap:4px;font-weight:700;font-size:13px}
+.review-mini .rm-go{flex:none;color:var(--accent);font-weight:700;font-size:13px}
