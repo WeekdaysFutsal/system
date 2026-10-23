@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.95';
+const APP_VERSION = '0.21.96';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1242,6 +1242,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.96', '2026.10.23', ['홈(휴대폰): 지난 경기 한 줄 요약은 원래대로 되돌렸어요. 대신 경기에 신청한 뒤에는 다음 경기와 신청 상태, 주차·공당·물당 신청 버튼이 맨 위에 오고, 지난 경기 결과는 그 아래에 보여요']],
   ['0.21.95', '2026.10.23', ['홈(휴대폰): 경기에 신청한 뒤에는 지난 경기 요약을 한 줄로 줄여서, 신청 상태와 주차·공당·물당 신청 버튼까지 한 화면에 바로 보여요']],
   ['0.21.94', '2026.10.22', ['사용 가이드: 어떤 화면 크기에서도 세로 스크롤 없이 한 장이 한 화면에 꼭 맞게 들어가도록 했어요 (작은 폰은 그 장만 살짝 줄여서 보여 줘요)']],
   ['0.21.93', '2026.10.22', ['사용 가이드: 아래로 길게 내리는 대신 한 화면씩 좌우로 넘겨 보는 방식으로 바꿨어요 (위쪽 목차로 바로 이동, 아래 이전·다음 버튼, PC는 ←·→ 키)']],
@@ -1483,22 +1484,22 @@ function viewMHome() {
     if (S.sub === 'draft' && S.dm && s.draftStatus !== 'done') return `<div class="dmroot">${backbar('홈으로')}${vDraft(s)}</div>`;
     return backbar('홈으로') + body } }
   const sid = nextSid(); let h = ''; const fit = S.dm; let dock = '';
-  h += `${fit ? '<div class="homefit">' : ''}<div class="dgrid homegrid"><section>`;
+  const rvDown0 = fit && !!sid && S.sessions[sid]?.draftStatus !== 'done' && applyState(S.sessions[sid]).k !== 'none';
+  h += `${fit ? `<div class="homefit${rvDown0 ? ' hf-scroll' : ''}">` : ''}<div class="dgrid homegrid"><section>`;
   // ── MATCH REVIEW ──
   const mdOn = !!(sid && S.sessions[sid]?.draftStatus === 'done'); // 팀 확정 후: 휴대폰에서는 오늘 경기 정보가 먼저 보이게 지난 경기 요약은 숨겨요
   const last = fit && mdOn ? null : pastSids().find(id => id !== sid);
-  // 휴대폰에서 이미 신청했으면 지난 경기 요약을 한 줄로 줄여서 신청 상태·주차·공당·물당 버튼까지 한 화면에 보이게 해요
-  const miniRv = fit && !mdOn && !!last && !!sid && applyState(S.sessions[sid]).k !== 'none';
-  if (!(fit && mdOn) && !miniRv) h += `<div class="sec-lab"><span>MATCH REVIEW</span>${last ? `<small>${fmtDate(last)}</small>` : ''}</div>`;
+  // 휴대폰에서 이미 신청했으면 신청 상태·주차·공당·물당 버튼이 먼저 보이게, 지난 경기는 아래로 내려요
+  const rvDown = rvDown0 && !!last; let rv = '';
+  if (!(fit && mdOn)) rv += `<div class="sec-lab"><span>MATCH REVIEW</span>${last ? `<small>${fmtDate(last)}</small>` : ''}</div>`;
   if (fit && mdOn) { }
-  else if (miniRv) { const s = S.sessions[last]; const top = standings(last).filter(r => r.rank === 1).map(r => team(s, r.k)); const mt = myTeamIn(s); const myR = mt ? standings(last).find(r => r.k === mt) : null;
-    h += `<button class="review-mini" data-act="result" data-id="${last}"><span class="rm-lab">지난 경기<small>${fmtDate(last)}</small></span><span class="rm-win">🏆 ${top.map(t => `${bib(t.color)}<b>${esc(t.name)}</b>`).join(' ')}</span>${myR ? `<span class="rm-my"><i class="mytag">MY</i>${myR.rank}위</span>` : ''}<span class="rm-go">결과 ›</span></button>` }
-  else if (!last) h += `<div class="review empty-r">아직 지난 경기가 없어요.</div>`;
+  else if (!last) rv += `<div class="review empty-r">아직 지난 경기가 없어요.</div>`;
   else { const s = S.sessions[last]; const rows = standings(last); const mt = myTeamIn(s); const done = sessMatches(last).filter(m => m.status === 'done').length;
-    h += `<button class="review" data-act="result" data-id="${last}">${done < 9 ? `<div class="rv-note">${done}/9경기 기준</div>` : ''}
+    rv += `<button class="review" data-act="result" data-id="${last}">${done < 9 ? `<div class="rv-note">${done}/9경기 기준</div>` : ''}
       <div class="rv-rows">${rows.map(r => { const t = team(s, r.k); return `<div class="rc-row ${mt === r.k ? 'mine' : ''} ${r.rank === 1 ? 'first' : ''}"><em class="rk rk${r.rank}">${r.rank === 1 ? '🏆' : r.rank}</em>${bib(t.color)}<span class="rcn"><b>${esc(t.name)}</b>${mt === r.k ? '<i class="mytag" title="내 팀">MY</i>' : ''}</span><span class="wdl"><i class="w">${r.w}승</i><i class="d">${r.d}무</i><i class="l">${r.l}패</i></span><span class="pt">${r.pts}점</span></div>` }).join('')}</div>
       ${(() => { const ms = sessMatches(last); if (!ms.length) return ''; return `<div class="rv-games">${ms.map(m => { const [a, b] = score(m); const H = team(s, m.home), A = team(s, m.away); return `<span class="rg ${m.status === 'done' ? '' : 'pend'}"><em>${m.n}</em>${bib(H.color)}<b>${m.status === 'pending' ? '-' : a}</b><i>:</i><b>${m.status === 'pending' ? '-' : b}</b>${bib(A.color)}</span>` }).join('')}</div>` })()}
       <span class="more">경기 결과 자세히 보기 ›</span></button>` }
+  if (!rvDown) h += rv;
   h += '</section><section>';
   // ── NEXT MATCH ──
   h += `<div class="sec-lab"><span>NEXT MATCH</span></div>`;
@@ -1513,6 +1514,7 @@ function viewMHome() {
     h += homeAction(s, st, fit);
     if (fit) { const a = applyState(s); if (st.k === 'open' || st.k === 'soon' || (st.k === 'closed' && a.k !== 'none' && s.stage !== 'match')) { const ab = applyBox(s, true); if (ab) h += `<div class="inline-apply">${ab}</div>` } }
   }
+  if (rvDown) h += `</div><div class="rv-down">${rv}`;
   return h + `</div></section></div>${fit ? '</div>' : ''}${dock}`;
 }
 function homeAction(s, st, fit) {
