@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.97';
+const APP_VERSION = '0.21.98';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1242,6 +1242,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.98', '2026.10.23', ['대기자도 주차·공당·물당을 미리 신청해 둘 수 있어요. 대기에서 선발되면 주차 추첨 대상과 공당·물당 후보에 자동으로 들어가요 (선발되지 않으면 제외, 대기를 취소하면 함께 지워져요)']],
   ['0.21.97', '2026.10.23', ['홈 화면에 앱으로 설치하면 앱 이름이 WDFS로 나와요 (이미 설치했다면 지우고 다시 설치하면 바뀌어요)']],
   ['0.21.96', '2026.10.23', ['홈(휴대폰): 지난 경기 한 줄 요약은 원래대로 되돌렸어요. 대신 경기에 신청한 뒤에는 다음 경기와 신청 상태, 주차·공당·물당 신청 버튼이 맨 위에 오고, 지난 경기 결과는 그 아래에 보여요']],
   ['0.21.95', '2026.10.23', ['홈(휴대폰): 경기에 신청한 뒤에는 지난 경기 요약을 한 줄로 줄여서, 신청 상태와 주차·공당·물당 신청 버튼까지 한 화면에 바로 보여요']],
@@ -1979,7 +1980,7 @@ function applyBox(s, compact) {
   if (a.k === 'in' && a.auto) return `<div class="applied"><span>✓ 자동 신청 · 0순위<small>${a.role}(으)로 자동 참가 신청돼 있어요. 빠지려면 운영진에게 ${a.role} 해제를 요청해 주세요.</small></span></div>${(() => { const x = parkBox(s) + dutyBox(s); return x ? `<div class="extras">${x}</div>` : '' })()}`;
   const canLate = !a.auto && st.k !== 'open' && s.draftStatus === 'ready' && ['apply', 'captain'].includes(s.stage);
   if (a.k === 'in') return `<div class="applied"><span>✓ 신청 완료${a.tier != null && isBase(s) ? ` · ${TIER[a.tier]}` : ''}<small>${a.noname ? `${a.n}번째 신청 순번을 확보했어요. 이름을 입력해 주세요!` : a.n ? `${a.n}번째로 신청했어요` : '이번 경기 참가자예요'}</small></span>${nameBtn}${st.k === 'open' ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">취소</button>` : canLate ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">참가 취소</button>` : ''}</div>${a.noname ? '' : (() => { const x = parkBox(s) + dutyBox(s); return x ? `<div class="extras">${x}</div>` : '' })()}`;
-  if (a.k === 'wait') { const canW = st.k === 'open' || (s.draftStatus === 'ready' && ['apply', 'captain'].includes(s.stage)); return `<div class="applied wait"><span>대기 ${a.n}번${a.tier != null && isBase(s) && s.stage === 'apply' ? ` · ${TIER[a.tier]}` : ''}<small>${a.noname ? '이름을 입력해 주세요!' : st.k === 'open' ? '자리가 나면 자동으로 선발돼요' : '신청이 마감됐어요. 자리가 나면 운영진이 알려 드려요'}</small></span>${nameBtn}${canW ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">${st.k === 'open' ? '취소' : '대기 취소'}</button>` : ''}</div>` }
+  if (a.k === 'wait') { const canW = st.k === 'open' || (s.draftStatus === 'ready' && ['apply', 'captain'].includes(s.stage)); return `<div class="applied wait"><span>대기 ${a.n}번${a.tier != null && isBase(s) && s.stage === 'apply' ? ` · ${TIER[a.tier]}` : ''}<small>${a.noname ? '이름을 입력해 주세요!' : st.k === 'open' ? '자리가 나면 자동으로 선발돼요' : '신청이 마감됐어요. 자리가 나면 운영진이 알려 드려요'}</small></span>${nameBtn}${canW ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">${st.k === 'open' ? '취소' : '대기 취소'}</button>` : ''}</div>${a.noname ? '' : (() => { const x = parkBox(s) + dutyBox(s); return x ? `<div class="extras">${x}</div><p class="wait-note">대기 중에도 미리 신청해 둘 수 있어요. 선발되면 주차 추첨·당번 후보에 자동으로 들어가요.</p>` : '' })()}` }
   if (st.k !== 'open') return '';
   const full = s.capacity && c.sel >= s.capacity;
   return `<button class="btn primary block applybtn cta" data-act="apply" data-id="${s.date}" ${S.applyBusy === s.date ? 'disabled aria-busy="true"' : ''}>${S.applyBusy === s.date ? '신청 저장 중…' : full ? `대기 신청하기 (대기 ${c.wait}명)` : '신청하기'}</button>${compact ? '' : `<p class="note" style="margin:0">버튼을 누르는 순간 신청 순번이 확보되고, 이름은 그다음에 입력해요.</p>`}`;
@@ -2069,7 +2070,7 @@ function dutyBox(s) {
 function parkBox(s) {
   const me = myPid(); if (!me) return ''; const mine = s.park?.[me]; const won = (s.parkWin || []).includes(me); const drawn = !!s.parkDrawAt; const open = sStatus(s).k === 'open';
   const pill = (cls, sub, attrs) => `<${attrs ? 'button' : 'span'} class="xpill ${cls}" ${attrs || ''}><b>${XICO.park} 주차</b><small>${sub}</small></${attrs ? 'button' : 'span'}>`;
-  if (drawn) return mine?.car ? pill(won ? 'fixed' : 'off', won ? `당첨! ${esc(mine.car)}` : '추첨 미당첨') : '';
+  if (drawn) return mine?.car ? pill(won ? 'fixed' : 'off', won ? `당첨! ${esc(mine.car)}` : participants(s).includes(me) ? '추첨 미당첨' : '대기라 추첨 제외') : '';
   if (mine?.car) return open ? pill('on', `신청함 ✓ ${esc(mine.car)}`, `data-act="parkcancel" data-id="${s.date}" aria-pressed="true"`) : pill('on', `신청함 ✓ ${esc(mine.car)}`);
   if (!open) return '';
   if (parkBanned(s, me)) return pill('off', '지난 경기 당첨자');
@@ -2085,8 +2086,8 @@ async function saveParking(sid, pid, car) {
 }
 function dutySheet(sid) {
   const s = S.sessions[sid]; const ps = byName(participants(s)); const d = s.duty || {};
-  if (!applyClosed(s)) { const lst = k => { const ids = dutyReqs(s, k); return ids.length ? `<div class="dpick">${ids.map((id, i) => `<span class="chip req"><small class="muted">${i + 1}</small> ${esc(pname(id))}</span>`).join('')}</div>` : '<p class="muted" style="margin:6px 0 0">아직 신청한 회원이 없어요.</p>' };
-    return `<h4>${fmtDate(sid)} 공당 · 물당 신청 현황</h4><p>회원들이 신청한 순서예요. 경기 신청이 마감되면 이 창에서 신청자 중에서 확정할 수 있어요.</p>
+  if (!applyClosed(s)) { const lst = k => { const ids = dutyReqs(s, k); return ids.length ? `<div class="dpick">${ids.map((id, i) => `<span class="chip req"><small class="muted">${i + 1}</small> ${esc(pname(id))}${participants(s).includes(id) ? '' : ' <small class="muted">대기</small>'}</span>`).join('')}</div>` : '<p class="muted" style="margin:6px 0 0">아직 신청한 회원이 없어요.</p>' };
+    return `<h4>${fmtDate(sid)} 공당 · 물당 신청 현황</h4><p>회원들이 신청한 순서예요. 대기자의 신청은 선발되면 후보에 들어가요. 경기 신청이 마감되면 이 창에서 신청자 중에서 확정할 수 있어요.</p>
     <div class="panel pad"><b class="dk">⚽ 공 당번 신청 <small>${dutyReqs(s, 'ball').length}명</small></b>${lst('ball')}</div><div style="height:10px"></div>
     <div class="panel pad"><b class="dk">🥤 음료 당번 신청 <small>${dutyReqs(s, 'drink').length}명</small></b>${lst('drink')}</div>` }
   const rq = s.dutyReq || {}; const vol = kind => ps.filter(id => rq[kind]?.[id]);
@@ -2101,7 +2102,7 @@ function parkSheet(sid) {
   const spin = S.parkSpin && S.parkSpin.sid === sid;
   let h = `<h4>${fmtDate(sid)} 주차 추첨</h4><p>주차 신청자 ${list.length}명 중 대상 ${elig.length}명에서 ${PARK_SLOTS}명을 뽑아요. 미선발 신청자와 지난 경기 당첨자는 제외돼요.</p>`;
   h += `<div class="panel plist ${spin ? 'spin' : ''}">${list.length ? list.map(a => { const ok = ps.has(a.pid) && !parkBanned(s, a.pid); const w0 = win.includes(a.pid);
-    return `<div class="prow ${ok ? '' : 'x'} ${w0 ? 'won' : ''} ${spin && S.parkSpin.hl === a.pid ? 'hl' : ''}"><b>${esc(pname(a.pid))}</b><span class="car">${esc(a.car)}</span><small>${w0 ? '🎉 당첨' : !ps.has(a.pid) ? '미선발 제외' : parkBanned(s, a.pid) ? '지난 경기 당첨 제외' : '추첨 대상'}</small><button class="btn sm" data-act="parkwin" data-id="${a.pid}">${w0 ? '당첨 취소' : '당첨'}</button><button class="btn sm danger" data-act="parkdel" data-id="${a.pid}" aria-label="삭제">×</button></div>` }).join('') : '<p class="empty">아직 주차 신청자가 없어요.</p>'}</div>`;
+    return `<div class="prow ${ok ? '' : 'x'} ${w0 ? 'won' : ''} ${spin && S.parkSpin.hl === a.pid ? 'hl' : ''}"><b>${esc(pname(a.pid))}</b><span class="car">${esc(a.car)}</span><small>${w0 ? '🎉 당첨' : !ps.has(a.pid) ? '대기 · 선발되면 대상' : parkBanned(s, a.pid) ? '지난 경기 당첨 제외' : '추첨 대상'}</small><button class="btn sm" data-act="parkwin" data-id="${a.pid}">${w0 ? '당첨 취소' : '당첨'}</button><button class="btn sm danger" data-act="parkdel" data-id="${a.pid}" aria-label="삭제">×</button></div>` }).join('') : '<p class="empty">아직 주차 신청자가 없어요.</p>'}</div>`;
   h += `<div class="panel pad" style="margin-top:10px"><b class="dk">직접 추가</b><div style="display:flex;gap:6px;flex-wrap:wrap"><input id="pk-nm" class="inp" style="flex:1;min-width:110px" type="text" list="pk-list" placeholder="이름"><datalist id="pk-list">${byName(participants(s)).map(id => `<option value="${esc(pname(id))}">`).join('')}</datalist><input id="pk-cr" class="inp" style="flex:1;min-width:110px" type="text" placeholder="차량번호"><button class="btn" data-act="parkadd" data-id="${sid}">추가</button></div></div>`;
   if (!applyClosed(s)) h += `<p class="note">신청이 마감된 뒤에 추첨할 수 있어요. 당첨자는 목록의 "당첨" 버튼으로 직접 정할 수도 있어요.</p>`;
   else h += `<div class="row" style="margin-top:12px"><button class="btn primary" data-act="parkdraw" data-id="${sid}" ${elig.length && !spin ? '' : 'disabled'}>${win.length ? '🎲 다시 추첨' : `🎲 ${Math.min(PARK_SLOTS, elig.length)}명 추첨하기`}</button></div>`;
