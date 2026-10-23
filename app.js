@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.96';
+const APP_VERSION = '0.21.97';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1242,6 +1242,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.97', '2026.10.23', ['홈 화면에 앱으로 설치하면 앱 이름이 WDFS로 나와요 (이미 설치했다면 지우고 다시 설치하면 바뀌어요)']],
   ['0.21.96', '2026.10.23', ['홈(휴대폰): 지난 경기 한 줄 요약은 원래대로 되돌렸어요. 대신 경기에 신청한 뒤에는 다음 경기와 신청 상태, 주차·공당·물당 신청 버튼이 맨 위에 오고, 지난 경기 결과는 그 아래에 보여요']],
   ['0.21.95', '2026.10.23', ['홈(휴대폰): 경기에 신청한 뒤에는 지난 경기 요약을 한 줄로 줄여서, 신청 상태와 주차·공당·물당 신청 버튼까지 한 화면에 바로 보여요']],
   ['0.21.94', '2026.10.22', ['사용 가이드: 어떤 화면 크기에서도 세로 스크롤 없이 한 장이 한 화면에 꼭 맞게 들어가도록 했어요 (작은 폰은 그 장만 살짝 줄여서 보여 줘요)']],

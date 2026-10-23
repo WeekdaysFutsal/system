@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "WEEKDAYS FUTSAL CLUB",
-  "short_name": "WD_FUTSAL",
+  "name": "WDFS",
+  "short_name": "WDFS",
   "description": "Weekdays Futsal Club 경기 신청, 드래프트, 경기모드(타이머·휘슬·점수), 경기 결과 앱",
   "lang": "ko",
   "dir": "ltr",
