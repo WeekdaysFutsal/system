@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.100';
+const APP_VERSION = '0.21.101';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1198,6 +1198,8 @@ function viewSheet() {
   else if (sh.type === 'attp') h += attPersonSheet(sh.id);
   else if (sh.type === 'duty') h += dutySheet(sh.sid);
   else if (sh.type === 'park') h += parkSheet(sh.sid);
+  else if (sh.type === 'drinkbuy') { h += drinkBuySheet(sh.sid) }
+  else if (sh.type === 'rcpt') { const v = S.sessions[sh.sid]?.drinkBuy?.[sh.pid] || {}; h += `<h4>🧾 ${esc(pname(sh.pid))} 님 영수증</h4><p>${fmtDate(sh.sid)} 경기 · 구입 금액 ${wn(+v.amt || 0)}원</p>${sh.img === null ? '<p class="empty">불러오는 중…</p>' : sh.img ? `<img class="rcpt-big" src="${sh.img}" alt="영수증">` : '<p class="empty">영수증 사진이 없어요.</p>'}` }
   else if (sh.type === 'parkapply') { h += `<h4>🚗 주차 신청</h4><p>${fmtDate(sh.sid)} 경기 주차를 신청해요. 신청자 중 ${PARK_SLOTS}명을 추첨해요.</p><div class="panel"><div class="field"><label for="pk-car2">차량번호</label><input id="pk-car2" class="inp" type="text" maxlength="12" placeholder="예: 12가3456" value="${esc(myCar())}"></div><p class="note" style="margin:6px 0 0">내 정보에 차량번호를 저장해 두면 자동으로 채워져요.</p></div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="parksave">신청</button></div>` }
   else if (sh.type === 'tier') h += tierSheet(sh);
   else if (sh.type === 'calpick') h += `<h4>📅 캘린더에 추가</h4><p>${fmtDate(sh.id)} ${esc(S.sessions[sh.id]?.time || '')} 경기를 내 캘린더에 넣어요. 경기 2시간 전에 알림이 와요.</p><div class="pick" style="grid-template-columns:1fr"><button data-act="calics" data-id="${sh.id}">🍎 아이폰·기본 캘린더 (일정 파일)</button><button data-act="calgoo" data-id="${sh.id}">📆 구글 캘린더</button></div>`;
@@ -1244,6 +1246,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.101', '2026.10.26', ['물당은 경기 후 앱에서 산 금액과 영수증 사진을 등록할 수 있어요. 홈에 등록 안내가 뜨고, 경기 당일 MATCHDAY 카드에서도 등록할 수 있어요', '[운영진] 운영비 정산: 물당들이 등록한 금액을 합쳐 음료비로 나누고 각자 낸 만큼 돌려주도록 자동 계산해요. 영수증도 바로 볼 수 있어요', '[운영진] 예약자는 구장 사용료를 이미 낸 상태라 정산에서는 사례금만 받도록 바꿨어요', '[운영진] 사례금·벌금·정산 단위·절삭 기준·벌금 쓰임은 설정의 \'운영비 정산 규칙\'에서 정하고, 정산 화면에는 구장 사용료·물당 구입비·참가자만 남겨 간결하게 했어요. 구장 사용료와 지각·불참 표시는 경기 정보에 저장돼요']],
   ['0.21.100', '2026.10.26', ['[운영진] 경기 진행 단계 맨 끝에 \'운영비 정산\'(시뮬레이션)을 넣었어요: 경기를 고르면 팀 명단·운영진·예약자·공당·물당을 불러와서, 구장 사용료·사례금·음료비와 지각·불참 벌금을 규칙대로 나누고 500원 단위로 맞춘 개인별 금액과 단톡방 안내문을 보여 줘요 (입력값은 이 기기에만 저장)', '10월 21일 경기 예약자를 도현우 님으로 바로잡았어요']],
   ['0.21.99', '2026.10.26', ['[운영진] 신청자 목록 맨 앞에 No. 칸을 넣었어요. 순위순·신청순 어느 쪽으로 봐도 위에서부터 1, 2, 3… 순번이 붙어요']],
   ['0.21.98', '2026.10.23', ['대기자도 주차·공당·물당을 미리 신청해 둘 수 있어요. 대기에서 선발되면 주차 추첨 대상과 공당·물당 후보에 자동으로 들어가요 (선발되지 않으면 제외, 대기를 취소하면 함께 지워져요)']],
@@ -1444,6 +1447,7 @@ function viewSettings() {
   ${sheetCard()}
   <h2>휘슬</h2><div class="panel pad"><button class="btn block" data-act="whistle">${S.whistle ? '🔊 이 폰에서 휘슬 켜짐' : '🔇 이 폰에서 휘슬 꺼짐'}</button><p class="note">웹에서는 휘슬이 울리려면 경기 화면을 켜 두어야 해요.</p></div>
     ${S.admin ? `<h2>서비스 상태</h2><div class="panel pad"><div class="betarow"><div><b>${betaOn() ? '🧪 베타테스트 중' : '✅ 정식 서비스'}</b><small>${betaOn() ? '운영진이 신청자 순번을 바꿀 수 있어요(카톡 투표 결과 반영용).' : '신청 순번은 서버 도착 시각으로만 정해지고, 바꿀 수 없어요.'}</small></div><button class="btn ${betaOn() ? 'primary' : ''}" data-act="betatoggle">${betaOn() ? '정식 오픈하기' : '베타로 되돌리기'}</button></div></div>` : ''}
+    ${S.admin ? `<h2>운영비 정산 규칙</h2><div class="panel pad stl-cfg">${(() => { const cf = stlCfg(); return STL_CFG.map(([k, l, d]) => `<label class="stl-f"><span><b>${l}</b>${d ? `<small>${d}</small>` : ''}</span><span class="stl-m"><input class="inp" inputmode="numeric" data-in="stlcfg" data-k="${k}" value="${(+cf[k] || 0).toLocaleString('ko-KR')}" aria-label="${l}"><em>원</em></span></label>`).join('') + `<div class="stl-f"><span><b>벌금 쓰임</b><small>보태면 구장 사용료에서 먼저 빼고 나눠요</small></span><span class="stl-seg" role="group">${[[true, '운영비에 보태기'], [false, '회비로 적립']].map(([v, t]) => `<button class="${!!cf.penUse === v ? 'on' : ''}" data-act="stlpen" data-v="${v ? 1 : 0}" aria-pressed="${!!cf.penUse === v}">${t}</button>`).join('')}</span></div><p class="note" style="margin-bottom:0">예) ${[13180, 13260].map(x => `${wn(x)} → ${wn(stlRound(x, +cf.unit || 0, +cf.cut || 0))}`).join(' · ')}</p>` })()}</div>` : ''}
   ${S.admin ? (() => { const L = bootBgs(); const VG = 'linear-gradient(rgba(0,0,0,.62),rgba(0,0,0,.62))';
     return `<h2>로딩 화면 배경<small>최대 5장 · 앱을 열 때마다 무작위로 보여요</small></h2><div class="panel pad"><div class="bggrid">${Array.from({ length: 5 }, (_, i) => { const x = L[i];
       return x ? `<div class="bgslot" style="background-image:${VG},url('${x.img}')"><img src="${EMBLEM_SRC}" alt=""><button class="bgdel" data-act="bootbgdel" data-k="${x.id}" aria-label="${i + 1}번 배경 지우기">✕</button></div>` : `<label class="bgslot empty" style="cursor:pointer">＋<input type="file" accept="image/*" multiple data-in="bootbg" hidden></label>` }).join('')}</div>
@@ -1490,8 +1494,10 @@ function viewMHome() {
     if (S.sub === 'draft' && S.dm && s.draftStatus !== 'done') return `<div class="dmroot">${backbar('홈으로')}${vDraft(s)}</div>`;
     return backbar('홈으로') + body } }
   const sid = nextSid(); let h = ''; const fit = S.dm; let dock = '';
-  const rvDown0 = fit && !!sid && S.sessions[sid]?.draftStatus !== 'done' && applyState(S.sessions[sid]).k !== 'none';
-  h += `${fit ? `<div class="homefit${rvDown0 ? ' hf-scroll' : ''}">` : ''}<div class="dgrid homegrid"><section>`;
+  const rvDown0 = fit && !!sid && S.sessions[sid]?.draftStatus !== 'done' && applyState(S.sessions[sid]).k !== 'none'; const dd = myDrinkDue();
+  h += `${fit ? `<div class="homefit${rvDown0 || dd ? ' hf-scroll' : ''}">` : ''}<div class="dgrid homegrid"><section>`;
+  { if (dd) h += `<button class="dbnudge" data-act="dbopen" data-id="${dd}">🥤 <span><b>${fmtDate(dd)} 물당 구입 금액을 등록해 주세요</b><small>금액과 영수증을 올리면 정산 때 그대로 돌려받아요</small></span><em>등록 ›</em></button>` }
+
   // ── MATCH REVIEW ──
   const mdOn = !!(sid && S.sessions[sid]?.draftStatus === 'done'); // 팀 확정 후: 휴대폰에서는 오늘 경기 정보가 먼저 보이게 지난 경기 요약은 숨겨요
   const last = fit && mdOn ? null : pastSids().find(id => id !== sid);
@@ -1540,7 +1546,7 @@ function homeAction(s, st, fit) {
 /* 팀 확정 후 ~ 경기 끝: 홈에서 공당·물당·주차와 팀 명단을 바로 보여줘요 */
 function mdHelpers(s) { const d = s.duty || {}; const me = myPid(); const car = me ? (s.park || {})[me]?.car : '';
   const tile = (k, nm, ids, sub) => { const mine = ids.includes(me); return `<div class="mdt ${mine ? 'mine' : ''} ${ids.length ? '' : 'none'}"><div class="mdt-hd">${XICO[k]}<b>${nm}</b>${mine ? '<i class="mdt-me">나</i>' : ''}</div><div class="mdt-ns">${ids.length ? ids.map(id => `<span class="${id === me ? 'me' : ''}">${esc(pname(id))}</span>`).join('') : '<em>미정</em>'}</div>${mine && sub ? `<small>${sub}</small>` : ''}</div>` };
-  return `<div class="mdh">${tile('ball', '공당', d.ball || [], '공을 챙겨 와 주세요')}${tile('drink', '물당', d.drink || [], '물을 챙겨 와 주세요')}${tile('park', '주차', s.parkWin || [], car ? `내 차 ${esc(car)}` : '주차 등록돼요')}</div>` }
+  return `<div class="mdh">${tile('ball', '공당', d.ball || [], '공을 챙겨 와 주세요')}${tile('drink', '물당', d.drink || [], '물을 챙겨 와 주세요')}${tile('park', '주차', s.parkWin || [], car ? `내 차 ${esc(car)}` : '주차 등록돼요')}</div>${me && (d.drink || []).includes(me) ? `<button class="btn sm block dbbtn" data-act="dbopen" data-id="${s.date}">🥤 물·음료 구입 금액 ${s.drinkBuy?.[me]?.amt ? `${wn(+s.drinkBuy[me].amt)}원 등록됨 · 수정` : '· 영수증 등록하기'}</button>` : ''}` }
 function rosterGrid(s) { const me = myPid(); const mt = myTeamIn(s); const ks = mt ? [mt, ...KEYS.filter(k => k !== mt)] : KEYS;
   return `<div class="rgrid">${ks.map(k => { const t = team(s, k); const ps = teamPlayers(s, k); const cap = captainOf(s, k);
     return `<div class="rcard ${k === mt ? 'mine' : ''}" style="--tc:${t.color};--ti:${inkOn(t.color)}"><div class="rcard-hd"><b>${esc(t.name)}</b><span>${ps.length}명</span></div><ol>${ps.map(id => `<li class="${id === me ? 'me' : ''}">${id === cap ? '<i class="cb">C</i>' : ''}<span>${esc(pname(id))}</span>${id === me ? '<i class="mdt-me">나</i>' : ''}</li>`).join('')}</ol></div>` }).join('')}</div>` }
@@ -1831,70 +1837,82 @@ function viewRun() {
   else h += ({ apply: vApply, captain: vCaptain, draft: vDraft, trade: vTrade, match: vMatchDay })[step](s);
   return h;
 }
-/* ───────── 운영비 정산 (시뮬레이션) ─────────
-   지출: 구장 사용료 · 예약자 사례금 · 물/음료 구입비
-   · 운영진은 정산 제외 · 예약자는 사례금 몫 제외 · 공당/물당은 음료 몫 제외 · 물당에게 음료비 환급
-   · 지각/당일 불참 벌금 · 1인 금액은 단위(500)로 나눈 나머지가 기준(200) 미만이면 버리고, 이상이면 올림
-   입력값은 이 기기에만 저장돼요(시뮬레이션). 예약자 지정만 경기 정보(p0)에 바로 반영돼요. */
+/* ───────── 운영비 정산 ─────────
+   지출: 구장 사용료(경기마다 운영진 입력) · 예약자 사례금 · 물/음료 구입비(물당이 경기 후 금액·영수증 등록)
+   · 운영진은 정산 제외 · 예약자는 사례금 몫 제외(구장비는 이미 지급돼 있어 돌려주지 않음) · 공당/물당은 음료 몫 제외 · 물당에게 각자 구입한 금액 환급
+   · 지각/당일 불참 벌금 · 1인 금액은 단위로 나눈 나머지가 기준 미만이면 버리고, 이상이면 올림
+   규칙(사례금·벌금·단위·절삭·벌금 쓰임)은 운영모드 설정(meta/settle), 경기별 값은 sessions.settle, 물당 구입 내역은 sessions.drinkBuy + receipts/{sid}_{pid} */
 const STL_ROLES = [['staff', '운영진'], ['res', '예약자'], ['ball', '공당'], ['drink', '물당'], ['late', '지각'], ['absent', '당일 불참']];
-const STL_NUM = [['fee', '구장 사용료', '운영진·불참자 빼고 모두 나눠 내요', 0], ['reward', '예약자 사례금 (1인당)', '예약자는 이 몫을 안 내요', 5000], ['drink', '물·음료 구입비', '물당에게 그대로 보내요 · 공당·물당은 이 몫 제외', 0],
-  ['pLate', '지각 벌금', '', 1000], ['pAbsent', '당일 불참 벌금', '불참자는 운영비는 안 내고 벌금만 내요', 10000], ['unit', '정산 단위', '', 500], ['cut', '절삭 기준', '단위로 나눈 나머지가 이 금액 미만이면 버리고, 이상이면 올려요', 200]];
-function stlGet(sid) { S.stl ??= {}; if (!S.stl[sid]) { const d = Object.fromEntries(STL_NUM.map(x => [x[0], x[3]])); S.stl[sid] = { ...d, penUse: false, resPaid: true, ov: {}, add: [], rm: [], ...(load('settle:' + sid, null) || {}) } } return S.stl[sid] }
-function stlSave(sid) { save('settle:' + sid, S.stl[sid]) }
+const STL_CFG = [['reward', '예약자 사례금 (1인당)', '예약자는 이 몫을 안 내요', 5000], ['pLate', '지각 벌금', '', 1000], ['pAbsent', '당일 불참 벌금', '불참자는 운영비는 안 내고 벌금만 내요', 10000], ['unit', '정산 단위', '', 500], ['cut', '절삭 기준', '단위로 나눈 나머지가 이 금액 미만이면 버리고, 이상이면 올려요', 200]];
+function stlCfg() { return { ...Object.fromEntries(STL_CFG.map(x => [x[0], x[3]])), penUse: false, ...(S.meta?.settle || {}) } }
+function stlGet(sid) { const s = S.sessions[sid] || {}; const v = s.settle || {}; return { fee: +v.fee || 0, ov: v.ov || {}, add: v.add || [], rm: v.rm || [] } }
+async function stlPut(sid, patch) { return await w(() => S.store.update(sp(sid), Object.fromEntries(Object.entries(patch).map(([k, v]) => ['settle.' + k, v])))) }
 function stlRound(x, unit, cut) { if (unit <= 0) return Math.round(x); const b = Math.floor(x / unit) * unit; return x - b < cut ? b : b + unit }
-function stlPeople(s) { const st = stlGet(s.date); const ids = new Set([...attPids(s), ...(s.applicants || []), ...(s.p0 || []), ...st.add]); st.rm.forEach(p => ids.delete(p)); return [...ids].filter(p => S.players[p]) }
+function stlPeople(s) { const st = stlGet(s.date); const ids = new Set([...attPids(s), ...(s.applicants || []), ...(s.p0 || []), ...(s.duty?.drink || []), ...st.add]); st.rm.forEach(p => ids.delete(p)); return [...ids].filter(p => S.players[p]) }
 function stlRoles(s, pid) { const st = stlGet(s.date); const b = { staff: mstatus(S.players[pid]) === 'staff', res: (s.p0 || []).includes(pid), ball: (s.duty?.ball || []).includes(pid), drink: (s.duty?.drink || []).includes(pid), late: false, absent: false };
-  const o = st.ov[pid] || {}; const r = { ...b, ...o, res: b.res }; return r }
+  const o = st.ov[pid] || {}; return { ...b, staff: o.staff ?? b.staff, late: !!o.late, absent: !!o.absent } }
+function drinkBuys(s) { return Object.entries(s.drinkBuy || {}).filter(([, v]) => v && (+v.amt || 0) > 0).map(([pid, v]) => ({ pid, amt: +v.amt, at: v.at, img: !!v.img })) }
 function stlCalc(s) {
-  const st = stlGet(s.date); const n = k => Math.max(0, Math.round(+st[k] || 0)); const F = n('fee'), Rper = n('reward'), D = n('drink'), pL = n('pLate'), pA = n('pAbsent'), unit = n('unit'), cut = n('cut');
+  const st = stlGet(s.date), cf = stlCfg(); const n = v => Math.max(0, Math.round(+v || 0)); const F = n(st.fee), Rper = n(cf.reward), pL = n(cf.pLate), pA = n(cf.pAbsent), unit = n(cf.unit), cut = n(cf.cut);
   const P = stlPeople(s).map(pid => ({ pid, r: stlRoles(s, pid) }));
-  const sortKey = x => (x.r.absent ? 3 : x.r.staff ? 2 : 0); P.sort((a, b) => sortKey(a) - sortKey(b) || pname(a.pid).localeCompare(pname(b.pid), 'ko'));
-  const playing = P.filter(p => !p.r.absent), payers = playing.filter(p => !p.r.staff), resv = playing.filter(p => p.r.res), drinkers = playing.filter(p => p.r.drink);
+  const sk = x => (x.r.absent ? 3 : x.r.staff ? 2 : 0); P.sort((a, b) => sk(a) - sk(b) || pname(a.pid).localeCompare(pname(b.pid), 'ko'));
+  const playing = P.filter(p => !p.r.absent), payers = playing.filter(p => !p.r.staff), resv = playing.filter(p => p.r.res);
+  const buys = drinkBuys(s); const buyOf = pid => buys.find(b => b.pid === pid)?.amt || 0; const D = buys.reduce((a, b) => a + b.amt, 0);
   const Rtot = Rper * resv.length; const pen = p => p.r.absent ? pA : p.r.late ? pL : 0; const penTot = P.reduce((a, p) => a + pen(p), 0);
-  const penUsed = st.penUse ? Math.min(F, penTot) : 0; const Fpool = F - penUsed;
+  const penUsed = cf.penUse ? Math.min(F, penTot) : 0; const Fpool = F - penUsed;
   const divF = payers.length, divR = payers.filter(p => !p.r.res).length, divD = payers.filter(p => !p.r.ball && !p.r.drink).length;
   const sF = divF ? Fpool / divF : 0, sR = divR ? Rtot / divR : 0, sD = divD ? D / divD : 0;
   const rows = P.map(p => { const pay = !p.r.absent && !p.r.staff; const fS = pay ? sF : 0, rS = pay && !p.r.res ? sR : 0, dS = pay && !p.r.ball && !p.r.drink ? sD : 0; const raw = fS + rS + dS; const rd = pay ? stlRound(raw, unit, cut) : 0; const pn = pen(p);
-    let get = 0; const why = []; if (p.r.res && !p.r.absent) { get += Rper; why.push('사례금'); if (st.resPaid && resv.length) { get += F / resv.length; why.push('구장비') } } if (p.r.drink && !p.r.absent && drinkers.length) { get += D / drinkers.length; why.push('음료비') }
+    let get = 0; const why = []; if (p.r.res && !p.r.absent && Rper) { get += Rper; why.push('사례금') } const ba = buyOf(p.pid); if (ba) { get += ba; why.push('음료 구입비') }
     return { ...p, pay, fS, rS, dS, raw, rd, pen: pn, owe: rd + pn, get, why } });
   const collected = rows.reduce((a, x) => a + x.rd, 0);
-  return { st, F, Rper, Rtot, D, unit, cut, rows, playing, payers, resv, drinkers, divF, divR, divD, sF, sR, sD, Fpool, penTot, penUsed, collected, owed: rows.reduce((a, x) => a + x.owe, 0), gets: rows.reduce((a, x) => a + x.get, 0), spend: F + Rtot + D, diff: collected - (Fpool + Rtot + D) }
+  return { st, cf, F, Rper, Rtot, D, buys, unit, cut, rows, playing, payers, resv, divF, divR, divD, sF, sR, sD, Fpool, penTot, penUsed, collected, owed: rows.reduce((a, x) => a + x.owe, 0), gets: rows.reduce((a, x) => a + x.get, 0), spend: F + Rtot + D, diff: collected - (Fpool + Rtot + D) }
 }
 const wn = v => (v < 0 ? '-' : '') + Math.abs(Math.round(v)).toLocaleString('ko-KR');
-function stlGroups(C) { const g = {}; C.rows.forEach(x => { const lab = x.r.absent ? '당일 불참' : x.r.staff ? '운영진 (정산 제외)' : [x.r.res && '예약자', x.r.ball && '공당', x.r.drink && '물당', x.r.late && '지각'].filter(Boolean).join(' · ') || '일반 참가자'; (g[lab + '|' + x.owe] ??= { lab, owe: x.owe, rd: x.rd, pen: x.pen, get: x.get, names: [] }).names.push(pname(x.pid)) });
+function stlGroups(C) { const g = {}; C.rows.forEach(x => { const lab = x.r.absent ? '당일 불참' : x.r.staff ? '운영진 (정산 제외)' : [x.r.res && '예약자', x.r.ball && '공당', x.r.drink && '물당', x.r.late && '지각'].filter(Boolean).join(' · ') || '일반 참가자'; (g[lab + '|' + x.owe] ??= { lab, owe: x.owe, rd: x.rd, pen: x.pen, get: 0, names: [] }).names.push(pname(x.pid)) });
   return Object.values(g).sort((a, b) => b.names.length - a.names.length) }
 function stlKakao(s, C) { const L = [`[WDFS ${fmtDate(s.date)} 경기 운영비 정산]`, `지출 ${wn(C.spend)}원 (구장 ${wn(C.F)} · 사례금 ${wn(C.Rtot)} · 음료 ${wn(C.D)})`];
   stlGroups(C).filter(x => x.owe > 0).forEach(x => L.push(`· ${x.lab} ${wn(x.owe)}원 : ${x.names.join(', ')}`));
   const rc = C.rows.filter(x => x.get); if (rc.length) { L.push('', '[돌려받을 분]'); rc.forEach(x => L.push(`· ${pname(x.pid)} ${wn(x.get)}원 (${x.why.join('+')})`)) }
   const sf = C.rows.filter(x => x.r.staff && !x.r.absent); if (sf.length) L.push('', `운영진(${sf.map(x => pname(x.pid)).join(', ')})은 정산에서 빠져요.`); return L.join('\n') }
-function stlResults(s) { const C = stlCalc(s); const st = C.st;
-  const sp = (t, v, eq) => `<div class="stl-sp"><b>${t}</b><span class="v">${v}</span><span class="eq">${eq}</span></div>`;
-  const warn = []; if (!C.F) warn.push('구장 사용료를 넣어 주세요.'); if (!C.resv.length && C.Rper) warn.push('예약자가 지정되지 않아 사례금이 0원이에요.'); if (!C.drinkers.length && C.D) warn.push('물당이 없어서 음료비를 돌려받을 사람이 없어요.');
+function stlResults(s) { const C = stlCalc(s);
+  const sp_ = (t, v, eq) => `<div class="stl-sp"><b>${t}</b><span class="v">${v}</span><span class="eq">${eq}</span></div>`;
+  const drinkers = C.rows.filter(x => x.r.drink && !x.r.absent);
+  const warn = []; if (!C.F) warn.push('구장 사용료를 넣어 주세요.'); if (!C.resv.length && C.Rper) warn.push('예약자가 지정되지 않아 사례금이 0원이에요.'); drinkers.filter(x => !C.buys.some(b => b.pid === x.pid)).forEach(x => warn.push(`물당 ${esc(pname(x.pid))} 님의 구입 금액이 아직 없어요.`));
   const c = v => v ? wn(v) : '<span class="muted">-</span>';
-  return `<div class="stl-sum"><div class="kpi"><small>총 지출</small><b>${wn(C.spend)}</b><i>구장 ${wn(C.F)} · 사례금 ${wn(C.Rtot)} · 음료 ${wn(C.D)}</i></div><div class="kpi hl"><small>걷는 돈 (운영비)</small><b>${wn(C.collected)}</b><i>${C.payers.length}명</i></div><div class="kpi"><small>벌금</small><b>${wn(C.penTot)}</b><i>${st.penUse ? `운영비에 ${wn(C.penUsed)} 보탬` : '회비로 적립'}</i></div><div class="kpi"><small>정산 차액</small><b class="${C.diff < 0 ? 'neg' : 'pos'}">${C.diff > 0 ? '+' : ''}${wn(C.diff)}</b><i>${C.diff < 0 ? '모자란 돈 · 회비에서' : '남는 돈 · 회비로'}</i></div></div>
-  <div class="stl-sps">${sp('구장비 1인 몫', wn(C.sF) + '원', `${wn(C.Fpool)}원 ÷ ${C.divF}명 (운영진·불참자 제외)`)}${sp('사례금 1인 몫', wn(C.sR) + '원', `${wn(C.Rper)}원 × 예약자 ${C.resv.length}명 ÷ ${C.divR}명 (예약자 제외)`)}${sp('물·음료 1인 몫', wn(C.sD) + '원', `${wn(C.D)}원 ÷ ${C.divD}명 (공당·물당 제외)`)}</div>
+  return `<div class="stl-sum"><div class="kpi"><small>총 지출</small><b>${wn(C.spend)}</b><i>구장 ${wn(C.F)} · 사례금 ${wn(C.Rtot)} · 음료 ${wn(C.D)}</i></div><div class="kpi hl"><small>걷는 돈 (운영비)</small><b>${wn(C.collected)}</b><i>${C.payers.length}명</i></div><div class="kpi"><small>벌금</small><b>${wn(C.penTot)}</b><i>${C.cf.penUse ? `운영비에 ${wn(C.penUsed)} 보탬` : '회비로 적립'}</i></div><div class="kpi"><small>정산 차액</small><b class="${C.diff < 0 ? 'neg' : 'pos'}">${C.diff > 0 ? '+' : ''}${wn(C.diff)}</b><i>${C.diff < 0 ? '모자란 돈 · 회비에서' : '남는 돈 · 회비로'}</i></div></div>
+  <div class="stl-sps">${sp_('구장비 1인 몫', wn(C.sF) + '원', `${wn(C.Fpool)}원 ÷ ${C.divF}명 (운영진·불참자 제외)`)}${sp_('사례금 1인 몫', wn(C.sR) + '원', `${wn(C.Rper)}원 × 예약자 ${C.resv.length}명 ÷ ${C.divR}명 (예약자 제외)`)}${sp_('물·음료 1인 몫', wn(C.sD) + '원', `물당 구입 합계 ${wn(C.D)}원 ÷ ${C.divD}명 (공당·물당 제외)`)}</div>
   ${warn.length ? `<div class="stl-warn">⚠️ ${warn.join('<br>⚠️ ')}</div>` : ''}
-  <h3 class="stl-h">누가 얼마를 내나요</h3><div class="stl-groups">${stlGroups(C).map(x => `<div class="stl-g"><small>${x.lab} · ${x.names.length}명</small><b>${wn(x.owe)}원</b><span>${x.pen ? `운영비 ${wn(x.rd)} + 벌금 ${wn(x.pen)}` : x.rd ? '운영비' : '내지 않아요'}${x.get ? ` · 받을 돈 ${wn(x.get)}원` : ''}</span><span>${esc(x.names.join(', '))}</span></div>`).join('')}</div>
+  <h3 class="stl-h">누가 얼마를 내나요</h3><div class="stl-groups">${stlGroups(C).map(x => `<div class="stl-g"><small>${x.lab} · ${x.names.length}명</small><b>${wn(x.owe)}원</b><span>${x.pen ? `운영비 ${wn(x.rd)} + 벌금 ${wn(x.pen)}` : x.rd ? '운영비' : '내지 않아요'}</span><span>${esc(x.names.join(', '))}</span></div>`).join('')}</div>
   <h3 class="stl-h">개인별 정산표</h3><div class="panel tblwrap"><table class="stl-tbl"><thead><tr><th>No.</th><th class="l">이름</th><th class="l">구분</th><th>구장비</th><th>사례금</th><th>물·음료</th><th>계산 금액</th><th>정산 금액</th><th>벌금</th><th>낼 금액</th><th>받을 금액</th></tr></thead><tbody>
   ${C.rows.map((x, i) => `<tr class="${x.r.staff && !x.r.absent ? 'staff' : ''} ${x.r.absent ? 'absent' : ''}"><td class="seq">${i + 1}</td><td class="l"><b>${esc(pname(x.pid))}</b></td><td class="l">${STL_ROLES.filter(([k]) => x.r[k]).map(([, l]) => `<span class="stl-tag">${l}</span>`).join('') || '<span class="stl-tag">일반</span>'}</td><td>${c(x.fS)}</td><td>${c(x.rS)}</td><td>${c(x.dS)}</td><td>${x.pay ? wn(x.raw) : '<span class="muted">정산 제외</span>'}</td><td>${x.pay ? wn(x.rd) : '-'}</td><td>${c(x.pen)}</td><td class="fin">${wn(x.owe)}</td><td class="get">${x.get ? wn(x.get) + ` <small>${x.why.join('+')}</small>` : ''}</td></tr>`).join('')}
   </tbody><tfoot><tr><td></td><td class="l">합계</td><td></td><td>${wn(C.rows.reduce((a, x) => a + x.fS, 0))}</td><td>${wn(C.rows.reduce((a, x) => a + x.rS, 0))}</td><td>${wn(C.rows.reduce((a, x) => a + x.dS, 0))}</td><td>${wn(C.rows.reduce((a, x) => a + x.raw, 0))}</td><td>${wn(C.collected)}</td><td>${wn(C.penTot)}</td><td>${wn(C.owed)}</td><td>${wn(C.gets)}</td></tr></tfoot></table></div>
-  <p class="note">정산 금액은 계산 금액을 ${wn(C.unit)}원 단위로 맞춘 값이에요. ${wn(C.unit)}원으로 나눈 나머지가 ${wn(C.cut)}원 미만이면 버리고, 이상이면 올려요. 벌금은 그대로 더해요.</p>
+  <p class="note">정산 금액은 계산 금액을 ${wn(C.unit)}원 단위로 맞춘 값이에요. ${wn(C.unit)}원으로 나눈 나머지가 ${wn(C.cut)}원 미만이면 버리고, 이상이면 올려요. 벌금은 그대로 더해요. 규칙은 설정에서 바꿔요.</p>
   <h3 class="stl-h">단톡방 안내문 <button class="btn sm primary" data-act="stlcopy">복사</button></h3><pre class="stl-kk">${esc(stlKakao(s, C))}</pre>` }
+function stlDrinkPanel(s) { const ids = (s.duty?.drink || []).filter(p => S.players[p]); const db = s.drinkBuy || {};
+  if (!ids.length) return `<p class="note" style="margin:0">물당이 지정되지 않았어요. 도우미 지정 단계에서 물당을 정해 주세요.</p>`;
+  return `<div class="stl-dk">${ids.map(pid => { const v = db[pid] || {}; return `<div class="stl-dr"><b>🥤 ${esc(pname(pid))}</b><span class="stl-m"><input class="inp" inputmode="numeric" data-in="stldb" data-id="${pid}" value="${v.amt ? (+v.amt).toLocaleString('ko-KR') : ''}" placeholder="금액" aria-label="${esc(pname(pid))} 구입 금액"><em>원</em></span>${v.img ? `<button class="btn sm" data-act="rcptview" data-id="${s.date}" data-p="${pid}">🧾 영수증</button>` : `<span class="muted stl-nor">${v.amt ? '영수증 없음' : '미등록'}</span>`}<small>${v.at ? `${v.by && v.by !== pid ? '운영진 입력 · ' : '본인 등록 · '}${fmtTS(v.at).replace(/:\d\d\.\d{3}$/, '')}` : '물당 본인이 경기 후 앱에서 등록해요'}</small></div>` }).join('')}</div>` }
 function vSettle(s) { const st = stlGet(s.date); const ps = stlPeople(s); const all = byName(Object.keys(S.players).filter(p => !ps.includes(p)));
-  const fld = ([k, l, d]) => `<label class="stl-f"><span><b>${l}</b>${d ? `<small>${d}</small>` : ''}</span><span class="stl-m"><input class="inp" inputmode="numeric" data-in="stl" data-k="${k}" value="${(+st[k] || 0).toLocaleString('ko-KR')}" aria-label="${l}"><em>원</em></span></label>`;
-  const seg = (k, a, b) => `<span class="stl-seg" role="group">${[[true, a], [false, b]].map(([v, t]) => `<button class="${!!st[k] === v ? 'on' : ''}" data-act="stlopt" data-k="${k}" data-v="${v ? 1 : 0}" aria-pressed="${!!st[k] === v}">${t}</button>`).join('')}</span>`;
   const C = stlCalc(s);
-  return `<div class="stl"><div class="stl-head"><h2>💰 경기 운영비 정산<small>${fmtDate(s.date)} · ${esc(s.venue || '')}</small></h2><span class="stl-sim">🧪 시뮬레이션 · 입력값은 이 기기에만 저장돼요</span></div>
+  return `<div class="stl"><div class="stl-head"><h2>💰 경기 운영비 정산<small>${fmtDate(s.date)} · ${esc(s.venue || '')}</small></h2><button class="btn sm" data-act="tab" data-v="settings">⚙️ 정산 규칙 설정</button></div>
   <div class="stl-grid"><div class="stl-col">
-    <section class="panel pad"><h3 class="stl-h">지출</h3>${STL_NUM.slice(0, 3).map(fld).join('')}</section>
-    <section class="panel pad"><h3 class="stl-h">벌금 · 정산 규칙</h3>${STL_NUM.slice(3).map(fld).join('')}
-      <div class="stl-f"><span><b>벌금 쓰임</b><small>보태면 구장 사용료에서 먼저 빼고 나눠요</small></span>${seg('penUse', '운영비에 보태기', '회비로 적립')}</div>
-      <div class="stl-f"><span><b>구장 사용료를 먼저 낸 사람</b><small>예약자면 사례금과 함께 돌려줘요</small></span>${seg('resPaid', '예약자', '총무(회비)')}</div></section>
-    <section class="panel pad"><h3 class="stl-h">참가자 <small>경기 ${C.playing.length}명 · 정산 대상 ${C.payers.length}명</small></h3><p class="note" style="margin-top:0">팀 명단에서 불러왔어요. 칩을 눌러 역할을 바꿔요. 예약자는 경기 정보에 바로 저장돼요.</p>
-      <div class="stl-ros">${C.rows.map((x, i) => `<div class="stl-p ${x.r.absent ? 'absent' : ''}"><span class="no">${i + 1}</span><b>${esc(pname(x.pid))}</b><button class="x" data-act="stlrm" data-id="${x.pid}" aria-label="${esc(pname(x.pid))} 빼기">×</button><div class="stl-chips">${STL_ROLES.map(([k, l]) => `<button class="stl-chip r-${k}" data-act="stlrole" data-id="${x.pid}" data-k="${k}" aria-pressed="${!!x.r[k]}">${l}</button>`).join('')}</div></div>`).join('')}</div>
-      <div class="stl-add"><input id="stl-add" class="inp" list="stl-list" placeholder="명단에 없는 회원 추가 (당일 불참자 등)"><datalist id="stl-list">${all.map(p => `<option value="${esc(pname(p))}">`).join('')}</datalist><button class="btn sm" data-act="stladd" data-id="${s.date}">추가</button></div>
-      <div class="row" style="margin-top:8px"><button class="btn sm" data-act="stlreset" data-id="${s.date}">↺ 입력값 처음으로</button></div></section>
+    <section class="panel pad"><h3 class="stl-h">지출</h3><label class="stl-f"><span><b>구장 사용료</b><small>운영진·불참자 빼고 모두 나눠 내요</small></span><span class="stl-m"><input class="inp" inputmode="numeric" data-in="stlfee" value="${st.fee ? st.fee.toLocaleString('ko-KR') : ''}" placeholder="0" aria-label="구장 사용료"><em>원</em></span></label>
+      <div class="stl-f"><span><b>물·음료 구입비 <small style="display:inline">합계 ${wn(C.D)}원</small></b><small>물당이 각자 등록한 금액을 그대로 돌려줘요</small></span></div>${stlDrinkPanel(s)}</section>
+    <section class="panel pad"><h3 class="stl-h">참가자 <small>경기 ${C.playing.length}명 · 정산 대상 ${C.payers.length}명</small></h3><p class="note" style="margin-top:0">팀 명단에서 불러왔어요. 지각·당일 불참을 눌러 표시해요. 예약자는 경기 정보에 바로 저장돼요.</p>
+      <div class="stl-ros">${C.rows.map((x, i) => `<div class="stl-p ${x.r.absent ? 'absent' : ''}"><span class="no">${i + 1}</span><b>${esc(pname(x.pid))}</b><button class="x" data-act="stlrm" data-id="${x.pid}" aria-label="${esc(pname(x.pid))} 빼기">×</button><div class="stl-chips">${STL_ROLES.map(([k, l]) => `<button class="stl-chip r-${k}" data-act="stlrole" data-id="${x.pid}" data-k="${k}" aria-pressed="${!!x.r[k]}" ${k === 'ball' || k === 'drink' ? 'disabled title="도우미 지정 단계에서 바꿔요"' : ''}>${l}</button>`).join('')}</div></div>`).join('')}</div>
+      <div class="stl-add"><input id="stl-add" class="inp" list="stl-list" placeholder="명단에 없는 회원 추가 (당일 불참자 등)"><datalist id="stl-list">${all.map(p => `<option value="${esc(pname(p))}">`).join('')}</datalist><button class="btn sm" data-act="stladd" data-id="${s.date}">추가</button></div></section>
   </div><div class="stl-col" id="stl-res">${stlResults(s)}</div></div></div>` }
+/* 물당: 경기 후 구입 금액·영수증 등록 */
+function myDrinkDue() { const me = myPid(); if (!me) return null; const t = today(); const ids = Object.keys(S.sessions).filter(id => id <= t && id >= shiftDate(t, 14).slice(0, 10)).sort().reverse();
+  for (const id of ids) { const s = S.sessions[id]; if ((s.duty?.drink || []).includes(me) && !(s.drinkBuy?.[me]?.amt)) return id } return null }
+function drinkBuySheet(sid) { const s = S.sessions[sid]; const me = myPid(); const v = s?.drinkBuy?.[me] || {}; const d = S.dbDraft || {};
+  return `<h4>🥤 물·음료 구입 등록</h4><p>${fmtDate(sid)} 경기 물당으로 산 금액과 영수증을 올려 주세요. 등록한 금액은 운영비 정산 때 그대로 돌려받아요.</p>
+  <div class="panel pad"><div class="field"><label for="db-amt">구입 금액</label><div class="stl-m"><input id="db-amt" class="inp" inputmode="numeric" value="${d.amt ?? (v.amt ? (+v.amt).toLocaleString('ko-KR') : '')}" placeholder="예: 18,400"><em>원</em></div></div>
+  <div class="field"><label>영수증 사진</label><label class="btn block" style="cursor:pointer">📷 ${d.img || v.img ? '사진 바꾸기' : '사진 찍기 · 고르기'}<input type="file" accept="image/*" data-in="dbimg" hidden></label>${d.img ? `<img class="rcpt-prev" src="${d.img}" alt="영수증 미리보기">` : v.img ? '<p class="note" style="margin:6px 0 0">✓ 영수증이 등록돼 있어요.</p>' : ''}</div></div>
+  <div class="row" style="margin-top:12px"><button class="btn primary block" data-act="dbsave" data-id="${sid}">${v.amt ? '수정해서 저장' : '등록하기'}</button></div>` }
+async function receiptImg(file) { const url = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file) });
+  const im = await new Promise((res, rej) => { const g = new Image(); g.onload = () => res(g); g.onerror = rej; g.src = url }); const k = Math.min(1, 1100 / Math.max(im.width, im.height)); const cv = document.createElement('canvas'); cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
+  let q = .7, out = cv.toDataURL('image/jpeg', q); while (out.length > 300000 && q > .3) { q -= .08; out = cv.toDataURL('image/jpeg', q) } return out }
 function recruitText(s) { return [`[${CFG.club?.short || 'WF'}] ${fmtDate(s.date)} ${s.time || ''} 경기 신청 받아요`, `장소: ${s.venue || '-'}`, `정원: ${s.capacity || '-'}명`, s.applyClose ? `마감: ${fmtDT(s.applyClose)}` : '', s.applyOpen ? `신청 오픈: ${fmtDT(s.applyOpen)}` : '', `앱에서 신청해 주세요 👉 ${location.origin}${location.pathname}`].filter(Boolean).join('\n') }
 
 /* ───────── sample data ───────── */
@@ -2980,7 +2998,10 @@ setInterval(tick, 100); // 화면 시계는 0.1초마다, 휘슬 점검은 0.25�
 let saveT = {};
 document.addEventListener('focusout', () => setTimeout(() => { if (S.pending && !isTyping()) render() }, 0));
 document.addEventListener('input', e => { const el = e.target; const k = el.dataset.in; if (!k) return;
-  if (k === 'stl') { const sid = S.sid; const st = stlGet(sid); st[el.dataset.k] = Math.max(0, parseInt(el.value.replace(/[^\d]/g, ''), 10) || 0); stlSave(sid); const r = document.getElementById('stl-res'); if (r && S.sessions[sid]) r.innerHTML = stlResults(S.sessions[sid]); return }
+  if (k === 'stlfee' && S.admin) { const sid = S.sid; const v = Math.max(0, parseInt(el.value.replace(/[^\d]/g, ''), 10) || 0); S.sessions[sid].settle = { ...(S.sessions[sid].settle || {}), fee: v }; const r = document.getElementById('stl-res'); if (r) r.innerHTML = stlResults(S.sessions[sid]); clearTimeout(S.stlT); S.stlT = setTimeout(() => stlPut(sid, { fee: v }), 700); return }
+  if (k === 'stldb' && S.admin) { const sid = S.sid, pid = el.dataset.id; const v = Math.max(0, parseInt(el.value.replace(/[^\d]/g, ''), 10) || 0); const ss = S.sessions[sid]; const old = ss.drinkBuy?.[pid] || {}; const nv = { ...old, amt: v, at: Date.now(), by: myPid() || 'admin' }; ss.drinkBuy = { ...(ss.drinkBuy || {}), [pid]: nv }; const r = document.getElementById('stl-res'); if (r) r.innerHTML = stlResults(ss); clearTimeout((S.dbT ??= {})[pid]); S.dbT[pid] = setTimeout(() => w(() => S.store.update(sp(sid), { [`drinkBuy.${pid}`]: nv })), 800); return }
+  if (k === 'stlcfg' && S.admin) { const f = el.dataset.k; const v = Math.max(0, parseInt(el.value.replace(/[^\d]/g, ''), 10) || 0); S.meta = S.meta || {}; S.meta.settle = { ...stlCfg(), [f]: v }; clearTimeout(S.cfgT); S.cfgT = setTimeout(() => w(() => S.store.set('meta/settle', S.meta.settle), '정산 규칙을 저장했어요.'), 800); return }
+  if (k === 'dbimg') { const f = el.files?.[0]; el.value = ''; if (!f) return; toast('사진을 줄이는 중이에요…'); receiptImg(f).then(img => { S.dbDraft = { ...(S.dbDraft || {}), amt: document.getElementById('db-amt')?.value, img }; render() }).catch(() => toast('사진을 불러오지 못했어요. 다른 사진으로 해 주세요.')); return }
   if (k === 'calf' && S.cal) { S.cal.f[el.dataset.f] = el.value; if (el.dataset.f === 'no') S.cal.f.noAuto = false; return }
   if (k === 'calfvenue' && S.cal) { if (el.value === '__custom') { S.cal.f.venueCustom = true; S.cal.f.venue = ''; render(); setTimeout(() => document.getElementById('calf-venue')?.focus(), 50) } else { S.cal.f.venueCustom = false; S.cal.f.venue = el.value } return }
   if (k === 'impf' && S.imp) { S.imp[el.dataset.f] = el.value; return }
@@ -3146,13 +3167,17 @@ document.addEventListener('click', async e => {
       if (!confirm(`선택한 ${ids.length}명을 회원 명단에서 삭제할까요?\n${ids.slice(0, 8).map(pname).join(', ')}${ids.length > 8 ? ' …' : ''}\n지난 경기 기록의 이름은 "?"로 보일 수 있어요. 되돌릴 수 없어요.`)) break;
       if (await w(async () => { for (const id of ids) { await S.store.del('players/' + id); try { await S.store.del('contacts/' + id) } catch { } try { await S.store.del('auth/' + id) } catch { } } }, `${ids.length}명을 삭제했어요.`)) { S.msel = {}; render() } break }
     case 'ctxgo': if (!id) break; S.sid = id; S.planSel = id; S.planM = id.slice(0, 7); S.step = null; S.sel = null; S.openMatch = null; render(); break;
-    case 'stlopt': { const st = stlGet(S.sid); st[el.dataset.k] = el.dataset.v === '1'; stlSave(S.sid); render(); break }
-    case 'stlrole': { const ss = S.sessions[S.sid]; const pid = id, k = el.dataset.k; if (k === 'res') { if (!needAdmin()) break; const cur1 = ss.p0 || []; const on = cur1.includes(pid); await w(() => S.store.update(sp(S.sid), { p0: on ? cur1.filter(x => x !== pid) : [...cur1, pid] }), on ? `${pname(pid)} 님을 예약자에서 뺐어요.` : `${pname(pid)} 님을 예약자로 저장했어요.`); break }
-      const st = stlGet(S.sid); const r = stlRoles(ss, pid); const o = (st.ov[pid] ??= {}); o[k] = !r[k]; if (k === 'absent' && o.absent) o.late = false; if (k === 'late' && o.late) o.absent = false; stlSave(S.sid); render(); break }
-    case 'stlrm': { const st = stlGet(S.sid); st.add = st.add.filter(p => p !== id); if (!st.rm.includes(id)) st.rm.push(id); stlSave(S.sid); render(); break }
-    case 'stladd': { const v = document.getElementById('stl-add')?.value || ''; const pid = findPlayer(v); if (!pid) { toast('회원 목록에서 이름을 찾지 못했어요.'); break } const st = stlGet(S.sid); st.rm = st.rm.filter(p => p !== pid); if (!st.add.includes(pid)) st.add.push(pid); stlSave(S.sid); render(); break }
-    case 'stlreset': { S.stl && delete S.stl[S.sid]; try { localStorage.removeItem('wf:settle:' + S.sid) } catch { } render(); toast('입력값을 처음으로 되돌렸어요.'); break }
+    case 'stlrole': { if (!needAdmin()) break; const ss = S.sessions[S.sid]; const pid = id, k = el.dataset.k; if (k === 'res') { const cur1 = ss.p0 || []; const on = cur1.includes(pid); await w(() => S.store.update(sp(S.sid), { p0: on ? cur1.filter(x => x !== pid) : [...cur1, pid] }), on ? `${pname(pid)} 님을 예약자에서 뺐어요.` : `${pname(pid)} 님을 예약자로 저장했어요.`); break }
+      if (k === 'ball' || k === 'drink') break; const r = stlRoles(ss, pid); const o = { ...(stlGet(S.sid).ov[pid] || {}) }; o[k] = !r[k]; if (k === 'absent' && o.absent) o.late = false; if (k === 'late' && o.late) o.absent = false; await w(() => S.store.update(sp(S.sid), { [`settle.ov.${pid}`]: o })); break }
+    case 'stlrm': { if (!needAdmin()) break; const st = stlGet(S.sid); await stlPut(S.sid, { add: st.add.filter(p => p !== id), rm: [...new Set([...st.rm, id])] }); break }
+    case 'stladd': { if (!needAdmin()) break; const v = document.getElementById('stl-add')?.value || ''; const pid = findPlayer(v); if (!pid) { toast('회원 목록에서 이름을 찾지 못했어요.'); break } const st = stlGet(S.sid); await stlPut(S.sid, { rm: st.rm.filter(p => p !== pid), add: [...new Set([...st.add, pid])] }); break }
     case 'stlcopy': { const ss = S.sessions[S.sid]; const t = stlKakao(ss, stlCalc(ss)); try { await navigator.clipboard.writeText(t); toast('정산 안내문을 복사했어요.') } catch { prompt('아래 내용을 복사하세요', t) } break }
+    case 'stlpen': { if (!needAdmin()) break; S.meta = S.meta || {}; S.meta.settle = { ...stlCfg(), penUse: el.dataset.v === '1' }; await w(() => S.store.set('meta/settle', S.meta.settle), '정산 규칙을 저장했어요.'); break }
+    case 'dbopen': S.dbDraft = null; S.sheet = { type: 'drinkbuy', sid: id }; render(); break;
+    case 'dbsave': { const me = myPid(); if (!me) { toast('로그인 후 등록할 수 있어요.'); break } const amt = Math.max(0, parseInt(String(document.getElementById('db-amt')?.value || '').replace(/[^\d]/g, ''), 10) || 0); if (!amt) { toast('구입 금액을 넣어 주세요.'); break }
+      const ss = S.sessions[id]; const old = ss?.drinkBuy?.[me] || {}; const img = S.dbDraft?.img; const ok = await w(async () => { if (img) await S.store.set(`receipts/${id}_${me}`, { session: id, pid: me, img, at: Date.now() }); await S.store.update(sp(id), { [`drinkBuy.${me}`]: { amt, at: Date.now(), by: me, img: !!(img || old.img) } }) }, '구입 금액을 등록했어요. 정산 때 그대로 돌려받아요.');
+      if (ok) { S.dbDraft = null; S.sheet = null; render() } break }
+    case 'rcptview': { const pid = el.dataset.p; S.sheet = { type: 'rcpt', sid: id, pid, img: null }; render(); try { const d = await S.store.get(`receipts/${id}_${pid}`); if (S.sheet?.type === 'rcpt') { S.sheet.img = d?.img || ''; render() } } catch { toast('영수증을 불러오지 못했어요.') } break }
     case 'flowgo': S.tab = 'run'; S.step = el.dataset.v; S.sel = null; render(); window.scrollTo(0, 0); break;
     case 'goposter': S.sid = id; S.tab = 'notice'; S.noticeTab = 'team'; render(); window.scrollTo(0, 0); break;
     case 'gocap': S.sheet = null; S.sid = id; S.tab = 'draft'; render(); window.scrollTo(0, 0); break;

@@ -778,7 +778,7 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.100"}
+:root{--cssv:"0.21.101"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
@@ -895,3 +895,17 @@ table.atbl th.seq,table.atbl td.seq{width:44px;text-align:center;font-family:var
 .stl-tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:6px;margin-right:3px;background:var(--bg);color:var(--muted);border:1px solid var(--line)}
 .stl-kk{white-space:pre-wrap;font:inherit;font-size:13px;line-height:1.6;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;margin:0;max-height:320px;overflow:auto}
 .aflow{grid-template-columns:repeat(7,minmax(0,1fr))!important}
+/* 0.21.101 물당 구입 등록 · 정산 */
+.dbnudge{display:flex;align-items:center;gap:10px;width:100%;margin:2px 0 10px;padding:12px 14px;border-radius:16px;background:rgba(198,255,61,.08);border:1px solid rgba(198,255,61,.35);color:var(--ink);text-align:left;font-size:20px}
+.dbnudge span{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3}.dbnudge b{font-size:14.5px}.dbnudge small{font-size:12.5px;color:var(--muted)}
+.dbnudge em{font-style:normal;font-size:13.5px;font-weight:800;color:var(--accent);flex:none}
+.dbbtn{margin-top:8px}
+.rcpt-prev{display:block;max-width:100%;max-height:260px;margin-top:8px;border-radius:10px;border:1px solid var(--line)}
+.rcpt-big{display:block;max-width:100%;max-height:70vh;margin:6px auto 0;border-radius:12px;border:1px solid var(--line)}
+.stl-dk{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.stl-dr{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:4px 8px;align-items:center;padding:8px 10px;border-radius:12px;background:var(--bg);border:1px solid var(--line)}
+.stl-dr small{grid-column:1/4;color:var(--muted);font-size:11.5px}
+.stl-dr .stl-m .inp{width:104px;font-size:16px}
+.stl-nor{font-size:12px}
+.stl-chip:disabled{cursor:default}
+.stl-cfg .stl-f:first-child{border-top:0}
