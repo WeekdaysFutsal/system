@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.106';
+const APP_VERSION = '0.21.107';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1246,6 +1246,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.107', '2026.10.26', ['[운영진] 운영비 정산: 물당이 산 금액이 자기 몫보다 많으면 받을 금액 대신 낼 금액을 −로 표시해요 (공지 이미지·안내문도 −금액으로 나와요)']],
   ['0.21.106', '2026.10.26', ['[운영진] 운영비 정산: 물당이 산 물·음료 금액은 따로 돌려주지 않고, 그 물당의 낼 금액에서 바로 빼서 최종 금액을 계산해요 (산 금액이 더 많으면 차액만 돌려받아요)']],
   ['0.21.105', '2026.10.26', ['[운영진] 운영비 정산: 참가자 목록과 개인별 정산표를 한 표로 합쳤어요. 표의 구분 칩을 눌러 지각·당일 불참 등을 바꾸면 금액이 바로 다시 계산돼요']],
   ['0.21.104', '2026.10.26', ['[운영진] 운영비 정산 결과를 회원 공지용 이미지로 저장하거나 바로 공유할 수 있어요. 금액별 명단, 돌려받을 분, 입금 계좌가 함께 들어가요', '[운영진] 설정 → 운영비 정산 규칙에서 입금 은행·계좌번호·예금주를 넣을 수 있어요 (단톡방 안내문에도 함께 나와요)']],
@@ -1871,16 +1872,16 @@ function stlCalc(s) {
   P.sort((a, b) => sk(a) - sk(b) || pname(a.pid).localeCompare(pname(b.pid), 'ko'));
   const rows = P.map(p => { const pay = !p.r.absent && !p.r.staff && !p.r.away; const fS = pay ? sF : 0, rS = pay && !p.r.res ? sR : 0, dS = pay && !p.r.ball && !p.r.drink ? sD : 0; const raw = fS + rS + dS; const ba = buyOf(p.pid); const net = raw - ba; // 물당은 산 금액을 낼 금액에서 빼요
     const rd = net >= 0 ? (pay ? stlRound(net, unit, cut) : 0) : 0; const back = net < 0 ? stlRound(-net, unit, cut) : 0; const pn = pen(p);
-    let get = 0; const why = []; if (p.r.res && Rper) { get += Rper; why.push('사례금') } if (back) { get += back; why.push('물 구입비 남은 돈') }
-    return { ...p, pay, fS, rS, dS, raw, buy: ba, net, rd, pen: pn, owe: rd + pn, get, why } });
+    let get = 0; const why = []; if (p.r.res && Rper) { get += Rper; why.push('사례금') } // 물당이 산 금액이 더 많으면 낼 금액을 -로 표시해요
+    return { ...p, pay, fS, rS, dS, raw, buy: ba, net, rd, back, pen: pn, owe: rd + pn - back, get, why } });
   const collected = rows.reduce((a, x) => a + x.rd, 0);
-  return { st, cf, F, Rper, Rtot, D, buys, unit, cut, rows, playing, payers, resv, divF, divR, divD, sF, sR, sD, Fpool, penTot, penUsed, collected, owed: rows.reduce((a, x) => a + x.owe, 0), gets: rows.reduce((a, x) => a + x.get, 0), spend: F + Rtot + D, diff: collected - rows.reduce((a, x) => a + x.get, 0) - Fpool }
+  return { st, cf, F, Rper, Rtot, D, buys, unit, cut, rows, playing, payers, resv, divF, divR, divD, sF, sR, sD, Fpool, penTot, penUsed, collected, owed: rows.reduce((a, x) => a + x.owe, 0), gets: rows.reduce((a, x) => a + x.get, 0), spend: F + Rtot + D, diff: collected - rows.reduce((a, x) => a + x.back + x.get, 0) - Fpool }
 }
 const wn = v => (v < 0 ? '-' : '') + Math.abs(Math.round(v)).toLocaleString('ko-KR');
 function stlGroups(C) { const g = {}; C.rows.forEach(x => { const lab = x.r.away ? '예약자 (경기 미참가)' : x.r.absent ? '당일 불참' : x.r.staff ? '운영진·경기 운영자 (정산 제외)' : [x.r.res && '예약자', x.r.ball && '공당', x.r.drink && '물당', x.r.late && '지각'].filter(Boolean).join(' · ') || '일반 참가자'; (g[lab + '|' + x.owe] ??= { lab, owe: x.owe, rd: x.rd, pen: x.pen, get: 0, names: [] }).names.push(pname(x.pid)) });
   return Object.values(g).sort((a, b) => b.names.length - a.names.length) }
 function stlKakao(s, C) { const L = [`[WDFS ${fmtDate(s.date)} 경기 운영비 정산]`, `지출 ${wn(C.spend)}원 (구장 ${wn(C.F)} · 사례금 ${wn(C.Rtot)} · 음료 ${wn(C.D)})`];
-  stlGroups(C).filter(x => x.owe > 0).forEach(x => L.push(`· ${x.lab} ${wn(x.owe)}원 : ${x.names.join(', ')}`));
+  stlGroups(C).filter(x => x.owe !== 0).forEach(x => L.push(`· ${x.lab} ${x.owe < 0 ? '−' + wn(-x.owe) + '원 (돌려받아요)' : wn(x.owe) + '원'} : ${x.names.join(', ')}`));
   const rc = C.rows.filter(x => x.get); if (rc.length) { L.push('', '[돌려받을 분]'); rc.forEach(x => L.push(`· ${pname(x.pid)} ${wn(x.get)}원 (${x.why.join('+')})`)) }
   const sf = C.rows.filter(x => x.r.staff && !x.r.absent && !x.r.away); if (sf.length) L.push('', `운영진·경기 운영자(${sf.map(x => pname(x.pid)).join(', ')})는 정산에서 빠져요.`); const ac = stlAcct(); if (ac) L.push('', `[입금 계좌] ${ac.line}${ac.holder ? ' (' + ac.holder + ')' : ''}`, '입금자명은 본인 이름으로 해 주세요.'); return L.join('\n') }
 function stlSummary(s, C) {
@@ -1894,9 +1895,9 @@ function stlTable(s, C) { const c = v => v ? wn(v) : '<span class="muted">-</spa
   const chip = (x, k, l) => { const dis = k === 'ball' || k === 'drink' ? 'disabled title="도우미 지정 단계에서 바꿔요"' : k === 'staff' && x.r.op ? 'disabled title="경기 운영자는 운영진과 같이 정산에서 빠져요"' : x.r.away && k !== 'res' ? 'disabled' : '';
     return `<button class="stl-chip r-${k}" data-act="stlrole" data-id="${x.pid}" data-k="${k}" aria-pressed="${!!x.r[k]}" ${dis}>${k === 'staff' && x.r.op ? '경기 운영자' : l}</button>` };
   return `<div class="panel tblwrap stl-tw"><table class="stl-tbl"><thead><tr><th>No.</th><th class="l">이름</th><th class="l">구분 <small>눌러서 바꿔요</small></th><th>구장비</th><th>사례금</th><th>물·음료</th><th>계산 금액</th><th>물 구입비 차감</th><th>정산 금액</th><th>벌금</th><th>낼 금액</th><th>받을 금액</th><th></th></tr></thead><tbody>
-  ${C.rows.map((x, i) => `<tr class="${x.r.staff && !x.r.absent && !x.r.away ? 'staff' : ''} ${x.r.absent ? 'absent' : ''} ${x.r.away ? 'away' : ''}"><td class="seq">${i + 1}</td><td class="l nm"><b>${esc(pname(x.pid))}</b>${x.r.away ? '<small>경기 미참가</small>' : ''}</td><td class="l roles"><div class="stl-chips">${x.r.away ? chip(x, 'res', '예약자') : STL_ROLES.map(([k, l]) => chip(x, k, l)).join('')}</div></td><td>${c(x.fS)}</td><td>${c(x.rS)}</td><td>${c(x.dS)}</td><td>${x.pay ? wn(x.raw) : `<span class="muted">${x.r.away ? '사례금만' : '정산 제외'}</span>`}</td><td class="buy">${x.buy ? '−' + wn(x.buy) : '<span class="muted">-</span>'}</td><td>${x.pay || x.buy ? wn(x.net < 0 ? 0 : x.rd) : '-'}</td><td>${c(x.pen)}</td><td class="fin">${wn(x.owe)}</td><td class="get">${x.get ? wn(x.get) + ` <small>${x.why.join('+')}</small>` : ''}</td><td>${x.r.away ? '' : `<button class="x" data-act="stlrm" data-id="${x.pid}" aria-label="${esc(pname(x.pid))} 빼기" title="명단에서 빼기">×</button>`}</td></tr>`).join('')}
+  ${C.rows.map((x, i) => `<tr class="${x.r.staff && !x.r.absent && !x.r.away ? 'staff' : ''} ${x.r.absent ? 'absent' : ''} ${x.r.away ? 'away' : ''}"><td class="seq">${i + 1}</td><td class="l nm"><b>${esc(pname(x.pid))}</b>${x.r.away ? '<small>경기 미참가</small>' : ''}</td><td class="l roles"><div class="stl-chips">${x.r.away ? chip(x, 'res', '예약자') : STL_ROLES.map(([k, l]) => chip(x, k, l)).join('')}</div></td><td>${c(x.fS)}</td><td>${c(x.rS)}</td><td>${c(x.dS)}</td><td>${x.pay ? wn(x.raw) : `<span class="muted">${x.r.away ? '사례금만' : '정산 제외'}</span>`}</td><td class="buy">${x.buy ? '−' + wn(x.buy) : '<span class="muted">-</span>'}</td><td>${x.pay || x.buy ? (x.back ? '−' + wn(x.back) : wn(x.rd)) : '-'}</td><td>${c(x.pen)}</td><td class="fin ${x.owe < 0 ? 'neg' : ''}">${x.owe < 0 ? '−' + wn(-x.owe) : wn(x.owe)}</td><td class="get">${x.get ? wn(x.get) + ` <small>${x.why.join('+')}</small>` : ''}</td><td>${x.r.away ? '' : `<button class="x" data-act="stlrm" data-id="${x.pid}" aria-label="${esc(pname(x.pid))} 빼기" title="명단에서 빼기">×</button>`}</td></tr>`).join('')}
   </tbody><tfoot><tr><td></td><td class="l">합계</td><td class="l muted">경기 ${C.playing.length}명 · 정산 대상 ${C.payers.length}명</td><td>${wn(C.rows.reduce((a, x) => a + x.fS, 0))}</td><td>${wn(C.rows.reduce((a, x) => a + x.rS, 0))}</td><td>${wn(C.rows.reduce((a, x) => a + x.dS, 0))}</td><td>${wn(C.rows.reduce((a, x) => a + x.raw, 0))}</td><td class="buy">−${wn(C.D)}</td><td>${wn(C.collected)}</td><td>${wn(C.penTot)}</td><td>${wn(C.owed)}</td><td>${wn(C.gets)}</td><td></td></tr></tfoot></table></div>` }
-function stlMore(s, C) { return `<h3 class="stl-h">누가 얼마를 내나요</h3><div class="stl-groups">${stlGroups(C).map(x => `<div class="stl-g"><small>${x.lab} · ${x.names.length}명</small><b>${wn(x.owe)}원</b><span>${x.pen ? `운영비 ${wn(x.rd)} + 벌금 ${wn(x.pen)}` : x.lab.includes('물당') ? '물 구입비를 뺀 금액' : x.rd ? '운영비' : '내지 않아요'}</span><span>${esc(x.names.join(', '))}</span></div>`).join('')}</div>
+function stlMore(s, C) { return `<h3 class="stl-h">누가 얼마를 내나요</h3><div class="stl-groups">${stlGroups(C).map(x => `<div class="stl-g"><small>${x.lab} · ${x.names.length}명</small><b class="${x.owe < 0 ? 'neg' : ''}">${x.owe < 0 ? '−' + wn(-x.owe) : wn(x.owe)}원</b><span>${x.owe < 0 ? '산 금액이 더 많아 돌려받아요' : x.pen ? `운영비 ${wn(x.rd)} + 벌금 ${wn(x.pen)}` : x.lab.includes('물당') ? '물 구입비를 뺀 금액' : x.rd ? '운영비' : '내지 않아요'}</span><span>${esc(x.names.join(', '))}</span></div>`).join('')}</div>
   <h3 class="stl-h">회원 공지</h3><div class="stl-share"><button class="btn primary" data-act="stlimg" data-v="dl">🖼 이미지로 저장</button><button class="btn" data-act="stlimg" data-v="share">📤 이미지 공유</button><button class="btn" data-act="stlcopy">📋 안내문 복사</button></div>${stlAcct() ? `<p class="note" style="margin:6px 0 0">입금 계좌: ${esc(stlAcct().line)}${stlAcct().holder ? ' (' + esc(stlAcct().holder) + ')' : ''} · 설정에서 바꿔요</p>` : '<p class="stl-warn" style="margin:6px 0 0">⚠️ 입금 계좌가 없어요. 설정 → 운영비 정산 규칙에서 넣으면 이미지와 안내문에 함께 나와요.</p>'}<pre class="stl-kk" style="margin-top:10px">${esc(stlKakao(s, C))}</pre>` }
 function stlRefresh(s) { const C = stlCalc(s); const a = document.getElementById('stl-res'), b = document.getElementById('stl-tb'), m = document.getElementById('stl-more'); if (a) a.innerHTML = stlSummary(s, C); if (b) b.innerHTML = stlTable(s, C); if (m) m.innerHTML = stlMore(s, C) }
 function stlResults(s) { stlRefresh(s); return document.getElementById('stl-res')?.innerHTML || '' }
@@ -1916,7 +1917,7 @@ function vSettle(s) { const st = stlGet(s.date); const ps = stlPeople(s); const 
   <section id="stl-more">${stlMore(s, C)}</section></div>` }
 /* 정산 결과 공지 이미지 */
 function stlAcct() { const cf = stlCfg(); const a = [cf.bank, cf.acct].map(x => String(x || '').trim()).filter(Boolean).join(' '); return a ? { line: a, holder: String(cf.holder || '').trim() } : null }
-async function drawSettle(s) { const C = stlCalc(s); const acct = stlAcct(); const groups = stlGroups(C).filter(x => x.owe > 0); const rc = C.rows.filter(x => x.get);
+async function drawSettle(s) { const C = stlCalc(s); const acct = stlAcct(); const groups = stlGroups(C).filter(x => x.owe !== 0); const rc = C.rows.filter(x => x.get);
   const PF = await posterFonts([s.venue || '', ...C.rows.map(x => pname(x.pid)), acct?.line || '', acct?.holder || '', ...groups.map(x => x.lab)], 'paperlogy'); const img = await emblem();
   const W = 1080, P = 64, BG = '#0B0D10', CARD = '#15181D', LINE = '#262B33', INK = '#F2F4F7', MUT = '#9AA4B1', ACC = '#C6FF3D', INFO = '#8FB0FF';
   const m = document.createElement('canvas').getContext('2d'); const nameLines = x => { m.font = `500 30px ${PF.BD}`; return wrapText(m, x.names.join(', '), W - P * 2 - 56, 6) };
@@ -1931,9 +1932,9 @@ async function drawSettle(s) { const C = stlCalc(s); const acct = stlAcct(); con
   g.fillStyle = MUT; g.font = `500 24px ${PF.BD}`; g.textAlign = 'right'; [`구장 사용료 ${wn(C.F)}원`, `예약자 사례금 ${wn(C.Rtot)}원`, `물·음료 ${wn(C.D)}원`].forEach((t, i) => g.fillText(t, W - P - 30, y + 42 + i * 34)); g.textAlign = 'left';
   y += 150 + 20; g.fillStyle = INK; g.font = `800 34px ${PF.KR}`; g.fillText('이번 경기 회비', P, y + 10); y += 40;
   groups.forEach(x => { const ls = nameLines(x); const h = 104 + ls.length * 42; g.fillStyle = CARD; rr(g, P, y, W - P * 2, h, 22); g.fill(); g.strokeStyle = LINE; g.stroke();
-    g.fillStyle = MUT; g.font = `700 25px ${PF.BD}`; g.fillText(`${x.lab} · ${x.names.length}명`, P + 28, y + 44); g.fillStyle = ACC; g.font = `800 50px ${PF.LAT}`; g.textAlign = 'right'; g.fillText(wn(x.owe) + '원', W - P - 28, y + 58); g.textAlign = 'left';
-    if (x.pen) { g.fillStyle = MUT; g.font = `500 22px ${PF.BD}`; g.fillText(`운영비 ${wn(x.rd)} + 벌금 ${wn(x.pen)}`, P + 28, y + 78) }
-    g.fillStyle = INK; g.font = `500 30px ${PF.BD}`; ls.forEach((l, i) => g.fillText(l, P + 28, y + 118 + i * 42 - (x.pen ? 0 : 20))); y += h + 18 });
+    g.fillStyle = MUT; g.font = `700 25px ${PF.BD}`; g.fillText(`${x.lab} · ${x.names.length}명`, P + 28, y + 44); g.fillStyle = x.owe < 0 ? INFO : ACC; g.font = `800 50px ${PF.LAT}`; g.textAlign = 'right'; g.fillText((x.owe < 0 ? '−' + wn(-x.owe) : wn(x.owe)) + '원', W - P - 28, y + 58); g.textAlign = 'left';
+    if (x.pen || x.owe < 0) { g.fillStyle = MUT; g.font = `500 22px ${PF.BD}`; g.fillText(x.owe < 0 ? '산 금액이 더 많아 돌려받아요' : `운영비 ${wn(x.rd)} + 벌금 ${wn(x.pen)}`, P + 28, y + 78) }
+    g.fillStyle = INK; g.font = `500 30px ${PF.BD}`; ls.forEach((l, i) => g.fillText(l, P + 28, y + 118 + i * 42 - (x.pen || x.owe < 0 ? 0 : 20))); y += h + 18 });
   if (rc.length) { y += 20; g.fillStyle = INK; g.font = `800 34px ${PF.KR}`; g.fillText('돌려받을 분', P, y + 10); y += 40;
     rc.forEach(x => { g.fillStyle = CARD; rr(g, P, y, W - P * 2, 46, 14); g.fill(); g.fillStyle = INK; g.font = `700 28px ${PF.BD}`; g.fillText(pname(x.pid), P + 24, y + 33); g.fillStyle = MUT; g.font = `500 22px ${PF.BD}`; g.fillText(x.why.join(' + '), P + 200, y + 32); g.fillStyle = INFO; g.font = `800 34px ${PF.LAT}`; g.textAlign = 'right'; g.fillText(wn(x.get) + '원', W - P - 24, y + 36); g.textAlign = 'left'; y += 56 }); y += 20 }
   if (acct) { y += 10; g.fillStyle = ACC; rr(g, P, y, W - P * 2, 190, 26); g.fill(); g.fillStyle = 'rgba(11,13,16,.7)'; g.font = `800 26px ${PF.BD}`; g.fillText('입금 계좌', P + 32, y + 50);
