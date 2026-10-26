@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.117';
+const APP_VERSION = '0.21.118';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1252,6 +1252,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.118', '2026.10.26', ['[운영진] 회비 관리의 입력 버튼 이름을 \'− 지출\', \'+ 매입\'으로 짧게 바꿨어요']],
   ['0.21.117', '2026.10.26', ['[운영진] 회비 관리를 경기 운영비 · 기타 지출 · 매입(찬조 등) 세 가지로 나눠 기록하고, 구분별로 골라 볼 수 있어요', '[운영진] 경기가 끝나면(경기 기록이 모두 끝나거나 날짜가 지나면) 그 경기 정산표의 최종 금액이 경기 운영비로 자동으로 들어가요. 정산 완료 전에 고친 금액도 바로 반영돼요', '[운영진] 월별 현황에서 달마다 경기 운영비·기타 지출·매입·합계를 볼 수 있어요']],
   ['0.21.116', '2026.10.26', ['[운영진] 아래 메뉴 \'공지\'를 \'운영\'으로 바꾸고, 그 안에 \'회비 관리\'를 새로 만들었어요', '[운영진] 회비 관리: 지금 통장 잔액을 한 번 넣으면 정산 완료한 경기와 경기 외 입출금(구장비 지급·회비 입금 등)으로 잔액을 자동 계산해요. 입출금 내역은 날짜별 잔액과 함께, 월별 현황도 볼 수 있어요', '[운영진] 아직 정산을 완료하지 않은 경기가 있으면 완료 후 잔액을 미리 알려줘요. 운영비 정산 화면에서는 지금 잔액만 간단히 보여주고 회비 관리로 바로 갈 수 있어요']],
   ['0.21.115', '2026.10.26', ['[운영진] 운영비 정산 공지 이미지에서 이름을 버튼 모양 칸에 하나씩 넣어 이름 중간에서 줄이 바뀌지 않게 했어요', '[운영진] 금액별 명단을 일반 참가자 → 지각 → 예약자 → 공당 → 물당 → 당일 불참 순서로 보여줘요']],
@@ -2622,7 +2623,7 @@ function viewFee() { const B = bankState(); const ed = S.bankEdit || !B;
     <div class="kpi"><small>매입 (찬조 등)</small><b class="pos">${sum('in') ? sgn(sum('in')) : '0'}</b><i>${cnt('in')}건</i></div></div>
   ${wait.length ? `<div class="stl-warn">⏳ 끝난 경기 중 구장 사용료가 아직 없어 운영비가 들어가지 않은 경기: ${wait.map(x => `<button class="linkbtn" data-act="gosettle" data-id="${x.date}">${fmtDate(x.date)}</button>`).join(', ')}</div>` : ''}
   <section class="panel pad"><h3 class="stl-h">기타 지출 · 매입 넣기</h3>
-    <div class="stl-seg fee-kind" role="group">${['out', 'in'].map(k => `<button class="${kd === k ? 'on' : ''}" data-act="feekind" data-v="${k}" aria-pressed="${kd === k}">${k === 'out' ? '− ' : '+ '}${FEE_KIND[k][0]}</button>`).join('')}</div><small class="muted fee-hint">${FEE_KIND[kd][1]}</small>
+    <div class="stl-seg fee-kind" role="group">${['out', 'in'].map(k => `<button class="${kd === k ? 'on' : ''}" data-act="feekind" data-v="${k}" aria-pressed="${kd === k}">${k === 'out' ? '− 지출' : '+ 매입'}</button>`).join('')}</div><small class="muted fee-hint">${FEE_KIND[kd][1]}</small>
     <div class="bank-add"><input id="bank-date" class="inp" type="date" value="${td}" aria-label="날짜"><input id="bank-memo" class="inp" placeholder="${kd === 'out' ? '내용 (예: 11월 구장비 지급)' : '내용 (예: 홍길동 찬조)'}"><span class="stl-m"><input id="bank-amt" class="inp" inputmode="numeric" placeholder="0" aria-label="금액"><em>원</em></span><button class="btn sm primary" data-act="bankadj">추가</button></div></section>
   <section><h3 class="stl-h">입출금 내역</h3><div class="stl-seg fee-ft" role="group">${[['all', '전체'], ['game', '경기 운영비'], ['out', '기타 지출'], ['in', '매입']].map(([k, t]) => `<button class="${ft === k ? 'on' : ''}" data-act="feeft" data-v="${k}">${t}</button>`).join('')}</div>
     <div class="panel stl-tw" style="margin-top:8px"><table class="fee-tbl"><thead><tr><th class="l">날짜</th><th class="l">구분</th><th class="l">내용</th><th>들어온 돈</th><th>나간 돈</th>${ft === 'all' ? '<th>잔액</th>' : ''}<th></th></tr></thead><tbody>
