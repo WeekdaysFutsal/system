@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.113';
+const APP_VERSION = '0.21.114';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -389,6 +389,12 @@ const FONT_FILES = [
   ['Pretendard', '600', 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-SemiBold.woff2'],
   ['Pretendard', '800', 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-ExtraBold.woff2'],
   ['PretendardH', '100 900', 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-ExtraBold.woff2'],
+  ['Paperlogy', '400', 'https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-4Regular.woff2'],
+  ['Paperlogy', '500', 'https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-5Medium.woff2'],
+  ['Paperlogy', '600', 'https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-6SemiBold.woff2'],
+  ['Paperlogy', '700', 'https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-7Bold.woff2'],
+  ['Paperlogy', '800', 'https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-8ExtraBold.woff2'],
+  ['Paperlogy', '900', 'https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-9Black.woff2'],
   ['PaperlogyK', '100 900', 'https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-9Black.woff2'],
   ['SCDreamH', '100 900', 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-8Heavy.woff', 'woff'],
   ['SCDreamM', '100 900', 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-6Bold.woff', 'woff']];
@@ -1246,6 +1252,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.114', '2026.10.26', ['[운영진] 운영비 정산 공지 이미지를 저장할 때 모든 글씨가 페이퍼로지 글꼴로 나와요. 굵기별 글꼴을 미리 받아서 기본 글꼴로 빠지지 않게 했어요']],
   ['0.21.113', '2026.10.26', ['[운영진] 운영모드에서 오른쪽 위 운영모드 버튼 옆에 현재 앱 버전이 보여요']],
   ['0.21.112', '2026.10.26', ['[운영진] 정산표의 낼 금액·받을 금액을 \'최종 금액\' 한 칸으로 합쳤어요. 회원이 낼 돈은 +, 모임에서 회원에게 보낼 돈(사례금, 물 구입비 차액)은 −로 보여요', '[운영진] 공지 이미지·안내문도 같은 방식으로 +/− 금액별 명단으로 정리했어요']],
   ['0.21.111', '2026.10.26', ['[운영진] 운영비 정산 화면에 통장 잔액을 보여줘요. 지금 잔액을 한 번만 넣으면, 이후 정산 완료하는 경기마다 걷는 돈은 더하고 돌려주는 돈·사례금은 빼서 자동으로 계산해요', '[운영진] 구장비 지급·회비 입금처럼 경기 정산 밖의 입출금도 직접 넣을 수 있고, 정산 완료 전에는 완료하면 잔액이 얼마가 되는지 미리 보여줘요']],
@@ -1951,12 +1958,19 @@ function vSettle(s) { const st = stlGet(s.date); const lock = !!s.closed; const 
     : `<section class="stl-close"><div><b>정산을 마치면 경기를 마감해요</b><small>낼 금액·받을 금액이 이대로 기록되고, 이 경기의 신청·팀·경기 기록·물당 등록·정산을 더 고칠 수 없게 잠가요.</small></div>${S.stlConfirm === s.date ? `<div class="row"><button class="btn danger" data-act="stlclose" data-v="1">정말 정산 완료</button><button class="btn" data-act="stlclose" data-v="0">취소</button></div>` : `<button class="btn primary" data-act="stlclose">✅ 정산 완료</button>`}</section>`}</div>` }
 /* 정산 결과 공지 이미지 */
 function stlAcct() { const cf = stlCfg(); const a = [cf.bank, cf.acct].map(x => String(x || '').trim()).filter(Boolean).join(' '); return a ? { line: a, holder: String(cf.holder || '').trim() } : null }
+// 정산 공지 이미지 글꼴: 페이퍼로지 굵기별(400~900)을 모두 받아서 기본 글꼴로 빠지지 않게 해요
+async function settleFont() { const fb = '"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif';
+  if (!S.stlFont) S.stlFont = Promise.all(FONT_FILES.filter(f => f[0] === 'Paperlogy').map(async ([f0, wt, url]) => { try { const f = new FontFace(f0, `url(${url}) format('woff2')`, { weight: wt, display: 'block' }); await Promise.race([f.load(), new Promise((_, rej) => setTimeout(() => rej('timeout'), 10000))]); document.fonts.add(f); return true } catch { return false } })).then(r => r.filter(Boolean).length);
+  const n = await S.stlFont; if (!n) { S.stlFont = null; return (await loadFam('Pretendard')) ? `"Pretendard",${fb}` : '' }
+  try { await Promise.all([400, 500, 700, 800, 900].map(w => document.fonts.load(`${w} 40px "Paperlogy"`, '정산 0123456789원 −+'))) } catch { }
+  return `"Paperlogy",${fb}` }
 async function drawSettle(s) { const C = stlCalc(s); const acct = stlAcct(); const groups = stlGroups(C).filter(x => x.owe !== 0); const rc = [];
   const PF = await posterFonts([s.venue || '', ...C.rows.map(x => pname(x.pid)), acct?.line || '', acct?.holder || '', ...groups.map(x => x.lab)], 'paperlogy'); const img = await emblem();
+  const sfnt = await settleFont(); if (sfnt) { PF.BD = PF.KR = PF.LAT = sfnt } else { PF.LAT = PF.KR; toast('글꼴을 받지 못해 일부 글씨가 기본 글꼴로 나올 수 있어요. 인터넷 연결을 확인해 주세요.') }
   const W = 1080, P = 64, BG = '#0B0D10', CARD = '#15181D', LINE = '#262B33', INK = '#F2F4F7', MUT = '#9AA4B1', ACC = '#C6FF3D', INFO = '#8FB0FF';
   const m = document.createElement('canvas').getContext('2d'); const nameLines = x => { m.font = `500 30px ${PF.BD}`; return wrapText(m, x.names.join(', '), W - P * 2 - 56, 6) };
   let H = 330 + 150 + 70; groups.forEach(x => { H += 124 + nameLines(x).length * 42 + 18 }); if (rc.length) H += 80 + rc.length * 56 + 20; H += acct ? 230 : 0; H += 120;
-  const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); g.fillStyle = BG; g.fillRect(0, 0, W, H);
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); g.fillStyle = BG; g.fillRect(0, 0, W, H); const ft0 = g.fillText.bind(g); g.fillText = (t, x, y, mw) => mw == null ? ft0(String(t).replace(/\u2212/g, '-'), x, y) : ft0(String(t).replace(/\u2212/g, '-'), x, y, mw);
   const grd = g.createRadialGradient(W, 0, 40, W, 0, 700); grd.addColorStop(0, 'rgba(198,255,61,.16)'); grd.addColorStop(1, 'rgba(198,255,61,0)'); g.fillStyle = grd; g.fillRect(0, 0, W, 700);
   if (img) { g.save(); g.beginPath(); g.arc(P + 40, 92, 40, 0, Math.PI * 2); g.fillStyle = '#fff'; g.fill(); g.clip(); g.drawImage(img, P, 52, 80, 80); g.restore() }
   g.fillStyle = MUT; g.font = `800 26px ${PF.LAT}`; g.textBaseline = 'alphabetic'; g.fillText('WEEKDAYS FUTSAL CLUB', P + 100, 82); g.fillStyle = INK; g.font = `800 30px ${PF.KR}`; g.fillText(`${fmtDate(s.date)} 경기`, P + 100, 122);
