@@ -500,7 +500,7 @@ const FIREBASE_CONFIG = {
 */
 /* 구글 시트 기록 API: Code.gs 를 '웹 앱'으로 배포한 URL (https://script.google.com/macros/s/…/exec) */
 const SHEET_API_URL = '';
-const APP_VERSION = '0.3.5';
+const APP_VERSION = '0.3.6';
 const LS_KEY = 'fmfc_demo_v1';
 const SESSION_KEY = 'fmfc_session';
 const COLS = ['members', 'matches', 'apps', 'notices'];
@@ -1077,19 +1077,23 @@ function viewMatch(id) {
 /* ===== 라인업 ===== */
 let SHIRT_N = 0;
 const SHIRT_PATH = 'M30 5 L40 2 Q50 13 60 2 L70 5 L97 23 L86 43 L76 37 L76 91 Q76 95 72 95 L28 95 Q24 95 24 91 L24 37 L14 43 L3 23 Z';
-/* 유니폼 모양 아이콘: 홈 = 버건디·오렌지 스트라이프, 원정 = 블랙·화이트 스트라이프+옐로 라인, GK = 파란색 */
+/* 유니폼 모양 아이콘: 홈 = 버건디·오렌지 스트라이프, 원정 = 블랙·화이트 스트라이프+옐로 라인, GK = 로열 블루+블랙·레드 불꽃+하늘색 밑단 */
 const isAwayKit = m => /원정/.test(m?.uniform || '');
 function shirtSvg(label, { w = 46, empty = false, gk = false, away = false, me = false } = {}) {
   const id = 'sh' + (++SHIRT_N); const h = Math.round(w * 0.96);
   const txt = (size, fill, stroke) => `<text x="50" y="${empty ? 59 : 67}" text-anchor="middle" font-family="'Barlow Condensed',Pretendard,sans-serif" font-weight="800" font-size="${size}" fill="${fill}"${stroke ? ` stroke="${stroke}" stroke-width="3" paint-order="stroke" stroke-linejoin="round"` : ''}>${label}</text>`;
   if (empty) return `<svg class="shirt-svg" width="${w}" height="${h}" viewBox="0 0 100 96" aria-hidden="true"><path d="${SHIRT_PATH}" fill="rgba(243,237,220,.08)" stroke="rgba(243,237,220,.7)" stroke-width="3" stroke-dasharray="7 5" stroke-linejoin="round"/>${txt(String(label).length > 2 ? 21 : 25, 'rgba(243,237,220,.92)')}</svg>`;
-  const defs = gk ? '' : away ? `<pattern id="${id}p" patternUnits="userSpaceOnUse" x="38.75" width="15" height="96"><rect width="7.5" height="96" fill="#141414"/><rect x="7.5" width="7.5" height="96" fill="#FFFFFF"/></pattern>` : `<pattern id="${id}p" patternUnits="userSpaceOnUse" x="24" width="26" height="96"><rect width="10" height="96" fill="#A3262E"/><rect x="10" width="1.3" height="96" fill="#F3EDDC"/><rect x="11.3" width="1.8" height="96" fill="#1E3C7B"/><rect x="13.1" width="1.3" height="96" fill="#F3EDDC"/><rect x="14.4" width="9.6" height="96" fill="#EC7B2C"/><rect x="24" width="1" height="96" fill="#F3EDDC"/><rect x="25" width="1" height="96" fill="#1E3C7B"/></pattern>`;
+  const defs = gk ? `<linearGradient id="${id}g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#46C4F5" stop-opacity="0"/><stop offset=".55" stop-color="#46C4F5" stop-opacity=".75"/><stop offset="1" stop-color="#8FE3FF"/></linearGradient>` : away ? `<pattern id="${id}p" patternUnits="userSpaceOnUse" x="38.75" width="15" height="96"><rect width="7.5" height="96" fill="#141414"/><rect x="7.5" width="7.5" height="96" fill="#FFFFFF"/></pattern>` : `<pattern id="${id}p" patternUnits="userSpaceOnUse" x="24" width="26" height="96"><rect width="10" height="96" fill="#A3262E"/><rect x="10" width="1.3" height="96" fill="#F3EDDC"/><rect x="11.3" width="1.8" height="96" fill="#1E3C7B"/><rect x="13.1" width="1.3" height="96" fill="#F3EDDC"/><rect x="14.4" width="9.6" height="96" fill="#EC7B2C"/><rect x="24" width="1" height="96" fill="#F3EDDC"/><rect x="25" width="1" height="96" fill="#1E3C7B"/></pattern>`;
   const body = away
     ? `<rect width="100" height="96" fill="url(#${id}p)"/><rect width="25" height="96" fill="#FFFFFF"/><rect x="75" width="25" height="96" fill="#FFFFFF"/><path d="M24 37 Q31 62 28 96 L22 96 L22 37 Z" fill="#141414"/><path d="M76 37 Q69 62 72 96 L78 96 L78 37 Z" fill="#141414"/><path d="M26 42 Q32 62 30 84" stroke="#F2C230" stroke-width="2.5" fill="none"/><path d="M74 42 Q68 62 70 84" stroke="#F2C230" stroke-width="2.5" fill="none"/><path d="M35 5 Q29 24 23 38" stroke="#F2C230" stroke-width="6" fill="none"/><path d="M65 5 Q71 24 77 38" stroke="#F2C230" stroke-width="6" fill="none"/><path d="M38.5 5 Q32.5 24 26.5 38" stroke="#141414" stroke-width="2" fill="none"/><path d="M61.5 5 Q67.5 24 73.5 38" stroke="#141414" stroke-width="2" fill="none"/><path d="M4 24 L15 44" stroke="#141414" stroke-width="5"/><path d="M96 24 L85 44" stroke="#141414" stroke-width="5"/>`
     : gk
-    ? `<rect width="100" height="96" fill="#2F80ED"/><rect width="25" height="96" fill="#1B5CC8"/><rect x="75" width="25" height="96" fill="#1B5CC8"/><path d="M3 23 L14 43" stroke="#9CC6FF" stroke-width="5"/><path d="M97 23 L86 43" stroke="#9CC6FF" stroke-width="5"/>`
+    ? `<rect width="100" height="96" fill="#0D3A9E"/><rect y="62" width="100" height="34" fill="url(#${id}g)"/>`
+      + `<path d="M0 14 L26 14 L26 37 C33 50 26 60 33 72 C27 80 27 88 29 96 L0 96 Z" fill="#111"/><path d="M100 14 L74 14 L74 37 C67 50 74 60 67 72 C73 80 73 88 71 96 L100 96 Z" fill="#111"/>`
+      + `<path d="M27 94 C21 82 31 75 27 60 C36 69 37 82 33 94 Z" fill="#D7262C"/><path d="M73 94 C79 82 69 75 73 60 C64 69 63 82 67 94 Z" fill="#D7262C"/>`
+      + `<path d="M8 40 C6 31 13 27 12 18 C20 25 23 33 18 41 Z" fill="#D7262C"/><path d="M92 40 C94 31 87 27 88 18 C80 25 77 33 82 41 Z" fill="#D7262C"/>`
+      + `<path d="M29 80 C27 72 32 68 30 62 C34 68 34 74 32 80 Z" fill="#111"/><path d="M71 80 C73 72 68 68 70 62 C66 68 66 74 68 80 Z" fill="#111"/>`
     : `<rect width="100" height="96" fill="url(#${id}p)"/><rect width="25" height="96" fill="#0F2150"/><rect x="75" width="25" height="96" fill="#0F2150"/><path d="M25 18 L25 40 M75 18 L75 40" stroke="#F3EDDC" stroke-width="3"/><path d="M5 25 L16 45" stroke="#EC7B2C" stroke-width="4"/><path d="M95 25 L84 45" stroke="#EC7B2C" stroke-width="4"/>`;
-  return `<svg class="shirt-svg" width="${w}" height="${h}" viewBox="0 0 100 96" aria-hidden="true"><defs>${defs}<clipPath id="${id}c"><path d="${SHIRT_PATH}"/></clipPath></defs><g clip-path="url(#${id}c)">${body}</g><path d="${SHIRT_PATH}" fill="none" stroke="#F3EDDC" stroke-width="3.5" stroke-linejoin="round"/><path d="M40 3 Q50 14 60 3" fill="none" stroke="${gk ? '#FFFFFF' : away ? '#141414' : '#F3EDDC'}" stroke-width="${away ? 6 : 4.5}"/>${label === '' ? '' : txt(String(label).length > 2 ? 30 : 38, gk ? '#FFFFFF' : away ? '#141414' : '#F3EDDC', gk ? '#0E3A85' : away ? '#FFFFFF' : '#0E1E40')}</svg>`;
+  return `<svg class="shirt-svg" width="${w}" height="${h}" viewBox="0 0 100 96" aria-hidden="true"><defs>${defs}<clipPath id="${id}c"><path d="${SHIRT_PATH}"/></clipPath></defs><g clip-path="url(#${id}c)">${body}</g><path d="${SHIRT_PATH}" fill="none" stroke="#F3EDDC" stroke-width="3.5" stroke-linejoin="round"/><path d="M40 3 Q50 14 60 3" fill="none" stroke="${gk ? '#D7262C' : away ? '#141414' : '#F3EDDC'}" stroke-width="${away || gk ? 6 : 4.5}"/>${label === '' ? '' : txt(String(label).length > 2 ? 30 : 38, gk ? '#FFFFFF' : away ? '#141414' : '#F3EDDC', gk ? '#08235F' : away ? '#FFFFFF' : '#0E1E40')}</svg>`;
 }
 function uniformIcon(u, w = 34) {
   const kind = !u || u === '미정' ? 'tbd' : /원정/.test(u) ? 'away' : 'home';
