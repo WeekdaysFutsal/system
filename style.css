@@ -778,7 +778,7 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.110"}
+:root{--cssv:"0.21.111"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
@@ -953,3 +953,18 @@ table.atbl th.seq,table.atbl td.seq{width:44px;text-align:center;font-family:var
 .stl-tbl.cmp .x{width:24px;height:24px}
 .stl-tbl.cmp tfoot td small{color:var(--muted);font-weight:500;font-size:11px;margin-left:4px}
 @media (max-width:1100px){.stl-tbl.cmp th,.stl-tbl.cmp td{padding:6px 3px;font-size:12px}.stl-tbl.cmp td.fin{font-size:14px}}
+/* 0.21.111 통장 잔액 */
+.bank{margin-bottom:10px}
+.bank-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.bank-top small{display:block;font-size:12px;color:var(--muted)}
+.bank-top>div>b{display:block;font-size:26px;font-weight:800;letter-spacing:-.5px;margin:2px 0}
+.bank-top>div>b em{font-style:normal;font-size:14px;margin-left:2px;color:var(--muted)}
+.bank-top i{font-style:normal;font-size:12.5px;color:var(--muted)}.bank-top i b{color:var(--text)}
+.bank .neg{color:#FF8A8A}.bank .pos{color:#7FE3C4}
+.bank-set{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px}.bank-set .stl-m{flex:1;min-width:160px}
+.bank-log{margin-top:10px;border-top:1px solid var(--line)}
+.bank-ln{display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--line);font-size:13.5px}
+.bank-ln span{flex:1}.bank-ln small{color:var(--muted);font-size:11px;margin-left:4px}.bank-ln b{white-space:nowrap}
+.bank-ln .x{width:22px;height:22px}.bank-ln.tot{font-weight:800;border-bottom:0}
+.bank-add{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:10px}.bank-add #bank-memo{flex:1 1 200px}.bank-add .stl-m{width:140px}
+.bank-set .stl-m .inp{width:170px}

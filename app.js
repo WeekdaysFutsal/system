@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.110';
+const APP_VERSION = '0.21.111';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1246,6 +1246,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.111', '2026.10.26', ['[운영진] 운영비 정산 화면에 통장 잔액을 보여줘요. 지금 잔액을 한 번만 넣으면, 이후 정산 완료하는 경기마다 걷는 돈은 더하고 돌려주는 돈·사례금은 빼서 자동으로 계산해요', '[운영진] 구장비 지급·회비 입금처럼 경기 정산 밖의 입출금도 직접 넣을 수 있고, 정산 완료 전에는 완료하면 잔액이 얼마가 되는지 미리 보여줘요']],
   ['0.21.110', '2026.10.26', ['[운영진] 운영비 정산표를 원래처럼 항목별 칸으로 되돌리고, 칸 폭만 줄여서 옆으로 밀지 않아도 보이게 했어요 (구분 칩은 짧게: 운영·예약·공당·물당·지각·불참)']],
   ['0.21.109', '2026.10.26', ['[운영진] 운영비 정산표를 옆으로 밀지 않아도 한눈에 보이게 줄였어요: 1인 몫 계산은 한 칸에 "구장 + 사례 + 음료 = 합계 → 정산 금액"으로 모으고, 구분 칩은 짧게(운영·예약·공당·물당·지각·불참) 바꿨어요. 폰에서는 한 사람씩 카드처럼 보여요']],
   ['0.21.108', '2026.10.26', ['[운영진] 운영비 정산 맨 아래 \'정산 완료\' 버튼: 누르면 낼·받을 금액을 그대로 기록하고 그 경기의 신청·팀·경기 기록·물당 등록·정산을 모두 잠가요. 진행 단계에 ✓가 붙고, 필요하면 \'잠금 풀기\'로 다시 고칠 수 있어요']],
@@ -1906,18 +1907,38 @@ function stlTable(s, C) { const lock = !!s.closed; const c = v => v ? wn(v) : '<
   </tbody><tfoot><tr><td></td><td class="l" colspan="2">합계 <small>경기 ${C.playing.length} · 정산 ${C.payers.length}명</small></td><td class="v">${wn(C.rows.reduce((a, x) => a + x.fS, 0))}</td><td class="v">${wn(C.rows.reduce((a, x) => a + x.rS, 0))}</td><td class="v">${wn(C.rows.reduce((a, x) => a + x.dS, 0))}</td><td class="v">${wn(C.rows.reduce((a, x) => a + x.raw, 0))}</td><td class="v buy">${C.D ? '−' + wn(C.D) : '-'}</td><td class="v">${wn(C.collected)}</td><td class="v">${wn(C.penTot)}</td><td class="fin">${money(C.owed)}</td><td class="get">${wn(C.gets)}</td><td></td></tr></tfoot></table></div>` }
 function stlMore(s, C) { return `<h3 class="stl-h">누가 얼마를 내나요</h3><div class="stl-groups">${stlGroups(C).map(x => `<div class="stl-g"><small>${x.lab} · ${x.names.length}명</small><b class="${x.owe < 0 ? 'neg' : ''}">${x.owe < 0 ? '−' + wn(-x.owe) : wn(x.owe)}원</b><span>${x.owe < 0 ? '산 금액이 더 많아 돌려받아요' : x.pen ? `운영비 ${wn(x.rd)} + 벌금 ${wn(x.pen)}` : x.lab.includes('물당') ? '물 구입비를 뺀 금액' : x.rd ? '운영비' : '내지 않아요'}</span><span>${esc(x.names.join(', '))}</span></div>`).join('')}</div>
   <h3 class="stl-h">회원 공지</h3><div class="stl-share"><button class="btn primary" data-act="stlimg" data-v="dl">🖼 이미지로 저장</button><button class="btn" data-act="stlimg" data-v="share">📤 이미지 공유</button><button class="btn" data-act="stlcopy">📋 안내문 복사</button></div>${stlAcct() ? `<p class="note" style="margin:6px 0 0">입금 계좌: ${esc(stlAcct().line)}${stlAcct().holder ? ' (' + esc(stlAcct().holder) + ')' : ''} · 설정에서 바꿔요</p>` : '<p class="stl-warn" style="margin:6px 0 0">⚠️ 입금 계좌가 없어요. 설정 → 운영비 정산 규칙에서 넣으면 이미지와 안내문에 함께 나와요.</p>'}<pre class="stl-kk" style="margin-top:10px">${esc(stlKakao(s, C))}</pre>` }
-function stlRefresh(s) { const C = stlCalc(s); const a = document.getElementById('stl-res'), b = document.getElementById('stl-tb'), m = document.getElementById('stl-more'); if (a) a.innerHTML = stlSummary(s, C); if (b) b.innerHTML = stlTable(s, C); if (m) m.innerHTML = stlMore(s, C) }
+function stlRefresh(s) { const C = stlCalc(s); const a = document.getElementById('stl-res'), b = document.getElementById('stl-tb'), m = document.getElementById('stl-more'); if (a) a.innerHTML = stlSummary(s, C); if (b) b.innerHTML = stlTable(s, C); if (m) m.innerHTML = stlMore(s, C); const bk = document.getElementById('stl-bank'); if (bk && !bk.contains(document.activeElement)) bk.innerHTML = stlBank(s, C) }
 function stlResults(s) { stlRefresh(s); return document.getElementById('stl-res')?.innerHTML || '' }
 function stlDrinkPanel(s) { const ids = (s.duty?.drink || []).filter(p => S.players[p]); const db = s.drinkBuy || {};
   if (!ids.length) return `<p class="note" style="margin:0">물당이 지정되지 않았어요. 도우미 지정 단계에서 물당을 정해 주세요.</p>`;
   return `<div class="stl-dk">${ids.map(pid => { const v = db[pid] || {}; return `<div class="stl-dr"><b>🥤 ${esc(pname(pid))}</b><span class="stl-m"><input class="inp" inputmode="numeric" data-in="stldb" data-id="${pid}" value="${v.amt ? (+v.amt).toLocaleString('ko-KR') : ''}" placeholder="금액" aria-label="${esc(pname(pid))} 구입 금액"><em>원</em></span>${v.img ? `<button class="btn sm" data-act="rcptview" data-id="${s.date}" data-p="${pid}">🧾 영수증</button>` : `<span class="muted stl-nor">${v.amt ? '영수증 없음' : '미등록'}</span>`}<small>${v.at ? `${v.by && v.by !== pid ? '운영진 입력 · ' : '본인 등록 · '}${fmtTS(v.at).replace(/:\d\d\.\d{3}$/, '')}` : '물당 본인이 경기 후 앱에서 등록해요'}</small></div>` }).join('')}</div>` }
+/* 통장 잔액: 한 번 넣은 잔액(meta/bank.base)에 그 뒤 정산 완료한 경기의 입출금(낼 금액 합 − 받을 금액 합)과 기타 입출금(adj)을 더해 자동 계산 */
+function bankCfg() { return { base: null, at: 0, skip: [], adj: [], ...(S.meta?.bank || {}) } }
+function bankNet(s) { const r = s?.settle?.result; if (r?.rows) return r.rows.reduce((a, x) => a + (+x.owe || 0) - (+x.get || 0), 0); const C = stlCalc(s); return C.owed - C.gets }
+function bankState() { const b = bankCfg(); if (b.base == null) return null; const skip = new Set(b.skip || []);
+  const games = Object.values(S.sessions).filter(x => x?.closed && !skip.has(x.date)).sort((a, z) => a.date.localeCompare(z.date)).map(x => ({ sid: x.date, net: bankNet(x) }));
+  const adj = (b.adj || []).slice().sort((a, z) => (a.at || 0) - (z.at || 0)); const gsum = games.reduce((a, x) => a + x.net, 0), asum = adj.reduce((a, x) => a + (+x.amt || 0), 0);
+  return { ...b, games, adj, gsum, asum, bal: (+b.base || 0) + gsum + asum } }
+const sgn = v => (v > 0 ? '+' : v < 0 ? '−' : '') + wn(Math.abs(v));
+function stlBank(s, C) { const B = bankState(); const ed = S.bankEdit || B == null;
+  const net = s.closed ? null : C.owed - C.gets;
+  const setForm = `<div class="bank-set"><span class="stl-m"><input id="bank-base" class="inp" inputmode="numeric" value="${B ? wn(B.bal) : ''}" placeholder="지금 통장에 있는 돈" aria-label="현재 통장 잔액"><em>원</em></span><button class="btn sm primary" data-act="bankset">저장</button>${B ? '<button class="btn sm" data-act="bankedit" data-v="0">취소</button>' : ''}</div><small class="muted">지금 통장 잔액을 한 번만 넣으면, 이후 정산 완료하는 경기마다 걷는 돈은 더하고 돌려주는 돈·사례금은 빼서 자동으로 계산해요. 이미 정산 완료된 경기는 이 잔액에 들어 있는 걸로 봐요.</small>`;
+  if (ed) return `<section class="panel pad bank"><h3 class="stl-h">🏦 통장 잔액</h3>${setForm}</section>`;
+  const open = !!S.bankOpen;
+  return `<section class="panel pad bank"><div class="bank-top"><div><small>지금 통장 잔액 <span class="muted">(정산대로 모두 입금·송금했을 때)</span></small><b class="${B.bal < 0 ? 'neg' : ''}">${B.bal < 0 ? '−' : ''}${wn(Math.abs(B.bal))}<em>원</em></b>${net != null ? `<i>이 경기 정산 완료하면 ${sgn(net)} → <b>${wn(B.bal + net)}원</b></i>` : ''}</div><div class="row"><button class="btn sm" data-act="bankopen">${open ? '접기' : '내역 · 입출금'}</button></div></div>
+  ${open ? `<div class="bank-log"><div class="bank-ln"><span>기준 잔액 <small>${fmtTS(B.at).replace(/:\d\d(\.\d{3})?$/, '')}${B.by ? ' · ' + esc(B.by) : ''}</small></span><b>${wn(B.base)}</b></div>
+    ${B.games.map(g => `<div class="bank-ln"><span>${fmtDate(g.sid)} 경기 정산</span><b class="${g.net < 0 ? 'neg' : 'pos'}">${sgn(g.net)}</b></div>`).join('')}
+    ${B.adj.map(a => `<div class="bank-ln"><span>${esc(a.memo || '기타')} <small>${fmtTS(a.at).replace(/ .*$/, '')}</small></span><b class="${a.amt < 0 ? 'neg' : 'pos'}">${sgn(+a.amt || 0)}</b><button class="x" data-act="bankdel" data-id="${a.id}" aria-label="지우기" title="지우기">×</button></div>`).join('')}
+    <div class="bank-ln tot"><span>지금 잔액</span><b>${wn(B.bal)}</b></div></div>
+    <div class="bank-add"><input id="bank-memo" class="inp" placeholder="기타 입출금 (예: 11월 구장비 지급, 회비 입금)"><span class="stl-seg" role="group"><button class="${S.bankSign === 1 ? 'on' : ''}" data-act="banksign" data-v="1">입금 +</button><button class="${S.bankSign !== 1 ? 'on' : ''}" data-act="banksign" data-v="-1">출금 −</button></span><span class="stl-m"><input id="bank-amt" class="inp" inputmode="numeric" placeholder="0" aria-label="금액"><em>원</em></span><button class="btn sm" data-act="bankadj">추가</button></div>
+    <div class="row" style="margin-top:8px"><button class="btn sm" data-act="bankedit" data-v="1">✏️ 잔액 다시 맞추기</button></div>` : ''}</section>` }
 function vSettle(s) { const st = stlGet(s.date); const lock = !!s.closed; const ps = stlPeople(s); const all = byName(Object.keys(S.players).filter(p => !ps.includes(p)));
   const C = stlCalc(s);
   return `<div class="stl ${s.closed ? 'locked' : ''}"><div class="stl-head"><h2>💰 경기 운영비 정산<small>${fmtDate(s.date)} · ${esc(s.venue || '')}</small></h2><div class="row"><button class="btn sm" data-act="staffedit" data-id="${s.date}">✏️ 예약자 · 경기 운영자</button><button class="btn sm" data-act="tab" data-v="settings">⚙️ 정산 규칙 설정</button></div></div>
   <div class="stl-grid"><div class="stl-col">
     <section class="panel pad"><h3 class="stl-h">지출</h3><label class="stl-f"><span><b>구장 사용료</b><small>운영진·경기 운영자·불참자 빼고 모두 나눠 내요</small></span><span class="stl-m"><input class="inp" inputmode="numeric" data-in="stlfee" value="${st.fee ? st.fee.toLocaleString('ko-KR') : ''}" placeholder="0" aria-label="구장 사용료"><em>원</em></span></label>
       <div class="stl-f"><span><b>물·음료 구입비 <small style="display:inline">합계 ${wn(C.D)}원</small></b><small>물당이 각자 등록한 금액만큼 그 물당의 낼 금액에서 빼요</small></span></div>${stlDrinkPanel(s)}</section>
-  </div><div class="stl-col" id="stl-res">${stlSummary(s, C)}</div></div>
+  </div><div class="stl-col"><div id="stl-bank">${stlBank(s, C)}</div><div id="stl-res">${stlSummary(s, C)}</div></div></div>
   <section><h3 class="stl-h">정산표 <small>구분 칩을 눌러 지각·당일 불참·운영진·예약자를 바꿔요 · 공당·물당은 도우미 지정에서</small></h3><div id="stl-tb">${stlTable(s, C)}</div>
     <div class="stl-add"><input id="stl-add" class="inp" list="stl-list" placeholder="명단에 없는 회원 추가 (당일 불참자 등)"><datalist id="stl-list">${all.map(p => `<option value="${esc(pname(p))}">`).join('')}</datalist><button class="btn sm" data-act="stladd" data-id="${s.date}">추가</button></div>
     <p class="note">정산 금액은 계산 금액을 ${wn(C.unit)}원 단위로 맞춘 값이에요. ${wn(C.unit)}원으로 나눈 나머지가 ${wn(C.cut)}원 미만이면 버리고, 이상이면 올려요. 벌금은 그대로 더해요. 규칙은 설정에서 바꿔요.</p></section>
@@ -3228,6 +3249,17 @@ document.addEventListener('click', async e => {
       const C = stlCalc(ss); const snap = { at: Date.now(), by: S.me || '운영진', fee: C.F, reward: C.Rper, drink: C.D, penalty: C.penTot, collected: C.collected, diff: C.diff, rows: C.rows.map(x => ({ pid: x.pid, owe: x.owe, get: x.get, pen: x.pen, buy: x.buy || 0 })) };
       if (await w(() => S.store.update(sp(S.sid), { closed: { at: snap.at, by: snap.by }, 'settle.result': snap }), '정산을 완료했어요. 이 경기 기록이 잠겼어요.')) { S.stlConfirm = null; render() } break }
     case 'stlunlock': { if (!needAdmin()) break; if (S.stlConfirm !== 'un' + S.sid) { S.stlConfirm = 'un' + S.sid; toast('한 번 더 누르면 잠금이 풀려요.'); setTimeout(() => { if (S.stlConfirm === 'un' + S.sid) S.stlConfirm = null }, 4000); break } S.stlConfirm = null; await w(() => S.store.update(sp(S.sid), { closed: null }), '잠금을 풀었어요. 다시 고칠 수 있어요.'); break }
+    case 'bankedit': S.bankEdit = el.dataset.v === '1'; render(); break;
+    case 'bankopen': S.bankOpen = !S.bankOpen; render(); break;
+    case 'banksign': S.bankSign = +el.dataset.v; render(); break;
+    case 'bankset': { if (!needAdmin()) break; const v = parseInt((document.getElementById('bank-base')?.value || '').replace(/[^\d-]/g, ''), 10); if (!Number.isFinite(v)) { toast('잔액을 숫자로 넣어 주세요.'); break }
+      const skip = Object.values(S.sessions).filter(x => x?.closed).map(x => x.date); const b = { base: v, at: Date.now(), by: S.me || '운영진', skip, adj: [] };
+      if (await w(() => S.store.set('meta/bank', b), '통장 잔액을 저장했어요. 이제부터 자동으로 계산해요.')) { S.meta = S.meta || {}; S.meta.bank = b; S.bankEdit = false; render() } break }
+    case 'bankadj': { if (!needAdmin()) break; const m = (document.getElementById('bank-memo')?.value || '').trim().slice(0, 40); const a = parseInt((document.getElementById('bank-amt')?.value || '').replace(/[^\d]/g, ''), 10);
+      if (!a) { toast('금액을 넣어 주세요.'); break } const b = bankCfg(); const adj = [...(b.adj || []), { id: 'a' + Date.now().toString(36), at: Date.now(), memo: m, amt: (S.bankSign === 1 ? 1 : -1) * a }];
+      if (await w(() => S.store.set('meta/bank', { ...b, adj }), '입출금을 넣었어요.')) { S.meta.bank = { ...b, adj }; render() } break }
+    case 'bankdel': { if (!needAdmin() || !confirm('이 입출금 내역을 지울까요?')) break; const b = bankCfg(); const adj = (b.adj || []).filter(x => x.id !== id);
+      if (await w(() => S.store.set('meta/bank', { ...b, adj }), '지웠어요.')) { S.meta.bank = { ...b, adj }; render() } break }
     case 'stlpen': { if (!needAdmin()) break; S.meta = S.meta || {}; S.meta.settle = { ...stlCfg(), penUse: el.dataset.v === '1' }; await w(() => S.store.set('meta/settle', S.meta.settle), '정산 규칙을 저장했어요.'); break }
     case 'dbopen': S.dbDraft = null; S.sheet = { type: 'drinkbuy', sid: id }; render(); break;
     case 'dbsave': { const me = myPid(); if (!me) { toast('로그인 후 등록할 수 있어요.'); break } const amt = Math.max(0, parseInt(String(document.getElementById('db-amt')?.value || '').replace(/[^\d]/g, ''), 10) || 0); if (!amt) { toast('구입 금액을 넣어 주세요.'); break }
