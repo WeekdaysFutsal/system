@@ -778,7 +778,7 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.111"}
+:root{--cssv:"0.21.112"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
@@ -968,3 +968,8 @@ table.atbl th.seq,table.atbl td.seq{width:44px;text-align:center;font-family:var
 .bank-ln .x{width:22px;height:22px}.bank-ln.tot{font-weight:800;border-bottom:0}
 .bank-add{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:10px}.bank-add #bank-memo{flex:1 1 200px}.bank-add .stl-m{width:140px}
 .bank-set .stl-m .inp{width:170px}
+/* 0.21.112 최종 금액 +/− */
+.stl-tbl.cmp th.fin small{display:block;font-size:10px;font-weight:500;color:var(--muted)}
+.stl-tbl.cmp td.fin.pos{color:var(--accent,#D7FF3A)}.stl-tbl.cmp td.fin.neg{color:#7FB8FF}
+.stl-tbl.cmp tfoot td.fin small{display:block;margin:0;font-size:10.5px}
+.stl-tbl.cmp td.get{color:#9DB8FF}
