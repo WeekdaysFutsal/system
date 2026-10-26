@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.99';
+const APP_VERSION = '0.21.100';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -756,6 +756,8 @@ function render() {
   S.dm = !isDesk();
   if (S.ready >= 3 || S.err) hideBoot();
   if (S.ready >= 3) ensureQueues();
+  if (S.admin && S.ready >= 3 && !S.fixP0 && S.store) { S.fixP0 = true; const ss = S.sessions['2026-10-21'], pid = findPlayer('도현우'); // 10/21 경기 예약자 바로잡기 (운영모드에서 한 번)
+    if (ss && pid && !((ss.p0 || []).length === 1 && ss.p0[0] === pid)) S.store.update(sp('2026-10-21'), { p0: [pid] }).then(() => toast('10월 21일 경기 예약자를 도현우 님으로 바로잡았어요.')).catch(() => { S.fixP0 = false }) }
   if (S.fs) requestAnimationFrame(() => { fsFit(); setTimeout(fsFit, 120) });
   if (S.ready >= 3 && S.auth && !S.admin) { loadPrefs(); pushListen(); watchInbox() }
   if (!S.admin && S.auth && S.ready >= 3) { const cs = capSid(); if (cs && S.tab !== 'draft' && !(S.capPop ??= {})[cs] && !S.sheet) { S.capPop[cs] = 1; S.sheet = { type: 'cappop', sid: cs } } }
@@ -1242,6 +1244,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.100', '2026.10.26', ['[운영진] 경기 진행 단계 맨 끝에 \'운영비 정산\'(시뮬레이션)을 넣었어요: 경기를 고르면 팀 명단·운영진·예약자·공당·물당을 불러와서, 구장 사용료·사례금·음료비와 지각·불참 벌금을 규칙대로 나누고 500원 단위로 맞춘 개인별 금액과 단톡방 안내문을 보여 줘요 (입력값은 이 기기에만 저장)', '10월 21일 경기 예약자를 도현우 님으로 바로잡았어요']],
   ['0.21.99', '2026.10.26', ['[운영진] 신청자 목록 맨 앞에 No. 칸을 넣었어요. 순위순·신청순 어느 쪽으로 봐도 위에서부터 1, 2, 3… 순번이 붙어요']],
   ['0.21.98', '2026.10.23', ['대기자도 주차·공당·물당을 미리 신청해 둘 수 있어요. 대기에서 선발되면 주차 추첨 대상과 공당·물당 후보에 자동으로 들어가요 (선발되지 않으면 제외, 대기를 취소하면 함께 지워져요)']],
   ['0.21.97', '2026.10.23', ['홈 화면에 앱으로 설치하면 앱 이름이 WDFS로 나와요 (이미 설치했다면 지우고 다시 설치하면 바뀌어요)']],
@@ -1741,8 +1744,8 @@ async function deleteSessionBy(sid) { if (!confirm(fmtDate(sid) + ' 경기를 �
     try { (await S.store.query('events', [['session', '==', sid]])).forEach(d => evs.add(d.id)); (await S.store.query('matches', [['session', '==', sid]])).forEach(d => mts.add(d.id)) } catch { } // 90일 지난 기록도 함께 지워요
     for (const eid of evs) await S.store.del('events/' + eid); for (const id of mts) await S.store.del(mp(id)); await S.store.del(sp(sid)) }, '삭제했어요.');
   if (ok && S.sid === sid) S.sid = null; render() }
-const RUN_STEPS = [['apply', '신청접수'], ['captain', '도우미 지정'], ['draft', '드래프트'], ['trade', '팀원조정'], ['match', '경기진행'], ['result', '경기결과']];
-function stepDone(s, k) { if (k === 'result' || k === 'match') { const ms = sessMatches(s.date); return ms.length > 0 && ms.every(m => m.status === 'done') } if (k === 'notice') return stageIdx(s.stage) > stageIdx('notice'); return stageIdx(k) < stageIdx(s.stage) }
+const RUN_STEPS = [['apply', '신청접수'], ['captain', '도우미 지정'], ['draft', '드래프트'], ['trade', '팀원조정'], ['match', '경기진행'], ['result', '경기결과'], ['settle', '운영비 정산']];
+function stepDone(s, k) { if (k === 'settle') return false; if (k === 'result' || k === 'match') { const ms = sessMatches(s.date); return ms.length > 0 && ms.every(m => m.status === 'done') } if (k === 'notice') return stageIdx(s.stage) > stageIdx('notice'); return stageIdx(k) < stageIdx(s.stage) }
 function shiftDate(sid, days, time) { const d = new Date(sid + 'T00:00'); d.setDate(d.getDate() - days); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${time || '12:00'}` }
 function adminSid() { if (S.sid && S.sessions[S.sid]) return S.sid; return defaultSid() }
 function viewManageList() {
@@ -1823,10 +1826,75 @@ function viewRun() {
   if (step === 'draft' && S.dm) return `<div class="dmroot">${adminBar()}${vDraft(s)}</div>`;
   let h = adminBar();
   if (step === 'notice') step = 'trade';
-  if (step === 'result') h += ms.length ? vResultDetail(s) + `<p class="note">골과 도움은 "경기" 단계에서 각 경기를 눌러 고쳐요.</p>` : `<div class="panel pad" style="margin-top:14px"><p class="empty" style="padding:8px 0">아직 경기 기록이 없어요. 팀 확정 단계에서 경기 일정을 만들거나, "기록 붙여넣기"로 지난 기록을 넣을 수 있어요.</p><button class="btn sm" style="margin-top:8px" data-act="impopen">📋 기록 붙여넣기</button></div>`;
+  if (step === 'settle') h += vSettle(s);
+  else if (step === 'result') h += ms.length ? vResultDetail(s) + `<p class="note">골과 도움은 "경기" 단계에서 각 경기를 눌러 고쳐요.</p>` : `<div class="panel pad" style="margin-top:14px"><p class="empty" style="padding:8px 0">아직 경기 기록이 없어요. 팀 확정 단계에서 경기 일정을 만들거나, "기록 붙여넣기"로 지난 기록을 넣을 수 있어요.</p><button class="btn sm" style="margin-top:8px" data-act="impopen">📋 기록 붙여넣기</button></div>`;
   else h += ({ apply: vApply, captain: vCaptain, draft: vDraft, trade: vTrade, match: vMatchDay })[step](s);
   return h;
 }
+/* ───────── 운영비 정산 (시뮬레이션) ─────────
+   지출: 구장 사용료 · 예약자 사례금 · 물/음료 구입비
+   · 운영진은 정산 제외 · 예약자는 사례금 몫 제외 · 공당/물당은 음료 몫 제외 · 물당에게 음료비 환급
+   · 지각/당일 불참 벌금 · 1인 금액은 단위(500)로 나눈 나머지가 기준(200) 미만이면 버리고, 이상이면 올림
+   입력값은 이 기기에만 저장돼요(시뮬레이션). 예약자 지정만 경기 정보(p0)에 바로 반영돼요. */
+const STL_ROLES = [['staff', '운영진'], ['res', '예약자'], ['ball', '공당'], ['drink', '물당'], ['late', '지각'], ['absent', '당일 불참']];
+const STL_NUM = [['fee', '구장 사용료', '운영진·불참자 빼고 모두 나눠 내요', 0], ['reward', '예약자 사례금 (1인당)', '예약자는 이 몫을 안 내요', 5000], ['drink', '물·음료 구입비', '물당에게 그대로 보내요 · 공당·물당은 이 몫 제외', 0],
+  ['pLate', '지각 벌금', '', 1000], ['pAbsent', '당일 불참 벌금', '불참자는 운영비는 안 내고 벌금만 내요', 10000], ['unit', '정산 단위', '', 500], ['cut', '절삭 기준', '단위로 나눈 나머지가 이 금액 미만이면 버리고, 이상이면 올려요', 200]];
+function stlGet(sid) { S.stl ??= {}; if (!S.stl[sid]) { const d = Object.fromEntries(STL_NUM.map(x => [x[0], x[3]])); S.stl[sid] = { ...d, penUse: false, resPaid: true, ov: {}, add: [], rm: [], ...(load('settle:' + sid, null) || {}) } } return S.stl[sid] }
+function stlSave(sid) { save('settle:' + sid, S.stl[sid]) }
+function stlRound(x, unit, cut) { if (unit <= 0) return Math.round(x); const b = Math.floor(x / unit) * unit; return x - b < cut ? b : b + unit }
+function stlPeople(s) { const st = stlGet(s.date); const ids = new Set([...attPids(s), ...(s.applicants || []), ...(s.p0 || []), ...st.add]); st.rm.forEach(p => ids.delete(p)); return [...ids].filter(p => S.players[p]) }
+function stlRoles(s, pid) { const st = stlGet(s.date); const b = { staff: mstatus(S.players[pid]) === 'staff', res: (s.p0 || []).includes(pid), ball: (s.duty?.ball || []).includes(pid), drink: (s.duty?.drink || []).includes(pid), late: false, absent: false };
+  const o = st.ov[pid] || {}; const r = { ...b, ...o, res: b.res }; return r }
+function stlCalc(s) {
+  const st = stlGet(s.date); const n = k => Math.max(0, Math.round(+st[k] || 0)); const F = n('fee'), Rper = n('reward'), D = n('drink'), pL = n('pLate'), pA = n('pAbsent'), unit = n('unit'), cut = n('cut');
+  const P = stlPeople(s).map(pid => ({ pid, r: stlRoles(s, pid) }));
+  const sortKey = x => (x.r.absent ? 3 : x.r.staff ? 2 : 0); P.sort((a, b) => sortKey(a) - sortKey(b) || pname(a.pid).localeCompare(pname(b.pid), 'ko'));
+  const playing = P.filter(p => !p.r.absent), payers = playing.filter(p => !p.r.staff), resv = playing.filter(p => p.r.res), drinkers = playing.filter(p => p.r.drink);
+  const Rtot = Rper * resv.length; const pen = p => p.r.absent ? pA : p.r.late ? pL : 0; const penTot = P.reduce((a, p) => a + pen(p), 0);
+  const penUsed = st.penUse ? Math.min(F, penTot) : 0; const Fpool = F - penUsed;
+  const divF = payers.length, divR = payers.filter(p => !p.r.res).length, divD = payers.filter(p => !p.r.ball && !p.r.drink).length;
+  const sF = divF ? Fpool / divF : 0, sR = divR ? Rtot / divR : 0, sD = divD ? D / divD : 0;
+  const rows = P.map(p => { const pay = !p.r.absent && !p.r.staff; const fS = pay ? sF : 0, rS = pay && !p.r.res ? sR : 0, dS = pay && !p.r.ball && !p.r.drink ? sD : 0; const raw = fS + rS + dS; const rd = pay ? stlRound(raw, unit, cut) : 0; const pn = pen(p);
+    let get = 0; const why = []; if (p.r.res && !p.r.absent) { get += Rper; why.push('사례금'); if (st.resPaid && resv.length) { get += F / resv.length; why.push('구장비') } } if (p.r.drink && !p.r.absent && drinkers.length) { get += D / drinkers.length; why.push('음료비') }
+    return { ...p, pay, fS, rS, dS, raw, rd, pen: pn, owe: rd + pn, get, why } });
+  const collected = rows.reduce((a, x) => a + x.rd, 0);
+  return { st, F, Rper, Rtot, D, unit, cut, rows, playing, payers, resv, drinkers, divF, divR, divD, sF, sR, sD, Fpool, penTot, penUsed, collected, owed: rows.reduce((a, x) => a + x.owe, 0), gets: rows.reduce((a, x) => a + x.get, 0), spend: F + Rtot + D, diff: collected - (Fpool + Rtot + D) }
+}
+const wn = v => (v < 0 ? '-' : '') + Math.abs(Math.round(v)).toLocaleString('ko-KR');
+function stlGroups(C) { const g = {}; C.rows.forEach(x => { const lab = x.r.absent ? '당일 불참' : x.r.staff ? '운영진 (정산 제외)' : [x.r.res && '예약자', x.r.ball && '공당', x.r.drink && '물당', x.r.late && '지각'].filter(Boolean).join(' · ') || '일반 참가자'; (g[lab + '|' + x.owe] ??= { lab, owe: x.owe, rd: x.rd, pen: x.pen, get: x.get, names: [] }).names.push(pname(x.pid)) });
+  return Object.values(g).sort((a, b) => b.names.length - a.names.length) }
+function stlKakao(s, C) { const L = [`[WDFS ${fmtDate(s.date)} 경기 운영비 정산]`, `지출 ${wn(C.spend)}원 (구장 ${wn(C.F)} · 사례금 ${wn(C.Rtot)} · 음료 ${wn(C.D)})`];
+  stlGroups(C).filter(x => x.owe > 0).forEach(x => L.push(`· ${x.lab} ${wn(x.owe)}원 : ${x.names.join(', ')}`));
+  const rc = C.rows.filter(x => x.get); if (rc.length) { L.push('', '[돌려받을 분]'); rc.forEach(x => L.push(`· ${pname(x.pid)} ${wn(x.get)}원 (${x.why.join('+')})`)) }
+  const sf = C.rows.filter(x => x.r.staff && !x.r.absent); if (sf.length) L.push('', `운영진(${sf.map(x => pname(x.pid)).join(', ')})은 정산에서 빠져요.`); return L.join('\n') }
+function stlResults(s) { const C = stlCalc(s); const st = C.st;
+  const sp = (t, v, eq) => `<div class="stl-sp"><b>${t}</b><span class="v">${v}</span><span class="eq">${eq}</span></div>`;
+  const warn = []; if (!C.F) warn.push('구장 사용료를 넣어 주세요.'); if (!C.resv.length && C.Rper) warn.push('예약자가 지정되지 않아 사례금이 0원이에요.'); if (!C.drinkers.length && C.D) warn.push('물당이 없어서 음료비를 돌려받을 사람이 없어요.');
+  const c = v => v ? wn(v) : '<span class="muted">-</span>';
+  return `<div class="stl-sum"><div class="kpi"><small>총 지출</small><b>${wn(C.spend)}</b><i>구장 ${wn(C.F)} · 사례금 ${wn(C.Rtot)} · 음료 ${wn(C.D)}</i></div><div class="kpi hl"><small>걷는 돈 (운영비)</small><b>${wn(C.collected)}</b><i>${C.payers.length}명</i></div><div class="kpi"><small>벌금</small><b>${wn(C.penTot)}</b><i>${st.penUse ? `운영비에 ${wn(C.penUsed)} 보탬` : '회비로 적립'}</i></div><div class="kpi"><small>정산 차액</small><b class="${C.diff < 0 ? 'neg' : 'pos'}">${C.diff > 0 ? '+' : ''}${wn(C.diff)}</b><i>${C.diff < 0 ? '모자란 돈 · 회비에서' : '남는 돈 · 회비로'}</i></div></div>
+  <div class="stl-sps">${sp('구장비 1인 몫', wn(C.sF) + '원', `${wn(C.Fpool)}원 ÷ ${C.divF}명 (운영진·불참자 제외)`)}${sp('사례금 1인 몫', wn(C.sR) + '원', `${wn(C.Rper)}원 × 예약자 ${C.resv.length}명 ÷ ${C.divR}명 (예약자 제외)`)}${sp('물·음료 1인 몫', wn(C.sD) + '원', `${wn(C.D)}원 ÷ ${C.divD}명 (공당·물당 제외)`)}</div>
+  ${warn.length ? `<div class="stl-warn">⚠️ ${warn.join('<br>⚠️ ')}</div>` : ''}
+  <h3 class="stl-h">누가 얼마를 내나요</h3><div class="stl-groups">${stlGroups(C).map(x => `<div class="stl-g"><small>${x.lab} · ${x.names.length}명</small><b>${wn(x.owe)}원</b><span>${x.pen ? `운영비 ${wn(x.rd)} + 벌금 ${wn(x.pen)}` : x.rd ? '운영비' : '내지 않아요'}${x.get ? ` · 받을 돈 ${wn(x.get)}원` : ''}</span><span>${esc(x.names.join(', '))}</span></div>`).join('')}</div>
+  <h3 class="stl-h">개인별 정산표</h3><div class="panel tblwrap"><table class="stl-tbl"><thead><tr><th>No.</th><th class="l">이름</th><th class="l">구분</th><th>구장비</th><th>사례금</th><th>물·음료</th><th>계산 금액</th><th>정산 금액</th><th>벌금</th><th>낼 금액</th><th>받을 금액</th></tr></thead><tbody>
+  ${C.rows.map((x, i) => `<tr class="${x.r.staff && !x.r.absent ? 'staff' : ''} ${x.r.absent ? 'absent' : ''}"><td class="seq">${i + 1}</td><td class="l"><b>${esc(pname(x.pid))}</b></td><td class="l">${STL_ROLES.filter(([k]) => x.r[k]).map(([, l]) => `<span class="stl-tag">${l}</span>`).join('') || '<span class="stl-tag">일반</span>'}</td><td>${c(x.fS)}</td><td>${c(x.rS)}</td><td>${c(x.dS)}</td><td>${x.pay ? wn(x.raw) : '<span class="muted">정산 제외</span>'}</td><td>${x.pay ? wn(x.rd) : '-'}</td><td>${c(x.pen)}</td><td class="fin">${wn(x.owe)}</td><td class="get">${x.get ? wn(x.get) + ` <small>${x.why.join('+')}</small>` : ''}</td></tr>`).join('')}
+  </tbody><tfoot><tr><td></td><td class="l">합계</td><td></td><td>${wn(C.rows.reduce((a, x) => a + x.fS, 0))}</td><td>${wn(C.rows.reduce((a, x) => a + x.rS, 0))}</td><td>${wn(C.rows.reduce((a, x) => a + x.dS, 0))}</td><td>${wn(C.rows.reduce((a, x) => a + x.raw, 0))}</td><td>${wn(C.collected)}</td><td>${wn(C.penTot)}</td><td>${wn(C.owed)}</td><td>${wn(C.gets)}</td></tr></tfoot></table></div>
+  <p class="note">정산 금액은 계산 금액을 ${wn(C.unit)}원 단위로 맞춘 값이에요. ${wn(C.unit)}원으로 나눈 나머지가 ${wn(C.cut)}원 미만이면 버리고, 이상이면 올려요. 벌금은 그대로 더해요.</p>
+  <h3 class="stl-h">단톡방 안내문 <button class="btn sm primary" data-act="stlcopy">복사</button></h3><pre class="stl-kk">${esc(stlKakao(s, C))}</pre>` }
+function vSettle(s) { const st = stlGet(s.date); const ps = stlPeople(s); const all = byName(Object.keys(S.players).filter(p => !ps.includes(p)));
+  const fld = ([k, l, d]) => `<label class="stl-f"><span><b>${l}</b>${d ? `<small>${d}</small>` : ''}</span><span class="stl-m"><input class="inp" inputmode="numeric" data-in="stl" data-k="${k}" value="${(+st[k] || 0).toLocaleString('ko-KR')}" aria-label="${l}"><em>원</em></span></label>`;
+  const seg = (k, a, b) => `<span class="stl-seg" role="group">${[[true, a], [false, b]].map(([v, t]) => `<button class="${!!st[k] === v ? 'on' : ''}" data-act="stlopt" data-k="${k}" data-v="${v ? 1 : 0}" aria-pressed="${!!st[k] === v}">${t}</button>`).join('')}</span>`;
+  const C = stlCalc(s);
+  return `<div class="stl"><div class="stl-head"><h2>💰 경기 운영비 정산<small>${fmtDate(s.date)} · ${esc(s.venue || '')}</small></h2><span class="stl-sim">🧪 시뮬레이션 · 입력값은 이 기기에만 저장돼요</span></div>
+  <div class="stl-grid"><div class="stl-col">
+    <section class="panel pad"><h3 class="stl-h">지출</h3>${STL_NUM.slice(0, 3).map(fld).join('')}</section>
+    <section class="panel pad"><h3 class="stl-h">벌금 · 정산 규칙</h3>${STL_NUM.slice(3).map(fld).join('')}
+      <div class="stl-f"><span><b>벌금 쓰임</b><small>보태면 구장 사용료에서 먼저 빼고 나눠요</small></span>${seg('penUse', '운영비에 보태기', '회비로 적립')}</div>
+      <div class="stl-f"><span><b>구장 사용료를 먼저 낸 사람</b><small>예약자면 사례금과 함께 돌려줘요</small></span>${seg('resPaid', '예약자', '총무(회비)')}</div></section>
+    <section class="panel pad"><h3 class="stl-h">참가자 <small>경기 ${C.playing.length}명 · 정산 대상 ${C.payers.length}명</small></h3><p class="note" style="margin-top:0">팀 명단에서 불러왔어요. 칩을 눌러 역할을 바꿔요. 예약자는 경기 정보에 바로 저장돼요.</p>
+      <div class="stl-ros">${C.rows.map((x, i) => `<div class="stl-p ${x.r.absent ? 'absent' : ''}"><span class="no">${i + 1}</span><b>${esc(pname(x.pid))}</b><button class="x" data-act="stlrm" data-id="${x.pid}" aria-label="${esc(pname(x.pid))} 빼기">×</button><div class="stl-chips">${STL_ROLES.map(([k, l]) => `<button class="stl-chip r-${k}" data-act="stlrole" data-id="${x.pid}" data-k="${k}" aria-pressed="${!!x.r[k]}">${l}</button>`).join('')}</div></div>`).join('')}</div>
+      <div class="stl-add"><input id="stl-add" class="inp" list="stl-list" placeholder="명단에 없는 회원 추가 (당일 불참자 등)"><datalist id="stl-list">${all.map(p => `<option value="${esc(pname(p))}">`).join('')}</datalist><button class="btn sm" data-act="stladd" data-id="${s.date}">추가</button></div>
+      <div class="row" style="margin-top:8px"><button class="btn sm" data-act="stlreset" data-id="${s.date}">↺ 입력값 처음으로</button></div></section>
+  </div><div class="stl-col" id="stl-res">${stlResults(s)}</div></div></div>` }
 function recruitText(s) { return [`[${CFG.club?.short || 'WF'}] ${fmtDate(s.date)} ${s.time || ''} 경기 신청 받아요`, `장소: ${s.venue || '-'}`, `정원: ${s.capacity || '-'}명`, s.applyClose ? `마감: ${fmtDT(s.applyClose)}` : '', s.applyOpen ? `신청 오픈: ${fmtDT(s.applyOpen)}` : '', `앱에서 신청해 주세요 👉 ${location.origin}${location.pathname}`].filter(Boolean).join('\n') }
 
 /* ───────── sample data ───────── */
@@ -2912,6 +2980,7 @@ setInterval(tick, 100); // 화면 시계는 0.1초마다, 휘슬 점검은 0.25�
 let saveT = {};
 document.addEventListener('focusout', () => setTimeout(() => { if (S.pending && !isTyping()) render() }, 0));
 document.addEventListener('input', e => { const el = e.target; const k = el.dataset.in; if (!k) return;
+  if (k === 'stl') { const sid = S.sid; const st = stlGet(sid); st[el.dataset.k] = Math.max(0, parseInt(el.value.replace(/[^\d]/g, ''), 10) || 0); stlSave(sid); const r = document.getElementById('stl-res'); if (r && S.sessions[sid]) r.innerHTML = stlResults(S.sessions[sid]); return }
   if (k === 'calf' && S.cal) { S.cal.f[el.dataset.f] = el.value; if (el.dataset.f === 'no') S.cal.f.noAuto = false; return }
   if (k === 'calfvenue' && S.cal) { if (el.value === '__custom') { S.cal.f.venueCustom = true; S.cal.f.venue = ''; render(); setTimeout(() => document.getElementById('calf-venue')?.focus(), 50) } else { S.cal.f.venueCustom = false; S.cal.f.venue = el.value } return }
   if (k === 'impf' && S.imp) { S.imp[el.dataset.f] = el.value; return }
@@ -3077,6 +3146,13 @@ document.addEventListener('click', async e => {
       if (!confirm(`선택한 ${ids.length}명을 회원 명단에서 삭제할까요?\n${ids.slice(0, 8).map(pname).join(', ')}${ids.length > 8 ? ' …' : ''}\n지난 경기 기록의 이름은 "?"로 보일 수 있어요. 되돌릴 수 없어요.`)) break;
       if (await w(async () => { for (const id of ids) { await S.store.del('players/' + id); try { await S.store.del('contacts/' + id) } catch { } try { await S.store.del('auth/' + id) } catch { } } }, `${ids.length}명을 삭제했어요.`)) { S.msel = {}; render() } break }
     case 'ctxgo': if (!id) break; S.sid = id; S.planSel = id; S.planM = id.slice(0, 7); S.step = null; S.sel = null; S.openMatch = null; render(); break;
+    case 'stlopt': { const st = stlGet(S.sid); st[el.dataset.k] = el.dataset.v === '1'; stlSave(S.sid); render(); break }
+    case 'stlrole': { const ss = S.sessions[S.sid]; const pid = id, k = el.dataset.k; if (k === 'res') { if (!needAdmin()) break; const cur1 = ss.p0 || []; const on = cur1.includes(pid); await w(() => S.store.update(sp(S.sid), { p0: on ? cur1.filter(x => x !== pid) : [...cur1, pid] }), on ? `${pname(pid)} 님을 예약자에서 뺐어요.` : `${pname(pid)} 님을 예약자로 저장했어요.`); break }
+      const st = stlGet(S.sid); const r = stlRoles(ss, pid); const o = (st.ov[pid] ??= {}); o[k] = !r[k]; if (k === 'absent' && o.absent) o.late = false; if (k === 'late' && o.late) o.absent = false; stlSave(S.sid); render(); break }
+    case 'stlrm': { const st = stlGet(S.sid); st.add = st.add.filter(p => p !== id); if (!st.rm.includes(id)) st.rm.push(id); stlSave(S.sid); render(); break }
+    case 'stladd': { const v = document.getElementById('stl-add')?.value || ''; const pid = findPlayer(v); if (!pid) { toast('회원 목록에서 이름을 찾지 못했어요.'); break } const st = stlGet(S.sid); st.rm = st.rm.filter(p => p !== pid); if (!st.add.includes(pid)) st.add.push(pid); stlSave(S.sid); render(); break }
+    case 'stlreset': { S.stl && delete S.stl[S.sid]; try { localStorage.removeItem('wf:settle:' + S.sid) } catch { } render(); toast('입력값을 처음으로 되돌렸어요.'); break }
+    case 'stlcopy': { const ss = S.sessions[S.sid]; const t = stlKakao(ss, stlCalc(ss)); try { await navigator.clipboard.writeText(t); toast('정산 안내문을 복사했어요.') } catch { prompt('아래 내용을 복사하세요', t) } break }
     case 'flowgo': S.tab = 'run'; S.step = el.dataset.v; S.sel = null; render(); window.scrollTo(0, 0); break;
     case 'goposter': S.sid = id; S.tab = 'notice'; S.noticeTab = 'team'; render(); window.scrollTo(0, 0); break;
     case 'gocap': S.sheet = null; S.sid = id; S.tab = 'draft'; render(); window.scrollTo(0, 0); break;
