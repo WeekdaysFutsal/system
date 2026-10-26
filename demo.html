@@ -1,0 +1,1451 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1B3772">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>FMFC · Football Matching FC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pirata+One&family=Barlow+Condensed:wght@500;600;700;800&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+:root{
+  --navy:#1E3C7B; --navy-d:#142A57; --navy-dd:#0E1E40;
+  --red:#A3262E; --red-d:#7E1B22;
+  --orange:#EC7B2C; --orange-d:#C9631C;
+  --cream:#F3EDDC; --cream-2:#E7DEC4; --cream-3:#D8CCA8;
+  --paper:#F7F2E6; --card:#FFFCF4; --line:#E3D8BC;
+  --ink:#16223F; --ink-2:#4A5574; --ink-3:#8A90A3;
+  --ok:#2F7D4F;
+  --r:16px;
+  --stripes:repeating-linear-gradient(90deg,
+    var(--red) 0 34px, var(--cream) 34px 37px, var(--navy) 37px 42px, var(--cream) 42px 45px,
+    var(--orange) 45px 79px, var(--cream) 79px 82px, var(--navy) 82px 87px, var(--cream) 87px 90px);
+  --shadow:0 1px 0 rgba(20,42,87,.04), 0 6px 18px -10px rgba(20,42,87,.35);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{background:#E9E2CF;color:var(--ink);font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;font-size:15px;line-height:1.5;word-break:keep-all;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+button:disabled{cursor:not-allowed;opacity:.45}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;vertical-align:-3px}
+#app{max-width:560px;margin:0 auto;min-height:100vh;background:var(--paper);position:relative;box-shadow:0 0 40px rgba(20,42,87,.12)}
+.stripes{background:var(--stripes)}
+.wm{font-family:"Pirata One",serif;letter-spacing:.02em;line-height:1;color:var(--cream);text-shadow:2px 2px 0 var(--red),3.5px 3.5px 0 var(--navy-dd)}
+.wm.sm{font-size:22px}
+.muted{color:var(--ink-3)}
+.serif{font-family:"Cormorant Garamond",serif}
+
+/* top */
+header.top{position:sticky;top:0;z-index:30;height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--navy);padding-top:env(safe-area-inset-top)}
+header.top .wm{font-size:32px;cursor:pointer}
+.top-r{display:flex;align-items:center;gap:10px}
+.demo{font:700 11px/1 "Barlow Condensed";letter-spacing:.12em;color:var(--navy-d);background:var(--orange);padding:5px 7px 4px;border-radius:4px}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--cream);color:var(--navy);font-weight:800;font-size:13px;border:2px solid var(--orange);display:grid;place-items:center}
+.band{height:9px;position:sticky;top:58px;z-index:29;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+main{padding:18px 16px 110px}
+section{margin-top:26px}
+section:first-child{margin-top:0}
+
+/* nav */
+nav.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;z-index:30;display:grid;grid-template-columns:repeat(4,1fr);background:var(--navy-d);padding-bottom:env(safe-area-inset-bottom);border-top:3px solid var(--orange)}
+nav.tabs button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0 9px;color:#9FB0D6;font-size:11.5px;font-weight:600;position:relative}
+nav.tabs button svg{width:22px;height:22px}
+nav.tabs button.on{color:var(--cream)}
+nav.tabs button.on::before{content:"";position:absolute;top:-3px;left:30%;right:30%;height:3px;background:var(--cream)}
+
+/* titles */
+.sec{display:flex;align-items:baseline;gap:8px;margin:0 0 12px;font-size:17px;font-weight:800;letter-spacing:-.01em}
+.sec em{font:italic 700 14px "Cormorant Garamond",serif;color:var(--red);letter-spacing:.06em}
+.sec-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.sec-row .sec{margin:0}
+.bar{display:flex;align-items:center;gap:10px;margin:-2px 0 16px;min-height:38px}
+.bar h2{flex:1;margin:0;font-size:22px;font-weight:800;letter-spacing:-.02em;display:flex;align-items:baseline;gap:8px;min-width:0}
+.bar h2 small{font-size:13px;color:var(--ink-3);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.back{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--card);border:1px solid var(--line);color:var(--navy)}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:46px;padding:0 18px;border-radius:12px;font-weight:700;font-size:15px;transition:transform .08s, filter .15s;white-space:nowrap}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:var(--red);color:var(--cream);box-shadow:inset 0 -3px 0 var(--red-d)}
+.btn.navy{background:var(--navy);color:var(--cream);box-shadow:inset 0 -3px 0 var(--navy-dd)}
+.btn.orange{background:var(--orange);color:var(--navy-dd);box-shadow:inset 0 -3px 0 var(--orange-d)}
+.btn.ghost{background:transparent;border:1.5px solid var(--cream-3);color:var(--navy)}
+.btn.danger{background:transparent;border:1.5px solid #E2B4B6;color:var(--red)}
+.btn.sm{height:34px;padding:0 12px;font-size:13px;border-radius:9px}
+.btn.block{width:100%}
+.link{color:var(--orange);font-weight:700;font-size:14px}
+.row-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.row-btns .btn{flex:1}
+
+/* pills */
+.pill{display:inline-flex;align-items:center;height:24px;padding:0 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+.pill.cream{background:var(--cream);color:var(--navy-d)}
+.pill.line{border:1px solid rgba(243,237,220,.55);color:var(--cream)}
+.pill.open{background:var(--orange);color:var(--navy-dd)}
+.pill.closed{background:var(--cream-2);color:var(--navy-d)}
+.pill.done{background:var(--navy-d);color:var(--cream);border:1px solid rgba(243,237,220,.4)}
+.pill.canceled{background:#5a5a5a;color:#eee}
+.tag{display:inline-flex;align-items:center;height:21px;padding:0 7px;border-radius:6px;font:700 12px/1 "Barlow Condensed";letter-spacing:.04em}
+.tag.GK{background:#F6D9B9;color:#8A4310}.tag.DF{background:#D6DEF0;color:var(--navy)}.tag.MF{background:#E9E1C6;color:#5B4D1E}.tag.FW{background:#F2D0D2;color:var(--red-d)}
+.tag.sub{opacity:.6}
+.role{font-size:11px;font-weight:800;color:var(--cream);background:var(--red);padding:2px 6px;border-radius:5px}
+
+/* cards */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.empty{padding:22px 16px;text-align:center;color:var(--ink-3);background:var(--card);border:1px dashed var(--cream-3);border-radius:var(--r);font-size:14px}
+
+/* hero */
+.hero,.mcard{border-radius:20px;overflow:hidden;box-shadow:0 14px 30px -18px rgba(20,42,87,.7);background:var(--navy-d)}
+.hero-top,.mcard-top{position:relative;padding:18px 18px 20px;min-height:168px;display:flex;align-items:flex-end}
+.hero-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(14,30,64,.30) 0%,rgba(14,30,64,.72) 55%,rgba(14,30,64,.96) 100%)}
+.hero-shade::after{content:"";position:absolute;left:0;right:0;top:0;height:6px;background:linear-gradient(90deg,var(--navy) 0 30%,var(--cream) 30% 31.5%,transparent 31.5% 68.5%,var(--cream) 68.5% 70%,var(--navy) 70%)}
+.hero-in{position:relative;z-index:1;width:100%;color:var(--cream)}
+.hero-meta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.hero-vs{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.hero-vs .vs{font:800 15px "Barlow Condensed";color:var(--orange);letter-spacing:.1em}
+.hero-vs .opp{font-size:25px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+.hero-when{margin-top:10px;font:700 21px "Barlow Condensed";letter-spacing:.03em}
+.hero-where{font-size:14px;opacity:.9;display:flex;gap:5px;align-items:center}
+.hero-body{padding:16px 18px 16px;color:var(--cream)}
+.hero-foot{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:13px}
+.hero-foot .muted{color:#9FB0D6}
+.score{margin-top:12px;font:800 44px/1 "Barlow Condensed";letter-spacing:.04em;display:flex;align-items:center;gap:12px}
+.wdl{font:800 14px/1 "Barlow Condensed";padding:6px 9px 5px;border-radius:6px;letter-spacing:.1em}
+.wdl.w{background:var(--orange);color:var(--navy-dd)}.wdl.d{background:var(--cream-2);color:var(--navy-d)}.wdl.l{background:var(--red);color:var(--cream)}
+
+/* attendance bar */
+.att{margin-bottom:14px}
+.att-bar{display:flex;height:9px;border-radius:9px;overflow:hidden;background:rgba(255,255,255,.12)}
+.att-bar i{display:block;height:100%}
+.att-bar .y{background:var(--orange)}.att-bar .m{background:var(--cream-3)}.att-bar .n{background:#6C7899}
+.att-txt{display:flex;justify-content:space-between;gap:8px;margin-top:8px;font-size:13px;color:#C9D3EA;flex-wrap:wrap}
+.att-txt b{color:var(--cream);font:700 16px "Barlow Condensed";margin-left:2px}
+.warn{color:var(--orange);font-weight:700}
+
+/* choice */
+.choice{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ch{height:50px;border-radius:12px;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(255,255,255,.08);color:var(--cream);border:1.5px solid rgba(243,237,220,.25)}
+.ch.on.ch-yes{background:var(--orange);color:var(--navy-dd);border-color:var(--orange)}
+.ch.on.ch-maybe{background:var(--cream);color:var(--navy-d);border-color:var(--cream)}
+.ch.on.ch-no{background:#56607D;color:#fff;border-color:#56607D}
+.light .ch{background:var(--card);color:var(--navy);border-color:var(--line)}
+
+/* match rows */
+.mrow{display:flex;align-items:stretch;gap:0;margin-bottom:10px;overflow:hidden;cursor:pointer}
+.mrow .d{width:64px;flex:none;background:var(--navy);color:var(--cream);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;padding:10px 0}
+.mrow .d::after{content:"";position:absolute;right:0;top:0;bottom:0;width:5px;background:linear-gradient(90deg,var(--red) 0 50%,var(--orange) 50%)}
+.mrow .d b{font:800 22px/1 "Barlow Condensed"}
+.mrow .d small{font-size:11px;opacity:.85;margin-top:3px}
+.mrow .c{flex:1;min-width:0;padding:11px 12px}
+.mrow .c .o{font-weight:800;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mrow .c .s{font-size:12.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mrow .c .t{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+.mrow .r{flex:none;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding:10px 12px;gap:4px;text-align:right}
+.mrow .r .sc{font:800 24px/1 "Barlow Condensed";color:var(--navy)}
+.mini-tag{font-size:11.5px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--cream-2);color:var(--navy-d)}
+.mini-tag.yes{background:var(--orange);color:var(--navy-dd)}.mini-tag.no{background:#DADDE6;color:#4A5574}.mini-tag.maybe{background:var(--cream-2)}
+.mini-tag.st-open{background:#FBE3CF;color:#9A4A12}.mini-tag.st-closed{background:#E4E7EF;color:var(--navy)}.mini-tag.st-canceled{background:#e8e8e8;color:#666}
+.mini-tag.nr{background:#F7DADB;color:var(--red-d)}
+
+/* season strip */
+.season{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.season div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 4px;text-align:center}
+.season b{display:block;font:800 26px/1.05 "Barlow Condensed";color:var(--navy)}
+.season span{font-size:12px;color:var(--ink-2);font-weight:600}
+.season .w b{color:var(--orange-d)}.season .l b{color:var(--red)}
+.form{display:flex;gap:5px;align-items:center;margin-bottom:12px;font-size:12px;color:var(--ink-3);font-weight:600}
+.form i{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font:800 12px/1 "Barlow Condensed";font-style:normal}
+.form i.w{background:var(--orange);color:var(--navy-dd)}.form i.d{background:var(--cream-2);color:var(--navy-d)}.form i.l{background:var(--red);color:var(--cream)}
+
+/* notices */
+.notice{display:flex;gap:10px;align-items:flex-start;padding:13px 14px;margin-bottom:8px;cursor:pointer}
+.notice .pin{color:var(--red);margin-top:1px}
+.notice .tt{font-weight:700;flex:1;min-width:0}
+.notice .tt small{display:block;font-weight:500;color:var(--ink-3);font-size:12px;margin-top:2px}
+.notice .ex{font-weight:400;color:var(--ink-2);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+
+/* detail */
+.info{margin:0;padding:6px 18px 16px;display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;color:var(--cream)}
+.info div{min-width:0}
+.info .full{grid-column:1/-1}
+.info dt{font-size:11.5px;color:#9FB0D6;font-weight:600;margin-bottom:1px}
+.info dd{margin:0;font-weight:600;font-size:14px}
+.block{padding:16px;margin-top:14px}
+.block h4{margin:0 0 10px;font-size:15px;font-weight:800;display:flex;align-items:center;gap:6px;justify-content:space-between}
+.block h4 .n{font:800 18px "Barlow Condensed";color:var(--red);margin-left:4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 10px;border-radius:9px;background:#fff;border:1px solid var(--line);font-size:13.5px;font-weight:600;max-width:100%}
+.chip .no{font:700 13px "Barlow Condensed";color:var(--red)}
+.chip.me{border-color:var(--orange);box-shadow:0 0 0 1.5px var(--orange) inset}
+.chip.guest{background:var(--cream)}
+.chip.wait{opacity:.6;border-style:dashed}
+.chip .note{font-weight:400;color:var(--ink-3);font-size:12px;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip[data-act]{cursor:pointer}
+.grp{margin-bottom:14px}
+.grp:last-child{margin-bottom:0}
+.grp-t{font-size:12.5px;font-weight:700;color:var(--ink-2);margin-bottom:7px;display:flex;gap:6px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.my-resp{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-top:14px;box-shadow:var(--shadow)}
+.my-resp .h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-weight:800}
+.my-resp .note{margin-top:10px;font-size:13px;color:var(--ink-2);display:flex;justify-content:space-between;gap:8px;align-items:center}
+
+/* pitch */
+.pitch{position:relative;width:100%;aspect-ratio:68/96;border-radius:16px;overflow:hidden;background:repeating-linear-gradient(180deg,#1E3C7B 0 10%,#22448A 10% 20%);border:3px solid var(--navy-dd);box-shadow:inset 0 0 0 6px #1E3C7B}
+.pitch .pl{position:absolute;border:2px solid rgba(243,237,220,.55)}
+.pitch .half{left:4%;right:4%;top:50%;height:0;border-width:2px 0 0}
+.pitch .circle{left:50%;top:50%;width:26%;aspect-ratio:1;border-radius:50%;transform:translate(-50%,-50%)}
+.pitch .box-t{left:22%;right:22%;top:3%;height:15%;border-top:0}
+.pitch .box-b{left:22%;right:22%;bottom:3%;height:15%;border-bottom:0}
+.pitch .six-t{left:36%;right:36%;top:3%;height:6%;border-top:0}
+.pitch .six-b{left:36%;right:36%;bottom:3%;height:6%;border-bottom:0}
+.pitch .frame{inset:3% 4%}
+.tok{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;width:76px;z-index:2}
+.tok .disc{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--red);color:var(--cream);border:2.5px solid var(--cream);font:800 18px/1 "Barlow Condensed";box-shadow:0 4px 10px rgba(0,0,0,.35);position:relative;overflow:hidden}
+.tok .disc::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 0 38%,var(--orange) 38% 62%,transparent 62%);opacity:.9}
+.tok .disc span{position:relative}
+.tok.gk .disc{background:var(--orange);color:var(--navy-dd)}
+.tok.gk .disc::before{background:linear-gradient(90deg,transparent 0 38%,var(--navy) 38% 62%,transparent 62%);opacity:.25}
+.tok.empty .disc{background:rgba(243,237,220,.08);border:2px dashed rgba(243,237,220,.6);color:rgba(243,237,220,.85);font-size:13px;box-shadow:none}
+.tok.empty .disc::before{display:none}
+.tok.me .disc{box-shadow:0 0 0 3px var(--orange),0 4px 10px rgba(0,0,0,.35)}
+.tok .nm{margin-top:3px;background:var(--navy-dd);color:var(--cream);font-size:12px;font-weight:700;padding:1px 7px;border-radius:6px;max-width:76px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tok .lb{font:700 10.5px/1.2 "Barlow Condensed";color:var(--cream-3);letter-spacing:.06em}
+.tok.empty .nm,.tok.empty .lb{display:none}
+.pitch.mini .tok{width:60px}
+.pitch.mini .tok .disc{width:30px;height:30px;font-size:13px;border-width:2px}
+.pitch.mini .tok .nm{font-size:10.5px;max-width:60px}
+.pitch.mini .tok .lb{display:none}
+.pitch.mini .tok.empty .disc{font-size:9.5px}
+.pitch-wrap{max-width:420px;margin:0 auto}
+.qtabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px}
+.qtabs button{flex:1;min-width:64px;padding:8px 6px;border-radius:11px;background:var(--card);border:1px solid var(--line);font:800 17px/1 "Barlow Condensed";color:var(--navy);display:flex;flex-direction:column;align-items:center;gap:3px}
+.qtabs button small{font:600 11px Pretendard;color:var(--ink-3)}
+.qtabs button.on{background:var(--navy);color:var(--cream);border-color:var(--navy)}
+.qtabs button.on small{color:var(--cream-3)}
+.lu-tools{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.lu-tools select{height:34px;border-radius:9px;border:1.5px solid var(--cream-3);background:var(--card);padding:0 8px;font-weight:700;color:var(--navy)}
+.lu-form{text-align:center;font:800 18px "Barlow Condensed";color:var(--navy);margin-bottom:8px;letter-spacing:.05em}
+.switch{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;cursor:pointer;color:var(--navy)}
+.switch input{appearance:none;width:42px;height:24px;border-radius:24px;background:var(--cream-3);position:relative;cursor:pointer;transition:.2s;margin:0}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.switch input:checked{background:var(--orange)}
+.switch input:checked::after{left:21px}
+.tbl-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--line);background:var(--card)}
+table.t{border-collapse:collapse;width:100%;font-size:13.5px}
+table.t th,table.t td{padding:9px 8px;text-align:center;border-bottom:1px solid #EFE7D2;white-space:nowrap}
+table.t th{font-size:12px;color:var(--ink-2);font-weight:700;background:#F5EEDC;position:sticky;top:0}
+table.t th.sort{cursor:pointer}
+table.t th.on{color:var(--red)}
+table.t td:first-child,table.t th:first-child{text-align:left;position:sticky;left:0;background:inherit;z-index:1}
+table.t tbody tr{background:var(--card)}
+table.t tbody tr:last-child td{border-bottom:0}
+table.t td .no{font:700 13px "Barlow Condensed";color:var(--red);margin-right:4px}
+table.t td.pos{font:700 12px "Barlow Condensed";color:var(--navy);letter-spacing:.03em}
+table.t td.z{color:var(--cream-3)}
+table.t td.num{font:700 15px "Barlow Condensed"}
+table.t tr.me td{background:#FDF0E4}
+table.t tr.zero td:first-child{color:var(--red)}
+
+/* leaders */
+.leaders{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.leader{padding:12px 13px}
+.leader h5{margin:0 0 8px;font-size:12.5px;color:var(--ink-2);display:flex;justify-content:space-between}
+.leader h5 em{font:italic 700 13px "Cormorant Garamond";color:var(--red)}
+.leader ol{margin:0;padding:0;list-style:none}
+.leader li{display:flex;justify-content:space-between;font-size:13.5px;padding:2px 0}
+.leader li:first-child{font-weight:800;font-size:15px}
+.leader li b{font:800 16px "Barlow Condensed";color:var(--navy)}
+.leader li:first-child b{color:var(--orange-d);font-size:19px}
+
+/* members */
+.search{display:flex;align-items:center;gap:8px;height:44px;padding:0 12px;border-radius:12px;background:var(--card);border:1px solid var(--line);margin-bottom:10px}
+.search input{border:0;outline:0;background:none;flex:1;min-width:0}
+.filters{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px}
+.filters button{flex:none;height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);font-size:13px;font-weight:700;color:var(--ink-2)}
+.filters button.on{background:var(--navy);color:var(--cream);border-color:var(--navy)}
+.mem{display:flex;align-items:center;gap:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
+.jn{width:44px;height:50px;flex:none;border-radius:8px 8px 14px 14px;display:grid;place-items:center;font:800 20px/1 "Barlow Condensed";color:var(--cream);background:var(--stripes);background-size:90px 100%;position:relative;overflow:hidden;text-shadow:1px 1px 0 var(--navy-dd)}
+.jn::before{content:"";position:absolute;inset:0;border-top:7px solid var(--navy)}
+.jn span{position:relative}
+.mem .c{flex:1;min-width:0}
+.mem .c b{font-size:15.5px;display:flex;gap:6px;align-items:center}
+.mem .c .p{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap}
+.mem .r{font-size:12px;color:var(--ink-3);text-align:right}
+.mem.rest{opacity:.6}
+.pending{background:#FFF4E8;border-color:#F2C9A3}
+
+/* sheet */
+.ov{position:fixed;inset:0;z-index:60;background:rgba(14,30,64,.5);display:flex;align-items:flex-end;justify-content:center;animation:fade .15s}
+.sheet{width:100%;max-width:560px;max-height:92vh;background:var(--paper);border-radius:22px 22px 0 0;display:flex;flex-direction:column;animation:up .22s cubic-bezier(.2,.8,.2,1);padding-bottom:env(safe-area-inset-bottom)}
+.sheet-h{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 10px;border-bottom:1px solid var(--line)}
+.sheet-h h3{margin:0;font-size:18px;font-weight:800}
+.sheet-h::before{content:"";position:absolute;left:50%;transform:translateX(-50%);margin-top:-30px;width:40px;height:4px;border-radius:4px;background:rgba(255,255,255,.7)}
+.sheet-b{padding:16px 18px 22px;overflow-y:auto}
+.x{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--cream-2);color:var(--navy)}
+@keyframes up{from{transform:translateY(40px);opacity:0}}
+@keyframes fade{from{opacity:0}}
+.f{display:block;margin-bottom:13px}
+.f>span{display:block;font-size:13px;font-weight:700;color:var(--ink-2);margin-bottom:5px}
+.f>span i{color:var(--red);font-style:normal}
+.f input,.f select,.f textarea{width:100%;height:46px;border-radius:11px;border:1.5px solid var(--line);background:#fff;padding:0 12px;outline:0;transition:border .15s}
+.f textarea{height:auto;min-height:90px;padding:10px 12px;resize:vertical}
+.f input:focus,.f select:focus,.f textarea:focus{border-color:var(--navy)}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.f3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.poschk{display:flex;gap:6px;flex-wrap:wrap}
+.poschk label{position:relative}
+.poschk input{position:absolute;opacity:0;pointer-events:none}
+.poschk span{display:inline-flex;align-items:center;height:38px;padding:0 13px;border-radius:10px;border:1.5px solid var(--line);background:#fff;font-weight:700;font-size:13.5px;cursor:pointer}
+.poschk input:checked+span{background:var(--navy);color:var(--cream);border-color:var(--navy)}
+.help{font-size:12px;color:var(--ink-3);margin-top:4px}
+.pick{display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;border-radius:12px;background:#fff;border:1px solid var(--line);margin-bottom:6px;text-align:left}
+.pick.cur{border-color:var(--orange);box-shadow:0 0 0 1.5px var(--orange) inset}
+.pick b{font-size:15px}
+.pick .no{font:700 14px "Barlow Condensed";color:var(--red);width:22px}
+.pick .sp{flex:1}
+.pick .fit{font-size:11px;font-weight:800;padding:2px 6px;border-radius:5px}
+.pick .fit.main{background:var(--orange);color:var(--navy-dd)}
+.pick .fit.sub{background:var(--cream-2);color:var(--navy-d)}
+.pick .qc{font:700 13px "Barlow Condensed";color:var(--ink-3);min-width:26px;text-align:right}
+.pick .here{font-size:11px;color:var(--navy);font-weight:700}
+.sheet h5{margin:14px 0 8px;font-size:13px;color:var(--ink-2)}
+.sheet h5:first-child{margin-top:0}
+details summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--ink-2);margin:14px 0 8px}
+.menu button{display:flex;align-items:center;gap:12px;width:100%;padding:14px 4px;border-bottom:1px solid var(--line);font-weight:700;font-size:15px;color:var(--navy);text-align:left}
+.menu button.red{color:var(--red)}
+.menu button:last-child{border-bottom:0}
+.stat-row{display:grid;grid-template-columns:1fr 64px 64px;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid #EFE7D2}
+.stat-row.h{font-size:12px;color:var(--ink-2);font-weight:700;border-bottom:1.5px solid var(--line)}
+.stat-row input{height:38px;text-align:center;border-radius:9px;border:1.5px solid var(--line);width:100%;font:700 16px "Barlow Condensed"}
+.score-in{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end;margin-bottom:14px}
+.score-in input{height:64px;text-align:center;font:800 36px "Barlow Condensed";border-radius:14px;border:2px solid var(--line);width:100%}
+.score-in .colon{font:800 34px "Barlow Condensed";padding-bottom:10px}
+.score-in label span{display:block;text-align:center;font-size:12.5px;font-weight:700;color:var(--ink-2);margin-bottom:5px}
+.prof-head{display:flex;gap:14px;align-items:center;margin-bottom:14px}
+.prof-head .jn{width:56px;height:64px;font-size:26px}
+.prof-head b{font-size:20px}
+.kv{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:12px 0}
+.kv div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 4px;text-align:center}
+.kv b{display:block;font:800 22px/1.1 "Barlow Condensed";color:var(--navy)}
+.kv span{font-size:11.5px;color:var(--ink-2)}
+.memo{white-space:pre-wrap;font-size:14px;color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+
+/* login */
+.login{min-height:100vh;display:flex;flex-direction:column;background:var(--paper)}
+.login-hero{position:relative;min-height:330px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.login-hero::before,.login-hero::after{content:"";position:absolute;top:-62%;width:78%;height:120%;border-radius:50%;background:var(--navy);box-shadow:0 0 0 9px var(--cream)}
+.login-hero::before{left:-52%}
+.login-hero::after{right:-52%}
+.login-plate{position:relative;z-index:2;text-align:center;padding:40px 16px 24px}
+.login-plate .wm{font-size:96px;text-shadow:3px 3px 0 var(--navy),6px 6px 0 var(--red),8px 8px 0 var(--navy-dd)}
+.login-plate .tg{margin-top:12px;font:700 12.5px "Barlow Condensed";letter-spacing:.14em;color:var(--cream);background:var(--navy-dd);display:inline-block;padding:6px 12px 5px;border-radius:4px;white-space:nowrap}
+.login-plate .motto{margin-top:8px;font:italic 700 17px "Cormorant Garamond";color:var(--navy-dd);background:var(--cream);display:inline-block;padding:2px 12px;border-radius:3px}
+.login-card{margin:-30px 16px 24px;position:relative;z-index:3;padding:22px 18px}
+.login-card h2{margin:0 0 4px;font-size:20px}
+.login-card p.s{margin:0 0 16px;color:var(--ink-3);font-size:13.5px}
+.hint{font-size:12.5px;color:var(--ink-2);background:#FBEBDD;border-radius:10px;padding:10px 12px;margin:14px 0 0}
+.login-card .btn+.btn{margin-top:8px}
+.ver{text-align:center;font-size:11px;color:var(--ink-3);padding-bottom:20px}
+
+.splash{min-height:100vh;display:grid;place-items:center;background:var(--navy)}
+.splash .wm{font-size:72px;animation:pulse 1.2s infinite alternate}
+@keyframes pulse{to{opacity:.55}}
+.toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);z-index:90;background:var(--navy-dd);color:var(--cream);padding:11px 16px;border-radius:12px;font-size:14px;font-weight:600;box-shadow:0 10px 24px rgba(0,0,0,.25);max-width:calc(100% - 32px);animation:up .2s}
+.toast.err{background:var(--red)}
+.fab-gap{height:4px}
+.demo-banner{font-size:12.5px;background:#FBEBDD;color:#8A4310;border:1px solid #F2C9A3;border-radius:12px;padding:9px 12px;margin-bottom:14px;display:flex;gap:8px;align-items:center}
+
+/* poster (image export) */
+#poster-host{position:fixed;left:-10000px;top:0}
+.poster{width:760px;background:#142A57;color:#F3EDDC;font-family:Pretendard,sans-serif}
+.poster .ph{position:relative;height:210px;overflow:hidden;display:flex}
+.poster .ph .sx{flex:none;height:100%}
+.poster .ph .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(14,30,64,.2),rgba(14,30,64,.94))}
+.poster .ph .in{position:absolute;left:36px;right:36px;bottom:26px}
+.poster .ph .wm{font-size:64px}
+.poster .ph .vs{font:800 40px Pretendard;margin-top:8px;letter-spacing:-.02em}
+.poster .ph .vs span{font:800 26px "Barlow Condensed";color:#EC7B2C;margin-right:12px;letter-spacing:.1em}
+.poster .ph .when{font:700 22px "Barlow Condensed";letter-spacing:.04em;margin-top:6px;opacity:.95}
+.poster .grid{display:grid;gap:22px;padding:26px 30px 10px}
+.poster .q h6{margin:0 0 10px;font:800 22px "Barlow Condensed";letter-spacing:.06em;color:#EC7B2C}
+.poster .q h6 small{color:#D8CCA8;font-size:16px;margin-left:8px}
+.poster .bench{padding:6px 30px 0;font-size:16px;color:#D8CCA8;line-height:1.6}
+.poster .bench b{color:#F3EDDC}
+.poster .pf{display:flex;justify-content:space-between;align-items:center;padding:20px 30px 24px;font:italic 700 20px "Cormorant Garamond";color:#D8CCA8;letter-spacing:.08em}
+.poster .pitch{border-radius:12px}
+</style>
+</head>
+<body>
+<div id="app"><div class="splash"><div class="wm">FMFC</div></div></div>
+<div id="poster-host"></div>
+<script>
+/* =========================================================
+   FMFC · Football Matching Football Club 팀 운영 앱
+   ---------------------------------------------------------
+   ▶ Firebase 연결 방법 (README.md 참고)
+     아래 FIREBASE_CONFIG 에 Firebase 웹앱 설정값을 넣으면
+     Firestore 실시간 저장 모드로 동작합니다.
+     null 이면 '데모 모드'(이 브라우저에만 저장)로 동작합니다.
+   ========================================================= */
+const FIREBASE_CONFIG = null;
+/* 예시)
+const FIREBASE_CONFIG = {
+  apiKey: "AIza...",
+  authDomain: "fmfc-app.firebaseapp.com",
+  projectId: "fmfc-app",
+  storageBucket: "fmfc-app.appspot.com",
+  messagingSenderId: "000000000000",
+  appId: "1:000000000000:web:xxxxxxxx"
+};
+*/
+const APP_VERSION = '0.1.0';
+const LS_KEY = 'fmfc_demo_v1';
+const SESSION_KEY = 'fmfc_session';
+const COLS = ['members', 'matches', 'apps', 'notices'];
+
+/* ---------- 상수 ---------- */
+const POS_LIST = ['GK', 'DF', 'MF', 'FW'];
+const POS_KO = { GK: '골키퍼', DF: '수비수', MF: '미드필더', FW: '공격수' };
+const FORMAT_KO = { 11: '11인제', 8: '8인제', 6: '6인제', 5: '풋살 5인' };
+const TYPE_LIST = ['친선', '리그', '대회', '연습'];
+const UNIFORM_LIST = ['홈 (스트라이프)', '원정', '미정'];
+const STATUS_KO = { open: '모집중', closed: '마감', done: '종료', canceled: '취소' };
+const APP_KO = { yes: '참석', maybe: '미정', no: '불참' };
+const WDL_KO = { w: 'WIN', d: 'DRAW', l: 'LOSS' };
+const FORMATIONS = {
+  11: {
+    '4-4-2': [['LB', 'CB', 'CB', 'RB'], ['LM', 'CM', 'CM', 'RM'], ['ST', 'ST']],
+    '4-3-3': [['LB', 'CB', 'CB', 'RB'], ['CM', 'CDM', 'CM'], ['LW', 'ST', 'RW']],
+    '4-2-3-1': [['LB', 'CB', 'CB', 'RB'], ['CDM', 'CDM'], ['LW', 'CAM', 'RW'], ['ST']],
+    '4-1-4-1': [['LB', 'CB', 'CB', 'RB'], ['CDM'], ['LM', 'CM', 'CM', 'RM'], ['ST']],
+    '3-5-2': [['CB', 'CB', 'CB'], ['LWB', 'CM', 'CDM', 'CM', 'RWB'], ['ST', 'ST']],
+    '3-4-3': [['CB', 'CB', 'CB'], ['LM', 'CM', 'CM', 'RM'], ['LW', 'ST', 'RW']],
+  },
+  8: {
+    '3-3-1': [['LB', 'CB', 'RB'], ['LM', 'CM', 'RM'], ['ST']],
+    '3-2-2': [['LB', 'CB', 'RB'], ['CM', 'CM'], ['ST', 'ST']],
+    '2-3-2': [['CB', 'CB'], ['LM', 'CM', 'RM'], ['ST', 'ST']],
+  },
+  6: {
+    '2-2-1': [['CB', 'CB'], ['CM', 'CM'], ['ST']],
+    '2-1-2': [['CB', 'CB'], ['CM'], ['LW', 'RW']],
+  },
+  5: {
+    '1-2-1': [['FIXO'], ['ALA', 'ALA'], ['PIVO']],
+    '2-2': [['FIXO', 'FIXO'], ['PIVO', 'PIVO']],
+  },
+};
+const CAT = { GK: 'GK', CB: 'DF', LB: 'DF', RB: 'DF', LWB: 'DF', RWB: 'DF', FIXO: 'DF', CDM: 'MF', CM: 'MF', CAM: 'MF', LM: 'MF', RM: 'MF', ALA: 'MF', ST: 'FW', LW: 'FW', RW: 'FW', PIVO: 'FW' };
+const XS = { 1: [50], 2: [30, 70], 3: [20, 50, 80], 4: [13, 37, 63, 87], 5: [10, 30, 50, 70, 90] };
+
+/* ---------- 아이콘 ---------- */
+const ic = d => `<svg class="i" viewBox="0 0 24 24">${d}</svg>`;
+const I = {
+  home: ic('<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'),
+  cal: ic('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
+  chart: ic('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+  users: ic('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>'),
+  back: ic('<path d="M15 5l-7 7 7 7"/>'),
+  pin: ic('<path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/>'),
+  check: ic('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
+  x: ic('<path d="M6 6l12 12M18 6L6 18"/>'),
+  q: ic('<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.7M12 17h.01"/>'),
+  plus: ic('<path d="M12 5v14M5 12h14"/>'),
+  edit: ic('<path d="M4 20h4L19 9l-4-4L4 16z"/>'),
+  copy: ic('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>'),
+  img: ic('<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>'),
+  trash: ic('<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>'),
+  shirt: ic('<path d="M8 3l-5 3 2 5 2-1v11h10V10l2 1 2-5-5-3a4 4 0 0 1-8 0z"/>'),
+  lock: ic('<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'),
+  ball: ic('<circle cx="12" cy="12" r="9"/><path d="M12 7l4 3-1.5 4.5h-5L8 10z"/>'),
+  search: ic('<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>'),
+  pinned: ic('<path d="M9 4h6l-1 6 4 3H6l4-3zM12 13v8"/>'),
+  msg: ic('<path d="M4 5h16v11H9l-5 4z"/>'),
+  user: ic('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'),
+  out: ic('<path d="M15 4h4v16h-4M10 17l5-5-5-5M15 12H3"/>'),
+  field: ic('<rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 12h18"/><circle cx="12" cy="12" r="2.5"/>'),
+  whistle: ic('<path d="M3 13a5 5 0 1 0 10 0V9h8V6H8a5 5 0 0 0-5 7z"/>'),
+};
+const APP_ICON = { yes: I.check, maybe: I.q, no: I.x };
+
+/* ---------- 유틸 ---------- */
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = n => String(n).padStart(2, '0');
+const uid = (p = '') => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+const dstr = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const todayStr = () => dstr(new Date());
+const addDays = (n, base = new Date()) => { const d = new Date(base); d.setDate(d.getDate() + n); return d; };
+function fmtDate(ds) { if (!ds) return ''; const [y, mo, d] = ds.split('-').map(Number); const dt = new Date(y, mo - 1, d); return `${mo}.${pad(d)} (${DOW[dt.getDay()]})`; }
+function fmtDT(s) { if (!s) return ''; const [d, t] = s.split('T'); return `${fmtDate(d)} ${t || ''}`.trim(); }
+function dday(ds) { const n = Math.round((new Date(ds) - new Date(todayStr())) / 864e5); return n === 0 ? 'D-DAY' : n > 0 ? `D-${n}` : `D+${-n}`; }
+const nl2br = s => esc(s).replace(/\n/g, '<br>');
+const byName = (a, b) => a.name.localeCompare(b.name, 'ko');
+const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) { } };
+const won = n => (+n || 0).toLocaleString('ko-KR') + '원';
+async function hashPin(pin) {
+  const s = 'fmfc::' + pin;
+  if (window.crypto && crypto.subtle) {
+    const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+    return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
+  }
+  let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return 'x' + h;
+}
+function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('스크립트 로드 실패: ' + src)); document.head.appendChild(s); }); }
+function toast(msg, type = '') { document.querySelectorAll('.toast').forEach(t => t.remove()); const t = document.createElement('div'); t.className = 'toast ' + type; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2400); }
+async function copyText(txt) {
+  try { await navigator.clipboard.writeText(txt); }
+  catch (e) { const ta = document.createElement('textarea'); ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = 0; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+  toast('클립보드에 복사했습니다');
+}
+
+/* ---------- 저장소 (Firestore / 데모) ---------- */
+const Store = {
+  mode: FIREBASE_CONFIG ? 'firebase' : 'demo',
+  ready: false, db: null,
+  data: { members: {}, matches: {}, apps: {}, notices: {} },
+  list(col) { return Object.values(this.data[col] || {}); },
+  get(col, id) { return id ? (this.data[col] || {})[id] : undefined; },
+  async init() {
+    if (this.mode === 'firebase') return this.initFirebase();
+    const raw = lsGet(LS_KEY);
+    if (raw) { try { this.data = { ...this.data, ...JSON.parse(raw) }; } catch (e) { } }
+    if (!this.list('members').length) await seedDemo();
+    window.addEventListener('storage', e => { if (e.key === LS_KEY && e.newValue) { this.data = JSON.parse(e.newValue); render(); } });
+    this.ready = true; render();
+  },
+  async initFirebase() {
+    const v = '10.12.2', base = `https://www.gstatic.com/firebasejs/${v}/`;
+    await loadScript(base + 'firebase-app-compat.js');
+    await loadScript(base + 'firebase-auth-compat.js');
+    await loadScript(base + 'firebase-firestore-compat.js');
+    firebase.initializeApp(FIREBASE_CONFIG);
+    await firebase.auth().signInAnonymously();
+    this.db = firebase.firestore();
+    const first = new Set();
+    COLS.forEach(col => {
+      this.db.collection(col).onSnapshot(snap => {
+        const o = {}; snap.forEach(d => o[d.id] = { ...d.data(), id: d.id });
+        this.data[col] = o; first.add(col);
+        if (!this.ready && first.size === COLS.length) this.ready = true;
+        if (this.ready) render();
+      }, err => toast('동기화 오류: ' + err.message, 'err'));
+    });
+  },
+  async put(col, obj) {
+    if (!obj.id) obj.id = uid(col[0]);
+    obj.updatedAt = Date.now();
+    const copy = JSON.parse(JSON.stringify(obj));
+    this.data[col][copy.id] = copy;
+    render();
+    if (this.mode === 'firebase') {
+      try { await this.db.collection(col).doc(copy.id).set(copy); }
+      catch (e) { toast('저장 실패: ' + e.message, 'err'); throw e; }
+    } else this.saveLocal();
+    return copy;
+  },
+  async del(col, id) {
+    delete this.data[col][id];
+    render();
+    if (this.mode === 'firebase') { try { await this.db.collection(col).doc(id).delete(); } catch (e) { toast('삭제 실패: ' + e.message, 'err'); } }
+    else this.saveLocal();
+  },
+  saveLocal() { lsSet(LS_KEY, JSON.stringify(this.data)); },
+};
+
+/* ---------- 도메인 헬퍼 ---------- */
+function me() { const id = lsGet(SESSION_KEY); const m = Store.get('members', id); return m && m.status !== 'pending' ? m : null; }
+const isAdmin = () => me()?.role === 'admin';
+const activeMembers = () => Store.list('members').filter(m => m.status === 'active');
+const memberLabel = p => (p.number != null && p.number !== '' ? `#${p.number} ` : '') + p.name;
+function person(m, pid) {
+  if (!pid) return null;
+  if (pid.startsWith('g_')) { const g = (m.guests || []).find(x => x.id === pid); return g ? { ...g, guest: true, pos: g.pos ? [g.pos] : [] } : null; }
+  return Store.get('members', pid) || null;
+}
+const appsOf = mid => Store.list('apps').filter(a => a.matchId === mid);
+const myApp = m => Store.get('apps', m.id + '__' + me()?.id);
+function isLocked(m) { return m.status !== 'open' || (m.deadline && Date.now() > new Date(m.deadline).getTime()); }
+function upcoming() { const t = todayStr(); return Store.list('matches').filter(m => (m.status === 'open' || m.status === 'closed') && m.date >= t).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)); }
+function pastAll() { const up = new Set(upcoming().map(m => m.id)); return Store.list('matches').filter(m => !up.has(m.id)).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time)); }
+function wdl(m) { const r = m.result; if (!r) return ''; return +r.us > +r.them ? 'w' : +r.us < +r.them ? 'l' : 'd'; }
+function groups(m) {
+  const apps = appsOf(m.id); const byMem = {}; apps.forEach(a => byMem[a.memberId] = a);
+  const g = { yes: [], maybe: [], no: [], none: [] };
+  apps.forEach(a => { const mem = Store.get('members', a.memberId); if (mem && mem.status !== 'pending' && g[a.status]) g[a.status].push({ p: mem, a }); });
+  activeMembers().forEach(mem => { if (!byMem[mem.id]) g.none.push({ p: mem }); });
+  ['yes', 'maybe', 'no'].forEach(k => g[k].sort((x, y) => (x.a.at || 0) - (y.a.at || 0)));
+  g.none.sort((x, y) => byName(x.p, y.p));
+  g.guests = (m.guests || []).map(x => ({ p: { ...x, guest: true, pos: x.pos ? [x.pos] : [] } }));
+  return g;
+}
+function counts(m) { const g = groups(m); return { yes: g.yes.length, maybe: g.maybe.length, no: g.no.length, none: g.none.length, guests: g.guests.length }; }
+function slotsFor(format, formation) {
+  const fm = FORMATIONS[format] || FORMATIONS[11];
+  const rows = fm[formation] || Object.values(fm)[0];
+  const out = [{ label: 'GK', x: 50, y: 87 }];
+  const k = rows.length;
+  rows.forEach((row, i) => { const y = k === 1 ? 50 : 72 - i * (54 / (k - 1)); row.forEach((lab, j) => out.push({ label: lab, x: XS[row.length][j], y })); });
+  return out;
+}
+function getLineup(m) {
+  const fm = FORMATIONS[m.format] || FORMATIONS[11]; const def = Object.keys(fm)[0];
+  const L = m.lineup ? JSON.parse(JSON.stringify(m.lineup)) : { published: false, memo: '', quarters: [] };
+  const n = Math.max(1, +m.quarters || 1);
+  L.quarters = (L.quarters || []).slice(0, n);
+  while (L.quarters.length < n) { const prev = L.quarters[L.quarters.length - 1]; L.quarters.push({ formation: prev?.formation || def, players: [] }); }
+  L.quarters.forEach(Q => {
+    if (!fm[Q.formation]) Q.formation = def;
+    const len = slotsFor(m.format, Q.formation).length;
+    Q.players = (Q.players || []).slice(0, len).map(p => (p && person(m, p) ? p : null));
+    while (Q.players.length < len) Q.players.push(null);
+  });
+  return L;
+}
+function lineupPool(m) {
+  const g = groups(m);
+  const yes = [...g.yes.map(x => x.p.id), ...g.guests.map(x => x.p.id)];
+  const maybe = g.maybe.map(x => x.p.id);
+  const others = [...g.no, ...g.none].map(x => x.p.id);
+  return { yes, maybe, others };
+}
+function quarterCounts(L, exceptQ = -1) { const c = {}; L.quarters.forEach((Q, k) => { if (k !== exceptQ) Q.players.forEach(p => { if (p) c[p] = (c[p] || 0) + 1; }); }); return c; }
+function autoFill(m, L, q) {
+  const Q = L.quarters[q]; const slots = slotsFor(m.format, Q.formation);
+  const pool = lineupPool(m).yes;
+  const cnt = quarterCounts(L, q);
+  const used = new Set(Q.players.filter(Boolean));
+  const pos = pid => person(m, pid)?.pos || [];
+  // 점수 = 출전 쿼터 수(공평한 로테이션) + 포지션 적합도. 전체 (자리, 선수) 조합 중 최소 점수부터 배정
+  const idx = {}; pool.forEach((p, i) => idx[p] = i);
+  const score = (p, label) => {
+    const cat = CAT[label]; const ps = pos(p);
+    let fit = ps[0] === cat ? 0 : ps.includes(cat) ? 1 : ps.length ? 2 : 1.5;
+    const pureGK = ps[0] === 'GK' && ps.length === 1;
+    if (cat === 'GK' && fit === 2) fit = 3;
+    if (cat !== 'GK' && pureGK) fit = 5;
+    return (cnt[p] || 0) * 10 + fit * 6 + idx[p] * 0.001;
+  };
+  let empty = slots.map((s, i) => i).filter(i => !Q.players[i]);
+  let left = pool.filter(p => !used.has(p));
+  while (empty.length && left.length) {
+    let best = null;
+    empty.forEach(i => left.forEach(p => { const sc = score(p, slots[i].label); if (!best || sc < best.sc) best = { i, p, sc }; }));
+    Q.players[best.i] = best.p;
+    empty = empty.filter(i => i !== best.i); left = left.filter(p => p !== best.p);
+  }
+  return L;
+}
+function seasonData(year) {
+  const done = Store.list('matches').filter(m => m.status === 'done' && m.result && m.date.startsWith(year)).sort((a, b) => a.date.localeCompare(b.date));
+  const team = { p: done.length, w: 0, d: 0, l: 0, gf: 0, ga: 0 };
+  const per = {};
+  const ensure = id => per[id] || (per[id] = { id, att: 0, g: 0, a: 0, mvp: 0, q: 0 });
+  done.forEach(m => {
+    const r = m.result; team.gf += +r.us || 0; team.ga += +r.them || 0; team[wdl(m)]++;
+    const inL = new Set();
+    if (m.lineup) getLineup(m).quarters.forEach(Q => Q.players.forEach(p => { if (p && !p.startsWith('g_') && Store.get('members', p)) { inL.add(p); ensure(p).q++; } }));
+    const yes = appsOf(m.id).filter(a => a.status === 'yes').map(a => a.memberId);
+    new Set([...inL, ...yes]).forEach(p => { if (Store.get('members', p)) ensure(p).att++; });
+    Object.entries(m.stats || {}).forEach(([p, s]) => { if (!Store.get('members', p)) return; ensure(p).g += +s.g || 0; ensure(p).a += +s.a || 0; });
+    if (m.mvp && Store.get('members', m.mvp)) ensure(m.mvp).mvp++;
+  });
+  return { done, team, per };
+}
+function seasonYears() { const ys = new Set(Store.list('matches').map(m => m.date.slice(0, 4))); ys.add(String(new Date().getFullYear())); return [...ys].sort().reverse(); }
+
+/* ---------- 상태 / 라우팅 ---------- */
+const S = { tab: 'home', view: null, matchSeg: 'up', memFilter: 'all', memQ: '', recYear: String(new Date().getFullYear()), recSort: 'g', pick: null };
+function go(view) { S.view = view; history.pushState({ v: view, tab: S.tab }, ''); render(); window.scrollTo(0, 0); }
+window.addEventListener('popstate', e => { closeSheet(); S.view = e.state?.v || null; if (e.state?.tab) S.tab = e.state.tab; render(); });
+
+/* ---------- 렌더 ---------- */
+const app = $('#app');
+function render() {
+  if (!Store.ready) return;
+  const ae = document.activeElement; const keep = ae && ae.id && app.contains(ae) ? { id: ae.id, s: ae.selectionStart, e: ae.selectionEnd } : null;
+  const y = window.scrollY;
+  if (!me()) renderLogin(); else renderShell();
+  if (keep) { const el = document.getElementById(keep.id); if (el) { el.focus(); try { el.setSelectionRange(keep.s, keep.e); } catch (e) { } } }
+  window.scrollTo(0, y);
+}
+function renderShell() {
+  const u = me();
+  let body;
+  try {
+    if (S.view?.type === 'match') body = viewMatch(S.view.id);
+    else if (S.view?.type === 'lineup') body = viewLineup(S.view.id);
+    else body = { home: viewHome, matches: viewMatches, records: viewRecords, members: viewMembers }[S.tab]();
+  } catch (e) { console.error(e); body = `<div class="empty">화면을 불러오지 못했습니다<br><small>${esc(e.message)}</small></div>`; }
+  const tab = (t, label, icon) => `<button class="${S.tab === t ? 'on' : ''}" data-act="tab" data-t="${t}">${icon}${label}</button>`;
+  app.innerHTML = `
+    <header class="top"><div class="wm" data-act="tab" data-t="home" role="button" aria-label="홈">FMFC</div>
+      <div class="top-r">${Store.mode === 'demo' ? '<span class="demo">DEMO</span>' : ''}<button class="avatar" data-act="profile" aria-label="내 정보">${esc(u.name.slice(-2))}</button></div></header>
+    <div class="band stripes"></div>
+    <main>${body}</main>
+    <nav class="tabs">${tab('home', '홈', I.home)}${tab('matches', '매치', I.cal)}${tab('records', '기록', I.chart)}${tab('members', '회원', I.users)}</nav>`;
+}
+
+/* ===== 로그인 ===== */
+function renderLogin() {
+  const all = Store.list('members');
+  if (!all.length) return renderSetup();
+  const list = all.filter(m => m.status !== 'pending').sort(byName);
+  app.innerHTML = `
+  <div class="login">
+    <div class="login-hero stripes"><div class="login-plate">
+      <div class="wm">FMFC</div><br><div class="tg">FOOTBALL MATCHING FOOTBALL CLUB</div><br><div class="motto">Fierce Mindset</div>
+    </div></div>
+    <form class="login-card card" id="loginForm" autocomplete="off">
+      <h2>입장하기</h2><p class="s">이름을 고르고 개인 PIN 4자리를 입력하세요.</p>
+      <label class="f"><span>이름</span><select name="mid" required><option value="">이름 선택</option>${list.map(m => `<option value="${m.id}">${esc(memberLabel(m))}</option>`).join('')}</select></label>
+      <label class="f"><span>PIN</span><input name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="••••"></label>
+      <button class="btn primary block">입장</button>
+      <button type="button" class="btn ghost block" data-act="signup">가입 신청</button>
+      ${Store.mode === 'demo' ? `<p class="hint"><b>데모 모드</b> · 운영진 <b>김도윤 / 0000</b>, 일반 회원은 아무 이름 / <b>1111</b></p>` : ''}
+    </form>
+    <div class="ver">FMFC v${APP_VERSION}</div>
+  </div>`;
+  $('#loginForm').onsubmit = async e => {
+    e.preventDefault(); const f = new FormData(e.target);
+    const m = Store.get('members', f.get('mid'));
+    if (!m) return toast('이름을 선택하세요', 'err');
+    if ((await hashPin(f.get('pin'))) !== m.pinHash) return toast('PIN이 올바르지 않습니다', 'err');
+    lsSet(SESSION_KEY, m.id); S.tab = 'home'; S.view = null; render(); toast(`${m.name}님, 환영합니다`);
+  };
+}
+function renderSetup() {
+  app.innerHTML = `
+  <div class="login">
+    <div class="login-hero stripes"><div class="login-plate"><div class="wm">FMFC</div><br><div class="tg">FIRST SETUP</div></div></div>
+    <form class="login-card card" id="setupForm">
+      <h2>첫 운영진 등록</h2><p class="s">등록된 회원이 없습니다. 첫 운영진 계정을 만들어 주세요.</p>
+      ${memberFields({})}
+      <button class="btn primary block">운영진으로 시작</button>
+    </form>
+  </div>`;
+  bindPosOrder($('#setupForm'));
+  $('#setupForm').onsubmit = async e => {
+    e.preventDefault(); const d = await readMemberForm(e.target, null, true); if (!d) return;
+    const m = await Store.put('members', { ...d, role: 'admin', status: 'active', joined: todayStr() });
+    lsSet(SESSION_KEY, m.id); render();
+  };
+}
+
+/* ===== 홈 ===== */
+function viewHome() {
+  const up = upcoming(); const next = up[0];
+  const notices = Store.list('notices').sort((a, b) => (+!!b.pinned - +!!a.pinned) || (b.at - a.at)).slice(0, 4);
+  const yr = String(new Date().getFullYear());
+  const sd = seasonData(yr);
+  const recent = [...sd.done].reverse().slice(0, 3);
+  return `
+    ${Store.mode === 'demo' ? `<div class="demo-banner">${I.lock}<span>데모 모드입니다. 데이터는 이 브라우저에만 저장됩니다.</span></div>` : ''}
+    <section>${next ? heroCard(next) : `<div class="empty">예정된 매치가 없습니다${isAdmin() ? `<div style="margin-top:12px"><button class="btn primary sm" data-act="matchNew">+ 매치 등록</button></div>` : ''}</div>`}</section>
+    ${up.length > 1 ? `<section><h3 class="sec"><em>Upcoming</em>다가오는 매치</h3>${up.slice(1, 4).map(matchRow).join('')}</section>` : ''}
+    <section><div class="sec-row"><h3 class="sec"><em>Notice</em>공지사항</h3>${isAdmin() ? `<button class="btn sm ghost" data-act="noticeNew">${I.plus}공지</button>` : ''}</div>
+      ${notices.length ? notices.map(noticeItem).join('') : '<div class="empty">등록된 공지가 없습니다</div>'}</section>
+    <section><div class="sec-row"><h3 class="sec"><em>${yr} Season</em>시즌 전적</h3><button class="link" data-act="tab" data-t="records">기록 보기 →</button></div>
+      ${seasonStrip(sd)}
+      ${recent.map(matchRow).join('')}</section>`;
+}
+function heroCard(m) {
+  const c = counts(m); const my = myApp(m); const locked = isLocked(m);
+  return `<article class="hero">
+    <div class="hero-top stripes"><div class="hero-shade"></div><div class="hero-in">
+      <div class="hero-meta"><span class="pill cream">${dday(m.date)}</span>${statusPill(m)}<span class="pill line">${esc(m.type)} · ${FORMAT_KO[m.format]}</span></div>
+      <div class="hero-vs"><span class="wm sm">FMFC</span><span class="vs">VS</span><span class="opp">${esc(m.opponent)}</span></div>
+      <div class="hero-when">${fmtDate(m.date)} ${esc(m.time || '')}${m.endTime ? ' – ' + esc(m.endTime) : ''}</div>
+      <div class="hero-where">${I.pin}${esc(m.venue || '장소 미정')}</div>
+    </div></div>
+    <div class="hero-body">
+      ${attBar(c, m)}
+      <div class="choice">${['yes', 'maybe', 'no'].map(s => `<button class="ch ch-${s} ${my?.status === s ? 'on' : ''}" data-act="apply" data-id="${m.id}" data-s="${s}" ${locked && !isAdmin() ? 'disabled' : ''}>${APP_ICON[s]}${APP_KO[s]}</button>`).join('')}</div>
+      <div class="hero-foot"><span class="muted">${locked ? '신청이 마감되었습니다' : m.deadline ? `신청 마감 ${fmtDT(m.deadline)}` : '응답해 주세요'}</span><button class="link" data-act="openMatch" data-id="${m.id}">상세 · 라인업 →</button></div>
+    </div></article>`;
+}
+function attBar(c, m) {
+  const tot = Math.max(1, c.yes + c.maybe + c.no + c.none);
+  const yes = c.yes + c.guests; const need = +m.format || 11;
+  return `<div class="att">
+    <div class="att-bar"><i class="y" style="width:${c.yes / tot * 100}%"></i><i class="m" style="width:${c.maybe / tot * 100}%"></i><i class="n" style="width:${c.no / tot * 100}%"></i></div>
+    <div class="att-txt"><span>참석<b>${c.yes}</b>${c.guests ? ` <small>+용병 ${c.guests}</small>` : ''} · 미정<b>${c.maybe}</b> · 불참<b>${c.no}</b> · 미응답<b>${c.none}</b></span>
+    ${yes < need ? `<span class="warn">${need - yes}명 부족</span>` : m.capacity && yes > m.capacity ? `<span class="warn">정원 초과</span>` : ''}</div></div>`;
+}
+function statusPill(m) { const st = m.status === 'open' && isLocked(m) ? 'closed' : m.status; return `<span class="pill ${st}">${STATUS_KO[st]}</span>`; }
+function matchRow(m) {
+  const [, mo, d] = m.date.split('-'); const dow = DOW[new Date(m.date + 'T00:00').getDay()];
+  const my = myApp(m); let right = '';
+  if (m.status === 'done' && m.result) right = `<span class="sc">${m.result.us}:${m.result.them}</span><span class="wdl ${wdl(m)}">${WDL_KO[wdl(m)]}</span>`;
+  else if (m.status === 'canceled') right = `<span class="mini-tag st-canceled">취소</span>`;
+  else if (m.date < todayStr()) right = `<span class="mini-tag nr">결과 미입력</span>`;
+  else right = `${my ? `<span class="mini-tag ${my.status}">${APP_KO[my.status]}</span>` : `<span class="mini-tag nr">미응답</span>`}<span class="mini-tag st-${isLocked(m) ? 'closed' : 'open'}">${isLocked(m) ? '마감' : '모집중'}</span>`;
+  const c = counts(m);
+  return `<div class="mrow card" data-act="openMatch" data-id="${m.id}">
+    <div class="d"><b>${+mo}.${d}</b><small>${dow} ${esc(m.time || '')}</small></div>
+    <div class="c"><div class="o">vs ${esc(m.opponent)}</div><div class="s">${esc(m.venue || '장소 미정')}</div>
+      <div class="t"><span class="mini-tag">${esc(m.type)}</span><span class="mini-tag">${FORMAT_KO[m.format]}</span>${m.status !== 'done' && m.status !== 'canceled' ? `<span class="mini-tag">참석 ${c.yes + c.guests}</span>` : ''}</div></div>
+    <div class="r">${right}</div></div>`;
+}
+function seasonStrip(sd) {
+  const t = sd.team; const form = [...sd.done].reverse().slice(0, 5);
+  return `<div class="season"><div><b>${t.p}</b><span>경기</span></div><div class="w"><b>${t.w}</b><span>승</span></div><div><b>${t.d}</b><span>무</span></div><div class="l"><b>${t.l}</b><span>패</span></div></div>
+  ${form.length ? `<div class="form">최근 ${form.map(m => `<i class="${wdl(m)}">${wdl(m).toUpperCase()}</i>`).join('')}<span style="margin-left:auto">득 ${t.gf} · 실 ${t.ga}</span></div>` : ''}`;
+}
+function noticeItem(n) {
+  return `<div class="notice card" data-act="noticeView" data-id="${n.id}">${n.pinned ? `<span class="pin">${I.pinned}</span>` : `<span class="pin" style="color:var(--ink-3)">${I.msg}</span>`}
+    <div class="tt">${esc(n.title)}<span class="ex">${esc((n.body || '').split('\n')[0])}</span><small>${fmtDate(dstr(new Date(n.at)))} · ${esc(Store.get('members', n.author)?.name || '운영진')}</small></div></div>`;
+}
+
+/* ===== 매치 목록 ===== */
+function viewMatches() {
+  const up = upcoming(), past = pastAll(); const seg = S.matchSeg; const list = seg === 'up' ? up : past;
+  return `<div class="bar"><h2>매치</h2>${isAdmin() ? `<button class="btn sm primary" data-act="matchNew">${I.plus}매치 등록</button>` : ''}</div>
+    <div class="filters"><button class="${seg === 'up' ? 'on' : ''}" data-act="seg" data-v="up">예정 ${up.length}</button><button class="${seg === 'past' ? 'on' : ''}" data-act="seg" data-v="past">지난 경기 ${past.length}</button></div>
+    ${list.map(matchRow).join('') || `<div class="empty">${seg === 'up' ? '예정된 매치가 없습니다' : '지난 경기가 없습니다'}</div>`}`;
+}
+
+/* ===== 매치 상세 ===== */
+function viewMatch(id) {
+  const m = Store.get('matches', id);
+  if (!m) return `<div class="bar"><button class="back" data-act="back">${I.back}</button><h2>매치</h2></div><div class="empty">삭제되었거나 없는 매치입니다</div>`;
+  const adm = isAdmin(); const g = groups(m); const my = myApp(m); const locked = isLocked(m);
+  const live = m.status !== 'done' && m.status !== 'canceled';
+  const L = getLineup(m); const hasLineup = L.quarters.some(Q => Q.players.some(Boolean));
+  const cap = +m.capacity || 0;
+  const chip = (x, i, kind) => {
+    const p = x.p; const isMe = p.id === me().id; const wait = kind === 'yes' && cap && i >= cap;
+    const act = adm && !p.guest ? `data-act="setFor" data-id="${m.id}" data-p="${p.id}"` : adm && p.guest ? `data-act="guestDel" data-id="${m.id}" data-p="${p.id}"` : '';
+    return `<span class="chip ${isMe ? 'me' : ''} ${p.guest ? 'guest' : ''} ${wait ? 'wait' : ''}" ${act}>${kind === 'yes' ? `<small class="muted">${i + 1}</small>` : ''}${p.number != null && p.number !== '' ? `<span class="no">${esc(p.number)}</span>` : ''}${esc(p.name)}${p.pos?.[0] ? `<span class="tag ${p.pos[0]}">${p.pos[0]}</span>` : ''}${p.guest ? '<small class="muted">용병</small>' : ''}${wait ? '<small class="muted">대기</small>' : ''}${x.a?.note ? `<span class="note">“${esc(x.a.note)}”</span>` : ''}</span>`;
+  };
+  const grp = (k, title, color) => `<div class="grp"><div class="grp-t"><span class="dot" style="background:${color}"></span>${title} ${g[k].length}</div>${g[k].length ? `<div class="chips">${g[k].map((x, i) => chip(x, i, k)).join('')}</div>` : '<div class="muted" style="font-size:13px">없음</div>'}</div>`;
+  const statsList = key => Object.entries(m.stats || {}).filter(([, s]) => +s[key] > 0).sort((a, b) => b[1][key] - a[1][key]).map(([p, s]) => { const pp = person(m, p); return pp ? `${esc(pp.name)}${+s[key] > 1 ? ` <b>${s[key]}</b>` : ''}` : ''; }).filter(Boolean).join(', ');
+  return `
+  <div class="bar"><button class="back" data-act="back" aria-label="뒤로">${I.back}</button><h2>매치 상세</h2>${adm ? `<button class="btn sm ghost" data-act="matchMenu" data-id="${id}">관리</button>` : ''}</div>
+  <article class="mcard">
+    <div class="mcard-top stripes"><div class="hero-shade"></div><div class="hero-in">
+      <div class="hero-meta">${live ? `<span class="pill cream">${dday(m.date)}</span>` : ''}${statusPill(m)}<span class="pill line">${esc(m.type)}</span><span class="pill line">${FORMAT_KO[m.format]} · ${m.quarters}쿼터</span></div>
+      <div class="hero-vs"><span class="wm sm">FMFC</span><span class="vs">VS</span><span class="opp">${esc(m.opponent)}</span></div>
+      ${m.status === 'done' && m.result ? `<div class="score">${m.result.us} : ${m.result.them}<span class="wdl ${wdl(m)}">${WDL_KO[wdl(m)]}</span></div>` : ''}
+    </div></div>
+    <dl class="info">
+      <div><dt>일시</dt><dd>${fmtDate(m.date)} ${esc(m.time || '')}${m.endTime ? '–' + esc(m.endTime) : ''}</dd></div>
+      <div><dt>장소</dt><dd>${esc(m.venue || '미정')}</dd></div>
+      ${m.fee ? `<div><dt>회비</dt><dd>${won(m.fee)}</dd></div>` : ''}
+      ${m.uniform ? `<div><dt>유니폼</dt><dd>${esc(m.uniform)}</dd></div>` : ''}
+      ${m.deadline ? `<div><dt>신청 마감</dt><dd>${fmtDT(m.deadline)}</dd></div>` : ''}
+      ${cap ? `<div><dt>정원</dt><dd>${cap}명 (선착순)</dd></div>` : ''}
+      ${m.memo ? `<div class="full"><dt>안내</dt><dd>${nl2br(m.memo)}</dd></div>` : ''}
+    </dl>
+  </article>
+
+  ${live ? `<div class="my-resp light"><div class="h"><span>내 응답</span>${my ? `<span class="mini-tag ${my.status}">${APP_KO[my.status]}</span>` : '<span class="mini-tag nr">미응답</span>'}</div>
+    <div class="choice">${['yes', 'maybe', 'no'].map(s => `<button class="ch ch-${s} ${my?.status === s ? 'on' : ''}" data-act="apply" data-id="${m.id}" data-s="${s}" ${locked && !adm ? 'disabled' : ''}>${APP_ICON[s]}${APP_KO[s]}</button>`).join('')}</div>
+    <div class="note"><span>${my?.note ? `“${esc(my.note)}”` : locked ? '신청이 마감되었습니다' : '늦참·조퇴 등 한마디를 남길 수 있어요'}</span>${my && (!locked || adm) ? `<button class="link" data-act="noteEdit" data-id="${m.id}">${my.note ? '수정' : '한마디'}</button>` : ''}</div></div>` : ''}
+
+  ${m.status === 'done' ? `<div class="block card"><h4>경기 결과${adm ? `<button class="btn sm ghost" data-act="resultEdit" data-id="${id}">${I.edit}수정</button>` : ''}</h4>
+    ${m.result ? `<div style="font-size:14px;line-height:1.9">${statsList('g') ? `<div>⚽ 득점 · ${statsList('g')}</div>` : ''}${statsList('a') ? `<div>👟 도움 · ${statsList('a')}</div>` : ''}${m.mvp && person(m, m.mvp) ? `<div>⭐ MVP · <b>${esc(person(m, m.mvp).name)}</b></div>` : ''}${m.resultMemo ? `<div class="memo" style="margin-top:8px">${esc(m.resultMemo)}</div>` : ''}</div>` : '<div class="muted">결과가 입력되지 않았습니다</div>'}</div>` : ''}
+  ${adm && m.status !== 'done' && m.status !== 'canceled' && m.date <= todayStr() ? `<div class="row-btns"><button class="btn orange" data-act="resultEdit" data-id="${id}">${I.whistle}경기 결과 입력</button></div>` : ''}
+
+  <div class="block card"><h4><span>${I.field} 포지션 · 라인업</span>${L.published ? '<span class="mini-tag yes">공개</span>' : adm ? '<span class="mini-tag">비공개</span>' : ''}</h4>
+    ${L.published || adm ? (hasLineup ? `<div class="pitch-wrap" style="max-width:260px">${pitchHtml(m, slotsFor(m.format, L.quarters[0].formation), L.quarters[0].players, { mini: true })}</div><p class="muted" style="text-align:center;font-size:12.5px;margin:8px 0 0">1쿼터 · ${L.quarters[0].formation}${L.quarters.length > 1 ? ` 외 ${L.quarters.length - 1}개 쿼터` : ''}</p>` : `<div class="muted" style="font-size:14px">${adm ? '아직 포지션을 구성하지 않았습니다.' : '운영진이 포지션을 준비 중입니다.'}</div>`) : '<div class="muted" style="font-size:14px">운영진이 포지션을 준비 중입니다. 공개되면 여기에서 확인할 수 있어요.</div>'}
+    ${L.published || adm ? `<div class="row-btns"><button class="btn ${adm ? 'primary' : 'navy'}" data-act="openLineup" data-id="${id}">${adm ? '포지션 구성하기' : '라인업 크게 보기'}</button></div>` : ''}</div>
+
+  <div class="block card"><h4><span>참석 현황</span>${adm ? `<button class="btn sm ghost" data-act="guestAdd" data-id="${id}">${I.plus}용병</button>` : ''}</h4>
+    ${grp('yes', '참석', 'var(--orange)')}
+    ${g.guests.length ? `<div class="grp"><div class="grp-t"><span class="dot" style="background:var(--cream-3)"></span>용병 ${g.guests.length}</div><div class="chips">${g.guests.map((x, i) => chip(x, i, 'guest')).join('')}</div></div>` : ''}
+    ${grp('maybe', '미정', 'var(--cream-3)')}
+    ${grp('no', '불참', '#6C7899')}
+    ${live ? grp('none', '미응답', 'var(--red)') : ''}
+    ${adm ? '<p class="help">회원 이름을 누르면 응답을 대신 입력할 수 있습니다. 용병은 누르면 삭제됩니다.</p>' : ''}
+  </div>
+  ${adm ? `<div class="row-btns"><button class="btn ghost" data-act="copyNotice" data-id="${id}">${I.copy}공지 텍스트 복사</button></div>` : ''}`;
+}
+
+/* ===== 라인업 ===== */
+function pitchHtml(m, slots, players, { edit = false, mini = false } = {}) {
+  const meId = me()?.id;
+  return `<div class="pitch ${mini ? 'mini' : ''}"><div class="pl frame"></div><div class="pl half"></div><div class="pl circle"></div><div class="pl box-t"></div><div class="pl box-b"></div><div class="pl six-t"></div><div class="pl six-b"></div>
+    ${slots.map((s, i) => {
+      const pid = players[i]; const p = pid && person(m, pid);
+      const disc = p ? (p.number != null && p.number !== '' ? esc(p.number) : p.guest ? 'G' : esc(p.name.slice(0, 1))) : esc(s.label);
+      return `<${edit ? 'button' : 'div'} class="tok ${p ? '' : 'empty'} ${s.label === 'GK' ? 'gk' : ''} ${pid && pid === meId ? 'me' : ''}" style="left:${s.x}%;top:${s.y}%" ${edit ? `data-act="slot" data-i="${i}" aria-label="${s.label} 선택"` : ''}><span class="disc"><span>${disc}</span></span><span class="nm">${p ? esc(p.name) : ''}</span><span class="lb">${esc(s.label)}</span></${edit ? 'button' : 'div'}>`;
+    }).join('')}</div>`;
+}
+function viewLineup(id) {
+  const m = Store.get('matches', id);
+  if (!m) return `<div class="bar"><button class="back" data-act="back">${I.back}</button><h2>라인업</h2></div><div class="empty">없는 매치입니다</div>`;
+  const adm = isAdmin(); const L = getLineup(m);
+  let q = S.view.q || 0; if (q >= L.quarters.length) q = 0;
+  const Q = L.quarters[q]; const slots = slotsFor(m.format, Q.formation);
+  const head = `<div class="bar"><button class="back" data-act="back" aria-label="뒤로">${I.back}</button><h2>라인업<small>vs ${esc(m.opponent)} · ${fmtDate(m.date)}</small></h2>
+    ${adm ? `<label class="switch"><input type="checkbox" data-chg="publish" data-id="${id}" ${L.published ? 'checked' : ''}><span>${L.published ? '공개' : '비공개'}</span></label>` : ''}</div>`;
+  if (!L.published && !adm) return head + '<div class="empty">아직 라인업이 공개되지 않았습니다</div>';
+  const pool = lineupPool(m);
+  const inQ = new Set(Q.players.filter(Boolean));
+  const bench = pool.yes.filter(p => !inQ.has(p));
+  const cnt = quarterCounts(L);
+  const rowsIds = [...new Set([...pool.yes, ...L.quarters.flatMap(x => x.players).filter(Boolean)])];
+  const tableRows = rowsIds.map(pid => {
+    const p = person(m, pid); if (!p) return '';
+    const cells = L.quarters.map(x => { const i = x.players.indexOf(pid); return i >= 0 ? `<td class="pos">${slotsFor(m.format, x.formation)[i].label}</td>` : '<td class="z">–</td>'; }).join('');
+    return `<tr class="${pid === me().id ? 'me' : ''} ${!cnt[pid] ? 'zero' : ''}"><td>${p.number != null && p.number !== '' ? `<span class="no">${esc(p.number)}</span>` : ''}${esc(p.name)}${p.guest ? ' <small class="muted">용병</small>' : ''}</td>${cells}<td class="num">${cnt[pid] || 0}</td></tr>`;
+  }).join('');
+  return head + `
+    <div class="qtabs">${L.quarters.map((x, i) => `<button class="${i === q ? 'on' : ''}" data-act="lq" data-q="${i}">${L.quarters.length > 1 ? `${i + 1}Q` : 'LINE-UP'}<small>${x.formation} · ${x.players.filter(Boolean).length}/${x.players.length}</small></button>`).join('')}</div>
+    ${adm ? `<div class="lu-tools"><select data-chg="formation" data-id="${id}" aria-label="포메이션">${Object.keys(FORMATIONS[m.format] || FORMATIONS[11]).map(f => `<option ${f === Q.formation ? 'selected' : ''}>${f}</option>`).join('')}</select>
+      <button class="btn sm orange" data-act="luAuto" data-id="${id}">자동 배치</button>
+      ${q > 0 ? `<button class="btn sm ghost" data-act="luCopy" data-id="${id}">이전 쿼터 복사</button>` : ''}
+      <button class="btn sm ghost" data-act="luClear" data-id="${id}">비우기</button></div>` : `<div class="lu-form">${Q.formation}</div>`}
+    <div class="pitch-wrap">${pitchHtml(m, slots, Q.players, { edit: adm })}</div>
+    ${adm ? '<p class="help" style="text-align:center">포지션 원을 눌러 선수를 배치하세요. 이미 배치된 선수를 고르면 자리가 서로 바뀝니다.</p>' : ''}
+    <section style="margin-top:20px"><h3 class="sec"><em>Bench</em>이번 쿼터 대기 ${bench.length}</h3>
+      ${bench.length ? `<div class="chips">${bench.map(pid => { const p = person(m, pid); return `<span class="chip ${pid === me().id ? 'me' : ''} ${p.guest ? 'guest' : ''}">${p.number != null && p.number !== '' ? `<span class="no">${esc(p.number)}</span>` : ''}${esc(p.name)}${p.pos?.[0] ? `<span class="tag ${p.pos[0]}">${p.pos[0]}</span>` : ''}<small class="muted">${cnt[pid] || 0}Q</small></span>`; }).join('')}</div>` : '<div class="muted" style="font-size:13px">대기 인원이 없습니다</div>'}</section>
+    ${L.quarters.length > 1 || rowsIds.length ? `<section><h3 class="sec"><em>Rotation</em>쿼터별 출전 현황</h3>
+      <div class="tbl-wrap"><table class="t"><thead><tr><th>선수</th>${L.quarters.map((x, i) => `<th>${i + 1}Q</th>`).join('')}<th>합계</th></tr></thead><tbody>${tableRows || `<tr><td colspan="${L.quarters.length + 2}" class="muted">참석자가 없습니다</td></tr>`}</tbody></table></div></section>` : ''}
+    <section><div class="sec-row"><h3 class="sec"><em>Tactics</em>전술 메모</h3>${adm ? `<button class="btn sm ghost" data-act="luMemo" data-id="${id}">${I.edit}작성</button>` : ''}</div>
+      ${L.memo ? `<div class="memo">${esc(L.memo)}</div>` : '<div class="muted" style="font-size:13px">메모가 없습니다</div>'}</section>
+    <div class="row-btns"><button class="btn navy" data-act="luImage" data-id="${id}">${I.img}라인업 이미지 저장</button></div>`;
+}
+
+/* ===== 기록 ===== */
+function viewRecords() {
+  const yr = S.recYear; const sd = seasonData(yr); const t = sd.team;
+  const rows = Object.values(sd.per).map(r => ({ ...r, p: Store.get('members', r.id) })).filter(r => r.p);
+  activeMembers().forEach(p => { if (!sd.per[p.id]) rows.push({ id: p.id, p, att: 0, g: 0, a: 0, mvp: 0, q: 0 }); });
+  const rate = r => t.p ? Math.round(r.att / t.p * 100) : 0;
+  const key = S.recSort;
+  const val = (r, k) => k === 'rate' ? rate(r) : k === 'ap' ? r.g + r.a : r[k];
+  rows.sort((a, b) => val(b, key) - val(a, key) || b.g - a.g || byName(a.p, b.p));
+  const top = (k, unit) => { const arr = [...rows].filter(r => val(r, k) > 0).sort((a, b) => val(b, k) - val(a, k) || byName(a.p, b.p)).slice(0, 3); return arr.length ? `<ol>${arr.map(r => `<li><span>${esc(r.p.name)}</span><b>${val(r, k)}${unit}</b></li>`).join('')}</ol>` : '<div class="muted" style="font-size:13px">기록 없음</div>'; };
+  const th = (k, label) => `<th class="sort ${key === k ? 'on' : ''}" data-act="recSort" data-k="${k}">${label}${key === k ? ' ▾' : ''}</th>`;
+  return `<div class="bar"><h2>기록</h2><select class="btn sm ghost" data-chg="recYear" aria-label="시즌">${seasonYears().map(y => `<option ${y === yr ? 'selected' : ''} value="${y}">${y} 시즌</option>`).join('')}</select></div>
+    ${seasonStrip(sd)}
+    <div class="season" style="grid-template-columns:repeat(3,1fr)"><div><b>${t.gf}</b><span>득점</span></div><div><b>${t.ga}</b><span>실점</span></div><div><b>${t.p ? Math.round(t.w / t.p * 100) : 0}<small style="font-size:15px">%</small></b><span>승률</span></div></div>
+    <section><h3 class="sec"><em>Leaders</em>부문별 순위</h3>
+      <div class="leaders"><div class="leader card"><h5>득점왕<em>Goals</em></h5>${top('g', '')}</div><div class="leader card"><h5>도움왕<em>Assists</em></h5>${top('a', '')}</div>
+      <div class="leader card"><h5>출석왕<em>Attendance</em></h5>${top('att', '경기')}</div><div class="leader card"><h5>MVP<em>Man of the Match</em></h5>${top('mvp', '회')}</div></div></section>
+    <section><h3 class="sec"><em>Players</em>개인 기록</h3>
+      <div class="tbl-wrap"><table class="t"><thead><tr><th>선수</th>${th('att', '출전')}${th('rate', '출석률')}${th('q', '쿼터')}${th('g', '골')}${th('a', '도움')}${th('ap', '공격P')}${th('mvp', 'MVP')}</tr></thead>
+      <tbody>${rows.map(r => `<tr class="${r.id === me().id ? 'me' : ''}"><td>${r.p.number != null && r.p.number !== '' ? `<span class="no">${esc(r.p.number)}</span>` : ''}${esc(r.p.name)}</td><td class="num">${r.att}</td><td class="num">${rate(r)}%</td><td class="num">${r.q}</td><td class="num">${r.g}</td><td class="num">${r.a}</td><td class="num">${r.g + r.a}</td><td class="num">${r.mvp}</td></tr>`).join('')}</tbody></table></div>
+      <p class="help">출전 = 참석 응답 또는 라인업에 들어간 종료 경기 수 · 출석률 = 출전 ÷ 시즌 종료 경기 수</p></section>
+    <section><h3 class="sec"><em>Results</em>경기 결과</h3>${[...sd.done].reverse().map(matchRow).join('') || '<div class="empty">이 시즌의 종료된 경기가 없습니다</div>'}</section>`;
+}
+
+/* ===== 회원 ===== */
+function viewMembers() {
+  const adm = isAdmin();
+  const all = Store.list('members');
+  const pending = all.filter(m => m.status === 'pending');
+  const base = all.filter(m => m.status !== 'pending');
+  const f = S.memFilter;
+  const filters = [['all', `전체 ${base.length}`], ['admin', '운영진'], ['GK', 'GK'], ['DF', 'DF'], ['MF', 'MF'], ['FW', 'FW'], ['rest', '휴면']];
+  return `<div class="bar"><h2>회원 <small>활동 ${activeMembers().length}명</small></h2>${adm ? `<button class="btn sm primary" data-act="memberNew">${I.plus}회원 추가</button>` : ''}</div>
+    ${adm && pending.length ? `<section><h3 class="sec"><em>Pending</em>가입 신청 ${pending.length}</h3>${pending.map(m => memberItem(m, true)).join('')}</section><div style="height:18px"></div>` : ''}
+    <div class="search">${I.search}<input id="mq" placeholder="이름 또는 등번호 검색" value="${esc(S.memQ)}" data-inp="memQ"></div>
+    <div class="filters">${filters.map(([k, l]) => `<button class="${f === k ? 'on' : ''}" data-act="memFilter" data-k="${k}">${l}</button>`).join('')}</div>
+    <div id="memList">${memberListHtml(base)}</div>`;
+}
+function memberListHtml(base) {
+  const f = S.memFilter, q = S.memQ.trim();
+  let list = base.filter(m => {
+    if (f === 'admin' && m.role !== 'admin') return false;
+    if (f === 'rest' && m.status !== 'rest') return false;
+    if (POS_LIST.includes(f) && !(m.pos || []).includes(f)) return false;
+    if (q && !(m.name.includes(q) || String(m.number ?? '') === q)) return false;
+    return true;
+  });
+  list.sort((a, b) => (a.status === 'rest') - (b.status === 'rest') || (b.role === 'admin') - (a.role === 'admin') || (+a.number || 999) - (+b.number || 999) || byName(a, b));
+  return list.map(m => memberItem(m)).join('') || '<div class="empty">해당하는 회원이 없습니다</div>';
+}
+function memberItem(m, pending = false) {
+  return `<div class="mem card ${m.status === 'rest' ? 'rest' : ''} ${pending ? 'pending' : ''}" data-act="memberView" data-id="${m.id}">
+    <div class="jn"><span>${m.number != null && m.number !== '' ? esc(m.number) : '–'}</span></div>
+    <div class="c"><b>${esc(m.name)}${m.role === 'admin' ? '<span class="role">운영진</span>' : ''}${m.status === 'rest' ? '<span class="mini-tag">휴면</span>' : ''}${m.id === me().id ? '<span class="mini-tag yes">나</span>' : ''}</b>
+      <div class="p">${(m.pos || []).map((p, i) => `<span class="tag ${p} ${i ? 'sub' : ''}">${p}</span>`).join('')}</div></div>
+    <div class="r">${pending ? '<span class="mini-tag nr">승인 대기</span>' : m.joined ? `${m.joined.slice(0, 7).replace('-', '.')} 가입` : ''}</div></div>`;
+}
+
+/* ---------- 시트(모달) ---------- */
+function sheet(title, body, onMount) {
+  closeSheet();
+  const ov = document.createElement('div'); ov.className = 'ov';
+  ov.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="sheet-h"><h3>${title}</h3><button class="x" data-act="closeSheet" aria-label="닫기">${I.x}</button></div><div class="sheet-b">${body}</div></div>`;
+  ov.addEventListener('click', e => { if (e.target === ov) closeSheet(); });
+  document.body.appendChild(ov); document.body.style.overflow = 'hidden';
+  onMount && onMount(ov.querySelector('.sheet'));
+  return ov;
+}
+function closeSheet() { document.querySelectorAll('.ov').forEach(o => o.remove()); document.body.style.overflow = ''; }
+
+/* ---------- 폼 ---------- */
+function memberFields(m, { admin = false, isNew = true, self = false } = {}) {
+  const pos = m.pos || [];
+  return `
+    <div class="f2"><label class="f"><span>이름 <i>*</i></span><input name="name" required maxlength="12" value="${esc(m.name || '')}"></label>
+    <label class="f"><span>등번호</span><input name="number" type="number" min="0" max="99" inputmode="numeric" value="${esc(m.number ?? '')}"></label></div>
+    <div class="f"><span>선호 포지션 <i>*</i></span><div class="poschk" data-order="${esc(pos.join(','))}">${POS_LIST.map(p => `<label><input type="checkbox" name="pos" value="${p}" ${pos.includes(p) ? 'checked' : ''}><span>${p} ${POS_KO[p]}</span></label>`).join('')}</div><div class="help">먼저 고른 포지션이 주 포지션이 됩니다 · 현재: <b class="pos-order">${pos.join(' › ') || '없음'}</b></div></div>
+    ${admin ? `<div class="f2"><label class="f"><span>권한</span><select name="role"><option value="member" ${m.role !== 'admin' ? 'selected' : ''}>일반 회원</option><option value="admin" ${m.role === 'admin' ? 'selected' : ''}>운영진</option></select></label>
+      <label class="f"><span>상태</span><select name="status">${[['active', '활동'], ['rest', '휴면'], ['pending', '가입 대기']].map(([v, l]) => `<option value="${v}" ${(m.status || 'active') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
+      <label class="f"><span>가입일</span><input name="joined" type="date" value="${esc(m.joined || todayStr())}"></label>` : ''}
+    ${!self || isNew ? `<div class="f2"><label class="f"><span>PIN 4자리 ${isNew ? '<i>*</i>' : ''}</span><input name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" ${isNew ? 'required' : ''} placeholder="${isNew ? '숫자 4자리' : '변경 시에만 입력'}"></label>
+      <label class="f"><span>PIN 확인</span><input name="pin2" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" ${isNew ? 'required' : ''}></label></div>` : ''}
+    ${admin ? `<label class="f"><span>운영진 메모</span><textarea name="memo" rows="2" placeholder="운영진만 볼 수 있습니다">${esc(m.memo || '')}</textarea></label>` : ''}`;
+}
+function bindPosOrder(root) {
+  const box = root.querySelector('.poschk'); if (!box) return;
+  let order = box.dataset.order ? box.dataset.order.split(',').filter(Boolean) : [];
+  box.addEventListener('change', e => {
+    const v = e.target.value;
+    if (e.target.checked) { if (!order.includes(v)) order.push(v); } else order = order.filter(x => x !== v);
+    box.dataset.order = order.join(','); root.querySelector('.pos-order').textContent = order.join(' › ') || '없음';
+  });
+}
+async function readMemberForm(form, existing, requirePin) {
+  const f = new FormData(form);
+  const name = (f.get('name') || '').trim();
+  if (!name) { toast('이름을 입력하세요', 'err'); return null; }
+  const dup = Store.list('members').find(x => x.name === name && x.id !== existing?.id);
+  if (dup) { toast('같은 이름의 회원이 있습니다. 구분할 수 있게 입력해 주세요', 'err'); return null; }
+  const order = (form.querySelector('.poschk').dataset.order || '').split(',').filter(Boolean);
+  if (!order.length) { toast('선호 포지션을 하나 이상 고르세요', 'err'); return null; }
+  const d = { name, number: f.get('number') === '' ? null : +f.get('number'), pos: order };
+  const pin = f.get('pin'), pin2 = f.get('pin2');
+  if (pin || requirePin) {
+    if (!/^\d{4}$/.test(pin || '')) { toast('PIN은 숫자 4자리입니다', 'err'); return null; }
+    if (pin !== pin2) { toast('PIN 확인이 일치하지 않습니다', 'err'); return null; }
+    d.pinHash = await hashPin(pin);
+  }
+  if (f.has('role')) d.role = f.get('role');
+  if (f.has('status')) d.status = f.get('status');
+  if (f.has('joined')) d.joined = f.get('joined');
+  if (f.has('memo')) d.memo = f.get('memo');
+  return d;
+}
+function matchFields(m) {
+  const fm = String(m.format || 11);
+  return `
+    <label class="f"><span>상대팀 <i>*</i></span><input name="opponent" required maxlength="30" value="${esc(m.opponent || '')}" placeholder="예) FC 블루윙즈"></label>
+    <div class="f3"><label class="f"><span>날짜 <i>*</i></span><input name="date" type="date" required value="${esc(m.date || '')}"></label>
+    <label class="f"><span>시작 <i>*</i></span><input name="time" type="time" required value="${esc(m.time || '')}"></label>
+    <label class="f"><span>종료</span><input name="endTime" type="time" value="${esc(m.endTime || '')}"></label></div>
+    <label class="f"><span>장소</span><input name="venue" maxlength="40" value="${esc(m.venue || '')}" placeholder="구장 이름"></label>
+    <div class="f3"><label class="f"><span>경기 종류</span><select name="type">${TYPE_LIST.map(t => `<option ${m.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+    <label class="f"><span>경기 방식</span><select name="format">${Object.entries(FORMAT_KO).sort((a, b) => b[0] - a[0]).map(([v, l]) => `<option value="${v}" ${fm === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    <label class="f"><span>쿼터 수</span><input name="quarters" type="number" min="1" max="8" value="${esc(m.quarters || 4)}"></label></div>
+    <div class="f2"><label class="f"><span>신청 마감</span><input name="deadline" type="datetime-local" value="${esc(m.deadline || '')}"></label>
+    <label class="f"><span>정원 (선착순)</span><input name="capacity" type="number" min="0" placeholder="제한 없음" value="${esc(m.capacity || '')}"></label></div>
+    <div class="f2"><label class="f"><span>회비 (원)</span><input name="fee" type="number" min="0" step="1000" value="${esc(m.fee || '')}"></label>
+    <label class="f"><span>유니폼</span><select name="uniform">${UNIFORM_LIST.map(u => `<option ${m.uniform === u ? 'selected' : ''}>${u}</option>`).join('')}</select></label></div>
+    <label class="f"><span>안내 사항</span><textarea name="memo" rows="3" placeholder="집합 시간, 주차, 준비물 등">${esc(m.memo || '')}</textarea></label>`;
+}
+
+/* ---------- 액션 ---------- */
+const ACT = {
+  closeSheet: () => closeSheet(),
+  tab: d => { S.tab = d.t; S.view = null; history.replaceState({ v: null, tab: S.tab }, ''); closeSheet(); render(); window.scrollTo(0, 0); },
+  back: () => { if (history.state?.v) history.back(); else { S.view = null; render(); } },
+  seg: d => { S.matchSeg = d.v; render(); },
+  openMatch: d => go({ type: 'match', id: d.id }),
+  openLineup: d => go({ type: 'lineup', id: d.id, q: 0 }),
+  lq: d => { S.view = { ...S.view, q: +d.q }; history.replaceState({ v: S.view, tab: S.tab }, ''); render(); },
+  memFilter: d => { S.memFilter = d.k; render(); },
+  recSort: d => { S.recSort = d.k; render(); },
+
+  /* 신청 */
+  apply: async d => {
+    const m = Store.get('matches', d.id); if (!m) return;
+    if (isLocked(m) && !isAdmin()) return toast('신청이 마감되었습니다', 'err');
+    await setApp(m.id, me().id, d.s);
+    toast(`${APP_KO[d.s]}으로 응답했습니다`);
+  },
+  noteEdit: d => {
+    const m = Store.get('matches', d.id); const a = myApp(m);
+    sheet('한마디 남기기', `<form id="nf"><label class="f"><span>코멘트</span><input name="note" maxlength="40" value="${esc(a?.note || '')}" placeholder="예) 30분 늦참, 2쿼터까지만 가능"></label><button class="btn primary block">저장</button></form>`, el => {
+      el.querySelector('input').focus();
+      el.querySelector('#nf').onsubmit = async e => { e.preventDefault(); await setApp(m.id, me().id, a.status, new FormData(e.target).get('note').trim()); closeSheet(); toast('저장했습니다'); };
+    });
+  },
+  setFor: d => {
+    const m = Store.get('matches', d.id); const p = Store.get('members', d.p); const a = Store.get('apps', m.id + '__' + p.id);
+    sheet(`${esc(p.name)} 응답 입력`, `<div class="choice light" style="margin-bottom:10px">${['yes', 'maybe', 'no'].map(s => `<button class="ch ch-${s} ${a?.status === s ? 'on' : ''}" data-act="setForDo" data-id="${m.id}" data-p="${p.id}" data-s="${s}">${APP_ICON[s]}${APP_KO[s]}</button>`).join('')}</div>
+      ${a ? `<button class="btn danger block" data-act="setForDo" data-id="${m.id}" data-p="${p.id}" data-s="">응답 삭제 (미응답으로)</button>` : ''}`);
+  },
+  setForDo: async d => {
+    closeSheet();
+    if (!d.s) { await Store.del('apps', d.id + '__' + d.p); const L = removeFromLineup(Store.get('matches', d.id), d.p); return toast('응답을 삭제했습니다'); }
+    await setApp(d.id, d.p, d.s); toast('응답을 입력했습니다');
+  },
+  guestAdd: d => {
+    sheet('용병 추가', `<form id="gf"><label class="f"><span>이름 <i>*</i></span><input name="name" required maxlength="12" placeholder="예) 김용병"></label>
+      <label class="f"><span>포지션</span><select name="pos">${POS_LIST.map(p => `<option value="${p}">${p} ${POS_KO[p]}</option>`).join('')}</select></label>
+      <label class="f"><span>등번호 (선택)</span><input name="number" type="number" min="0" max="99"></label>
+      <button class="btn primary block">추가</button></form>`, el => {
+      el.querySelector('input').focus();
+      el.querySelector('#gf').onsubmit = async e => {
+        e.preventDefault(); const f = new FormData(e.target); const m = Store.get('matches', d.id);
+        m.guests = [...(m.guests || []), { id: uid('g_'), name: f.get('name').trim(), pos: f.get('pos'), number: f.get('number') === '' ? null : +f.get('number') }];
+        await Store.put('matches', m); closeSheet(); toast('용병을 추가했습니다');
+      };
+    });
+  },
+  guestDel: async d => {
+    const m = Store.get('matches', d.id); const g = (m.guests || []).find(x => x.id === d.p);
+    if (!g || !confirm(`용병 ${g.name}을(를) 삭제할까요? 라인업에서도 빠집니다.`)) return;
+    m.guests = m.guests.filter(x => x.id !== d.p);
+    if (m.lineup) m.lineup.quarters.forEach(Q => Q.players = Q.players.map(p => p === d.p ? null : p));
+    await Store.put('matches', m); toast('삭제했습니다');
+  },
+
+  /* 매치 관리 */
+  matchNew: () => {
+    const def = { date: dstr(addDays(7)), time: '08:00', endTime: '10:00', format: 11, quarters: 4, type: '친선', uniform: UNIFORM_LIST[0] };
+    sheet('매치 등록', `<form id="mf">${matchFields(def)}<button class="btn primary block">등록</button></form>`, el => bindMatchForm(el, null));
+  },
+  matchEdit: d => { const m = Store.get('matches', d.id); sheet('매치 수정', `<form id="mf">${matchFields(m)}<button class="btn primary block">저장</button></form>`, el => bindMatchForm(el, m)); },
+  matchMenu: d => {
+    const m = Store.get('matches', d.id);
+    const b = (act, icon, label, cls = '') => `<button class="${cls}" data-act="${act}" data-id="${m.id}">${icon}${label}</button>`;
+    sheet('매치 관리', `<div class="menu">
+      ${b('matchEdit', I.edit, '매치 정보 수정')}
+      ${b('openLineupFromMenu', I.field, '포지션 구성')}
+      ${m.status === 'open' ? b('matchStatus', I.lock, '신청 마감하기') : m.status === 'closed' ? b('matchStatus', I.check, '신청 다시 열기') : ''}
+      ${b('resultEdit', I.whistle, m.status === 'done' ? '경기 결과 수정' : '경기 결과 입력')}
+      ${b('copyNotice', I.copy, '카톡 공지 텍스트 복사')}
+      ${m.status === 'canceled' ? b('matchUncancel', I.check, '취소 철회') : m.status !== 'done' ? b('matchCancel', I.x, '경기 취소', 'red') : ''}
+      ${b('matchDelete', I.trash, '매치 삭제', 'red')}</div>`);
+  },
+  openLineupFromMenu: d => { closeSheet(); go({ type: 'lineup', id: d.id, q: 0 }); },
+  matchStatus: async d => { const m = Store.get('matches', d.id); m.status = m.status === 'open' ? 'closed' : 'open'; closeSheet(); await Store.put('matches', m); toast(m.status === 'open' ? '신청을 다시 열었습니다' : '신청을 마감했습니다'); },
+  matchCancel: async d => { if (!confirm('이 경기를 취소 처리할까요?')) return; const m = Store.get('matches', d.id); m.status = 'canceled'; closeSheet(); await Store.put('matches', m); toast('취소 처리했습니다'); },
+  matchUncancel: async d => { const m = Store.get('matches', d.id); m.status = 'open'; closeSheet(); await Store.put('matches', m); toast('모집중으로 되돌렸습니다'); },
+  matchDelete: async d => {
+    const m = Store.get('matches', d.id);
+    if (!confirm(`vs ${m.opponent} (${fmtDate(m.date)}) 매치를 삭제할까요?\n신청·라인업·기록이 모두 삭제되며 되돌릴 수 없습니다.`)) return;
+    closeSheet(); S.view = null; history.replaceState({ v: null, tab: S.tab }, '');
+    for (const a of appsOf(m.id)) await Store.del('apps', a.id);
+    await Store.del('matches', m.id); toast('삭제했습니다');
+  },
+  copyNotice: d => { closeSheet(); copyText(noticeText(Store.get('matches', d.id))); },
+  resultEdit: d => {
+    closeSheet();
+    const m = Store.get('matches', d.id); const r = m.result || { us: '', them: '' };
+    const L = getLineup(m);
+    const ids = [...new Set([...lineupPool(m).yes, ...L.quarters.flatMap(Q => Q.players).filter(Boolean), ...Object.keys(m.stats || {})])].filter(p => person(m, p));
+    const st = m.stats || {};
+    sheet('경기 결과 입력', `<form id="rf">
+      <div class="score-in"><label><span>FMFC</span><input name="us" type="number" min="0" inputmode="numeric" required value="${esc(r.us)}"></label><span class="colon">:</span><label><span>${esc(m.opponent)}</span><input name="them" type="number" min="0" inputmode="numeric" required value="${esc(r.them)}"></label></div>
+      <h5>개인 기록</h5>
+      <div class="stat-row h"><span>선수</span><span style="text-align:center">골</span><span style="text-align:center">도움</span></div>
+      ${ids.map(p => { const pp = person(m, p); return `<div class="stat-row"><span>${esc(memberLabel(pp))}${pp.guest ? ' <small class="muted">용병</small>' : ''}</span><input type="number" min="0" name="g_${p}" value="${+st[p]?.g || ''}" placeholder="0" inputmode="numeric"><input type="number" min="0" name="a_${p}" value="${+st[p]?.a || ''}" placeholder="0" inputmode="numeric"></div>`; }).join('') || '<div class="muted" style="font-size:13px">참석자가 없습니다</div>'}
+      <label class="f" style="margin-top:14px"><span>MVP</span><select name="mvp"><option value="">선정 안 함</option>${ids.map(p => `<option value="${p}" ${m.mvp === p ? 'selected' : ''}>${esc(person(m, p).name)}</option>`).join('')}</select></label>
+      <label class="f"><span>경기 메모</span><textarea name="resultMemo" rows="2" placeholder="경기 총평 등">${esc(m.resultMemo || '')}</textarea></label>
+      <button class="btn primary block">결과 저장 · 경기 종료 처리</button></form>`, el => {
+      el.querySelector('#rf').onsubmit = async e => {
+        e.preventDefault(); const f = new FormData(e.target); const mm = Store.get('matches', d.id);
+        mm.result = { us: +f.get('us'), them: +f.get('them') };
+        const stats = {}; ids.forEach(p => { const g = +f.get('g_' + p) || 0, a = +f.get('a_' + p) || 0; if (g || a) stats[p] = { g, a }; });
+        mm.stats = stats; mm.mvp = f.get('mvp') || null; mm.resultMemo = f.get('resultMemo').trim(); mm.status = 'done';
+        await Store.put('matches', mm); closeSheet(); toast('경기 결과를 저장했습니다');
+      };
+    });
+  },
+
+  /* 라인업 */
+  slot: d => {
+    const m = Store.get('matches', S.view.id); const L = getLineup(m); const q = S.view.q || 0; const Q = L.quarters[q];
+    const i = +d.i; const slots = slotsFor(m.format, Q.formation); const label = slots[i].label; const cat = CAT[label];
+    const pool = lineupPool(m); const cnt = quarterCounts(L);
+    const fitOf = p => (p.pos || [])[0] === cat ? 0 : (p.pos || []).includes(cat) ? 1 : 2;
+    const sortIds = ids => ids.map(pid => ({ pid, p: person(m, pid) })).filter(x => x.p).sort((a, b) => fitOf(a.p) - fitOf(b.p) || (cnt[a.pid] || 0) - (cnt[b.pid] || 0) || byName(a.p, b.p));
+    const item = ({ pid, p }) => {
+      const where = Q.players.indexOf(pid); const fit = fitOf(p);
+      return `<button class="pick ${where === i ? 'cur' : ''}" data-act="pick" data-p="${pid}"><span class="no">${p.number ?? ''}</span><b>${esc(p.name)}</b>${(p.pos || []).map((x, k) => `<span class="tag ${x} ${k ? 'sub' : ''}">${x}</span>`).join('')}${p.guest ? '<small class="muted">용병</small>' : ''}<span class="sp"></span>${where >= 0 && where !== i ? `<span class="here">${slots[where].label} 배치중</span>` : ''}${fit === 0 ? '<span class="fit main">주포지션</span>' : fit === 1 ? '<span class="fit sub">가능</span>' : ''}<span class="qc">${cnt[pid] || 0}Q</span></button>`;
+    };
+    S.pick = { mid: m.id, q, i };
+    sheet(`${L.quarters.length > 1 ? (q + 1) + '쿼터 · ' : ''}${label} 선택`, `
+      ${Q.players[i] ? `<button class="btn danger block" data-act="pick" data-p="" style="margin-bottom:12px">이 자리 비우기</button>` : ''}
+      <h5>참석 ${pool.yes.length}명 <small class="muted">· 숫자는 이미 배정된 쿼터 수</small></h5>${sortIds(pool.yes).map(item).join('') || '<div class="muted" style="font-size:13px">참석자가 없습니다</div>'}
+      ${pool.maybe.length ? `<h5>미정 ${pool.maybe.length}명</h5>${sortIds(pool.maybe).map(item).join('')}` : ''}
+      ${pool.others.length ? `<details><summary>불참·미응답 회원 ${pool.others.length}명</summary>${sortIds(pool.others).map(item).join('')}</details>` : ''}`);
+  },
+  pick: async d => {
+    const { mid, q, i } = S.pick || {}; const m = Store.get('matches', mid); if (!m) return;
+    const L = getLineup(m); const Q = L.quarters[q]; const pid = d.p || null;
+    if (pid) { const j = Q.players.indexOf(pid); if (j >= 0 && j !== i) Q.players[j] = Q.players[i] || null; }
+    Q.players[i] = pid; m.lineup = L; closeSheet(); await Store.put('matches', m);
+  },
+  luAuto: async d => {
+    const m = Store.get('matches', d.id); const L = getLineup(m); const q = S.view.q || 0;
+    if (!lineupPool(m).yes.length) return toast('참석자가 없습니다', 'err');
+    autoFill(m, L, q); m.lineup = L; await Store.put('matches', m); toast('출전 쿼터가 적은 선수 우선으로 배치했습니다');
+  },
+  luCopy: async d => {
+    const m = Store.get('matches', d.id); const L = getLineup(m); const q = S.view.q || 0; if (!q) return;
+    L.quarters[q] = JSON.parse(JSON.stringify(L.quarters[q - 1])); m.lineup = L; await Store.put('matches', m); toast(`${q}쿼터 구성을 복사했습니다`);
+  },
+  luClear: async d => {
+    if (!confirm('이 쿼터의 배치를 모두 비울까요?')) return;
+    const m = Store.get('matches', d.id); const L = getLineup(m); const q = S.view.q || 0;
+    L.quarters[q].players = L.quarters[q].players.map(() => null); m.lineup = L; await Store.put('matches', m);
+  },
+  luMemo: d => {
+    const m = Store.get('matches', d.id); const L = getLineup(m);
+    sheet('전술 메모', `<form id="lm"><label class="f"><span>회원에게 보이는 메모</span><textarea name="memo" rows="6" placeholder="예) 빌드업은 짧게, 세트피스 키커: 7번">${esc(L.memo || '')}</textarea></label><button class="btn primary block">저장</button></form>`, el => {
+      el.querySelector('#lm').onsubmit = async e => { e.preventDefault(); const mm = Store.get('matches', d.id); const LL = getLineup(mm); LL.memo = new FormData(e.target).get('memo').trim(); mm.lineup = LL; await Store.put('matches', mm); closeSheet(); };
+    });
+  },
+  luImage: d => exportLineup(Store.get('matches', d.id)),
+
+  /* 공지 */
+  noticeNew: () => noticeForm({}),
+  noticeView: d => {
+    const n = Store.get('notices', d.id);
+    sheet(esc(n.title), `<p class="muted" style="margin:0 0 10px;font-size:13px">${fmtDate(dstr(new Date(n.at)))} · ${esc(Store.get('members', n.author)?.name || '운영진')}</p><div class="memo">${esc(n.body || '')}</div>
+      ${isAdmin() ? `<div class="row-btns"><button class="btn ghost" data-act="noticeEdit" data-id="${n.id}">${I.edit}수정</button><button class="btn danger" data-act="noticeDel" data-id="${n.id}">${I.trash}삭제</button></div>` : ''}`);
+  },
+  noticeEdit: d => noticeForm(Store.get('notices', d.id)),
+  noticeDel: async d => { if (!confirm('공지를 삭제할까요?')) return; closeSheet(); await Store.del('notices', d.id); toast('삭제했습니다'); },
+
+  /* 회원 */
+  signup: () => {
+    sheet('가입 신청', `<form id="sf"><p class="muted" style="margin:0 0 14px;font-size:13.5px">운영진이 승인하면 로그인할 수 있습니다.</p>${memberFields({}, { self: true })}<button class="btn primary block">가입 신청</button></form>`, el => {
+      bindPosOrder(el);
+      el.querySelector('#sf').onsubmit = async e => {
+        e.preventDefault(); const dd = await readMemberForm(e.target, null, true); if (!dd) return;
+        await Store.put('members', { ...dd, role: 'member', status: 'pending', joined: todayStr() }); closeSheet(); toast('가입 신청을 보냈습니다. 승인 후 로그인하세요');
+      };
+    });
+  },
+  memberNew: () => {
+    sheet('회원 추가', `<form id="mbf">${memberFields({ status: 'active', role: 'member' }, { admin: true })}<button class="btn primary block">추가</button></form>`, el => {
+      bindPosOrder(el);
+      el.querySelector('#mbf').onsubmit = async e => { e.preventDefault(); const dd = await readMemberForm(e.target, null, true); if (!dd) return; await Store.put('members', dd); closeSheet(); toast(`${dd.name}님을 추가했습니다`); };
+    });
+  },
+  memberView: d => {
+    const m = Store.get('members', d.id); const adm = isAdmin();
+    const yr = String(new Date().getFullYear()); const sd = seasonData(yr); const r = sd.per[m.id] || { att: 0, g: 0, a: 0, mvp: 0 };
+    sheet('회원 정보', `<div class="prof-head"><div class="jn"><span>${m.number ?? '–'}</span></div><div><b>${esc(m.name)}</b> ${m.role === 'admin' ? '<span class="role">운영진</span>' : ''}<div style="display:flex;gap:4px;margin-top:5px">${(m.pos || []).map((p, i) => `<span class="tag ${p} ${i ? 'sub' : ''}">${p} ${i === 0 ? POS_KO[p] : ''}</span>`).join('')}</div></div></div>
+      <div class="muted" style="font-size:12.5px">${yr} 시즌</div>
+      <div class="kv"><div><b>${r.att}</b><span>출전</span></div><div><b>${r.g}</b><span>골</span></div><div><b>${r.a}</b><span>도움</span></div><div><b>${r.mvp}</b><span>MVP</span></div></div>
+      ${adm && m.memo ? `<div class="memo" style="margin-bottom:12px">${esc(m.memo)}</div>` : ''}
+      <p class="muted" style="font-size:13px;margin:0">${m.joined ? `가입일 ${m.joined}` : ''} · ${{ active: '활동', rest: '휴면', pending: '가입 대기' }[m.status]}</p>
+      ${adm ? `<div class="row-btns">${m.status === 'pending' ? `<button class="btn orange" data-act="memberApprove" data-id="${m.id}">${I.check}가입 승인</button>` : ''}<button class="btn ghost" data-act="memberEdit" data-id="${m.id}">${I.edit}수정</button>${m.id !== me().id ? `<button class="btn danger" data-act="memberDel" data-id="${m.id}">${I.trash}${m.status === 'pending' ? '거절' : '삭제'}</button>` : ''}</div>` : ''}`);
+  },
+  memberApprove: async d => { const m = Store.get('members', d.id); m.status = 'active'; m.joined = todayStr(); closeSheet(); await Store.put('members', m); toast(`${m.name}님 가입을 승인했습니다`); },
+  memberEdit: d => {
+    const m = Store.get('members', d.id);
+    sheet('회원 수정', `<form id="mbf">${memberFields(m, { admin: true, isNew: false })}<button class="btn primary block">저장</button></form>`, el => {
+      bindPosOrder(el);
+      el.querySelector('#mbf').onsubmit = async e => {
+        e.preventDefault(); const dd = await readMemberForm(e.target, m, false); if (!dd) return;
+        if (m.id === me().id && dd.role !== 'admin' && Store.list('members').filter(x => x.role === 'admin').length <= 1) return toast('운영진이 최소 1명은 있어야 합니다', 'err');
+        await Store.put('members', { ...m, ...dd }); closeSheet(); toast('저장했습니다');
+      };
+    });
+  },
+  memberDel: async d => {
+    const m = Store.get('members', d.id);
+    if (!confirm(`${m.name}님을 ${m.status === 'pending' ? '가입 거절' : '삭제'}할까요?\n${m.status === 'pending' ? '' : '기존 경기 기록에서도 이름이 사라집니다. 활동을 멈춘 회원은 "휴면"으로 바꾸는 것을 권장합니다.'}`)) return;
+    closeSheet(); for (const a of Store.list('apps').filter(a => a.memberId === m.id)) await Store.del('apps', a.id);
+    await Store.del('members', m.id); toast('처리했습니다');
+  },
+  profile: () => {
+    const m = me(); const yr = String(new Date().getFullYear()); const sd = seasonData(yr); const r = sd.per[m.id] || { att: 0, g: 0, a: 0, mvp: 0 };
+    sheet('내 정보', `<div class="prof-head"><div class="jn"><span>${m.number ?? '–'}</span></div><div><b>${esc(m.name)}</b> ${m.role === 'admin' ? '<span class="role">운영진</span>' : ''}<div style="display:flex;gap:4px;margin-top:5px">${(m.pos || []).map((p, i) => `<span class="tag ${p} ${i ? 'sub' : ''}">${p}</span>`).join('')}</div></div></div>
+      <div class="kv"><div><b>${r.att}</b><span>출전</span></div><div><b>${r.g}</b><span>골</span></div><div><b>${r.a}</b><span>도움</span></div><div><b>${r.mvp}</b><span>MVP</span></div></div>
+      <div class="menu"><button data-act="selfEdit">${I.user}선호 포지션 · 등번호 변경</button><button data-act="pinChange">${I.lock}PIN 변경</button>
+      ${Store.mode === 'demo' ? `<button data-act="demoReset">${I.trash}데모 데이터 초기화</button>` : ''}<button class="red" data-act="logout">${I.out}로그아웃</button></div>
+      <p class="ver" style="padding:14px 0 0">FMFC v${APP_VERSION} · ${Store.mode === 'demo' ? '데모 모드' : 'Firebase 연결됨'}</p>`);
+  },
+  selfEdit: () => {
+    const m = me();
+    sheet('내 정보 수정', `<form id="pf">${memberFields(m, { self: true, isNew: false })}<button class="btn primary block">저장</button></form>`, el => {
+      bindPosOrder(el); el.querySelector('[name=name]').readOnly = !isAdmin();
+      el.querySelector('#pf').onsubmit = async e => { e.preventDefault(); const dd = await readMemberForm(e.target, m, false); if (!dd) return; await Store.put('members', { ...m, ...dd }); closeSheet(); toast('저장했습니다'); };
+    });
+  },
+  pinChange: () => {
+    sheet('PIN 변경', `<form id="pc"><label class="f"><span>현재 PIN</span><input name="cur" type="password" inputmode="numeric" maxlength="4" required></label>
+      <div class="f2"><label class="f"><span>새 PIN</span><input name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required></label><label class="f"><span>새 PIN 확인</span><input name="pin2" type="password" inputmode="numeric" maxlength="4" required></label></div>
+      <button class="btn primary block">변경</button></form>`, el => {
+      el.querySelector('#pc').onsubmit = async e => {
+        e.preventDefault(); const f = new FormData(e.target); const m = me();
+        if ((await hashPin(f.get('cur'))) !== m.pinHash) return toast('현재 PIN이 올바르지 않습니다', 'err');
+        if (!/^\d{4}$/.test(f.get('pin')) || f.get('pin') !== f.get('pin2')) return toast('새 PIN을 확인하세요', 'err');
+        await Store.put('members', { ...m, pinHash: await hashPin(f.get('pin')) }); closeSheet(); toast('PIN을 변경했습니다');
+      };
+    });
+  },
+  logout: () => { lsSet(SESSION_KEY, null); closeSheet(); S.view = null; S.tab = 'home'; render(); },
+  demoReset: async () => { if (!confirm('데모 데이터를 처음 상태로 되돌릴까요?')) return; closeSheet(); Store.data = { members: {}, matches: {}, apps: {}, notices: {} }; await seedDemo(); lsSet(SESSION_KEY, null); render(); toast('초기화했습니다'); },
+};
+const CHG = {
+  publish: async (d, el) => { const m = Store.get('matches', d.id); const L = getLineup(m); L.published = el.checked; m.lineup = L; await Store.put('matches', m); toast(el.checked ? '라인업을 회원에게 공개했습니다' : '라인업을 비공개로 바꿨습니다'); },
+  formation: async (d, el) => { const m = Store.get('matches', d.id); const L = getLineup(m); const q = S.view.q || 0; L.quarters[q].formation = el.value; m.lineup = L; await Store.put('matches', m); },
+  recYear: (d, el) => { S.recYear = el.value; render(); },
+};
+document.addEventListener('click', e => { const t = e.target.closest('[data-act]'); if (!t || t.disabled) return; const fn = ACT[t.dataset.act]; if (fn) { e.preventDefault(); fn(t.dataset, t, e); } });
+document.addEventListener('change', e => { const t = e.target.closest('[data-chg]'); if (t && CHG[t.dataset.chg]) CHG[t.dataset.chg](t.dataset, t, e); });
+document.addEventListener('input', e => {
+  const t = e.target; if (t.dataset.inp === 'memQ') { S.memQ = t.value; const box = $('#memList'); if (box) box.innerHTML = memberListHtml(Store.list('members').filter(m => m.status !== 'pending')); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+
+async function setApp(mid, pid, status, note) {
+  const id = mid + '__' + pid; const prev = Store.get('apps', id);
+  const keepAt = prev && prev.status === status ? prev.at : Date.now();
+  await Store.put('apps', { id, matchId: mid, memberId: pid, status, note: note ?? prev?.note ?? '', at: keepAt, by: me().id });
+  if (status !== 'yes') removeFromLineup(Store.get('matches', mid), pid, true);
+}
+function removeFromLineup(m, pid, onlyIfUnpublished = false) {
+  if (!m?.lineup) return;
+  if (onlyIfUnpublished && m.lineup.published) return;
+  let changed = false;
+  m.lineup.quarters.forEach(Q => { Q.players = (Q.players || []).map(p => { if (p === pid) { changed = true; return null; } return p; }); });
+  if (changed) Store.put('matches', m);
+}
+function bindMatchForm(el, existing) {
+  el.querySelector('#mf').onsubmit = async e => {
+    e.preventDefault(); const f = new FormData(e.target);
+    const d = Object.fromEntries(f.entries());
+    const m = { ...(existing || { status: 'open', guests: [], createdAt: Date.now(), createdBy: me().id }), ...d };
+    m.opponent = d.opponent.trim(); m.format = +d.format; m.quarters = Math.max(1, Math.min(8, +d.quarters || 1));
+    m.capacity = d.capacity ? +d.capacity : null; m.fee = d.fee ? +d.fee : null; m.memo = d.memo.trim();
+    const saved = await Store.put('matches', m); closeSheet();
+    toast(existing ? '매치를 수정했습니다' : '매치를 등록했습니다');
+    if (!existing) go({ type: 'match', id: saved.id });
+  };
+}
+function noticeForm(n) {
+  sheet(n.id ? '공지 수정' : '공지 작성', `<form id="ntf"><label class="f"><span>제목 <i>*</i></span><input name="title" required maxlength="40" value="${esc(n.title || '')}"></label>
+    <label class="f"><span>내용</span><textarea name="body" rows="7">${esc(n.body || '')}</textarea></label>
+    <label class="switch" style="margin-bottom:16px"><input type="checkbox" name="pinned" ${n.pinned ? 'checked' : ''}><span>상단 고정</span></label>
+    <button class="btn primary block">${n.id ? '저장' : '등록'}</button></form>`, el => {
+    el.querySelector('#ntf').onsubmit = async e => {
+      e.preventDefault(); const f = new FormData(e.target);
+      await Store.put('notices', { ...n, title: f.get('title').trim(), body: f.get('body'), pinned: !!f.get('pinned'), at: n.at || Date.now(), author: n.author || me().id });
+      closeSheet(); toast('저장했습니다');
+    };
+  });
+}
+function noticeText(m) {
+  const g = groups(m); const nm = arr => arr.map(x => x.p.name).join(', ') || '-';
+  const L = getLineup(m);
+  let t = `[FMFC 매치 공지]\n\n🆚 vs ${m.opponent} (${m.type} · ${FORMAT_KO[m.format]} · ${m.quarters}쿼터)\n📅 ${fmtDate(m.date)} ${m.time || ''}${m.endTime ? '~' + m.endTime : ''}\n🏟 ${m.venue || '장소 미정'}\n`;
+  if (m.uniform) t += `👕 ${m.uniform}\n`;
+  if (m.fee) t += `💰 회비 ${won(m.fee)}\n`;
+  if (m.deadline) t += `⏰ 신청 마감 ${fmtDT(m.deadline)}\n`;
+  if (m.memo) t += `\n${m.memo}\n`;
+  t += `\n✅ 참석 (${g.yes.length + g.guests.length})\n${nm(g.yes)}${g.guests.length ? ` + 용병 ${nm(g.guests)}` : ''}\n❔ 미정 (${g.maybe.length}) ${nm(g.maybe)}\n❌ 불참 (${g.no.length}) ${nm(g.no)}\n🕐 미응답 (${g.none.length}) ${nm(g.none)}\n`;
+  if (L.published && L.quarters.some(Q => Q.players.some(Boolean))) {
+    t += `\n📋 라인업\n`;
+    L.quarters.forEach((Q, qi) => { if (!Q.players.some(Boolean)) return; const sl = slotsFor(m.format, Q.formation); t +=`${L.quarters.length > 1 ? `[${qi + 1}Q] ` : ''}${Q.formation}: ` + Q.players.map((p, i) => p ? `${sl[i].label} ${person(m, p).name}` : null).filter(Boolean).join(' / ') + '\n'; });
+  }
+  t += `\n앱에서 응답해 주세요 👉 ${location.href.split('#')[0]}`;
+  return t;
+}
+
+/* ---------- 라인업 이미지 ---------- */
+async function exportLineup(m) {
+  const L = getLineup(m);
+  if (!L.quarters.some(Q => Q.players.some(Boolean))) return toast('배치된 선수가 없습니다', 'err');
+  toast('이미지를 만드는 중...');
+  try { if (!window.html2canvas) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'); }
+  catch (e) { return toast('이미지 라이브러리를 불러오지 못했습니다', 'err'); }
+  const pattern = [['#A3262E', 34], ['#F3EDDC', 3], ['#1E3C7B', 5], ['#F3EDDC', 3], ['#EC7B2C', 34], ['#F3EDDC', 3], ['#1E3C7B', 5], ['#F3EDDC', 3]];
+  let sx = ''; for (let r = 0; r < 10; r++) pattern.forEach(([c, w]) => sx += `<div class="sx" style="width:${w}px;background:${c}"></div>`);
+  const shown = L.quarters.map((Q, qi) => ({ Q, qi })).filter(x => x.Q.players.some(Boolean));
+  const multi = L.quarters.length > 1;
+  const cols = shown.length > 1 ? 2 : 1;
+  const inQ = new Set(L.quarters.flatMap(Q => Q.players).filter(Boolean));
+  const benchAll = lineupPool(m).yes.filter(p => !inQ.has(p));
+  const host = $('#poster-host');
+  host.innerHTML = `<div class="poster" id="poster">
+    <div class="ph">${sx}<div class="shade"></div><div class="in"><div class="wm">FMFC</div><div class="vs"><span>VS</span>${esc(m.opponent)}</div><div class="when">${fmtDate(m.date)} ${esc(m.time || '')}${m.endTime ? ' – ' + esc(m.endTime) : ''} · ${esc(m.venue || '')}</div></div></div>
+    <div class="grid" style="grid-template-columns:repeat(${cols},1fr)">
+      ${shown.map(({ Q, qi }) => `<div class="q"><h6>${multi ? `${qi + 1}Q` : 'LINE-UP'}<small>${Q.formation}</small></h6>${pitchPoster(m, Q, cols > 1)}</div>`).join('')}
+    </div>
+    ${multi ? `<div class="bench">${shown.map(({ Q, qi }) => { const s = new Set(Q.players.filter(Boolean)); const b = lineupPool(m).yes.filter(p => !s.has(p)); return b.length ? `<div><b>${qi + 1}Q 대기</b> · ${b.map(p => esc(person(m, p).name)).join(', ')}</div>` : ''; }).join('')}</div>` : benchAll.length ? `<div class="bench"><b>교체</b> · ${benchAll.map(p => esc(person(m, p).name)).join(', ')}</div>` : ''}
+    ${L.memo ? `<div class="bench" style="margin-top:8px;white-space:pre-wrap">${esc(L.memo)}</div>` : ''}
+    <div class="pf"><span>FIERCE MINDSET</span><span style="font-family:'Pirata One';font-style:normal;font-size:26px;color:#F3EDDC">FMFC</span></div>
+  </div>`;
+  try {
+    await document.fonts.ready;
+    const canvas = await html2canvas($('#poster'), { scale: 2, backgroundColor: '#142A57', useCORS: true, logging: false });
+    const a = document.createElement('a');
+    a.download = `FMFC_라인업_vs${m.opponent.replace(/\s+/g, '')}_${m.date.replace(/-/g, '')}.png`;
+    a.href = canvas.toDataURL('image/png'); document.body.appendChild(a); a.click(); a.remove();
+    toast('라인업 이미지를 저장했습니다');
+  } catch (e) { console.error(e); toast('이미지 생성 실패: ' + e.message, 'err'); }
+  host.innerHTML = '';
+}
+function pitchPoster(m, Q, small) {
+  const slots = slotsFor(m.format, Q.formation);
+  const W = small ? 335 : 700, H = Math.round(W * 96 / 68), disc = small ? 34 : 56, fs = small ? 15 : 24, nfs = small ? 12.5 : 18;
+  const stripes = Array.from({ length: 10 }, (_, i) => `<div style="position:absolute;left:0;right:0;top:${i * 10}%;height:10%;background:${i % 2 ? '#22448A' : '#1E3C7B'}"></div>`).join('');
+  const line = 'position:absolute;border:2px solid rgba(243,237,220,.55);';
+  return `<div style="position:relative;width:${W}px;height:${H}px;border-radius:12px;overflow:hidden;border:3px solid #0E1E40">${stripes}
+    <div style="${line}left:4%;right:4%;top:3%;bottom:3%"></div><div style="${line}left:4%;right:4%;top:50%;height:0;border-width:2px 0 0"></div>
+    <div style="${line}left:${50 - 13}%;width:26%;height:${W * .26}px;top:calc(50% - ${W * .13}px);border-radius:50%"></div>
+    <div style="${line}left:22%;right:22%;top:3%;height:15%;border-top:0"></div><div style="${line}left:22%;right:22%;bottom:3%;height:15%;border-bottom:0"></div>
+    ${slots.map((s, i) => {
+      const p = person(m, Q.players[i]); const gk = s.label === 'GK';
+      const label = p ? (p.number != null && p.number !== '' ? esc(p.number) : p.guest ? 'G' : esc(p.name.slice(0, 1))) : esc(s.label);
+      return `<div style="position:absolute;left:${s.x}%;top:${s.y}%;width:${small ? 90 : 130}px;margin-left:-${small ? 45 : 65}px;margin-top:-${disc / 2 + 4}px;text-align:center">
+        <div style="width:${disc}px;height:${disc}px;margin:0 auto;border-radius:50%;background:${p ? (gk ? '#EC7B2C' : '#A3262E') : 'rgba(243,237,220,.08)'};border:${p ? '2.5px solid #F3EDDC' : '2px dashed rgba(243,237,220,.6)'};color:${gk && p ? '#0E1E40' : '#F3EDDC'};font:800 ${p ? fs : fs * .7}px/${disc - 4}px 'Barlow Condensed'">${label}</div>
+        ${p ? `<div style="display:inline-block;margin-top:4px;background:#0E1E40;color:#F3EDDC;font:700 ${nfs}px/1.3 Pretendard;padding:2px 8px;border-radius:6px;white-space:nowrap">${esc(p.name)}</div><div style="font:700 ${small ? 10 : 13}px/1.2 'Barlow Condensed';color:#D8CCA8;letter-spacing:.06em">${s.label}</div>` : ''}
+      </div>`;
+    }).join('')}</div>`;
+}
+
+/* ---------- 데모 데이터 ---------- */
+async function seedDemo() {
+  const pinA = await hashPin('0000'), pinM = await hashPin('1111');
+  const roster = [
+    ['김도윤', 7, ['MF', 'FW'], 'admin'], ['박지훈', 10, ['FW', 'MF'], 'admin'], ['이서준', 1, ['GK']], ['최민재', 4, ['DF']],
+    ['정우진', 5, ['DF', 'MF']], ['강현우', 3, ['DF']], ['조승민', 2, ['DF']], ['윤태호', 6, ['MF', 'DF']], ['장준영', 8, ['MF']],
+    ['임시우', 14, ['MF']], ['한지성', 11, ['FW']], ['오재원', 9, ['FW']], ['서동현', 17, ['MF', 'FW']], ['신유찬', 22, ['DF']],
+    ['권민혁', 19, ['FW', 'MF']], ['황성진', 21, ['GK', 'DF']], ['송하준', 15, ['MF']], ['안규민', 23, ['DF', 'MF'], 'member', 'rest'],
+  ];
+  const D = Store.data; const now = Date.now();
+  const mem = roster.map(([name, number, pos, role = 'member', status = 'active'], i) => ({ id: 'm_demo' + i, name, number, pos, role, status, pinHash: role === 'admin' ? pinA : pinM, joined: dstr(addDays(-300 + i * 9)) }));
+  mem.push({ id: 'm_demo_p', name: '배정훈', number: 18, pos: ['MF'], role: 'member', status: 'pending', pinHash: pinM, joined: todayStr() });
+  mem.forEach(m => D.members[m.id] = m);
+  const ids = mem.filter(m => m.status === 'active').map(m => m.id);
+  const mk = (o) => ({ guests: [], status: 'open', type: '친선', format: 11, quarters: 4, uniform: UNIFORM_LIST[0], createdAt: now, ...o });
+  const p1 = mk({ id: 'x_demo1', opponent: '강남 레드스톰', date: dstr(addDays(-21)), time: '08:00', endTime: '10:00', venue: '탄천종합운동장 보조구장', fee: 10000, status: 'done', result: { us: 3, them: 2 } });
+  const p2 = mk({ id: 'x_demo2', opponent: 'FC 한강유나이티드', date: dstr(addDays(-7)), time: '07:00', endTime: '09:00', venue: '난지한강공원 축구장', fee: 10000, status: 'done', result: { us: 1, them: 1 }, type: '리그' });
+  const n1d = addDays(5);
+  const n1 = mk({ id: 'x_demo3', opponent: '용산 블루윙즈', date: dstr(n1d), time: '07:00', endTime: '09:00', venue: '효창운동장', fee: 10000, capacity: 20, deadline: dstr(addDays(-1, n1d)) + 'T22:00', memo: '06:40까지 집합 · 홈 유니폼 착용\n주차는 효창공원 공영주차장 이용' });
+  const n2 = mk({ id: 'x_demo4', opponent: '성수 킥커스', date: dstr(addDays(19)), time: '20:00', endTime: '22:00', venue: '서울숲 축구장', fee: 8000, format: 8, quarters: 3, uniform: '원정' });
+  [p1, p2, n1, n2].forEach(m => D.matches[m.id] = m);
+  const put = (m, list, st, t0) => list.forEach((pid, i) => D.apps[m.id + '__' + pid] = { id: m.id + '__' + pid, matchId: m.id, memberId: pid, status: st, note: '', at: t0 + i * 60000, by: pid });
+  put(p1, ids.slice(0, 15), 'yes', now - 30 * 864e5); put(p1, ids.slice(15), 'no', now - 29 * 864e5);
+  put(p2, [...ids.slice(1, 14), ids[15], ids[16]], 'yes', now - 12 * 864e5); put(p2, [ids[0], ids[14]], 'no', now - 12 * 864e5);
+  put(n1, [ids[0], ids[1], ids[2], ids[3], ids[5], ids[6], ids[7], ids[8], ids[10], ids[11], ids[12], ids[13]], 'yes', now - 2 * 864e5);
+  put(n1, [ids[4], ids[9]], 'maybe', now - 864e5); put(n1, [ids[14], ids[15], ids[16]], 'no', now - 864e5);
+  D.apps[n1.id + '__' + ids[4]].note = '30분 늦참 가능';
+  put(n2, [ids[0], ids[1], ids[10], ids[12]], 'yes', now - 3600e3);
+  // 지난 경기 라인업·기록
+  [p1, p2].forEach(m => { let L = getLineup(m); L.quarters.forEach((Q, q) => autoFill(m, L, q)); L.published = true; m.lineup = L; });
+  p1.stats = { [ids[10]]: { g: 2, a: 0 }, [ids[0]]: { g: 1, a: 1 }, [ids[1]]: { g: 0, a: 2 } }; p1.mvp = ids[10];
+  p2.stats = { [ids[11]]: { g: 1, a: 0 }, [ids[12]]: { g: 0, a: 1 } }; p2.mvp = ids[2];
+  D.notices.nt1 = { id: 'nt1', title: '11월 회비 납부 안내', body: '11월 회비 30,000원을 이번 달 10일까지 모임통장으로 입금해 주세요.\n매치 회비는 경기 당일 별도로 받습니다.', pinned: true, at: now - 3 * 864e5, author: ids[0] };
+  D.notices.nt2 = { id: 'nt2', title: '2025 홈 유니폼 추가 주문 받습니다', body: '추가 주문 희망자는 사이즈와 등번호를 운영진에게 알려 주세요.', pinned: false, at: now - 10 * 864e5, author: ids[1] };
+  Store.saveLocal();
+}
+
+/* ---------- 시작 ---------- */
+history.replaceState({ v: null, tab: 'home' }, '');
+Store.init().catch(e => { console.error(e); app.innerHTML = `<div class="splash"><div style="color:#F3EDDC;text-align:center;padding:24px"><div class="wm" style="font-size:56px">FMFC</div><p>앱을 시작하지 못했습니다.<br><small>${esc(e.message)}</small></p></div></div>`; });
+</script>
+</body>
+</html>
