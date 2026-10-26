@@ -778,7 +778,7 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.109"}
+:root{--cssv:"0.21.110"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
@@ -935,36 +935,21 @@ table.atbl th.seq,table.atbl td.seq{width:44px;text-align:center;font-family:var
 .stl-close>div,.stl-done>div{flex:1;min-width:220px;display:flex;flex-direction:column;gap:2px}
 .stl-close small,.stl-done small{color:var(--muted);font-size:12.5px}
 .stl.locked .stl-chip,.stl.locked .stl-tbl .x,.stl.locked input,.stl.locked .stl-add button{pointer-events:none;opacity:.6}
-/* 0.21.109 정산표 가로 스크롤 없이 */
-.stl-tw{overflow:visible}
-.stl-tw .stl-tbl.fit{min-width:0;width:100%;table-layout:auto}
-.stl-tbl.fit th,.stl-tbl.fit td{padding:8px 6px;white-space:normal}
-.stl-tbl.fit td.nm{position:static;white-space:nowrap}
-.stl-tbl.fit td.roles{min-width:0;max-width:none;width:1%}
-.stl-tbl.fit .stl-chips{display:grid;grid-template-columns:repeat(3,auto);gap:3px;justify-content:start}
-.stl-tbl.fit .stl-chip{font-size:11px;padding:2px 7px;white-space:nowrap}
-.stl-tbl.fit td.calc{font-size:12.5px;line-height:1.45;color:var(--muted)}
-.stl-tbl.fit td.calc .bk{display:inline-block;margin-right:8px;white-space:nowrap}
-.stl-tbl.fit td.calc .bk.rd{color:var(--ink);font-weight:700}
-.stl-tbl.fit td.calc .bk.buy{color:#7FE3C4}
-.stl-tbl.fit td.fin{white-space:nowrap;font-size:17px}
-.stl-tbl.fit td.get{white-space:nowrap}
-.stl-tbl.fit td.get small{display:block;font-size:11px}
-.stl-tbl.fit td.pen,.stl-tbl.fit td.seq,.stl-tbl.fit td.rm{white-space:nowrap;width:1%}
-.stl-tbl.fit tfoot td small{color:var(--muted);font-weight:500;margin-left:6px}
-@media (max-width:760px){
-  .stl-tbl.fit thead{display:none}
-  .stl-tbl.fit,.stl-tbl.fit tbody,.stl-tbl.fit tfoot{display:block}
-  .stl-tbl.fit tr{display:grid;grid-template-columns:24px minmax(0,1fr) auto 28px;grid-template-areas:"seq nm fin rm" ". roles roles roles" ". calc calc calc" ". pen get get";gap:2px 8px;padding:10px 8px;border-bottom:1px solid var(--line)}
-  .stl-tbl.fit td{padding:0;border:0;text-align:left}
-  .stl-tbl.fit td.seq{grid-area:seq;width:auto}.stl-tbl.fit td.nm{grid-area:nm;align-self:center}.stl-tbl.fit td.fin{grid-area:fin;text-align:right;align-self:center}.stl-tbl.fit td.rm{grid-area:rm;width:auto}
-  .stl-tbl.fit td.roles{grid-area:roles;width:auto}.stl-tbl.fit .stl-chips{grid-template-columns:repeat(6,auto)}
-  .stl-tbl.fit td.calc{grid-area:calc}
-  .stl-tbl.fit td.pen{grid-area:pen;width:auto;font-size:12px;color:var(--muted)}.stl-tbl.fit td.pen:not(:has(.muted))::before{content:"벌금 ";}
-  .stl-tbl.fit td.pen:has(.muted){visibility:hidden}
-  .stl-tbl.fit td.get{grid-area:get;text-align:right}.stl-tbl.fit td.get:empty{display:none}
-  .stl-tbl.fit td.get small{display:inline;margin-left:4px}
-  .stl-tbl.fit tfoot tr{grid-template-areas:". nm fin ." ". calc calc calc" ". pen get get"}
-  .stl-tbl.fit tfoot td:first-child,.stl-tbl.fit tfoot td:last-child{display:none}
-  .stl-tbl.fit tfoot td.l:not(.calc){grid-area:nm}
-}
+/* 0.21.110 정산표 폭 줄이기 */
+.stl-tw{overflow-x:auto}
+.stl-tw .stl-tbl.cmp{min-width:0;width:100%}
+.stl-tbl.cmp th,.stl-tbl.cmp td{padding:7px 5px;font-size:13px}
+.stl-tbl.cmp th{font-size:11.5px}
+.stl-tbl.cmp td.nm{white-space:nowrap}
+.stl-tbl.cmp td.nm small{display:block;font-size:10.5px;color:var(--muted)}
+.stl-tbl.cmp td.roles{min-width:0;max-width:none;width:1%;white-space:nowrap}
+.stl-tbl.cmp .stl-chips{display:grid;grid-template-columns:repeat(3,auto);gap:3px;justify-content:start}
+.stl-tbl.cmp .stl-chip{font-size:11px;padding:1px 7px}
+.stl-tbl.cmp td.v{white-space:nowrap}
+.stl-tbl.cmp td.buy{color:#7FE3C4}
+.stl-tbl.cmp td.fin{font-size:15.5px}
+.stl-tbl.cmp td.get{white-space:nowrap}.stl-tbl.cmp td.get small{display:block;font-size:10.5px}
+.stl-tbl.cmp td.rm,.stl-tbl.cmp td.seq{width:1%}
+.stl-tbl.cmp .x{width:24px;height:24px}
+.stl-tbl.cmp tfoot td small{color:var(--muted);font-weight:500;font-size:11px;margin-left:4px}
+@media (max-width:1100px){.stl-tbl.cmp th,.stl-tbl.cmp td{padding:6px 3px;font-size:12px}.stl-tbl.cmp td.fin{font-size:14px}}
