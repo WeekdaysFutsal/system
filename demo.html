@@ -103,6 +103,7 @@ nav.tabs button.on::before{content:"";position:absolute;top:-3px;left:30%;right:
 /* hero */
 .hero,.mcard{border-radius:20px;overflow:hidden;box-shadow:0 14px 30px -18px rgba(20,42,87,.7);background:var(--navy-d)}
 .hero-top,.mcard-top{position:relative;padding:18px 18px 20px;min-height:168px;display:flex;align-items:flex-end}
+.mcard-top{min-height:128px;padding:16px 18px}
 .hero-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(14,30,64,.30) 0%,rgba(14,30,64,.72) 55%,rgba(14,30,64,.96) 100%)}
 .hero-shade::after{content:"";position:absolute;left:0;right:0;top:0;height:6px;background:linear-gradient(90deg,var(--navy) 0 30%,var(--cream) 30% 31.5%,transparent 31.5% 68.5%,var(--cream) 68.5% 70%,var(--navy) 70%)}
 .hero-in{position:relative;z-index:1;width:100%;color:var(--cream)}
@@ -121,6 +122,25 @@ nav.tabs button.on::before{content:"";position:absolute;top:-3px;left:30%;right:
 
 /* attendance bar */
 .att{margin-bottom:14px}
+.att.light .att-bar{background:var(--cream-2)}
+.att.light .att-bar .n{background:#9AA3BC}
+.att.light .att-txt{color:var(--ink-2)}
+.att.light .att-txt b{color:var(--navy)}
+.resp-mini{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 3px;border-radius:999px;border:1.5px solid rgba(243,237,220,.3);background:rgba(255,255,255,.07);color:var(--cream);font-weight:800;font-size:14px}
+.resp-mini .ic{width:24px;height:24px;border-radius:50%;display:grid;place-items:center}
+.resp-mini .ic svg{width:14px;height:14px}
+.resp-mini.st-yes{border-color:var(--orange)}
+.resp-mini.st-yes .ic{background:var(--orange);color:var(--navy-dd)}
+.resp-mini.st-maybe .ic{background:var(--cream);color:var(--navy-d)}
+.resp-mini.st-no .ic{background:#56607D;color:#fff}
+.resp-mini .go{font-size:12px;color:var(--orange);margin-left:2px}
+.resp-mini:disabled{opacity:1;cursor:default}
+.note-s{display:block;margin-top:4px;font-size:12px;font-weight:500;color:var(--cream-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lu-prev{display:flex;gap:14px;align-items:center;cursor:pointer}
+.lu-prev .pitch-wrap{width:50%;max-width:210px;flex:none;margin:0}
+.lu-prev-t{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:5px;font-size:13.5px;color:var(--ink-2)}
+.lu-prev-t b{font:800 20px/1 "Barlow Condensed";color:var(--navy);letter-spacing:.04em}
+.lu-prev-t small{color:var(--ink-3);font-size:12px;margin-top:4px;line-height:1.45}
 .att-bar{display:flex;height:9px;border-radius:9px;overflow:hidden;background:rgba(255,255,255,.12)}
 .att-bar i{display:block;height:100%}
 .att-bar .y{background:var(--orange)}.att-bar .m{background:var(--cream-3)}.att-bar .n{background:#6C7899}
@@ -243,9 +263,9 @@ nav.tabs button.on::before{content:"";position:absolute;top:-3px;left:30%;right:
 .tok .nm{margin-top:3px;background:var(--navy-dd);color:var(--cream);font-size:12px;font-weight:700;padding:1px 7px;border-radius:6px;max-width:76px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tok .lb{font:700 10.5px/1.2 "Barlow Condensed";color:var(--cream-3);letter-spacing:.06em}
 .tok.empty .nm,.tok.empty .lb{display:none}
-.pitch.mini .tok{width:60px}
+.pitch.mini .tok{width:46px}
 .pitch.mini .tok .disc{width:30px;height:30px;font-size:13px;border-width:2px}
-.pitch.mini .tok .nm{font-size:10.5px;max-width:60px}
+.pitch.mini .tok .nm{font-size:9.5px;max-width:46px;padding:0 4px;margin-top:1px}
 .pitch.mini .tok .lb{display:none}
 .pitch.mini .tok.empty .disc{font-size:9.5px}
 .pitch-wrap{max-width:420px;margin:0 auto}
@@ -480,7 +500,7 @@ const FIREBASE_CONFIG = {
 */
 /* 구글 시트 기록 API: Code.gs 를 '웹 앱'으로 배포한 URL (https://script.google.com/macros/s/…/exec) */
 const SHEET_API_URL = '';
-const APP_VERSION = '0.3.3';
+const APP_VERSION = '0.3.4';
 const LS_KEY = 'fmfc_demo_v1';
 const SESSION_KEY = 'fmfc_session';
 const COLS = ['members', 'matches', 'apps', 'notices'];
@@ -949,10 +969,14 @@ function respBlock(m, my, locked, adm) {
   const can = !locked || adm;
   return `<button class="resp-btn st-${my.status}" ${can ? `data-act="respChange" data-id="${m.id}"` : 'disabled'}><span class="ic">${APP_ICON[my.status]}</span><span class="tx"><b>${APP_KO[my.status]}으로 응답했어요</b><small>${my.note ? `“${esc(my.note)}”` : can ? '눌러서 변경 · 한마디 남기기' : '신청이 마감되었습니다'}</small></span><span class="go">${can ? '변경 ›' : '마감'}</span></button>`;
 }
-function attBar(c, m) {
+function respMini(m, my, locked, adm) {
+  const can = !locked || adm;
+  return `<button class="resp-mini st-${my.status}" ${can ? `data-act="respChange" data-id="${m.id}"` : 'disabled'}><span class="ic">${APP_ICON[my.status]}</span>${APP_KO[my.status]}${can ? '<span class="go">변경</span>' : ''}</button>${my.note ? `<small class="note-s">“${esc(my.note)}”</small>` : ''}`;
+}
+function attBar(c, m, light = false) {
   const tot = Math.max(1, c.yes + c.maybe + c.no + c.none);
   const yes = c.yes + c.guests; const need = +m.format || 11;
-  return `<div class="att">
+  return `<div class="att ${light ? 'light' : ''}">
     <div class="att-bar"><i class="y" style="width:${c.yes / tot * 100}%"></i><i class="m" style="width:${c.maybe / tot * 100}%"></i><i class="n" style="width:${c.no / tot * 100}%"></i></div>
     <div class="att-txt"><span>참석<b>${c.yes}</b>${c.guests ? ` <small>+용병 ${c.guests}</small>` : ''} · 미정<b>${c.maybe}</b> · 불참<b>${c.no}</b> · 미응답<b>${c.none}</b></span>
     ${yes < need ? `<span class="warn">${need - yes}명 부족</span>` : m.capacity && yes > m.capacity ? `<span class="warn">정원 초과</span>` : ''}</div></div>`;
@@ -1025,25 +1049,21 @@ function viewMatch(id) {
       <div><dt>유니폼</dt><dd>${uniformIcon(m.uniform)}</dd></div>
       ${m.deadline ? `<div><dt>신청 마감</dt><dd>${fmtDT(m.deadline)}</dd></div>` : ''}
       ${cap ? `<div><dt>정원</dt><dd>${cap}명 (선착순)</dd></div>` : ''}
+      ${live ? `<div><dt>나의 신청</dt><dd>${my ? respMini(m, my, locked, adm) : `<span class="mini-tag nr">${locked && !adm ? '미응답 · 마감' : '미응답'}</span>`}</dd></div>` : ''}
       ${m.memo ? `<div class="full"><dt>안내</dt><dd>${nl2br(m.memo)}</dd></div>` : ''}
     </dl>
-    ${live ? `<div class="hero-body my-in">
-      ${attBar(counts(m), m)}
-      ${!my ? '<div class="my-h"><span>나의 신청</span><span class="mini-tag nr">미응답</span></div>' : ''}
-      ${respBlock(m, my, locked, adm)}
-      ${!my ? `<div class="hero-foot"><span class="muted">${locked ? '신청이 마감되었습니다' : m.deadline ? `신청 마감 ${fmtDT(m.deadline)}` : '참석 여부를 알려 주세요'}</span></div>` : ''}
-    </div>` : ''}
+    ${live && !my && (!locked || adm) ? `<div class="hero-body my-in">${respBlock(m, my, locked, adm)}</div>` : ''}
   </article>
 
   ${m.status === 'done' ? `<div class="block card"><h4>경기 결과${adm ? `<button class="btn sm ghost" data-act="resultEdit" data-id="${id}">${I.edit}수정</button>` : ''}</h4>
     ${resultBody()}<p class="help" style="display:flex;gap:5px;align-items:center;margin-top:8px">${I.sheet}${Sheet.mode === 'demo' ? '데모 시트' : '구글 시트'} 기록 기준</p></div>` : ''}
   ${adm && m.status !== 'done' && m.status !== 'canceled' && m.date <= todayStr() ? `<div class="row-btns"><button class="btn orange" data-act="resultEdit" data-id="${id}">${I.whistle}경기 결과 입력</button></div>` : ''}
 
-  <div class="block card"><h4><span>${I.field} 포지션 · 라인업</span>${L.published ? '<span class="mini-tag yes">공개</span>' : adm ? '<span class="mini-tag">비공개</span>' : ''}</h4>
-    ${L.published || adm ? (hasLineup ? `<div class="pitch-wrap" style="max-width:260px">${pitchHtml(m, L.quarters[0], { mini: true })}</div><p class="muted" style="text-align:center;font-size:12.5px;margin:8px 0 0">1쿼터 · ${L.quarters[0].formation}${L.quarters.length > 1 ? ` 외 ${L.quarters.length - 1}개 쿼터` : ''}</p>` : `<div class="muted" style="font-size:14px">${adm ? '아직 포지션을 구성하지 않았습니다.' : '운영진이 포지션을 준비 중입니다.'}</div>`) : '<div class="muted" style="font-size:14px">운영진이 포지션을 준비 중입니다. 공개되면 여기에서 확인할 수 있어요.</div>'}
-    ${L.published || adm ? `<div class="row-btns"><button class="btn ${adm ? 'primary' : 'navy'}" data-act="openLineup" data-id="${id}">${adm ? '포지션 구성하기' : '라인업 크게 보기'}</button></div>` : ''}</div>
+  <div class="block card"><h4><span>${I.field} 포지션 · 라인업 ${L.published ? '<span class="mini-tag yes">공개</span>' : adm ? '<span class="mini-tag">비공개</span>' : ''}</span>${L.published || adm ? `<button class="link" data-act="openLineup" data-id="${id}">${adm ? '구성하기' : '자세히 보기'} ›</button>` : ''}</h4>
+    ${L.published || adm ? (hasLineup ? `<div class="lu-prev" data-act="openLineup" data-id="${id}"><div class="pitch-wrap">${pitchHtml(m, L.quarters[0], { mini: true })}</div><div class="lu-prev-t"><b>${L.quarters.length > 1 ? '1쿼터' : 'LINE-UP'}</b><span>${L.quarters[0].formation}</span>${L.quarters.length > 1 ? `<span>외 ${L.quarters.length - 1}개 쿼터</span>` : ''}${L.quarters[0].players.includes(me().id) ? `<span class="mini-tag yes">내 포지션 ${slotsFor(m.format, L.quarters[0].formation)[L.quarters[0].players.indexOf(me().id)].label}</span>` : ''}<small>눌러서 공격·수비 전술과<br>지시사항 보기</small></div></div>` : `<div class="muted" style="font-size:14px">${adm ? '아직 포지션을 구성하지 않았습니다.' : '운영진이 포지션을 준비 중입니다.'}</div>`) : '<div class="muted" style="font-size:14px">운영진이 포지션을 준비 중입니다. 공개되면 여기에서 확인할 수 있어요.</div>'}</div>
 
   <div class="block card"><h4><span>참석 현황</span>${adm ? `<button class="btn sm ghost" data-act="guestAdd" data-id="${id}">${I.plus}용병</button>` : ''}</h4>
+    ${live ? attBar(counts(m), m, true) : ''}
     ${grp('yes', '참석', 'var(--orange)')}
     ${g.guests.length ? `<div class="grp"><div class="grp-t"><span class="dot" style="background:var(--cream-3)"></span>용병 ${g.guests.length}</div><div class="chips">${g.guests.map((x, i) => chip(x, i, 'guest')).join('')}</div></div>` : ''}
     ${grp('maybe', '미정', 'var(--cream-3)')}
@@ -1089,7 +1109,7 @@ function pitchHtml(m, Q, { phase = 'def', edit = false, mini = false, view = fal
       const sn = Q.slotNotes[i]; const hasNote = !mini && (sn.atk || sn.def);
       const btn = edit || (view && p);
       const attrs = edit ? `data-act="slot" data-i="${i}" data-drag="1" aria-label="${s.label} 편집"` : view && p ? `data-act="slotInfo" data-i="${i}" aria-label="${esc(p.name)} 지시사항 보기"` : '';
-      return `<${btn ? 'button' : 'div'} class="tok ${p ? '' : 'empty'} ${s.label === 'GK' ? 'gk' : ''} ${pid && pid === meId ? 'me' : ''}" style="left:${s.x}%;top:${s.y}%" ${attrs}>${hasNote ? '<span class="ib">i</span>' : ''}<span class="shirt">${shirtSvg(disc, { w: mini ? 32 : 46, empty: !p, gk: s.label === 'GK', me: !!pid && pid === meId })}</span><span class="nm">${p ? esc(p.name) : ''}</span><span class="lb">${esc(s.label)}</span></${btn ? 'button' : 'div'}>`;
+      return `<${btn ? 'button' : 'div'} class="tok ${p ? '' : 'empty'} ${s.label === 'GK' ? 'gk' : ''} ${pid && pid === meId ? 'me' : ''}" style="left:${s.x}%;top:${s.y}%" ${attrs}>${hasNote ? '<span class="ib">i</span>' : ''}<span class="shirt">${shirtSvg(disc, { w: mini ? 26 : 46, empty: !p, gk: s.label === 'GK', me: !!pid && pid === meId })}</span><span class="nm">${p ? esc(p.name) : ''}</span><span class="lb">${esc(s.label)}</span></${btn ? 'button' : 'div'}>`;
     }).join('')}</div>`;
 }
 function viewLineup(id) {
@@ -1123,7 +1143,7 @@ function viewLineup(id) {
       <button class="btn sm orange" data-act="luAuto" data-id="${id}">자동 배치</button>
       ${q > 0 ? `<button class="btn sm ghost" data-act="luCopy" data-id="${id}">이전 쿼터 복사</button>` : ''}
       <button class="btn sm ghost" data-act="luResetPos" data-id="${id}">위치 초기화</button>
-      <button class="btn sm ghost" data-act="luClear" data-id="${id}">비우기</button></div>` : `<div class="lu-form">${Q.formation}</div>`}
+      <button class="btn sm ghost" data-act="luClear" data-id="${id}">비우기</button></div>` : ''}
     ${myCard}
     <div class="pitch-wrap">${pitchHtml(m, Q, { phase, edit: adm, view: !adm })}</div>
     <p class="help" style="text-align:center">${adm ? `선수를 끌어서 <b>${PHASES[phase]}</b> 위치를 정하고, 누르면 선수 배치와 세부 지시사항을 입력할 수 있습니다. 점선은 ${phase === 'def' ? '공격' : '수비'} 시 위치입니다.` : `선수를 누르면 포지션별 세부 지시사항을 볼 수 있어요. 점선은 ${phase === 'def' ? '공격' : '수비'} 시 위치입니다.`}</p>
