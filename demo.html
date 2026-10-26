@@ -174,6 +174,14 @@ nav.tabs button.on::before{content:"";position:absolute;top:-3px;left:30%;right:
 .info .full{grid-column:1/-1}
 .info dt{font-size:11.5px;color:#9FB0D6;font-weight:600;margin-bottom:1px}
 .info dd{margin:0;font-weight:600;font-size:14px}
+.uni-ic{display:inline-flex;align-items:center;gap:7px}
+.uni-ic .shirt-svg{filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
+.my-in{border-top:1px solid rgba(243,237,220,.14)}
+.my-h{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:14px;margin-bottom:10px}
+.pitch.anim .tok{transition:left .6s cubic-bezier(.45,0,.2,1),top .6s cubic-bezier(.45,0,.2,1)}
+.pitch.anim svg.mv,.pitch.anim .ghost{animation:fadein .35s .5s both}
+.pitch.anim .ptag{animation:fadein .3s both}
+@keyframes fadein{from{opacity:0}}
 .block{padding:16px;margin-top:14px}
 .block h4{margin:0 0 10px;font-size:15px;font-weight:800;display:flex;align-items:center;gap:6px;justify-content:space-between}
 .block h4 .n{font:800 18px "Barlow Condensed";color:var(--red);margin-left:4px}
@@ -452,7 +460,7 @@ const FIREBASE_CONFIG = {
 */
 /* 구글 시트 기록 API: Code.gs 를 '웹 앱'으로 배포한 URL (https://script.google.com/macros/s/…/exec) */
 const SHEET_API_URL = '';
-const APP_VERSION = '0.3.1';
+const APP_VERSION = '0.3.2';
 const LS_KEY = 'fmfc_demo_v1';
 const SESSION_KEY = 'fmfc_session';
 const COLS = ['members', 'matches', 'apps', 'notices'];
@@ -989,17 +997,18 @@ function viewMatch(id) {
     <dl class="info">
       <div><dt>일시</dt><dd>${fmtDate(m.date)} ${esc(m.time || '')}${m.endTime ? '–' + esc(m.endTime) : ''}</dd></div>
       <div><dt>장소</dt><dd>${esc(m.venue || '미정')}</dd></div>
-      ${m.fee ? `<div><dt>회비</dt><dd>${won(m.fee)}</dd></div>` : ''}
-      ${m.uniform ? `<div><dt>유니폼</dt><dd>${esc(m.uniform)}</dd></div>` : ''}
+      <div><dt>유니폼</dt><dd>${uniformIcon(m.uniform)}</dd></div>
       ${m.deadline ? `<div><dt>신청 마감</dt><dd>${fmtDT(m.deadline)}</dd></div>` : ''}
       ${cap ? `<div><dt>정원</dt><dd>${cap}명 (선착순)</dd></div>` : ''}
       ${m.memo ? `<div class="full"><dt>안내</dt><dd>${nl2br(m.memo)}</dd></div>` : ''}
     </dl>
+    ${live ? `<div class="hero-body my-in">
+      <div class="my-h"><span>나의 신청</span>${my ? `<span class="mini-tag ${my.status}">${APP_KO[my.status]}</span>` : '<span class="mini-tag nr">미응답</span>'}</div>
+      ${attBar(counts(m), m)}
+      <div class="choice">${['yes', 'maybe', 'no'].map(s => `<button class="ch ch-${s} ${my?.status === s ? 'on' : ''}" data-act="apply" data-id="${m.id}" data-s="${s}" ${locked && !adm ? 'disabled' : ''}>${APP_ICON[s]}${APP_KO[s]}</button>`).join('')}</div>
+      <div class="hero-foot"><span class="muted">${my?.note ? `“${esc(my.note)}”` : locked ? '신청이 마감되었습니다' : '늦참·조퇴 등 한마디를 남길 수 있어요'}</span>${my && (!locked || adm) ? `<button class="link" data-act="noteEdit" data-id="${m.id}">${my.note ? '수정' : '한마디'}</button>` : ''}</div>
+    </div>` : ''}
   </article>
-
-  ${live ? `<div class="my-resp light"><div class="h"><span>내 응답</span>${my ? `<span class="mini-tag ${my.status}">${APP_KO[my.status]}</span>` : '<span class="mini-tag nr">미응답</span>'}</div>
-    <div class="choice">${['yes', 'maybe', 'no'].map(s => `<button class="ch ch-${s} ${my?.status === s ? 'on' : ''}" data-act="apply" data-id="${m.id}" data-s="${s}" ${locked && !adm ? 'disabled' : ''}>${APP_ICON[s]}${APP_KO[s]}</button>`).join('')}</div>
-    <div class="note"><span>${my?.note ? `“${esc(my.note)}”` : locked ? '신청이 마감되었습니다' : '늦참·조퇴 등 한마디를 남길 수 있어요'}</span>${my && (!locked || adm) ? `<button class="link" data-act="noteEdit" data-id="${m.id}">${my.note ? '수정' : '한마디'}</button>` : ''}</div></div>` : ''}
 
   ${m.status === 'done' ? `<div class="block card"><h4>경기 결과${adm ? `<button class="btn sm ghost" data-act="resultEdit" data-id="${id}">${I.edit}수정</button>` : ''}</h4>
     ${resultBody()}<p class="help" style="display:flex;gap:5px;align-items:center;margin-top:8px">${I.sheet}${Sheet.mode === 'demo' ? '데모 시트' : '구글 시트'} 기록 기준</p></div>` : ''}
@@ -1024,15 +1033,22 @@ function viewMatch(id) {
 let SHIRT_N = 0;
 const SHIRT_PATH = 'M30 5 L40 2 Q50 13 60 2 L70 5 L97 23 L86 43 L76 37 L76 91 Q76 95 72 95 L28 95 Q24 95 24 91 L24 37 L14 43 L3 23 Z';
 /* 유니폼 모양 아이콘: 필드 = FMFC 홈 스트라이프, GK = 파란색 */
-function shirtSvg(label, { w = 46, empty = false, gk = false, me = false } = {}) {
+function shirtSvg(label, { w = 46, empty = false, gk = false, away = false, me = false } = {}) {
   const id = 'sh' + (++SHIRT_N); const h = Math.round(w * 0.96);
   const txt = (size, fill, stroke) => `<text x="50" y="${empty ? 59 : 67}" text-anchor="middle" font-family="'Barlow Condensed',Pretendard,sans-serif" font-weight="800" font-size="${size}" fill="${fill}"${stroke ? ` stroke="${stroke}" stroke-width="3" paint-order="stroke" stroke-linejoin="round"` : ''}>${label}</text>`;
   if (empty) return `<svg class="shirt-svg" width="${w}" height="${h}" viewBox="0 0 100 96" aria-hidden="true"><path d="${SHIRT_PATH}" fill="rgba(243,237,220,.08)" stroke="rgba(243,237,220,.7)" stroke-width="3" stroke-dasharray="7 5" stroke-linejoin="round"/>${txt(String(label).length > 2 ? 21 : 25, 'rgba(243,237,220,.92)')}</svg>`;
   const defs = gk ? '' : `<pattern id="${id}p" patternUnits="userSpaceOnUse" x="24" width="26" height="96"><rect width="10" height="96" fill="#A3262E"/><rect x="10" width="1.3" height="96" fill="#F3EDDC"/><rect x="11.3" width="1.8" height="96" fill="#1E3C7B"/><rect x="13.1" width="1.3" height="96" fill="#F3EDDC"/><rect x="14.4" width="9.6" height="96" fill="#EC7B2C"/><rect x="24" width="1" height="96" fill="#F3EDDC"/><rect x="25" width="1" height="96" fill="#1E3C7B"/></pattern>`;
-  const body = gk
+  const body = away
+    ? `<rect width="100" height="96" fill="#F3EDDC"/><rect width="25" height="96" fill="#0F2150"/><rect x="75" width="25" height="96" fill="#0F2150"/><rect x="43" width="6" height="96" fill="#A3262E"/><rect x="51" width="6" height="96" fill="#EC7B2C"/>`
+    : gk
     ? `<rect width="100" height="96" fill="#2F80ED"/><rect width="25" height="96" fill="#1B5CC8"/><rect x="75" width="25" height="96" fill="#1B5CC8"/><path d="M3 23 L14 43" stroke="#9CC6FF" stroke-width="5"/><path d="M97 23 L86 43" stroke="#9CC6FF" stroke-width="5"/>`
     : `<rect width="100" height="96" fill="url(#${id}p)"/><rect width="25" height="96" fill="#0F2150"/><rect x="75" width="25" height="96" fill="#0F2150"/><path d="M25 18 L25 40 M75 18 L75 40" stroke="#F3EDDC" stroke-width="3"/><path d="M5 25 L16 45" stroke="#EC7B2C" stroke-width="4"/><path d="M95 25 L84 45" stroke="#EC7B2C" stroke-width="4"/>`;
-  return `<svg class="shirt-svg" width="${w}" height="${h}" viewBox="0 0 100 96" aria-hidden="true"><defs>${defs}<clipPath id="${id}c"><path d="${SHIRT_PATH}"/></clipPath></defs><g clip-path="url(#${id}c)">${body}</g><path d="${SHIRT_PATH}" fill="none" stroke="#F3EDDC" stroke-width="3.5" stroke-linejoin="round"/><path d="M40 3 Q50 14 60 3" fill="none" stroke="${gk ? '#FFFFFF' : '#F3EDDC'}" stroke-width="4.5"/>${txt(String(label).length > 2 ? 30 : 38, gk ? '#FFFFFF' : '#F3EDDC', gk ? '#0E3A85' : '#0E1E40')}</svg>`;
+  return `<svg class="shirt-svg" width="${w}" height="${h}" viewBox="0 0 100 96" aria-hidden="true"><defs>${defs}<clipPath id="${id}c"><path d="${SHIRT_PATH}"/></clipPath></defs><g clip-path="url(#${id}c)">${body}</g><path d="${SHIRT_PATH}" fill="none" stroke="#F3EDDC" stroke-width="3.5" stroke-linejoin="round"/><path d="M40 3 Q50 14 60 3" fill="none" stroke="${gk ? '#FFFFFF' : away ? '#A3262E' : '#F3EDDC'}" stroke-width="4.5"/>${label === '' ? '' : txt(String(label).length > 2 ? 30 : 38, gk ? '#FFFFFF' : away ? '#0F2150' : '#F3EDDC', gk ? '#0E3A85' : away ? '#F3EDDC' : '#0E1E40')}</svg>`;
+}
+function uniformIcon(u, w = 34) {
+  const kind = !u || u === '미정' ? 'tbd' : /원정/.test(u) ? 'away' : 'home';
+  const name = { home: '홈', away: '원정', tbd: '미정' }[kind];
+  return `<span class="uni-ic" title="${esc(u || '미정')}">${shirtSvg(kind === 'tbd' ? '?' : '', { w, empty: kind === 'tbd', away: kind === 'away' })}<span>${name}</span></span>`;
 }
 function pitchHtml(m, Q, { phase = 'def', edit = false, mini = false, view = false } = {}) {
   const meId = me()?.id; const slots = phaseSlots(m, Q, phase); const other = phaseSlots(m, Q, phase === 'def' ? 'atk' : 'def');
@@ -1240,7 +1256,11 @@ const ACT = {
   openMatch: d => { const m = Store.get('matches', d.id); if (m && m.status === 'done') Sheet.load(); go({ type: 'match', id: d.id }); },
   sheetRefresh: () => Sheet.load(true),
   openLineup: d => { S.phase = 'def'; go({ type: 'lineup', id: d.id, q: 0 }); },
-  phase: d => { S.phase = d.v; render(); },
+  phase: d => {
+    if ((S.phase || 'def') === d.v) return;
+    const old = [...document.querySelectorAll('.pitch-wrap .tok')].map(t => [t.style.left, t.style.top]);
+    S.phase = d.v; render(); animateToks(old);
+  },
   lq: d => { S.view = { ...S.view, q: +d.q }; history.replaceState({ v: S.view, tab: S.tab }, ''); render(); },
   memFilter: d => { S.memFilter = d.k; render(); },
   recSort: d => { S.recSort = d.k; render(); },
@@ -1597,6 +1617,16 @@ document.addEventListener('pointerup', async e => {
 });
 document.addEventListener('pointercancel', () => { if (DRAG) { DRAG = null; render(); } });
 
+function animateToks(old) {
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const pitch = document.querySelector('.pitch-wrap .pitch'); const toks = document.querySelectorAll('.pitch-wrap .tok');
+  if (!pitch || !old.length || old.length !== toks.length) return;
+  const to = [...toks].map(t => [t.style.left, t.style.top]);
+  toks.forEach((t, i) => { t.style.left = old[i][0]; t.style.top = old[i][1]; });
+  void pitch.offsetWidth; pitch.classList.add('anim');
+  requestAnimationFrame(() => toks.forEach((t, i) => { t.style.left = to[i][0]; t.style.top = to[i][1]; }));
+  setTimeout(() => pitch.classList.remove('anim'), 900);
+}
 async function setApp(mid, pid, status, note) {
   const id = mid + '__' + pid; const prev = Store.get('apps', id);
   const keepAt = prev && prev.status === status ? prev.at : Date.now();
