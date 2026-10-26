@@ -778,7 +778,7 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.107"}
+:root{--cssv:"0.21.108"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
@@ -928,3 +928,10 @@ table.atbl th.seq,table.atbl td.seq{width:44px;text-align:center;font-family:var
 .stl-tbl td.buy{color:#7FE3C4}
 .stl-tbl td.roles{min-width:400px}.stl-tw .stl-tbl{min-width:1200px}
 .stl-tbl td.fin.neg,.stl-g b.neg{color:#8FB0FF}
+/* 0.21.108 정산 완료 */
+.stl-close,.stl-done{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px;border-radius:18px;margin-top:6px}
+.stl-close{background:var(--surface);border:1px solid var(--accent)}
+.stl-done{background:rgba(198,255,61,.1);border:1px solid rgba(198,255,61,.4)}
+.stl-close>div,.stl-done>div{flex:1;min-width:220px;display:flex;flex-direction:column;gap:2px}
+.stl-close small,.stl-done small{color:var(--muted);font-size:12.5px}
+.stl.locked .stl-chip,.stl.locked .stl-tbl .x,.stl.locked input,.stl.locked .stl-add button{pointer-events:none;opacity:.6}
