@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.114';
+const APP_VERSION = '0.21.115';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1252,6 +1252,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.115', '2026.10.26', ['[운영진] 운영비 정산 공지 이미지에서 이름을 버튼 모양 칸에 하나씩 넣어 이름 중간에서 줄이 바뀌지 않게 했어요', '[운영진] 금액별 명단을 일반 참가자 → 지각 → 예약자 → 공당 → 물당 → 당일 불참 순서로 보여줘요']],
   ['0.21.114', '2026.10.26', ['[운영진] 운영비 정산 공지 이미지를 저장할 때 모든 글씨가 페이퍼로지 글꼴로 나와요. 굵기별 글꼴을 미리 받아서 기본 글꼴로 빠지지 않게 했어요']],
   ['0.21.113', '2026.10.26', ['[운영진] 운영모드에서 오른쪽 위 운영모드 버튼 옆에 현재 앱 버전이 보여요']],
   ['0.21.112', '2026.10.26', ['[운영진] 정산표의 낼 금액·받을 금액을 \'최종 금액\' 한 칸으로 합쳤어요. 회원이 낼 돈은 +, 모임에서 회원에게 보낼 돈(사례금, 물 구입비 차액)은 −로 보여요', '[운영진] 공지 이미지·안내문도 같은 방식으로 +/− 금액별 명단으로 정리했어요']],
@@ -1895,7 +1896,8 @@ const wn = v => (v < 0 ? '-' : '') + Math.abs(Math.round(v)).toLocaleString('ko-
 const pm = v => v > 0 ? '+' + wn(v) : v < 0 ? '−' + wn(-v) : '0';
 const stlWhy = x => x.owe < 0 ? (x.get && x.back ? '사례금 + 물 구입비 차액, 모임에서 보내요' : x.get ? (x.rd || x.pen ? `사례금 ${wn(x.get)}에서 낼 돈을 빼고 모임에서 보내요` : '사례금, 모임에서 보내요') : '물 구입비가 더 많아 모임에서 보내요') : x.get ? `낼 돈에서 사례금 ${wn(x.get)}을 뺐어요` : x.pen ? `운영비 ${wn(x.rd)} + 벌금 ${wn(x.pen)}` : x.buy ? '물 구입비를 뺀 금액' : x.rd ? '운영비' : '내지도 받지도 않아요';
 function stlGroups(C) { const g = {}; C.rows.forEach(x => { const lab = x.r.away ? '예약자 (경기 미참가)' : x.r.absent ? '당일 불참' : x.r.staff ? '운영진·경기 운영자 (정산 제외)' : [x.r.res && '예약자', x.r.ball && '공당', x.r.drink && '물당', x.r.late && '지각'].filter(Boolean).join(' · ') || '일반 참가자'; (g[lab + '|' + x.owe] ??= { lab, owe: x.owe, rd: x.rd, pen: x.pen, get: x.get, back: x.back, buy: x.buy, names: [] }).names.push(pname(x.pid)) });
-  return Object.values(g).sort((a, b) => b.names.length - a.names.length) }
+  const rk = l => l.startsWith('일반') ? 0 : l === '지각' ? 1 : l.startsWith('예약자 (') ? 7 : l.includes('공당') ? 3 : l.includes('물당') ? 4 : l.startsWith('예약자') ? 2 : l.startsWith('당일') ? 5 : 6; // 공당 → 물당 순서
+  return Object.values(g).sort((a, b) => rk(a.lab) - rk(b.lab) || b.names.length - a.names.length || b.owe - a.owe) }
 function stlKakao(s, C) { const L = [`[WDFS ${fmtDate(s.date)} 경기 운영비 정산]`, `지출 ${wn(C.spend)}원 (구장 ${wn(C.F)} · 사례금 ${wn(C.Rtot)} · 음료 ${wn(C.D)})`];
   stlGroups(C).filter(x => x.owe !== 0).forEach(x => L.push(`· ${x.lab} ${pm(x.owe)}원${x.owe < 0 ? ' (모임에서 보내요)' : ''} : ${x.names.join(', ')}`));
   L.push('', '+는 입금할 금액, −는 모임에서 보내드릴 금액이에요.');
@@ -1968,8 +1970,10 @@ async function drawSettle(s) { const C = stlCalc(s); const acct = stlAcct(); con
   const PF = await posterFonts([s.venue || '', ...C.rows.map(x => pname(x.pid)), acct?.line || '', acct?.holder || '', ...groups.map(x => x.lab)], 'paperlogy'); const img = await emblem();
   const sfnt = await settleFont(); if (sfnt) { PF.BD = PF.KR = PF.LAT = sfnt } else { PF.LAT = PF.KR; toast('글꼴을 받지 못해 일부 글씨가 기본 글꼴로 나올 수 있어요. 인터넷 연결을 확인해 주세요.') }
   const W = 1080, P = 64, BG = '#0B0D10', CARD = '#15181D', LINE = '#262B33', INK = '#F2F4F7', MUT = '#9AA4B1', ACC = '#C6FF3D', INFO = '#8FB0FF';
-  const m = document.createElement('canvas').getContext('2d'); const nameLines = x => { m.font = `500 30px ${PF.BD}`; return wrapText(m, x.names.join(', '), W - P * 2 - 56, 6) };
-  let H = 330 + 150 + 70; groups.forEach(x => { H += 124 + nameLines(x).length * 42 + 18 }); if (rc.length) H += 80 + rc.length * 56 + 20; H += acct ? 230 : 0; H += 120;
+  const m = document.createElement('canvas').getContext('2d'); const CH = 52, CG = 10, CP = 22, CF = `600 28px ${PF.BD}`; // 이름은 줄바꿈 없이 버튼 모양 칩으로
+  const chipRows = x => { m.font = CF; const max = W - P * 2 - 56; const rows = [[]]; let cx = 0; x.names.forEach(n => { const w = Math.ceil(m.measureText(n).width) + CP * 2; if (cx && cx + w > max) { rows.push([]); cx = 0 } rows[rows.length - 1].push({ n, x: cx, w }); cx += w + CG }); return rows };
+  const sub = x => !!(x.pen || x.owe < 0 || x.get); const cardH = x => (sub(x) ? 104 : 84) + chipRows(x).length * (CH + CG) + 14;
+  let H = 330 + 150 + 70; groups.forEach(x => { H += cardH(x) + 18 }); if (rc.length) H += 80 + rc.length * 56 + 20; H += acct ? 230 : 0; H += 120;
   const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); g.fillStyle = BG; g.fillRect(0, 0, W, H); const ft0 = g.fillText.bind(g); g.fillText = (t, x, y, mw) => mw == null ? ft0(String(t).replace(/\u2212/g, '-'), x, y) : ft0(String(t).replace(/\u2212/g, '-'), x, y, mw);
   const grd = g.createRadialGradient(W, 0, 40, W, 0, 700); grd.addColorStop(0, 'rgba(198,255,61,.16)'); grd.addColorStop(1, 'rgba(198,255,61,0)'); g.fillStyle = grd; g.fillRect(0, 0, W, 700);
   if (img) { g.save(); g.beginPath(); g.arc(P + 40, 92, 40, 0, Math.PI * 2); g.fillStyle = '#fff'; g.fill(); g.clip(); g.drawImage(img, P, 52, 80, 80); g.restore() }
@@ -1979,10 +1983,10 @@ async function drawSettle(s) { const C = stlCalc(s); const acct = stlAcct(); con
   g.fillStyle = MUT; g.font = `700 24px ${PF.BD}`; g.fillText('총 지출', P + 30, y + 46); g.fillStyle = INK; g.font = `800 52px ${PF.LAT}`; g.fillText(wn(C.spend) + '원', P + 30, y + 104);
   g.fillStyle = MUT; g.font = `500 24px ${PF.BD}`; g.textAlign = 'right'; [`구장 사용료 ${wn(C.F)}원`, `예약자 사례금 ${wn(C.Rtot)}원`, `물·음료 ${wn(C.D)}원`].forEach((t, i) => g.fillText(t, W - P - 30, y + 42 + i * 34)); g.textAlign = 'left';
   y += 150 + 20; g.fillStyle = INK; g.font = `800 34px ${PF.KR}`; g.fillText('이번 경기 회비', P, y + 10); y += 40;
-  groups.forEach(x => { const ls = nameLines(x); const h = 104 + ls.length * 42; g.fillStyle = CARD; rr(g, P, y, W - P * 2, h, 22); g.fill(); g.strokeStyle = LINE; g.stroke();
+  groups.forEach(x => { const h = cardH(x); g.fillStyle = CARD; rr(g, P, y, W - P * 2, h, 22); g.fill(); g.strokeStyle = LINE; g.stroke();
     g.fillStyle = MUT; g.font = `700 25px ${PF.BD}`; g.fillText(`${x.lab} · ${x.names.length}명`, P + 28, y + 44); g.fillStyle = x.owe < 0 ? INFO : ACC; g.font = `800 50px ${PF.LAT}`; g.textAlign = 'right'; g.fillText(pm(x.owe) + '원', W - P - 28, y + 58); g.textAlign = 'left';
     if (x.pen || x.owe < 0 || x.get) { g.fillStyle = MUT; g.font = `500 22px ${PF.BD}`; g.fillText(stlWhy(x), P + 28, y + 78) }
-    g.fillStyle = INK; g.font = `500 30px ${PF.BD}`; ls.forEach((l, i) => g.fillText(l, P + 28, y + 118 + i * 42 - (x.pen || x.owe < 0 || x.get ? 0 : 20))); y += h + 18 });
+    let cy = y + (sub(x) ? 104 : 84); g.font = CF; chipRows(x).forEach(row => { row.forEach(cp => { g.fillStyle = '#1F242C'; rr(g, P + 28 + cp.x, cy, cp.w, CH, CH / 2); g.fill(); g.strokeStyle = '#363D48'; g.lineWidth = 2; g.stroke(); g.fillStyle = INK; g.textAlign = 'center'; g.fillText(cp.n, P + 28 + cp.x + cp.w / 2, cy + 36); g.textAlign = 'left' }); cy += CH + CG }); y += h + 18 });
   if (rc.length) { y += 20; g.fillStyle = INK; g.font = `800 34px ${PF.KR}`; g.fillText('돌려받을 분', P, y + 10); y += 40;
     rc.forEach(x => { g.fillStyle = CARD; rr(g, P, y, W - P * 2, 46, 14); g.fill(); g.fillStyle = INK; g.font = `700 28px ${PF.BD}`; g.fillText(pname(x.pid), P + 24, y + 33); g.fillStyle = MUT; g.font = `500 22px ${PF.BD}`; g.fillText(x.why.join(' + '), P + 200, y + 32); g.fillStyle = INFO; g.font = `800 34px ${PF.LAT}`; g.textAlign = 'right'; g.fillText(wn(x.get) + '원', W - P - 24, y + 36); g.textAlign = 'left'; y += 56 }); y += 20 }
   if (acct) { y += 10; g.fillStyle = ACC; rr(g, P, y, W - P * 2, 190, 26); g.fill(); g.fillStyle = 'rgba(11,13,16,.7)'; g.font = `800 26px ${PF.BD}`; g.fillText('입금 계좌', P + 32, y + 50);
