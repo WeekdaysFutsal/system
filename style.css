@@ -778,7 +778,7 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.116"}
+:root{--cssv:"0.21.117"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
@@ -1000,3 +1000,15 @@ table.atbl th.seq,table.atbl td.seq{width:44px;text-align:center;font-family:var
 .bank-add #bank-date{width:150px;flex:none}
 .bank-top>.btn{flex:none}
 @media (max-width:600px){.fee-tbl{font-size:12.5px}.fee-tbl th,.fee-tbl td{padding:8px 4px}.fee-tbl td.l:nth-child(2){min-width:96px;word-break:keep-all}.fee-tbl td:first-child{font-size:11.5px;color:var(--muted)}.fee .stl-h small{display:block;margin:2px 0 0}.bank-add #bank-memo{flex:1 1 100%}}
+/* 0.21.117 회비 관리 구분 */
+.fee .fee-kind{margin-bottom:4px}.fee .fee-hint{display:block;margin:2px 0 6px}
+.fee .fee-ft{flex-wrap:wrap}
+.fee-tbl .fk{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;border:1px solid var(--line)}
+.fee-tbl .fk-game{background:rgba(110,143,240,.16);color:#9DB8FF;border-color:transparent}
+.fee-tbl .fk-out{background:rgba(255,138,138,.14);color:#FF9C9C;border-color:transparent}
+.fee-tbl .fk-in{background:rgba(127,227,196,.14);color:#7FE3C4;border-color:transparent}
+.fee-tbl .fk-base{color:var(--muted)}
+.fee-tbl td.l:nth-child(2){width:auto;white-space:nowrap}.fee-tbl td.l:nth-child(3){white-space:normal;width:100%}
+.fee-m span{display:flex;justify-content:space-between;gap:6px;color:var(--muted);font-size:12px}.fee-m span em{font-style:normal;font-weight:700}.fee-m span.t{color:var(--ink);font-weight:800;border-top:1px solid var(--line);padding-top:4px;margin-top:2px}.fee-m span:last-child{margin-top:2px}
+@media (max-width:600px){.fee-tbl td.l:nth-child(2){min-width:0}.fee-tbl td.l:nth-child(3){min-width:90px}}
+@media (max-width:600px){.fee-tbl th:nth-child(2),.fee-tbl td:nth-child(2){display:none}.fee-tbl tr.r-game td:first-child{box-shadow:inset 3px 0 #6E8FF0}.fee-tbl tr.r-out td:first-child{box-shadow:inset 3px 0 #FF8A8A}.fee-tbl tr.r-in td:first-child{box-shadow:inset 3px 0 #7FE3C4}.fee-tbl td:first-child,.fee-tbl th:first-child{padding-left:8px}.fee-tbl{font-size:12px}.fee-tbl th,.fee-tbl td{padding:8px 3px}.fee-tbl td.l:nth-child(3){min-width:80px}}
