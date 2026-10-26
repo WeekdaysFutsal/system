@@ -43,7 +43,12 @@ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke
 
 /* top */
 header.top{position:sticky;top:0;z-index:30;height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--navy);padding-top:env(safe-area-inset-top)}
-header.top .wm{font-size:32px;cursor:pointer}
+header.top .wm{font-size:30px}
+header.top .brand{display:flex;align-items:center;gap:8px;cursor:pointer}
+header.top .brand .emb{filter:drop-shadow(1px 1px 0 rgba(0,0,0,.35))}
+.emb{display:block;flex:none}
+.vs-brand{display:inline-flex;align-items:center;gap:6px}
+.emb-badge{width:112px;height:112px;margin:0 auto 14px;border-radius:50%;background:var(--navy-dd);border:4px solid var(--cream);display:grid;place-items:center;box-shadow:0 10px 24px rgba(14,30,64,.45)}
 .top-r{display:flex;align-items:center;gap:10px}
 .demo{font:700 11px/1 "Barlow Condensed";letter-spacing:.12em;color:var(--navy-d);background:var(--orange);padding:5px 7px 4px;border-radius:4px}
 .avatar{width:36px;height:36px;border-radius:50%;background:var(--cream);color:var(--navy);font-weight:800;font-size:13px;border:2px solid var(--orange);display:grid;place-items:center}
@@ -427,8 +432,8 @@ details summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--ink-2)
 .login-hero::before,.login-hero::after{content:"";position:absolute;top:-62%;width:78%;height:120%;border-radius:50%;background:var(--navy);box-shadow:0 0 0 9px var(--cream)}
 .login-hero::before{left:-52%}
 .login-hero::after{right:-52%}
-.login-plate{position:relative;z-index:2;text-align:center;padding:40px 16px 24px}
-.login-plate .wm{font-size:96px;text-shadow:3px 3px 0 var(--navy),6px 6px 0 var(--red),8px 8px 0 var(--navy-dd)}
+.login-plate{position:relative;z-index:2;text-align:center;padding:30px 16px 24px}
+.login-plate .wm{font-size:84px;text-shadow:3px 3px 0 var(--navy),6px 6px 0 var(--red),8px 8px 0 var(--navy-dd)}
 .login-plate .tg{margin-top:12px;font:700 12.5px "Barlow Condensed";letter-spacing:.14em;color:var(--cream);background:var(--navy-dd);display:inline-block;padding:6px 12px 5px;border-radius:4px;white-space:nowrap}
 .login-plate .motto{margin-top:8px;font:italic 700 17px "Cormorant Garamond";color:var(--navy-dd);background:var(--cream);display:inline-block;padding:2px 12px;border-radius:3px}
 .login-card{margin:-30px 16px 24px;position:relative;z-index:3;padding:22px 18px}
@@ -457,7 +462,7 @@ details summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--ink-2)
 /* poster (image export) */
 #poster-host{position:fixed;left:-10000px;top:0}
 .poster{width:760px;background:#142A57;color:#F3EDDC;font-family:Pretendard,sans-serif}
-.poster .ph{position:relative;height:210px;overflow:hidden;display:flex}
+.poster .ph{position:relative;height:240px;overflow:hidden;display:flex}
 .poster .ph .sx{flex:none;height:100%}
 .poster .ph .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(14,30,64,.2),rgba(14,30,64,.94))}
 .poster .ph .in{position:absolute;left:36px;right:36px;bottom:26px}
@@ -500,7 +505,7 @@ const FIREBASE_CONFIG = {
 */
 /* 구글 시트 기록 API: Code.gs 를 '웹 앱'으로 배포한 URL (https://script.google.com/macros/s/…/exec) */
 const SHEET_API_URL = '';
-const APP_VERSION = '0.3.6';
+const APP_VERSION = '0.3.7';
 const LS_KEY = 'fmfc_demo_v1';
 const SESSION_KEY = 'fmfc_session';
 const COLS = ['members', 'matches', 'apps', 'notices'];
@@ -571,6 +576,16 @@ const I = {
   whistle: ic('<path d="M3 13a5 5 0 1 0 10 0V9h8V6H8a5 5 0 0 0-5 7z"/>'),
 };
 const APP_ICON = { yes: I.check, maybe: I.q, no: I.x };
+/* FMFC 엠블럼 (팀 엠블럼 이미지를 벡터로 변환) — onDark: 남색 배경용(회색 → 크림) */
+const EMB_VB = '40.2 26.0 93.4 95.2';
+const EMB_D = 'M107.60 79.70 L105.00 79.70 L103.80 80.80 L103.80 112.80 L104.30 113.30 L106.00 112.80 L114.50 107.70 L114.20 107.00 L110.80 105.80 L109.20 104.00 L108.60 102.40 L108.50 80.60Z M102.30 79.70 L99.70 79.70 L98.90 80.70 L98.90 106.10 L97.10 113.40 L93.60 119.00 L93.60 119.70 L102.30 114.90 L103.30 113.20 L103.30 80.80Z M71.60 79.70 L70.60 80.90 L70.60 113.20 L71.60 114.90 L80.30 119.70 L80.30 119.00 L77.00 113.90 L75.10 106.90 L75.00 80.70 L74.20 79.70Z M66.30 79.70 L65.40 80.60 L65.20 102.80 L63.10 105.80 L59.60 107.10 L59.40 107.70 L67.70 112.70 L69.60 113.30 L70.10 112.80 L70.10 81.00 L69.20 79.80Z M83.00 56.20 L82.20 56.90 L82.10 89.40 L81.30 92.20 L79.20 95.80 L84.50 99.10 L85.50 98.80 L86.90 97.40 L89.30 99.10 L94.70 95.80 L92.40 91.80 L91.80 89.40 L91.70 56.90 L90.90 56.20 L88.40 56.20 L87.10 56.80 L85.50 56.20Z M114.00 27.50 L106.30 27.50 L105.00 28.20 L103.80 29.90 L103.80 64.00 L105.00 65.10 L107.60 65.10 L108.50 64.30 L108.80 34.80 L110.70 31.40 L114.20 28.30Z M71.80 28.00 L70.70 29.70 L70.90 64.60 L71.60 65.10 L73.60 65.20 L74.60 64.90 L75.00 64.20 L75.20 37.70 L76.80 37.00 L81.20 37.10 L82.10 38.00 L82.20 41.10 L82.60 41.60 L85.20 41.80 L87.10 41.20 L88.60 41.80 L90.60 41.80 L91.70 41.10 L91.70 38.40 L92.30 37.30 L97.20 37.00 L98.30 37.30 L98.90 38.20 L98.90 64.10 L99.70 65.10 L102.70 64.90 L103.30 64.00 L103.30 29.90 L102.60 28.50 L101.10 27.50 L89.60 27.50 L86.70 29.50 L84.40 27.50 L72.80 27.50Z M59.90 27.50 L59.70 28.30 L63.20 31.40 L65.20 35.30 L65.40 64.30 L66.20 65.10 L68.90 65.10 L70.10 64.00 L70.10 30.00 L69.20 28.50 L67.60 27.50Z';
+const EMB_R = 'M94.30 68.80 L94.20 75.50 L95.00 77.30 L119.10 77.50 L121.90 78.40 L124.80 81.50 L126.20 81.90 L126.70 81.30 L126.90 69.50 L125.70 67.90 L95.90 67.60Z M132.00 44.60 L131.10 44.20 L125.60 44.10 L122.20 45.70 L119.40 44.20 L112.10 44.40 L110.80 45.90 L110.90 52.70 L112.20 53.70 L115.70 53.90 L116.90 54.50 L117.30 55.40 L117.40 60.70 L118.00 61.50 L119.20 61.60 L126.40 57.00 L127.80 50.20 L129.90 47.30 L132.00 45.50Z M96.10 45.20 L94.70 44.20 L78.50 44.40 L77.50 46.00 L77.70 52.80 L79.20 53.80 L95.30 53.70 L96.40 52.10Z M42.70 44.20 L41.80 45.20 L45.80 49.60 L47.00 53.40 L47.00 85.00 L45.70 88.30 L44.30 89.60 L41.80 90.70 L41.70 91.30 L47.40 95.40 L50.30 96.50 L54.70 99.50 L55.70 99.50 L56.50 97.60 L56.80 78.30 L58.40 77.50 L78.70 77.30 L79.70 75.80 L79.70 69.00 L79.00 68.00 L78.10 67.70 L61.70 67.70 L57.20 67.20 L56.50 65.90 L56.60 55.10 L57.60 54.00 L61.70 53.70 L62.90 52.90 L62.90 45.20 L61.00 44.20 L54.70 44.20 L51.90 45.50 L48.70 44.20Z';
+const emblemSvg = (h = 32, onDark = true, cls = 'emb') => `<svg class="${cls}" height="${h}" viewBox="${EMB_VB}" aria-label="FMFC 엠블럼" role="img"><path fill="${onDark ? '#F3EDDC' : '#3A3A3C'}" fill-rule="evenodd" d="${EMB_D}"/><path fill="#C8202A" fill-rule="evenodd" d="${EMB_R}"/></svg>`;
+(function setFavicon() {
+  const [x, y, w, h] = EMB_VB.split(' ').map(Number); const pad = w * 0.18;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x - pad} ${y - pad} ${w + pad * 2} ${h + pad * 2}"><rect x="${x - pad}" y="${y - pad}" width="${w + pad * 2}" height="${h + pad * 2}" rx="${w * 0.22}" fill="#142A57"/><path fill="#F3EDDC" fill-rule="evenodd" d="${EMB_D}"/><path fill="#E0313A" fill-rule="evenodd" d="${EMB_R}"/></svg>`;
+  const l = document.createElement('link'); l.rel = 'icon'; l.type = 'image/svg+xml'; l.href = 'data:image/svg+xml,' + encodeURIComponent(svg); document.head.appendChild(l);
+})();
 
 /* ---------- 유틸 ---------- */
 const $ = (s, el = document) => el.querySelector(s);
@@ -879,7 +894,7 @@ function renderShell() {
   } catch (e) { console.error(e); body = `<div class="empty">화면을 불러오지 못했습니다<br><small>${esc(e.message)}</small></div>`; }
   const tab = (t, label, icon) => `<button class="${S.tab === t ? 'on' : ''}" data-act="tab" data-t="${t}">${icon}${label}</button>`;
   app.innerHTML = `
-    <header class="top"><div class="wm" data-act="tab" data-t="home" role="button" aria-label="홈">FMFC</div>
+    <header class="top"><div class="brand" data-act="tab" data-t="home" role="button" aria-label="홈">${emblemSvg(34)}<span class="wm">FMFC</span></div>
       <div class="top-r">${Store.mode === 'demo' ? '<span class="demo">DEMO</span>' : ''}<button class="avatar" data-act="profile" aria-label="내 정보">${esc(u.name.slice(-2))}</button></div></header>
     <div class="band stripes"></div>
     <main>${body}</main>
@@ -894,7 +909,7 @@ function renderLogin() {
   app.innerHTML = `
   <div class="login">
     <div class="login-hero stripes"><div class="login-plate">
-      <div class="wm">FMFC</div><br><div class="tg">FOOTBALL MATCHING FOOTBALL CLUB</div><br><div class="motto">Fierce Mindset</div>
+      <div class="emb-badge">${emblemSvg(74)}</div><div class="wm">FMFC</div><br><div class="tg">FOOTBALL MATCHING FOOTBALL CLUB</div><br><div class="motto">Fierce Mindset</div>
     </div></div>
     <form class="login-card card" id="loginForm" autocomplete="off">
       <h2>입장하기</h2><p class="s">이름을 고르고 개인 PIN 4자리를 입력하세요.</p>
@@ -917,7 +932,7 @@ function renderLogin() {
 function renderSetup() {
   app.innerHTML = `
   <div class="login">
-    <div class="login-hero stripes"><div class="login-plate"><div class="wm">FMFC</div><br><div class="tg">FIRST SETUP</div></div></div>
+    <div class="login-hero stripes"><div class="login-plate"><div class="emb-badge">${emblemSvg(74)}</div><div class="wm">FMFC</div><br><div class="tg">FIRST SETUP</div></div></div>
     <form class="login-card card" id="setupForm">
       <h2>첫 운영진 등록</h2><p class="s">등록된 회원이 없습니다. 첫 운영진 계정을 만들어 주세요.</p>
       ${memberFields({})}
@@ -954,7 +969,7 @@ function heroCard(m) {
   return `<article class="hero">
     <div class="hero-top stripes"><div class="hero-shade"></div><div class="hero-in">
       <div class="hero-meta"><span class="pill cream">${dday(m.date)}</span>${statusPill(m)}<span class="pill line">${esc(m.type)} · ${FORMAT_KO[m.format]}</span></div>
-      <div class="hero-vs"><span class="wm sm">FMFC</span><span class="vs">VS</span><span class="opp">${esc(m.opponent)}</span></div>
+      <div class="hero-vs"><span class="vs-brand">${emblemSvg(30)}<span class="wm sm">FMFC</span></span><span class="vs">VS</span><span class="opp">${esc(m.opponent)}</span></div>
       <div class="hero-when">${fmtDate(m.date)} ${esc(m.time || '')}${m.endTime ? ' – ' + esc(m.endTime) : ''}</div>
       <div class="hero-where">${I.pin}${esc(m.venue || '장소 미정')}</div>
     </div></div>
@@ -1040,7 +1055,7 @@ function viewMatch(id) {
   <article class="mcard">
     <div class="mcard-top stripes"><div class="hero-shade"></div><div class="hero-in">
       <div class="hero-meta">${live ? `<span class="pill cream">${dday(m.date)}</span>` : ''}${statusPill(m)}<span class="pill line">${esc(m.type)}</span><span class="pill line">${FORMAT_KO[m.format]} · ${m.quarters}쿼터</span></div>
-      <div class="hero-vs"><span class="wm sm">FMFC</span><span class="vs">VS</span><span class="opp">${esc(m.opponent)}</span></div>
+      <div class="hero-vs"><span class="vs-brand">${emblemSvg(30)}<span class="wm sm">FMFC</span></span><span class="vs">VS</span><span class="opp">${esc(m.opponent)}</span></div>
       ${m.status === 'done' && matchScore(m) ? `<div class="score">${matchScore(m).us} : ${matchScore(m).them}<span class="wdl ${wdl(m)}">${WDL_KO[wdl(m)]}</span></div>` : ''}
     </div></div>
     <dl class="info">
@@ -1755,13 +1770,19 @@ async function exportLineup(m) {
   const benchAll = lineupPool(m).yes.filter(p => !inQ.has(p));
   const host = $('#poster-host');
   host.innerHTML = `<div class="poster" id="poster">
-    <div class="ph">${sx}<div class="shade"></div><div class="in"><div class="wm">FMFC</div><div class="vs"><span>VS</span>${esc(m.opponent)}</div><div class="when">${fmtDate(m.date)} ${esc(m.time || '')}${m.endTime ? ' – ' + esc(m.endTime) : ''} · ${esc(m.venue || '')}</div></div></div>
+    <div class="ph">${sx}<div class="shade"></div><div class="in"><div style="display:flex;align-items:center;gap:16px"><div style="width:86px;height:86px;border-radius:50%;background:#0E1E40;border:3px solid #F3EDDC;display:flex;align-items:center;justify-content:center">${emblemSvg(58)}</div><div class="wm">FMFC</div></div><div class="vs"><span>VS</span>${esc(m.opponent)}</div><div class="when">${fmtDate(m.date)} ${esc(m.time || '')}${m.endTime ? ' – ' + esc(m.endTime) : ''} · ${esc(m.venue || '')}</div></div></div>
     <div class="grid" style="grid-template-columns:repeat(${cols},1fr)">
       ${shown.map(({ Q, qi }) => `<div class="q"><h6>${multi ? `${qi + 1}Q` : 'LINE-UP'}<small>${Q.formation} · ${PHASES[phase]}</small></h6>${pitchPoster(m, Q, cols > 1, phase)}</div>`).join('')}
     </div>
-    ${multi ? `<div class="bench">${shown.map(({ Q, qi }) => { const s = new Set(Q.players.filter(Boolean)); const b = lineupPool(m).yes.filter(p => !s.has(p)); return b.length ? `<div><b>${qi + 1}Q 대기</b> · ${b.map(p => esc(person(m, p).name)).join(', ')}</div>` : ''; }).join('')}</div>` : benchAll.length ? `<div class="bench"><b>교체</b> · ${benchAll.map(p => esc(person(m, p).name)).join(', ')}</div>` : ''}
-    ${shown.map(({ Q, qi }) => { const N = Q.notes; const parts = [N.general, N[phase], N.caution ? '⚠ ' + N.caution : ''].filter(Boolean); return parts.length ? `<div class="bench" style="margin-top:8px;white-space:pre-wrap"><b>${multi ? `${qi + 1}Q ` : ''}지시사항</b> · ${parts.map(esc).join('\n')}</div>` : ''; }).join('')}
-    <div class="pf"><span>FIERCE MINDSET</span><span style="font-family:'Pirata One';font-style:normal;font-size:26px;color:#F3EDDC">FMFC</span></div>
+    ${multi ? (() => { const parts = shown.map(({ Q, qi }) => { const st = new Set(Q.players.filter(Boolean)); const b = lineupPool(m).yes.filter(p => !st.has(p)); return b.length ? `${qi + 1}Q ${b.map(p => esc(person(m, p).name)).join(', ')}` : ''; }).filter(Boolean); return parts.length ? `<div class="bench"><b>대기</b> · ${parts.join('<span style="opacity:.5"> &nbsp;/&nbsp; </span>')}</div>` : ''; })() : benchAll.length ? `<div class="bench"><b>교체</b> · ${benchAll.map(p => esc(person(m, p).name)).join(', ')}</div>` : ''}
+    ${(() => {
+      const items = shown.map(({ Q, qi }) => { const N = Q.notes; return { qi, txt: [N.general, N[phase], N.caution ? '⚠ ' + N.caution : ''].filter(Boolean).map(esc).join('\n') }; }).filter(x => x.txt);
+      if (!items.length) return '';
+      const same = items.length === shown.length && items.every(x => x.txt === items[0].txt);
+      return same ? `<div class="bench" style="margin-top:8px;white-space:pre-wrap"><b>${multi ? '전 쿼터 공통 ' : ''}지시사항</b> · ${items[0].txt}</div>`
+        : items.map(x => `<div class="bench" style="margin-top:8px;white-space:pre-wrap"><b>${multi ? `${x.qi + 1}Q ` : ''}지시사항</b> · ${x.txt}</div>`).join('');
+    })()}
+    <div class="pf"><span>FIERCE MINDSET</span><span style="display:flex;align-items:center;gap:10px;font-family:'Pirata One';font-style:normal;font-size:26px;color:#F3EDDC">${emblemSvg(34)}FMFC</span></div>
   </div>`;
   try {
     await document.fonts.ready;
