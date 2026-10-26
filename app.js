@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.118';
+const APP_VERSION = '0.21.119';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -145,12 +145,19 @@ function betaOn() { return S.meta?.flags?.beta !== false }
 const normName = t => String(t || '').replace(/\(게\)|\(게스트\)/g, '').replace(/[^0-9A-Za-z가-힣]/g, '').trim();
 function editDist(a, b) { const m = a.length, n = b.length; const d = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]); for (let j = 1; j <= n; j++) d[0][j] = j;
   for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); return d[m][n] }
-function parseKakao(text) { const byN = {}; Object.entries(S.players).forEach(([id, p]) => { const k = normName(p.name); if (k) (byN[k] ??= []).push(id) });
-  const toks = String(text || '').split(/[\n,，、;\t]+|\s+/).map(t => t.replace(/^\d+[.)\]]?/, '')).map(t => ({ raw: t.trim(), n: normName(t) })).filter(t => t.n.length >= 2 && !/^(투표|참여|명|님|선택|완료|명단|기타)$/.test(t.n));
+const KK_PRE = /^\s*(?:F\s*\.\s*M\s*\.?|FM\s*\.)\s*/i; // 카톡 이름 앞의 'F.M.' 같은 머리말은 떼고 봐요
+const kkStrip = t => String(t || '').replace(KK_PRE, '').trim();
+function kkAlias() { const o = {}; Object.entries(S.meta?.kakaoAlias || {}).forEach(([k, id]) => { if (S.players[id]) o[k] = id }); return o } // 카톡 별명 → 회원 (한 번 골라 주면 기억해요)
+function kkSuffix(n) { if (n.length < 2) return null; const c = Object.keys(S.players).filter(id => { const k = normName(S.players[id].name); return k.length > n.length && k.endsWith(n) }); return c.length === 1 ? c[0] : null } // '창민' → '김창민'처럼 이름만 쓴 경우
+function parseKakao(text) { const byN = {}; Object.entries(S.players).forEach(([id, p]) => { const k = normName(p.name); if (k) (byN[k] ??= []).push(id) }); const al = kkAlias();
+  const toks = String(text || '').split(/[\n,，、;\t]+/).map(kkStrip).flatMap(l => l.split(/\s+/)).map(t => t.replace(/^\d+[.)\]]?/, '')).map(t => ({ raw: t.trim(), n: normName(t) })).filter(t => t.n.length >= 2 && !/^(투표|참여|명|님|선택|완료|명단|기타)$/.test(t.n));
   const seen = new Set(); const out = [];
-  for (const t of toks) { let pid = byN[t.n]?.[0] || null, guess = null;
-    if (!pid) { let best = null, bd = 9; for (const [k, ids] of Object.entries(byN)) { const dd = editDist(t.n, k); if (dd < bd) { bd = dd; best = ids[0] } } if (bd <= 1 && t.n.length >= 2) guess = best }
-    const key = pid || guess || 'x:' + t.n; if (seen.has(key)) continue; seen.add(key); out.push({ raw: t.raw, pid, guess, use: pid || guess || '' }) }
+  for (const t of toks) { let pid = byN[t.n]?.[0] || al[t.n] || null, guess = null;
+    if (!pid) guess = kkSuffix(t.n);
+    if (!pid && !guess) { let best = null, bd = 9; for (const [k, ids] of Object.entries(byN)) { const dd = editDist(t.n, k); if (dd < bd) { bd = dd; best = ids[0] } } if (bd <= 1 && t.n.length >= 2) guess = best }
+    const key = pid || 'x:' + t.n; if (seen.has(key)) continue; seen.add(key);
+    if (pid) out.forEach(o => { if (!o.pid && o.use === pid) { o.use = ''; o.guess = null } }); else if (guess && out.some(o => o.use === guess)) guess = null; // 정확히 맞는 이름이 '혹시?' 추측보다 먼저예요
+    out.push({ raw: t.raw, pid, guess, use: pid || guess || '' }) }
   return out }
 /* ── 캡처 이미지 글자 읽기(OCR): 기기 안에서 Tesseract로 읽고, 회원 이름과 맞춰요 ── */
 let OCR_W = null;
@@ -167,12 +174,12 @@ function matchLine(line, names) { const L = normName(line); if (L.length < 2) re
   for (const [n, id] of names) { if (L.includes(n)) { const sc = 100 + n.length; if (!best || sc > best.sc) best = { id, sc, exact: true } } }
   if (best) return best; for (const [n, id] of names) { if (n.length < 2) continue; for (let w0 = n.length - 1; w0 <= n.length + 1; w0++) for (let i = 0; i + w0 <= L.length; i++) { const dd = editDist(L.slice(i, i + w0), n); const lim = n.length >= 3 ? 1 : 0; if (dd <= lim) { const sc = 50 + n.length - dd * 10; if (!best || sc > best.sc) best = { id, sc, exact: false } } } }
   return best }
-async function ocrKakao(files, onStep) { const names = Object.entries(S.players).map(([id, p]) => [normName(p.name), id]).filter(([n]) => n.length >= 2).sort((x, y) => y[0].length - x[0].length);
+async function ocrKakao(files, onStep) { const names = [...Object.entries(S.players).map(([id, p]) => [normName(p.name), id]), ...Object.entries(kkAlias())].filter(([n]) => n.length >= 2).sort((x, y) => y[0].length - x[0].length);
   const out = [], seen = new Set(); const W0 = await ocrWorker(p => onStep?.(S.ocrI, p));
   for (let i = 0; i < files.length; i++) { S.ocrI = i; onStep?.(i, 0); const cv = await prepImage(files[i]); const { data } = await W0.recognize(cv);
     const lines = (data.lines || []).map(l => l.text).filter(Boolean); const texts = lines.length ? lines : String(data.text || '').split('\n');
-    for (const t of texts) { const m = matchLine(t, names); const raw = t.trim(); if (m) { if (seen.has(m.id)) continue; seen.add(m.id); out.push({ raw, pid: m.exact ? m.id : null, guess: m.exact ? null : m.id, use: m.id }) }
-      else { const h = normName(t); if (/^[가-힣]{2,4}$/.test(h) && !/^(투표|참여|완료|선택|오전|오후|어제|오늘|참석|불참|명단)$/.test(h) && !seen.has('x:' + h)) { seen.add('x:' + h); out.push({ raw, pid: null, guess: null, use: '' }) } } } }
+    for (const t0 of texts) { const t = kkStrip(t0); const m = matchLine(t, names); const raw = t.trim(); if (m) { if (m.exact) { if (seen.has(m.id)) continue; seen.add(m.id); out.forEach(o => { if (!o.pid && o.use === m.id) { o.use = ''; o.guess = null } }); out.push({ raw, pid: m.id, guess: null, use: m.id }) } else { if (seen.has('r:' + normName(raw))) continue; seen.add('r:' + normName(raw)); const taken = out.some(o => o.use === m.id); out.push({ raw, pid: null, guess: taken ? null : m.id, use: taken ? '' : m.id }) } }
+      else { const h = normName(t); if ((/^[가-힣]{2,4}$/.test(h) || /^[A-Za-z][A-Za-z0-9]{1,11}$/.test(h)) && !/^(투표|참여|완료|선택|오전|오후|어제|오늘|참석|불참|명단)$/.test(h) && !seen.has('x:' + h)) { seen.add('x:' + h); { const g = kkSuffix(h); out.push({ raw, pid: null, guess: g, use: g || '' }) } } } } }
   return out }
 async function applyKakao(sid, list) { const picks = list.map(x => x.use).filter(Boolean); const uniq = [...new Set(picks)]; if (!uniq.length) { toast('반영할 회원이 없어요.'); return false }
   const now = nowS(); let added = 0;
@@ -180,7 +187,9 @@ async function applyKakao(sid, list) { const picks = list.map(x => x.use).filter
     const keyOf = {}; merged.forEach(a => { if (a.pid && !keyOf[a.pid]) keyOf[a.pid] = a.k });
     uniq.forEach((pid, i) => { if (!keyOf[pid]) { const k = 'kk' + rand(); base.push({ k, pid, uid: 'kakao', at: now + i }); keyOf[pid] = k; added++ } });
     const head = uniq.map(pid => keyOf[pid]); const rest = merged.map(a => a.k).filter(k => !head.includes(k)); d.apps = base; d.appOrder = [...head, ...rest]; return d }));
-  if (ok) toast(`카톡 투표 순서대로 ${uniq.length}명을 반영했어요${added ? ` (새로 추가 ${added}명)` : ''}.`); return ok }
+  if (ok) { toast(`카톡 투표 순서대로 ${uniq.length}명을 반영했어요${added ? ` (새로 추가 ${added}명)` : ''}.`);
+    const al = { ...(S.meta?.kakaoAlias || {}) }; let ch = 0; list.forEach(x => { if (!x.use) return; const k = normName(kkStrip(x.raw)); if (k.length >= 2 && k !== normName(pname(x.use)) && al[k] !== x.use) { al[k] = x.use; ch++ } });
+    if (ch) S.store.set('meta/kakaoAlias', al).catch(() => { }) } return ok }
 /* 신청이 취소되거나 명단에서 빠지면 주차·공당·물당 신청과 지정도 함께 정리 */
 function extrasFor(s0, pid) { const set = {}, remove = {}; if (!pid || !s0) return null;
   if (s0.park?.[pid]) set[`park.${pid}`] = null; if (s0.dutyReq?.ball?.[pid]) set[`dutyReq.ball.${pid}`] = null; if (s0.dutyReq?.drink?.[pid]) set[`dutyReq.drink.${pid}`] = null;
@@ -1214,7 +1223,7 @@ function viewSheet() {
   else if (sh.type === 'kakao') { const L = S.kk || null;
     h += `<h4>📋 카톡 투표 명단 반영</h4>${S.ocrBusy ? `<div class="ocrbox"><div class="ocrspin"></div><b>${S.ocrMsg || '글자 읽는 중…'}</b><small>처음 한 번은 한글 인식 데이터를 받느라 조금 걸려요.</small></div>` : !L ? `<p>카톡 투표 <b>참여자 목록 화면</b>을 캡처해서 올려 주세요. 스크롤해서 여러 장이면 <b>위에서부터 순서대로</b> 모두 골라 주세요. 겹치는 이름은 한 번만 읽어요.</p>
       <label class="btn primary block" style="cursor:pointer">📷 캡처 이미지 올리기 (여러 장 가능)<input type="file" accept="image/*" multiple data-in="kkimg" hidden></label>
-      <details class="kk-alt"><summary>글자로 붙여넣기</summary><textarea id="kk-text" class="inp" rows="6" placeholder="예)\n김민혁\n이도형\n안준영"></textarea><button class="btn block" style="margin-top:8px" data-act="kakaoparse">이름 확인하기</button></details>`
+      <details class="kk-alt" ${S.sid === '2026-10-29' ? 'open' : ''}><summary>글자로 붙여넣기</summary><textarea id="kk-text" class="inp" rows="6" placeholder="예)\n김민혁\n이도형\n안준영">${S.sid === '2026-10-29' ? '창민\n양성필\n손준민\nHY\n강휘민\n고광원\n도형\n이도형\nF.M. 한준호\n정광호\nF.M. 이영수\nF.M. 김민준\nF.M. 김바우\nF.M. 이정욱\nF.M. 조덕기\nF.M. 강래형\n태현\njb\nF.M. 권순업\nF.M. 손효석\nF.M. 김희태\nDean\nF.M. 백종성\n동환\n알레' : ''}</textarea><button class="btn block" style="margin-top:8px" data-act="kakaoparse">이름 확인하기</button></details>`
       : `<p>${L.filter(x => x.use).length}명을 이 순서대로 맨 앞에 놓아요. 이름이 맞는지 확인하고 반영을 눌러 주세요.${S.kkFromImg ? ' 카톡 화면에 보이는 순서(위→아래)대로 읽었어요. 투표 순서가 반대라면 <b>순서 뒤집기</b>를 눌러 주세요.' : ''}</p>${S.kkFromImg ? '<button class="btn sm" data-act="kakaorev" style="margin-bottom:8px">⇅ 순서 뒤집기</button>' : ''}<div class="kk-list">${L.map((x, i) => `<div class="kk-row ${x.pid ? '' : x.guess ? 'warn' : 'bad'}"><em>${i + 1}</em><span>${esc(x.raw)}</span><select class="inp" data-in="kkpick" data-i="${i}"><option value="">${x.pid || x.guess ? '건너뛰기' : '명단에 없음 · 건너뛰기'}</option>${byName(Object.keys(S.players)).map(id => `<option value="${id}" ${x.use === id ? 'selected' : ''}>${esc(pname(id))}${x.guess === id && !x.pid ? ' (혹시?)' : ''}</option>`).join('')}</select></div>`).join('')}</div>
       <div class="row" style="margin-top:10px"><button class="btn" data-act="kakaoback">← 다시 하기</button><button class="btn primary" data-act="kakaoapply">반영하기</button></div>` }` }
   else if (sh.type === 'colf') h += colFilterSheet(sh.k);
@@ -1252,6 +1261,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.119', '2026.10.26', ['[운영진] 카톡 투표 명단 반영: 이름 앞의 \'F.M.\' 머리말을 떼고 읽고, \'창민\'처럼 이름만 쓴 경우도 성까지 맞는 회원을 찾아줘요. HY·jb 같은 영어 별명도 목록에 나와요', '[운영진] 별명을 회원과 한 번 짝지어 반영하면 기억해 두었다가 다음부터 자동으로 맞춰요', '[운영진] \'도형\'과 \'이도형\'처럼 비슷한 이름이 함께 있을 때 정확한 이름이 빠지던 문제를 고쳤어요', '[운영진] 10월 29일 경기는 카톡 투표 순서가 미리 채워져 있어요']],
   ['0.21.118', '2026.10.26', ['[운영진] 회비 관리의 입력 버튼 이름을 \'− 지출\', \'+ 매입\'으로 짧게 바꿨어요']],
   ['0.21.117', '2026.10.26', ['[운영진] 회비 관리를 경기 운영비 · 기타 지출 · 매입(찬조 등) 세 가지로 나눠 기록하고, 구분별로 골라 볼 수 있어요', '[운영진] 경기가 끝나면(경기 기록이 모두 끝나거나 날짜가 지나면) 그 경기 정산표의 최종 금액이 경기 운영비로 자동으로 들어가요. 정산 완료 전에 고친 금액도 바로 반영돼요', '[운영진] 월별 현황에서 달마다 경기 운영비·기타 지출·매입·합계를 볼 수 있어요']],
   ['0.21.116', '2026.10.26', ['[운영진] 아래 메뉴 \'공지\'를 \'운영\'으로 바꾸고, 그 안에 \'회비 관리\'를 새로 만들었어요', '[운영진] 회비 관리: 지금 통장 잔액을 한 번 넣으면 정산 완료한 경기와 경기 외 입출금(구장비 지급·회비 입금 등)으로 잔액을 자동 계산해요. 입출금 내역은 날짜별 잔액과 함께, 월별 현황도 볼 수 있어요', '[운영진] 아직 정산을 완료하지 않은 경기가 있으면 완료 후 잔액을 미리 알려줘요. 운영비 정산 화면에서는 지금 잔액만 간단히 보여주고 회비 관리로 바로 갈 수 있어요']],
