@@ -778,7 +778,7 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.112"}
+:root{--cssv:"0.21.113"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
@@ -973,3 +973,5 @@ table.atbl th.seq,table.atbl td.seq{width:44px;text-align:center;font-family:var
 .stl-tbl.cmp td.fin.pos{color:var(--accent,#D7FF3A)}.stl-tbl.cmp td.fin.neg{color:#7FB8FF}
 .stl-tbl.cmp tfoot td.fin small{display:block;margin:0;font-size:10.5px}
 .stl-tbl.cmp td.get{color:#9DB8FF}
+/* 0.21.113 운영모드 버전 표시 */
+.appbar .appver{align-self:center;margin-right:6px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);font:600 11.5px/1.2 var(--latin);font-variant-numeric:tabular-nums;white-space:nowrap}
