@@ -778,7 +778,7 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.129"}
+:root{--cssv:"0.21.130"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
@@ -1149,3 +1149,7 @@ table.atbl th.seq,table.atbl td.seq{width:44px;text-align:center;font-family:var
 .sheetwrap table thead th,.tblwrap table thead th,.stl-tw table thead th{top:var(--sth,0px)}
 .stl-tw table tfoot td{bottom:var(--sfb,0px)}
 .sheetwrap.memwrap{max-height:none;min-height:0}
+/* 0.21.130 앱 설치 버튼 */
+.appbar .instbtn{display:inline-flex;align-items:center;gap:4px;height:36px;padding:0 11px;border-radius:999px;background:rgba(198,255,61,.14);border:1px solid rgba(198,255,61,.45);color:#D9FF7A;font-size:14px;white-space:nowrap;flex:none}
+.appbar .instbtn b{font-size:12.5px;font-weight:800}
+@media (max-width:480px){.appbar .instbtn b{display:none}.appbar .instbtn{width:40px;height:40px;padding:0;justify-content:center;font-size:18px}}

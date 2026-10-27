@@ -250,6 +250,6 @@ section.pg{margin:0;padding:0;background:none;border:0;border-radius:0}
 })();
 
 (()=>{const ua=navigator.userAgent,os=/SamsungBrowser/i.test(ua)?'sam':/Android/i.test(ua)?'chr':/iPhone|iPad|Macintosh/i.test(ua)?'ios':'';
- document.querySelectorAll('.osb').forEach(b=>{if(b.dataset.os===os)b.classList.add('mine');b.addEventListener('click',()=>{const c=document.querySelector('.top nav button[data-ch='+b.dataset.os+']');c&&c.click()})});
+ const hs=location.hash.slice(1);if(['ios','sam','chr'].includes(hs))setTimeout(()=>{const c=document.querySelector('.top nav button[data-ch='+hs+']');c&&c.click()},80);document.querySelectorAll('.osb').forEach(b=>{if(b.dataset.os===os)b.classList.add('mine');b.addEventListener('click',()=>{const c=document.querySelector('.top nav button[data-ch='+b.dataset.os+']');c&&c.click()})});
  document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(b.dataset.copy);b.textContent='✓ 복사했어요'}catch{b.textContent=b.dataset.copy}setTimeout(()=>b.textContent='📋 주소 복사',2200)}))})();
 </script></body></html>

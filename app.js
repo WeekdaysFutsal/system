@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.129';
+const APP_VERSION = '0.21.130';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -835,7 +835,7 @@ function appbar() {
   const s = S.sid ? S.sessions[S.sid] : null; const back = false;
   return `<header class="appbar"><div class="in">${back ? '<button class="back" data-act="home" aria-label="경기일 목록">‹</button>' : `<img src="${EMBLEM_SRC}" alt="홈으로" data-act="gohome" style="cursor:pointer">`}
   <div class="ttl" data-act="gohome" role="button" tabindex="0" aria-label="홈으로"><b>${esc(CFG.club?.name || 'WEEKDAYS FUTSAL CLUB')}</b><span></span></div>
-  ${!S.dm && !S.admin && S.auth ? `<button class="mmtop ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" aria-label="${S.tab === 'mm' ? '일반모드로 돌아가기' : '경기모드 열기'}"><span class="mmball">${XICO.mm}</span><b>${S.tab === 'mm' ? '일반모드' : '경기모드'}</b>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : ''}${S.auth && !S.admin ? (() => { const n = (S.inbox || []).filter(x => !x.read).length; return `<button class="bell" data-act="inbox" aria-label="받은 알림${n ? ' ' + n + '개 안 읽음' : ''}">${XICO.bell}${n ? `<i>${n > 9 ? '9+' : n}</i>` : ''}</button>` })() : ''}${!S.admin && capSid() ? `<button class="capico" data-act="gocap" data-id="${capSid()}" aria-label="팀 드래프트 입장" title="팀 드래프트 입장">👑<b>드래프트</b></button>` : !S.admin && viewSid() && S.sessions[viewSid()]?.draftStatus !== 'done' ? `<button class="capico view" data-act="gocap" data-id="${viewSid()}" aria-label="드래프트 참관" title="드래프트 참관">👀<b>참관</b></button>` : ''}${S.admin ? `<span class="appver" title="현재 앱 버전">v${APP_VERSION}</span>` : ''}${canOp() ? `<button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">운영모드</button>` : ''}</div>${capStrip()}</header>`;
+  ${!S.dm && !S.admin && S.auth ? `<button class="mmtop ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" aria-label="${S.tab === 'mm' ? '일반모드로 돌아가기' : '경기모드 열기'}"><span class="mmball">${XICO.mm}</span><b>${S.tab === 'mm' ? '일반모드' : '경기모드'}</b>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : ''}${!S.admin && installable() ? `<button class="instbtn" data-act="appinstall" aria-label="앱으로 설치" title="홈 화면에 앱으로 설치">📲<b>앱 설치</b></button>` : ''}${S.auth && !S.admin ? (() => { const n = (S.inbox || []).filter(x => !x.read).length; return `<button class="bell" data-act="inbox" aria-label="받은 알림${n ? ' ' + n + '개 안 읽음' : ''}">${XICO.bell}${n ? `<i>${n > 9 ? '9+' : n}</i>` : ''}</button>` })() : ''}${!S.admin && capSid() ? `<button class="capico" data-act="gocap" data-id="${capSid()}" aria-label="팀 드래프트 입장" title="팀 드래프트 입장">👑<b>드래프트</b></button>` : !S.admin && viewSid() && S.sessions[viewSid()]?.draftStatus !== 'done' ? `<button class="capico view" data-act="gocap" data-id="${viewSid()}" aria-label="드래프트 참관" title="드래프트 참관">👀<b>참관</b></button>` : ''}${S.admin ? `<span class="appver" title="현재 앱 버전">v${APP_VERSION}</span>` : ''}${canOp() ? `<button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">운영모드</button>` : ''}</div>${capStrip()}</header>`;
 }
 function tabs() {
   const t = S.admin ? [['manage', '일정'], ['run', '경기'], ['notice', '운영'], ['members', '회원'], ['settings', '설정']] : [['mhome', '홈'], ['sched', '일정'], ...(isDesk() ? [] : [['mm', '경기모드']]), ['results', '기록실'], ['settings', '내 정보']]; // 아래 메뉴는 항상 고정 — 드래프트는 오른쪽 위 버튼으로 입장
@@ -1264,6 +1264,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.130', '2026.10.27', ['아직 앱으로 설치하지 않았다면 오른쪽 위 알림 버튼 옆에 \'📲 앱 설치\' 버튼이 보여요. 안드로이드·PC 크롬은 바로 설치 창이 뜨고, 아이폰·삼성인터넷은 내 폰에 맞는 설치 방법 안내로 바로 연결돼요']],
   ['0.21.129', '2026.10.27', ['알림이 오면 홈 화면 앱 아이콘에 숫자가 떠요. 앱을 열어 알림을 읽으면 숫자가 줄어들고, 다 읽으면 사라져요 (아이폰은 iOS 16.4 이상 · 홈 화면에 추가 · 알림 허용 필요)']],
   ['0.21.128', '2026.10.27', ['표가 있는 화면에서 화면 스크롤과 표 스크롤이 겹치지 않게 고쳤어요. 출석 관리·회원 관리·신청접수처럼 표가 한 화면에 들어가는 화면은 화면은 고정되고 표 안에서만 스크롤돼요', '[운영진] 휴대폰 신청접수 화면을 더 간결하게 줄여 표와 버튼이 한 화면에 들어와요']],
   ['0.21.127', '2026.10.27', ['앱의 모든 표에서 제목 줄은 고정되고 아래 내용만 스크롤돼요 (회원·출석·신청 현황·운영비 정산·회비 관리·탈퇴/제명·기록 표 등)']],
@@ -2570,6 +2571,11 @@ function loginScreen() {
 }
 function logout() { setTimeout(() => { S.badgeN = null; syncBadge() }, 0); const pt = load('pushToken', null); if (pt) { S.store?.del('pushTokens/' + pt).catch(() => { }); save('pushToken', null) } S.auth = null; /* 이 기기의 알림 연결만 끊어요(다른 기기 설정은 그대로) */ saveAuth(null); S.me = ''; save('me', ''); toast('로그아웃했어요.'); render() }
 async function verifyAuth() { if (!S.auth) return; try { const a = await S.store.get('auth/' + S.auth.pid); if (!a || a.h !== S.auth.h || !S.players[S.auth.pid] || isGone(S.players[S.auth.pid])) { const g = isGone(S.players[S.auth.pid]); S.auth = null; saveAuth(null); toast(g ? '탈퇴·제명 처리되어 로그아웃됐어요.' : '다시 로그인해 주세요.'); render() } else { S.me = S.players[S.auth.pid].name; render() } } catch { } }
+// 앱 설치 버튼: 아직 홈 화면 앱으로 열지 않은 사람에게만 보여요
+const devOS = () => { const ua = navigator.userAgent; return /SamsungBrowser/i.test(ua) ? 'sam' : /Android/i.test(ua) ? 'chr' : /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) ? 'ios' : '' };
+function installable() { return !isStandalone() && !S.installed && (!!S.bip || !!devOS()) }
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.bip = e; try { render() } catch { } });
+addEventListener('appinstalled', () => { S.installed = true; S.bip = null; try { render() } catch { } });
 function myCar() { const pid = myPid(); return (pid && S.contacts?.[pid]?.car) || load('car', '') || '' }
 async function adminPinOk(pin) { const h = S.meta?.admin?.h; if (h) return (await sha('wd-admin:' + pin)) === h; return pin === String(CFG.adminPin ?? '0000') }
 function loginCard() {
@@ -3387,6 +3393,8 @@ document.addEventListener('click', async e => {
     case 'caladdon': { if (!needAdmin()) break; const d = new Date(id + 'T00:00'); S.cal = { mode: 'add', y: d.getFullYear(), m: d.getMonth(), sel: [id], f: { time: DEFAULTS.time, venue: DEFAULTS.venue, capacity: DEFAULTS.capacity || 18, openD: DEFAULTS.openDays, openT: DEFAULTS.openTime, closeD: DEFAULTS.closeDays, closeT: DEFAULTS.closeTime, no: nextNoFor(id) } }; S.sheet = { type: 'cal' }; render(); break }
     case 'fillnos': if (!needAdmin()) break; await fillNos(); break;
     case 'login': { S.tab = S.tab && !ADMIN_TABS.includes(S.tab) ? S.tab : 'mhome'; const pid = await loginFlow(document.getElementById('lg-name')?.value, document.getElementById('lg-pin')?.value, document.getElementById('lg-auto')?.checked); if (pid) { document.activeElement?.blur(); toast(`${pname(pid)} 님, 반가워요!`); render(); window.scrollTo(0, 0) } break }
+    case 'appinstall': { if (S.bip) { const ev = S.bip; S.bip = null; try { ev.prompt(); const r = await ev.userChoice; if (r?.outcome === 'accepted') { S.installed = true; toast('설치했어요. 홈 화면의 WDFS 아이콘으로 열어 주세요.') } } catch { } render(); break }
+      const os = devOS(); location.href = 'install.html' + (os ? '#' + os : ''); break }
     case 'logout': if (confirm('로그아웃할까요?')) logout(); break;
     case 'pinchange': { const pid = myPid(); if (!pid) break; const p1 = prompt('새 비밀번호 (숫자 4자리)'); if (p1 === null) break; if (!/^\d{4}$/.test(p1)) { toast('숫자 4자리로 입력해 주세요.'); break } const p2x = prompt('새 비밀번호를 한 번 더 입력하세요'); if (p2x !== p1) { toast('두 번 입력한 번호가 달라요.'); break }
       const h = await pinHash(pid, p1); if (await w(() => S.store.set('auth/' + pid, { h, at: Date.now() }), '비밀번호를 바꿨어요.')) { S.auth = { pid, h }; saveAuth(S.auth, !!load('auth', null)); render() } break }
