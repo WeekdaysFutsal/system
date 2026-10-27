@@ -778,7 +778,7 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.133"}
+:root{--cssv:"0.21.134"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
@@ -1163,3 +1163,7 @@ table.atbl th.seq,table.atbl td.seq{width:44px;text-align:center;font-family:var
 /* 0.21.133 휴대폰: 신청 개시·마감 아이콘을 칸 오른쪽 위 모서리에 작게 (오늘·선택 테두리와 겹쳐 잘리지 않게) */
 @media (max-width:480px){.scd.mk{position:relative;overflow:visible}.scd .amk{position:absolute;top:1px;right:1px;width:auto;margin:0;gap:0;z-index:2;pointer-events:none}.scd .amk i{font-size:10px;line-height:1;padding:0}}
 .scd.today .amk{box-shadow:none!important;padding:0!important;border-radius:0}
+/* 0.21.134 경기 기록 권한 요청 */
+.mm-reqbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:8px 0;padding:10px 12px;border-radius:12px;background:rgba(255,210,31,.14);border:1px solid rgba(255,210,31,.5);font-size:13.5px}
+.mm-reqbar .row{display:flex;gap:6px}
+.mm-reqglobal{max-width:1180px;margin:6px auto 0;padding:0 4px}.mm-reqglobal .mm-reqbar{margin:0;color:var(--ink)}

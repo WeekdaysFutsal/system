@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.133';
+const APP_VERSION = '0.21.134';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -766,7 +766,7 @@ window.addEventListener('pagehide', () => { if (S.presId) try { S.store.del('pre
 function fitPool() { const short = innerHeight < 760; const sr = document.querySelector('.dmroot .seatrow'); if (sr) { const hd = sr.querySelector('.seat .sv2'); if (hd) sr.style.setProperty('--seatmin', Math.ceil(hd.offsetHeight + (short ? 52 : 100)) + 'px') }
   const g = document.querySelector('.dmroot .felt .pool .namegrid'); if (g && g.children.length) { let fw = 52; g.style.setProperty('--pfw', fw + 'px'); while (fw > 34 && g.scrollHeight > g.clientHeight + 1) { fw -= 3; g.style.setProperty('--pfw', fw + 'px') } }
 }
-function render() { setTimeout(fitAp, 0); if (S.auth && !S.admin && S.players[S.auth.pid] && isGone(S.players[S.auth.pid])) { S.auth = null; saveAuth(null); setTimeout(() => toast('탈퇴·제명 처리되어 로그아웃됐어요.'), 0) }
+function render() { if (S.tab === 'mm' && !S.admin && S.ready >= 3 && !mmOpenNow()) { S.tab = 'mhome'; keepAwake(false) } setTimeout(fitAp, 0); if (S.auth && !S.admin && S.players[S.auth.pid] && isGone(S.players[S.auth.pid])) { S.auth = null; saveAuth(null); setTimeout(() => toast('탈퇴·제명 처리되어 로그아웃됐어요.'), 0) }
   if (isTyping()) { S.pending = true; return } S.pending = false; draftSnap();
   S.dm = !isDesk();
   if (S.ready >= 3 || S.err) hideBoot();
@@ -835,10 +835,10 @@ function appbar() {
   const s = S.sid ? S.sessions[S.sid] : null; const back = false;
   return `<header class="appbar"><div class="in">${back ? '<button class="back" data-act="home" aria-label="경기일 목록">‹</button>' : `<img src="${EMBLEM_SRC}" alt="홈으로" data-act="gohome" style="cursor:pointer">`}
   <div class="ttl" data-act="gohome" role="button" tabindex="0" aria-label="홈으로"><b>${esc(CFG.club?.name || 'WEEKDAYS FUTSAL CLUB')}</b><span></span></div>
-  ${!S.dm && !S.admin && S.auth ? `<button class="mmtop ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" aria-label="${S.tab === 'mm' ? '일반모드로 돌아가기' : '경기모드 열기'}"><span class="mmball">${XICO.mm}</span><b>${S.tab === 'mm' ? '일반모드' : '경기모드'}</b>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : ''}${!S.admin && installable() ? `<button class="instbtn" data-act="appinstall" aria-label="앱으로 설치" title="홈 화면에 앱으로 설치">📲<b>앱 설치</b></button>` : ''}${S.auth && !S.admin ? (() => { const n = (S.inbox || []).filter(x => !x.read).length; return `<button class="bell" data-act="inbox" aria-label="받은 알림${n ? ' ' + n + '개 안 읽음' : ''}">${XICO.bell}${n ? `<i>${n > 9 ? '9+' : n}</i>` : ''}</button>` })() : ''}${!S.admin && capSid() ? `<button class="capico" data-act="gocap" data-id="${capSid()}" aria-label="팀 드래프트 입장" title="팀 드래프트 입장">👑<b>드래프트</b></button>` : !S.admin && viewSid() && S.sessions[viewSid()]?.draftStatus !== 'done' ? `<button class="capico view" data-act="gocap" data-id="${viewSid()}" aria-label="드래프트 참관" title="드래프트 참관">👀<b>참관</b></button>` : ''}${S.admin ? `<span class="appver" title="현재 앱 버전">v${APP_VERSION}</span>` : ''}${canOp() ? `<button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">운영모드</button>` : ''}</div>${capStrip()}</header>`;
+  ${!S.dm && !S.admin && S.auth && mmOpenNow() ? `<button class="mmtop ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" aria-label="${S.tab === 'mm' ? '일반모드로 돌아가기' : '경기모드 열기'}"><span class="mmball">${XICO.mm}</span><b>${S.tab === 'mm' ? '일반모드' : '경기모드'}</b>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : ''}${!S.admin && installable() ? `<button class="instbtn" data-act="appinstall" aria-label="앱으로 설치" title="홈 화면에 앱으로 설치">📲<b>앱 설치</b></button>` : ''}${S.auth && !S.admin ? (() => { const n = (S.inbox || []).filter(x => !x.read).length; return `<button class="bell" data-act="inbox" aria-label="받은 알림${n ? ' ' + n + '개 안 읽음' : ''}">${XICO.bell}${n ? `<i>${n > 9 ? '9+' : n}</i>` : ''}</button>` })() : ''}${!S.admin && capSid() ? `<button class="capico" data-act="gocap" data-id="${capSid()}" aria-label="팀 드래프트 입장" title="팀 드래프트 입장">👑<b>드래프트</b></button>` : !S.admin && viewSid() && S.sessions[viewSid()]?.draftStatus !== 'done' ? `<button class="capico view" data-act="gocap" data-id="${viewSid()}" aria-label="드래프트 참관" title="드래프트 참관">👀<b>참관</b></button>` : ''}${S.admin ? `<span class="appver" title="현재 앱 버전">v${APP_VERSION}</span>` : ''}${canOp() ? `<button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">운영모드</button>` : ''}</div>${capStrip()}${mmReqGlobal()}</header>`;
 }
 function tabs() {
-  const t = S.admin ? [['manage', '일정'], ['run', '경기'], ['notice', '운영'], ['members', '회원'], ['settings', '설정']] : [['mhome', '홈'], ['sched', '일정'], ...(isDesk() ? [] : [['mm', '경기모드']]), ['results', '기록실'], ['settings', '내 정보']]; // 아래 메뉴는 항상 고정 — 드래프트는 오른쪽 위 버튼으로 입장
+  const t = S.admin ? [['manage', '일정'], ['run', '경기'], ['notice', '운영'], ['members', '회원'], ['settings', '설정']] : [['mhome', '홈'], ['sched', '일정'], ...(isDesk() || !mmOpenNow() ? [] : [['mm', '경기모드']]), ['results', '기록실'], ['settings', '내 정보']]; // 아래 메뉴는 항상 고정 — 드래프트는 오른쪽 위 버튼으로 입장
   return `<div class="tabs"><nav style="grid-template-columns:repeat(${t.length},1fr)">${t.map(([k, n]) => k === 'mm' ? `<button class="mmtab ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" ${S.tab === 'mm' ? 'aria-current="page"' : ''}><span class="mmball">${XICO.mm}</span><span>${S.tab === 'mm' ? '일반모드' : n}</span>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : `<button data-act="tab" data-v="${k}" ${S.tab === k ? 'aria-current="page"' : ''}>${XICO[S.admin && k === 'settings' ? 'gear' : TAB_ICO[k]] || ''}<span>${n}</span></button>`).join('')}</nav></div>` }
 const TAB_ICO = { mhome: 'home', sched: 'cal', results: 'chart', settings: 'user', draft: 'run', manage: 'cal', run: 'run', notice: 'mega', members: 'users' }; // 하단 메뉴 아이콘
 function liveAny() { return Object.values(S.matches).some(m => m.status === 'live' && m.timer?.running) }
@@ -1264,6 +1264,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.134', '2026.10.27', ['경기모드 버튼은 경기 시작 1시간 전에 나타나고, 경기가 끝나고 30분 뒤에 사라져요', '경기모드의 \'직접 설정\' 타이머는 없앴어요. 경기 운영자는 지금처럼 기록·관리를 모두 하고, 다른 회원은 Live로 경기 기록을 볼 수 있어요', '경기모드(일정 경기) 기록은 그 경기의 경기 운영자만 할 수 있어요. 다른 회원은 보기만 할 수 있고, 🙋 기록 권한 요청을 보내면 운영자 화면에 수락/거절이 떠요. 수락하면 기록 권한이 요청한 사람에게 넘어가요', '경기 운영자는 넘겨준 기록 권한을 언제든 다시 가져올 수 있어요. 경기 운영자를 정하지 않은 경기는 지금처럼 누구나 기록할 수 있어요']],
   ['0.21.133', '2026.10.27', ['휴대폰 일정 달력에서 신청 개시·마감 아이콘이 오늘 표시(노란 테두리)와 겹쳐 잘리던 문제를 고쳤어요. 아이콘은 날짜 칸 오른쪽 위에 작게 보여요']],
   ['0.21.132', '2026.10.27', ['일정 달력에 경기 신청 개시(📢)와 신청 마감(⏰) 날짜·시각이 표시돼요. 표시된 날을 누르면 해당 경기가 선택돼요']],
   ['0.21.131', '2026.10.27', ['앱 아이콘을 새로 만들었어요. 엠블럼에 형광 라임 링과 경기장 라인을 더한 디자인이에요 (이미 설치했다면 홈 화면 아이콘을 지우고 다시 추가하면 바뀌어요)']],
@@ -2741,7 +2742,8 @@ function planSide(id) {
 /* ───────── 경기모드 (match mode) ───────── */
 /* 일정 경기는 [시작 1시간 전 ~ 끝 예정 시각 + 1시간] 사이에만 고를 수 있어요 (연습 경기·진행 중인 경기는 예외) */
 function mmHasTeams(id) { const s = S.sessions[id]; return s && KEYS.every(k => teamPlayers(s, k).length) }
-function mmWindow(s) { const st = new Date(`${s.date}T${s.time || '21:00'}`).getTime(); const T = timing(s); const n = sessMatches(s.date).length || 9; const dur = n * (T.h1 + T.gk + T.h2 + (T.rest || 180)) * 1000; return { open: st - 3600e3, start: st, close: st + dur + 3600e3 } }
+function mmWindow(s) { const st = new Date(`${s.date}T${s.time || '21:00'}`).getTime(); const T = timing(s); const n = sessMatches(s.date).length || 9; const dur = n * (T.h1 + T.gk + T.h2 + (T.rest || 180)) * 1000; const ms = sessMatches(s.date); const done = ms.length && ms.every(m => m.status === 'done'); const endA = done ? Math.max(...ms.map(m => m.endedAt || 0)) : 0; const end = endA || st + dur; return { open: st - 3600e3, start: st, end, close: end + 1800e3 } } // 경기모드: 시작 1시간 전 ~ 경기 끝난 뒤 30분
+function mmOpenNow() { return Object.keys(S.sessions).some(id => !S.sessions[id].practice && mmHasTeams(id) && mmAvail(id) === 'ok') || liveAny() } // 경기모드 버튼: 시작 1시간 전 ~ 끝나고 30분 뒤
 function mmAvail(id) { const s = S.sessions[id]; if (!s) return 'none'; if (s.practice || sessMatches(id).some(m => m.status === 'live')) return 'ok'; const w0 = mmWindow(s), now = nowS(); return now < w0.open ? 'soon' : now > w0.close ? 'past' : 'ok' }
 function mmSid() {
   const ids = Object.keys(S.sessions).filter(mmHasTeams).sort(); if (!ids.length) return null;
@@ -2752,21 +2754,36 @@ function pairsOf(s) { return (s.mm?.pairs || []).map(p => Array.isArray(p) ? p :
 function mmReady(s) { return !!s.mm?.pairs && sessMatches(s.date).length === 9 }
 const CTL_STALE = 60000;
 function mmCtl(s) { const c = s?.mmCtl; const me = myUid(); if (!c || !c.uid) return { free: true }; return { mine: c.uid === me, stale: nowS() - (c.beat || 0) > CTL_STALE, name: c.name || '회원' } }
+// 경기 기록 권한: 일정 경기는 그 경기의 경기 운영자(또는 운영자가 넘겨준 사람)만 기록해요. 운영자를 정하지 않은 경기는 누구나 기록할 수 있어요.
+function mmAuthIds(s) { if (!s) return []; if (s.mmAuth && S.players[s.mmAuth]) return [s.mmAuth]; return (s.ops || []).filter(p => S.players[p]) }
+function mmCanRec(s) { if (S.admin) return true; const ids = mmAuthIds(s); if (!ids.length) return true; const me = myPid(); return !!me && ids.includes(me) }
+function mmIsOps(s) { const me = myPid(); return !!me && (s?.ops || []).includes(me) }
+function mmReqFor(s) { const r = s?.mmReq; return r && r.pid && !r.denied && S.players[r.pid] ? r : null }
+async function mmAskRec(sid) { const s = S.sessions[sid]; const me = myPid(); if (!s || !me) { toast('로그인한 회원만 요청할 수 있어요.'); return }
+  const r = { pid: me, name: pname(me), at: nowS() }; if (await w(() => S.store.update(sp(sid), { mmReq: r }), '기록 권한을 요청했어요. 담당자가 수락하면 바로 기록할 수 있어요.')) {
+    for (const to of mmAuthIds(s)) { try { await S.store.add(`inbox/${to}/items`, { kind: 'notice', title: '경기 기록 권한 요청', body: `${pname(me)} 님이 ${fmtDate(sid)} 경기 기록 권한을 요청했어요. 경기모드에서 수락하거나 거절해 주세요.`, at: nowS(), read: false }) } catch { } } } }
+async function mmAnswerRec(sid, ok) { const s = S.sessions[sid]; const r = mmReqFor(s); if (!r) return;
+  if (!ok) { await w(() => S.store.update(sp(sid), { mmReq: { ...r, denied: true } }), '요청을 거절했어요.'); return }
+  await w(() => S.store.update(sp(sid), { mmAuth: r.pid, mmReq: null, mmCtl: null }), `${r.name} 님에게 경기 기록 권한을 넘겼어요.`) }
+function mmReqBar(s) { const r = mmReqFor(s); if (!r || !mmCanRec(s) || !myPid() || r.pid === myPid()) return '';
+  return `<div class="mm-reqbar"><span>🙋 <b>${esc(r.name)}</b> 님이 경기 기록 권한을 요청했어요</span><div class="row"><button class="btn sm" data-act="mmrecno" data-id="${s.date}">거절</button><button class="btn sm primary" data-act="mmrecok" data-id="${s.date}">수락하고 넘기기</button></div></div>` }
+function mmReqGlobal() { if (S.tab === 'mm' || !myPid()) return ''; const t = today(); const hit = Object.values(S.sessions).find(x => x && x.date >= t && mmReqFor(x) && mmCanRec(x) && !S.admin && mmReqFor(x).pid !== myPid()); return hit ? `<div class="mm-reqglobal">${mmReqBar(hit)}</div>` : '' }
 function mmIsCtl() { const s = S.sessions[S.mmSid]; return !!(s && mmCtl(s).mine) }
-async function mmTake(sid, force) { const me = myUid(); let ok = false;
+async function mmTake(sid, force) { const me = myUid(); let ok = false; if (!mmCanRec(S.sessions[sid])) return false;
   await w(() => S.store.txn(sp(sid), d => { if (!d) return null; const c = d.mmCtl; if (c && c.uid && c.uid !== me && nowS() - (c.beat || 0) <= CTL_STALE && !force) return null; d.mmCtl = { uid: me, pid: myPid() || null, name: S.me || '회원', at: nowS(), beat: nowS() }; ok = true; return d }));
   if (ok) S.mmBeat = Date.now(); return ok }
 async function mmRelease(sid) { const me = myUid(); await w(() => S.store.txn(sp(sid), d => { if (!d || d.mmCtl?.uid !== me) return null; d.mmCtl = null; return d }), '진행을 내려놓았어요. 다른 사람이 진행할 수 있어요.') }
-function mmCtlBar(s) { const c = mmCtl(s);
+function mmCtlBar(s) { const c = mmCtl(s); const rq = mmReqBar(s);
+  if (!mmCanRec(s)) { const who = mmAuthIds(s).map(pname).join(', '); const r = s.mmReq; const mineReq = r && r.pid === myPid();
+    return `<div class="mm-cbar view"><span><b>👀 보기 전용 · 기록 담당 ${esc(who)}</b><small>${c.free ? '아직 기록을 시작하지 않았어요' : esc(c.name) + ' 님 기기에서 진행 중'} · ${mineReq ? (r.denied ? '요청이 거절됐어요' : '권한 요청을 보냈어요. 수락을 기다리는 중') : '기록하려면 담당자에게 권한을 요청하세요'}</small></span>${mmIsOps(s) ? `<button class="btn sm primary" data-act="mmreclaim">내가 다시 기록하기</button>` : myPid() ? `<button class="btn sm ${mineReq && !r.denied ? '' : 'primary'}" data-act="mmrecask" ${mineReq && !r.denied ? 'disabled' : ''}>${mineReq && !r.denied ? '요청 보냄' : mineReq ? '다시 요청' : '🙋 기록 권한 요청'}</button>` : ''}</div>` }
+  if (rq) return rq + mmCtlBar0(s, c) ; return mmCtlBar0(s, c) }
+function mmCtlBar0(s, c) {
   if (c.mine) return `<div class="mm-cbar me"><span><b>🎛 내가 경기를 진행 중</b><small>다른 회원은 보기만 할 수 있어요</small></span><button class="btn sm" data-act="mmrelease">진행 넘기기</button></div>`;
   if (c.free) return `<div class="mm-cbar free"><span><b>👀 보기 전용</b><small>아직 진행하는 사람이 없어요</small></span><button class="btn sm primary cta" data-act="mmtake">내가 진행하기</button></div>`;
   if (c.stale) return `<div class="mm-cbar warn"><span><b>⚠️ ${esc(c.name)} 님과 연결이 끊긴 것 같아요</b><small>1분 넘게 응답이 없어요</small></span><button class="btn sm primary cta" data-act="mmtake">진행 가져오기</button></div>`;
   return `<div class="mm-cbar view"><span><b>👀 ${esc(c.name)} 님이 진행 중</b><small>보기 전용 · 점수와 시간은 실시간으로 바뀌어요</small></span></div>` }
 function viewMatchMode() {
-  const sidX = mmSid(); if (S.mmManual === undefined) S.mmManual = !sidX && !!manLoad();
-  const sw = `<div class="seg mmseg" role="tablist"><button role="tab" data-act="mmmode" data-v="0" aria-selected="${!S.mmManual}">📅 일정 경기</button><button role="tab" data-act="mmmode" data-v="1" aria-selected="${!!S.mmManual}">✏️ 직접 설정</button></div>`;
-  if (S.mmManual) return `<div class="mm">${sw}${viewManual()}</div>`;
-  return viewMatchModeSched(sw);
+  S.mmManual = false; return viewMatchModeSched(''); // '직접 설정' 타이머는 없앴어요
 }
 function viewMatchModeSched(sw) {
   const all = Object.keys(S.sessions).filter(mmHasTeams).sort(); const sid = mmSid();
@@ -2777,7 +2794,7 @@ function viewMatchModeSched(sw) {
   S.mmSid = sid; const s = S.sessions[sid]; const ids = all;
   const head = sw + `<div class="mm-hd"><div><b>⚽ 경기모드${s.practice ? ' <span class="prac">연습</span>' : ''}</b><small>${esc(s.venue || '')}</small></div>${picker(sid)}</div>`;
   const ctl = mmCtl(s).mine; const cb = mmCtlBar(s);
-  if (!ctl && S.tab === 'mm' && mmCtl(s).free && !(S.mmTry ??= {})[sid]) { S.mmTry[sid] = 1; setTimeout(() => mmTake(sid), 50) }
+  if (!ctl && S.tab === 'mm' && mmCtl(s).free && mmCanRec(s) && (S.mmTry ??= {})[sid] !== (s.mmAuth || 'ops')) { S.mmTry[sid] = s.mmAuth || 'ops'; setTimeout(() => mmTake(sid), 50) }
   let stage = S.mmStage || (!mmReady(s) ? 'pair' : !s.mm?.timed ? 'time' : 'play'); if (!ctl && stage !== 'play') stage = mmReady(s) ? 'play' : 'wait';
   if (stage === 'wait') return `<div class="mm">${head}${cb}<div class="mm-card"><h3>대진 준비 중</h3><p class="mm-note">진행자가 대진과 경기 시간을 정하면 여기에 경기 화면이 나와요.</p></div></div>`;
   if (stage === 'pair') return `<div class="mm">${head}${cb}${mmPairView(s)}</div>`;
@@ -3247,7 +3264,7 @@ document.addEventListener('click', async e => {
   if (el.disabled) return; const act = el.dataset.act, id = el.dataset.id;
   if (LOCK_ACTS.has(act)) { const lsid = act === 'dbsave' ? id : S.sid; if (S.sessions[lsid]?.closed) { toast('정산이 끝나 기록이 잠긴 경기예요. 고치려면 운영비 정산에서 잠금을 풀어 주세요.'); return } } const s = cur(); const m = S.openMatch ? M(S.openMatch) : null;
   if (act && act.startsWith('man')) { await manAct(act, el); return }
-  if (act && act.startsWith('mm') && !['mmtoggle', 'mmtake', 'mmrelease', 'mmmode'].includes(act) && S.tab === 'mm' && !mmIsCtl()) { toast('보기 전용이에요. 진행자만 조작할 수 있어요.'); return }
+  if (act && act.startsWith('mm') && !['mmtoggle', 'mmtake', 'mmrelease', 'mmmode', 'mmrecask', 'mmrecok', 'mmrecno', 'mmreclaim', 'mmpick'].includes(act) && S.tab === 'mm' && !mmIsCtl()) { toast('보기 전용이에요. 진행자만 조작할 수 있어요.'); return }
   switch (act) {
     case 'tab': if (S.fs) fsExit(); S.tab = el.dataset.v; if (S.admin && S.tab === 'run') { const r = runSid(); if (r) { S.sid = r; S.step = null; watchChat() } } S.openMatch = null; S.sheet = null; S.sel = null; S.sub = null; S.detail = null; render(); window.scrollTo(0, 0); break;
     case 'home': S.sid = null; S.step = null; watchChat(); render(); break;
@@ -3323,6 +3340,10 @@ document.addEventListener('click', async e => {
       await w(() => S.store.update(sp(id), { [`dutyReq.${k}.${me}`]: on ? null : Date.now() }), on ? `${k === 'ball' ? '공당' : '물당'} 신청을 취소했어요.` : `${k === 'ball' ? '공당' : '물당'}을 신청했어요. 운영진이 확정해요.`); break }
     case 'dutyfill': { if (!needAdmin()) break; const ss = S.sessions[id]; const k = el.dataset.kind; const ps = participants(ss); const vol = ps.filter(p => ss.dutyReq?.[k]?.[p]);
       await w(() => S.store.update(sp(id), { [`duty.${k}`]: vol }), '신청자로 지정했어요.'); break }
+    case 'mmrecask': await mmAskRec(S.mmSid); break;
+    case 'mmrecok': await mmAnswerRec(id || S.mmSid, true); break;
+    case 'mmrecno': await mmAnswerRec(id || S.mmSid, false); break;
+    case 'mmreclaim': { const s = S.sessions[S.mmSid]; if (!mmIsOps(s) || !confirm('경기 운영자로서 기록 권한을 다시 가져올까요?')) break; await w(() => S.store.update(sp(S.mmSid), { mmAuth: myPid(), mmReq: null, mmCtl: null }), '기록 권한을 다시 가져왔어요.'); if (S.mmTry) S.mmTry[S.mmSid] = 0; break }
     case 'mmtake': { const s = S.sessions[S.mmSid]; const c = mmCtl(s); if (!c.free && !c.stale && !c.mine) break; if (!c.free && !confirm(`${c.name} 님 대신 경기 진행을 맡을까요?`)) break; if (await mmTake(S.mmSid, !c.free)) toast('이제 내가 경기를 진행해요.'); else toast('다른 사람이 먼저 진행을 맡았어요.'); break }
     case 'mmrelease': { const s = S.sessions[S.mmSid]; if (s && liveAny() && !confirm('경기가 진행 중이에요. 진행을 넘기면 휘슬은 새 진행자 폰에서 울려요. 넘길까요?')) break; await mmRelease(S.mmSid); if (S.mmTry) S.mmTry[S.mmSid] = 1; break }
     case 'mksim': if (!needAdmin()) break; await makeSim(el.dataset.k); break;
