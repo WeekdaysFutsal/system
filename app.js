@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.132';
+const APP_VERSION = '0.21.133';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1264,6 +1264,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.133', '2026.10.27', ['휴대폰 일정 달력에서 신청 개시·마감 아이콘이 오늘 표시(노란 테두리)와 겹쳐 잘리던 문제를 고쳤어요. 아이콘은 날짜 칸 오른쪽 위에 작게 보여요']],
   ['0.21.132', '2026.10.27', ['일정 달력에 경기 신청 개시(📢)와 신청 마감(⏰) 날짜·시각이 표시돼요. 표시된 날을 누르면 해당 경기가 선택돼요']],
   ['0.21.131', '2026.10.27', ['앱 아이콘을 새로 만들었어요. 엠블럼에 형광 라임 링과 경기장 라인을 더한 디자인이에요 (이미 설치했다면 홈 화면 아이콘을 지우고 다시 추가하면 바뀌어요)']],
   ['0.21.130', '2026.10.27', ['아직 앱으로 설치하지 않았다면 오른쪽 위 알림 버튼 옆에 \'📲 앱 설치\' 버튼이 보여요. 안드로이드·PC 크롬은 바로 설치 창이 뜨고, 아이폰·삼성인터넷은 내 폰에 맞는 설치 방법 안내로 바로 연결돼요']],
