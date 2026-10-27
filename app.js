@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.3.0';
+const APP_VERSION = '0.3.1';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1262,6 +1262,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.3.1', '2026.10.27', ['경기 신청 순번은 서버에 도착한 시각(마이크로초 단위)으로 정해요. 휴대폰 시계와 상관없고 조작할 수 없는 기준이에요', '오픈 시각보다 먼저 도착한 신청은 인정하지 않고, 앱이 자동으로 다시 보내 오픈 이후 시각으로 다시 찍어요', '신청 버튼을 누르면 화면을 다시 그리기 전에 저장 요청부터 보내요. 오픈 1분 30초 전에 서버 시계를 다시 맞춰 버튼이 정확한 시각에 열려요']],
   ['0.3.0', '2026.10.27', ['정식 배포 전 최종 점검 버전이에요', '경기 신청: 버튼에 손가락이 닿은 순간(서버 시계 기준)으로 순번을 정해요. 처음 신청은 서버 왕복을 한 번으로 줄여 더 빨리 저장돼요', '신청 오픈·마감 시각이 되는 순간 신청 버튼이 바로 열리고 닫혀요 (예전에는 최대 1초 늦을 수 있었어요)', '드래프트 상태 값이 비어 있는 경기에서 신청 취소가 막히던 문제를 고쳤어요', '없앤 \'직접 설정\' 타이머 코드와 쓰지 않는 기능을 정리해 앱이 더 가볍게 동작해요 (0.25초마다 돌던 점검도 없앴어요)', '10월 21일 예약자 자동 보정은 딱 한 번만 실행되고, 이후 운영진이 바꾼 값은 그대로 둬요', '[운영진] 업데이트 내용은 운영모드에서만 볼 수 있어요. 샘플 데이터 도구는 개발자에게만 보여요']],
   ['0.21.134', '2026.10.27', ['경기모드 버튼은 경기 시작 1시간 전에 나타나고, 경기가 끝나고 30분 뒤에 사라져요', '경기모드의 \'직접 설정\' 타이머는 없앴어요. 경기 운영자는 지금처럼 기록·관리를 모두 하고, 다른 회원은 Live로 경기 기록을 볼 수 있어요', '경기모드(일정 경기) 기록은 그 경기의 경기 운영자만 할 수 있어요. 다른 회원은 보기만 할 수 있고, 🙋 기록 권한 요청을 보내면 운영자 화면에 수락/거절이 떠요. 수락하면 기록 권한이 요청한 사람에게 넘어가요', '경기 운영자는 넘겨준 기록 권한을 언제든 다시 가져올 수 있어요. 경기 운영자를 정하지 않은 경기는 지금처럼 누구나 기록할 수 있어요']],
   ['0.21.133', '2026.10.27', ['휴대폰 일정 달력에서 신청 개시·마감 아이콘이 오늘 표시(노란 테두리)와 겹쳐 잘리던 문제를 고쳤어요. 아이콘은 날짜 칸 오른쪽 위에 작게 보여요']],
@@ -1522,7 +1523,10 @@ function fmtDT(str) { const d = dt(str); if (!d || isNaN(d)) return '-'; return 
 function dday(id) { const [y, m, d] = id.split('-'); const t = new Date(); const a = new Date(+y, +m - 1, +d), b = new Date(t.getFullYear(), t.getMonth(), t.getDate()); const n = Math.round((a - b) / 864e5); return n === 0 ? 'D-DAY' : n > 0 ? `D-${n}` : `D+${-n}` }
 // 신청 오픈·마감 시각에 맞춰 정확히 화면을 바꿔요(서버 시계 기준, 0.01초 단위로 다음 경계에 맞춰 예약)
 function scheduleFlip() { const now = nowS(); let nx = Infinity; for (const x of Object.values(S.sessions)) { if (!x || x.stage !== 'apply') continue; for (const v of [x.applyOpen, x.applyClose]) { if (!v) continue; const t = new Date(v).getTime(); if (t > now && t < nx) nx = t } }
-  if (nx === Infinity || nx - now > 6 * 3600e3) return; if (S.flipAt === nx && S.flipT) return; clearTimeout(S.flipT); S.flipAt = nx;
+  if (nx === Infinity || nx - now > 6 * 3600e3) return;
+  if (nx - now < 90e3 && Date.now() - (S.skewAt || 0) > 45e3 && !S.syncing) { S.syncing = true; syncClock().finally(() => { S.syncing = false }) } // 오픈 직전에 서버 시계를 다시 맞춰요
+  if (nx - now > 90e3) { clearTimeout(S.preSyncT); S.preSyncT = setTimeout(() => { try { render() } catch { } }, nx - now - 85e3) }
+  if (S.flipAt === nx && S.flipT) return; clearTimeout(S.flipT); S.flipAt = nx;
   S.flipT = setTimeout(function fire() { const d = S.flipAt - nowS(); if (d > 4) { S.flipT = setTimeout(fire, d); return } S.flipT = null; S.flipAt = 0; render() }, Math.max(0, nx - now)) }
 function sStatus(s) {
   const ms = sessMatches(s.date); const now = nowS();
@@ -2153,10 +2157,9 @@ async function clearSample() {
 /* ───────── applications (reserve first, name later; priority tiers) ───────── */
 const TIER = ['0순위', '1순위', '2순위', '3순위'];
 const tsMs = v => v == null ? null : typeof v === 'number' ? v : v.toMillis ? v.toMillis() : v.seconds ? v.seconds * 1000 + (v.nanoseconds || 0) / 1e6 : +v;
-// 신청 순서 시각: 버튼을 누른 순간(서버 시계로 맞춘 tap)을 써요. 서버 도착 시각(at)보다 늦거나 3초 넘게 이르면 믿지 않고 서버 도착 시각을 써요.
-function qTime(d) { const a = tsMs(d.at), t = +d.tap || 0; if (a != null && t && t <= a + 300 && a - t <= 3000) return t; return a ?? t ?? 0 }
+function qTime(d) { const a = tsMs(d.at); return a ?? (+d.tap || 0) } // 공식 순번 = 서버에 도착한 시각(마이크로초 단위, 조작 불가)
 function queueApps(s) { const q = S.q?.[s?.date]; if (!q) return []; const open = s.applyOpen ? new Date(s.applyOpen).getTime() : null, close = s.applyClose ? new Date(s.applyClose).getTime() : null;
-  return Object.entries(q).map(([id, d]) => ({ k: 'q' + id, q: id, pid: d.pid || null, uid: d.uid, at: qTime(d), srv: true })).filter(a => (!open || a.at >= open - 1500) && (!close || a.at <= close)) }
+  return Object.entries(q).map(([id, d]) => ({ k: 'q' + id, q: id, pid: d.pid || null, uid: d.uid, at: qTime(d), srv: true })).filter(a => (!open || a.at >= open) && (!close || a.at <= close)) }
 function ensureQueues() { if (!S.store) return; S.qUn ??= {}; S.q ??= {}; const want = new Set(Object.keys(S.sessions).filter(id => ['apply', 'captain'].includes(S.sessions[id].stage) && id >= today()));
   for (const id of Object.keys(S.qUn)) if (!want.has(id)) { try { S.qUn[id]() } catch { } delete S.qUn[id]; delete S.q[id] }
   for (const id of want) if (!S.qUn[id]) S.qUn[id] = S.store.watchCol(sp(id) + '/q', docs => { const o = {}; docs.forEach(d => { const { id: di, ...r } = d; o[di] = r }); S.q[id] = o; renderSoon() }, { est: true }, () => { }) }
@@ -2199,6 +2202,10 @@ function applyBox(s, compact) {
   const full = s.capacity && c.sel >= s.capacity;
   return `<button class="btn primary block applybtn cta" data-act="apply" data-id="${s.date}" ${S.applyBusy === s.date ? 'disabled aria-busy="true"' : ''}>${S.applyBusy === s.date ? '신청 저장 중…' : full ? `대기 신청하기 (대기 ${c.wait}명)` : '신청하기'}</button>${compact ? '' : `<p class="note" style="margin:0">버튼을 누르는 순간 신청 순번이 확보되고, 이름은 그다음에 입력해요.</p>`}`;
 }
+// 오픈 시각보다 먼저 서버에 도착한 신청(휴대폰 시계 보정 오차 등)은 무효라서, 바로 다시 보내 오픈 이후 시각으로 다시 찍어요.
+async function fixEarly(sid, qp, doc) { const open = S.sessions[sid]?.applyOpen ? new Date(S.sessions[sid].applyOpen).getTime() : 0; if (!open) return;
+  for (let i = 0; i < 4; i++) { let at = null; try { at = tsMs((await S.store.get(qp))?.at) } catch { return } if (at == null || at >= open) return;
+    await new Promise(r => setTimeout(r, Math.min(1500, open - at + 5))); try { await S.store.set(qp, { ...doc, at: S.store.stamp() }) } catch { return } } }
 async function doApply(sid, cancel) { const tap0 = S.applyTap && Date.now() - S.applyTap.local < 2000 ? S.applyTap.srv : nowS(); S.applyTap = null; // 손가락이 닿은 순간
   const s = S.sessions[sid]; if (!s) { toast('경기 정보를 찾지 못했어요. 화면을 새로고침해 주세요.'); return }
   if (cancel) { const mine = myApp(s); if (!mine) return; if (mine.auto) { toast('자동 신청은 운영진에게 말해 주세요.'); return } await cancelApp(sid, mine.pid, mine.k, false); return }
@@ -2206,7 +2213,9 @@ async function doApply(sid, cancel) { const tap0 = S.applyTap && Date.now() - S.
   const st = sStatus(s); if (st.k === 'soon') { toast(`아직 신청 시간이 아니에요. ${fmtDT(s.applyOpen)}에 열려요.`); return } if (st.k !== 'open' || s.stage !== 'apply') { toast('신청이 마감됐어요.'); return }
   if (myApp(s) && !myApp(s).auto) { toast('이미 신청돼 있어요.'); return }
   const uid = myUid(), pid = myPid(); const entry = { k: rand() + rand(), pid: pid || null, uid, at: tap0 };
-  S.applyBusy = sid; S.applyBusyAt = Date.now(); render();
+  S.applyBusy = sid; S.applyBusyAt = Date.now();
+  // 화면 다시 그리기는 저장 요청을 보낸 뒤로 미뤄요(그리는 시간 때문에 요청이 늦게 출발하지 않게). 버튼만 바로 '저장 중'으로 바꿔요.
+  document.querySelectorAll(`[data-act="apply"][data-id="${sid}"]`).forEach(b => { b.disabled = true; b.setAttribute('aria-busy', 'true'); b.textContent = '신청 저장 중…' }); setTimeout(render, 80);
   let ok = false, err = null, slow = false;
   try {
     if (S.store.stamp) {
@@ -2214,7 +2223,7 @@ async function doApply(sid, cancel) { const tap0 = S.applyTap && Date.now() - S.
       const qid = pid || uid; const qp = sp(sid) + '/q/' + qid; const doc = { pid: pid || null, uid, at: S.store.stamp(), tap: entry.at };
       // 처음 신청이면 왕복 1번(바로 쓰기)으로 저장해 지연을 줄여요. 이미 기록이 있을 수 있으면 트랜잭션으로 덮어쓰기를 막아요.
       const pr = S.q?.[sid] && !S.q[sid][qid] ? S.store.set(qp, doc) : S.store.txn(qp, d => d ? null : doc);
-      try { await withTimeout(pr, 9000); ok = true } catch (e) { if (String(e?.message) === 'aborted') { ok = true } else if (String(e?.code).includes('deadline')) { slow = true; pr.then(() => { toast('신청이 저장됐어요!'); render() }).catch(e2 => { if (String(e2?.message) !== 'aborted') toast(errMsg(e2).replace(/\.$/, '') + '. 신청이 저장되지 않았어요. 다시 눌러 주세요.') }) } else err = e }
+      try { await withTimeout(pr, 9000); ok = true; await fixEarly(sid, qp, doc) } catch (e) { if (String(e?.message) === 'aborted') { ok = true } else if (String(e?.code).includes('deadline')) { slow = true; pr.then(() => { toast('신청이 저장됐어요!'); render() }).catch(e2 => { if (String(e2?.message) !== 'aborted') toast(errMsg(e2).replace(/\.$/, '') + '. 신청이 저장되지 않았어요. 다시 눌러 주세요.') }) } else err = e }
     } else if (Array.isArray(s.apps)) {
       const pr = S.store.patch(sp(sid), { union: { apps: [entry] } });
       try { await withTimeout(pr, 9000); ok = true } catch (e) { if (String(e?.code).includes('deadline')) { slow = true; pr.then(() => { toast('신청이 저장됐어요!'); render() }).catch(e2 => toast(errMsg(e2).replace(/\.$/, '') + '. 신청이 저장되지 않았어요. 다시 눌러 주세요.')) } else err = e }
