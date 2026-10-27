@@ -1,7 +1,7 @@
 (function(){
 const DB={};const L=[];const now=Date.now();const p2=n=>String(n).padStart(2,'0');
 const ds=d=>`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
-const names=['김민준','이서준','박도윤','최예준','정시우','강하준','조주원','윤지호','장지후','임준서','한건우','오현우','서우진','신선우','권연우','황유준','안정우','송승우','류지환','홍민재'];
+const names=['김민준','이서준','박도윤','최예준','정시우','강하준','조주원','윤지호','장지후','임준서','한건우','오현우','서우진','신선우','권연우','황유준','안정우','송승우','류지환','홍민재','문태윤','배성민','남기현','구도현','백승훈','엄재원'];
 const players={};names.forEach((n,i)=>players['p'+i]={name:n,status:i<3?'staff':i<5?'special':i>17?'guest':'active',createdAt:now-1e9+i});
 const put=(c,id,d)=>{(DB[c]??={})[id]=d};
 Object.entries(players).forEach(([k,v])=>put('players',k,v));
@@ -21,6 +21,11 @@ for(let w=1;w<=6;w++){const d=new Date(nx);d.setDate(nx.getDate()-7*w-7);const i
  const op2=new Date();op2.setDate(op2.getDate()-3);const cl2=new Date(Date.now()-3600e3);
  put('sessions',sd,{date:sd,time:p2(k.getHours())+':'+p2(k.getMinutes()),end:'23:00',venue:'용산 아이파크몰 The Base 7구장',no:43,capacity:18,stage:'captain',draftStatus:'ready',applyOpen:ds(op2)+'T12:00',applyClose:ds(cl2)+'T'+p2(cl2.getHours())+':00',
   applicants:ap2,waitlist:[],apps:ap2.map((p,i)=>({k:'s'+i,pid:p,uid:'su'+i,at:now-86400e3+i*60e3})),p0:['p0'],ops:['p1'],captains:{A:null,B:null,C:null},captainTokens:{A:null,B:null,C:null},order:['A','B','C'],picks:[],teams:{A:{players:[]},B:{players:[]},C:{players:[]}},duty:{ball:[],drink:[]},nTeams:2,timing:{h1:300,gk:60,h2:300,rest:120}})}
+
+// ── 4팀 시뮬레이션용 경기: 다음 경기 이틀 뒤 · 신청 23명 · 도우미 지정 단계
+{const d4=new Date(nx);d4.setDate(nx.getDate()+2);const s4=ds(d4);const ap4=Object.keys(players).filter(k=>k!=='p1').slice(0,23);const o4=new Date();o4.setDate(o4.getDate()-2);const c4=new Date(Date.now()-3600e3);
+ put('sessions',s4,{date:s4,time:'19:00',end:'22:00',venue:'용산 아이파크몰 The Base 7구장',no:44,capacity:24,stage:'captain',draftStatus:'ready',applyOpen:ds(o4)+'T12:00',applyClose:ds(c4)+'T'+p2(c4.getHours())+':00',
+  applicants:ap4,waitlist:[],apps:ap4.map((p,i)=>({k:'f'+i,pid:p,uid:'fu'+i,at:now-86400e3+i*60e3})),p0:['p0'],ops:['p1'],captains:{},captainTokens:{},order:['A','B','C','D'],picks:[],teams:{A:{players:[]},B:{players:[]},C:{players:[]},D:{players:[]}},duty:{ball:[],drink:[]},nTeams:4,timing:{h1:300,gk:60,h2:300,rest:120}})}
 put('meta','config',{});
 window.__docs=DB;window.__sid=sid;
 const notify=c=>L.filter(l=>l.c===c).forEach(l=>l.fire());
