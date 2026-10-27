@@ -778,7 +778,7 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.127"}
+:root{--cssv:"0.21.128"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
@@ -1120,3 +1120,32 @@ table.atbl th.seq,table.atbl td.seq{width:44px;text-align:center;font-family:var
 .sheetwrap table thead th.stick,.tblwrap table thead th.stick{left:0;z-index:4}
 .sheetwrap table tbody td.stick{z-index:2}
 .stl-tw table tfoot td{position:sticky;bottom:0;z-index:2;background:var(--surface);box-shadow:0 -1px 0 var(--line)}
+/* 0.21.128 휴대폰 신청접수 압축: 표가 한 화면에 들어오게 */
+@media (max-width:899px){
+  .apinfo.ro.five{display:flex!important;flex-wrap:wrap;gap:0;padding:4px 6px}
+  .apinfo.ro.five .field{flex:1 1 auto;border:0!important;padding:5px 8px;gap:0}
+  .apinfo.ro.five .field span{font-size:10.5px}
+  .apinfo.ro.five .field b{font-size:13px}
+  .aph{margin:10px 0 6px}.aph .aph-note{display:none}
+  .dsum{padding:2px 12px}.dsum .dsum-row{padding:5px 0;grid-template-columns:52px minmax(0,1fr) auto}
+  .dsum .dsum-row>span:nth-child(3){grid-column:2;grid-row:2;font-size:12px}
+  .dsum .dsum-row .btn.sm{height:30px;min-height:0;padding:0 10px;font-size:12px}
+  .aptools .btn,.aptools .btn.sm{height:34px;min-height:0}
+  .abar .aflow{margin-top:2px!important}
+}
+@media (max-width:899px){
+  .apinfo.ro.five{flex-wrap:nowrap!important;overflow-x:auto;scrollbar-width:none;padding:2px 4px}
+  .apinfo.ro.five .field{flex:0 0 auto;padding:6px 10px}
+  .dsum{display:grid;grid-template-columns:1fr 1fr;column-gap:10px}
+  .dsum .dsum-row{grid-template-columns:auto minmax(0,1fr);gap:4px 6px;font-size:12.5px}
+  .dsum .dsum-row>span:nth-child(3){display:none}
+  .dsum .dsum-row .btn.sm{grid-column:1/-1;width:100%}
+  .dsum .dsum-row.stale{grid-column:1/-1}
+  .apnotes{display:none}
+}
+@media (max-width:899px){.dsum .dsum-row>b{grid-row:1;grid-column:1}.dsum .dsum-row>span:nth-child(2){grid-row:1;grid-column:2}.dsum .dsum-row>.btn{grid-row:2;grid-column:1/-1}}
+/* 표가 화면보다 길면 화면 스크롤 하나만: 제목 줄은 고정 메뉴 아래에 붙어요 */
+.sheetwrap,.tblwrap,.stl-tw{max-height:none}
+.sheetwrap table thead th,.tblwrap table thead th,.stl-tw table thead th{top:var(--sth,0px)}
+.stl-tw table tfoot td{bottom:var(--sfb,0px)}
+.sheetwrap.memwrap{max-height:none;min-height:0}

@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.127';
+const APP_VERSION = '0.21.128';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1264,6 +1264,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.128', '2026.10.27', ['표가 있는 화면에서 화면 스크롤과 표 스크롤이 겹치지 않게 고쳤어요. 출석 관리·회원 관리·신청접수처럼 표가 한 화면에 들어가는 화면은 화면은 고정되고 표 안에서만 스크롤돼요', '[운영진] 휴대폰 신청접수 화면을 더 간결하게 줄여 표와 버튼이 한 화면에 들어와요']],
   ['0.21.127', '2026.10.27', ['앱의 모든 표에서 제목 줄은 고정되고 아래 내용만 스크롤돼요 (회원·출석·신청 현황·운영비 정산·회비 관리·탈퇴/제명·기록 표 등)']],
   ['0.21.126', '2026.10.27', ['[운영진] 신청접수 화면을 간결하게 바꿨어요. 신청 조건(정원·오픈·마감·순위 규칙·구장 예약자)은 한 줄, 공당·물당도 한 줄로 보여요', '[운영진] 신청자 표는 제목 줄이 고정되고 목록만 스크롤돼요. 신청자 추가 · 신청 마감 · 확정하고 주장 정하기 버튼이 한 줄로 표 바로 아래에 있어 스크롤 없이 보여요', '[운영진] 경기 운영자는 \'도우미 지정\' 단계에서 정해요', '화면 곳곳의 빈 여백을 줄여 불필요한 스크롤을 줄였어요']],
   ['0.21.125', '2026.10.27', ['[운영진] 운영모드 신청접수 표 아래에도 신청했다가 취소한 사람 목록이 취소 시각과 함께 보여요']],
@@ -2353,13 +2354,19 @@ const TIER_DESC = ['구장 예약자·경기 운영자급, 정원과 상관없�
 function tierSheet(sh) { const ss = S.sessions[sh.sid]; const r = ss && classify(ss).rows.find(x => x.k === sh.k); if (!r) return '<h4>순위 변경</h4><p>신청자를 찾지 못했어요. 이미 삭제됐을 수 있어요.</p>';
   return `<h4>순위 변경 · ${r.pid ? esc(pname(r.pid)) : '이름 입력 대기'}</h4><p>지금 ${TIER[r.tier]}${r.tierOv ? ' (직접 지정)' : ''} · 자동 계산이면 ${TIER[r.tier0]}예요. 바꾸면 선발·대기가 바로 다시 계산돼요.</p><div class="tierpick">${[0, 1, 2, 3].map(t => `<button class="btn${r.tier === t ? ' primary' : ''}" data-act="tierpick" data-v="${t}"><b class="t${t}">${TIER[t]}</b><small>${TIER_DESC[t]}</small></button>`).join('')}</div>${r.tierOv ? '<div class="row" style="margin-top:12px"><button class="btn block" data-act="tierpick" data-v="auto">↺ 자동 계산으로 되돌리기</button></div>' : ''}` }
 // 신청접수 표: 아래 버튼 줄까지 한 화면에 보이도록 표 높이를 맞춰요(제목 줄은 고정)
-function stickyTopH() { let h = 0; document.querySelectorAll('.appbar, .tabs, .abar, .subnav').forEach(e => { const cs = getComputedStyle(e); if (cs.position !== 'sticky' && cs.position !== 'fixed') return; const r = e.getBoundingClientRect(); if (r.top < innerHeight / 2 && r.height < innerHeight / 3) h = Math.max(h, parseFloat(cs.top || 0) + r.height + (e.classList.contains('abar') ? (parseFloat(getComputedStyle(document.querySelector('.appbar') || e).height) || 0) : 0)) }); return h }
-function fitTables() { const nav = innerWidth < 900 ? (document.querySelector('.tabs')?.offsetHeight || 64) : 0; const top = stickyTopH();
-  document.querySelectorAll('.sheetwrap:not(.apscroll):not(.memwrap), .tblwrap, .stl-tw').forEach(w => { w.style.maxHeight = Math.max(240, Math.floor(innerHeight - top - nav - 20)) + 'px' }) }
-function fitAp() { fitTables(); const nav = innerWidth < 900 ? (document.querySelector('.tabs')?.offsetHeight || 64) : 0; const padB = innerWidth < 900 ? 10 : 36;
-  [['.apscroll', ['.apbar', '.apnotes']], ['.memwrap', ['.memwrap ~ .note']]].forEach(([sel, below]) => { const w = document.querySelector(sel); if (!w) return; const top = w.getBoundingClientRect().top + scrollY;
-    const bh = below.reduce((a, q) => { const e = document.querySelector(q); if (!e) return a; const cs = getComputedStyle(e); return a + e.offsetHeight + parseFloat(cs.marginTop || 0) + parseFloat(cs.marginBottom || 0) }, 0);
-    w.style.maxHeight = Math.max(innerWidth < 900 ? 300 : 240, Math.floor(innerHeight - top - bh - nav - padB - 2)) + 'px' }) }
+function stickyTopH() { let h = 0; document.querySelectorAll('.appbar, .tabs, .abar, .subnav').forEach(e => { const cs = getComputedStyle(e); if (cs.position !== 'sticky' && cs.position !== 'fixed') return; const r = e.getBoundingClientRect(); if (r.top < innerHeight / 2 && r.height < innerHeight / 3) h = Math.max(h, parseFloat(cs.top || 0) + r.height) }); return h }
+// 표 높이 맞추기: 표와 그 아래 내용이 한 화면에 들어가면 화면은 고정하고 표 안에서만 스크롤.
+// 안 들어가면 표 안 스크롤을 없애고(이중 스크롤 방지) 화면 스크롤만 쓰며, 제목 줄은 위쪽 고정 메뉴 바로 아래에 붙어요.
+function fitOne(w, minH, top0, nav) { const de = document.documentElement; w.style.maxHeight = 'none'; w.style.overflow = ''; w.style.removeProperty('--sth'); w.style.removeProperty('--sfb');
+  const top = w.getBoundingClientRect().top + scrollY; const below = de.scrollHeight - (top + w.offsetHeight); const fit = Math.floor(innerHeight - top - below - 2);
+  if (w.scrollHeight <= fit) return; // 표가 짧으면 그대로
+  if (fit >= minH) { w.style.maxHeight = fit + 'px'; return }
+  const t = w.querySelector('table'); if (t && t.scrollWidth <= w.clientWidth + 1) { w.style.overflow = 'visible'; w.style.setProperty('--sth', top0 + 'px'); w.style.setProperty('--sfb', nav + 'px') } }
+function fitTables() { const nav = innerWidth < 900 ? (document.querySelector('.tabs')?.offsetHeight || 64) : 0; const top0 = stickyTopH();
+  const ws = [...document.querySelectorAll('.sheetwrap:not(.apscroll):not(.memwrap), .tblwrap, .stl-tw')]; ws.forEach(w => { w.style.maxHeight = 'none' });
+  ws.forEach(w => fitOne(w, ws.length === 1 ? 220 : 1e9, top0, nav)) }
+function fitAp() { fitTables(); const nav = innerWidth < 900 ? (document.querySelector('.tabs')?.offsetHeight || 64) : 0; const top0 = stickyTopH();
+  ['.apscroll', '.memwrap'].forEach(sel => { const w = document.querySelector(sel); if (w) fitOne(w, innerWidth < 900 ? 200 : 220, top0, nav) }) }
 addEventListener('resize', () => { clearTimeout(S.fitT); S.fitT = setTimeout(fitAp, 120) });
 function vApplyTable(s) {
   const ad = S.admin; const c = classify(s); const frozen = s.stage !== 'apply'; const closed = applyClosed(s); const late = lateSet(s); const prevAny = prevAnyId(s);
