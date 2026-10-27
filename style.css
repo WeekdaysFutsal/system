@@ -778,7 +778,7 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.122"}
+:root{--cssv:"0.21.123"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
@@ -1039,3 +1039,9 @@ table.atbl th.seq,table.atbl td.seq{width:44px;text-align:center;font-family:var
 .nmcell .cell.w-name{min-width:96px}
 @media (min-width:900px) and (max-width:1180px){.nmcell .cell.w-name{min-width:56px}}
 @media (min-width:900px) and (max-width:1180px){.misswarn{width:22px;height:22px;font-size:13px;line-height:22px}}
+/* 0.21.123 회원 표 제목 줄 고정 */
+.sheetwrap.memwrap{overflow:auto;max-height:calc(100vh - 290px);max-height:calc(100dvh - 290px);min-height:260px;overscroll-behavior:contain}
+.memwrap .grid thead th{position:sticky;top:0;z-index:3;background:var(--surface);box-shadow:0 1px 0 var(--line)}
+.memwrap .grid thead th.stick{left:0;z-index:4}
+.memwrap .grid tbody td.stick{z-index:2}
+@media (max-width:899px){.sheetwrap.memwrap{max-height:calc(100vh - 410px);max-height:calc(100dvh - 410px)}}
