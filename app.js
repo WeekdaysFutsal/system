@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.120';
+const APP_VERSION = '0.21.121';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1261,6 +1261,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.121', '2026.10.27', ['[운영진] PC에서 회원 관리 표의 메모·연락처 칸 폭을 줄여 옆으로 밀지 않아도 한 화면에 보이게 했어요 (메모에 마우스를 올리면 전체 내용이 보여요)']],
   ['0.21.120', '2026.10.27', ['[운영진] 회원 메뉴에 \'탈퇴·제명\' 관리를 추가했어요. 처리일과 사유를 기록하고, 정회원으로 되돌릴 수도 있어요', '탈퇴·제명 처리된 회원은 로그인할 수 없어요. 신청·명단에서도 빠지지만 회원 정보와 지난 경기 기록은 그대로 남아요', '[운영진] 정회원이 10회 연속 불참하면 회원 관리 표에서 줄이 주황색으로 표시되고, \'10회 연속 불참\' 버튼으로 모아 볼 수 있어요']],
   ['0.21.119', '2026.10.26', ['[운영진] 카톡 투표 명단 반영: 이름 앞의 \'F.M.\' 머리말을 떼고 읽고, \'창민\'처럼 이름만 쓴 경우도 성까지 맞는 회원을 찾아줘요. HY·jb 같은 영어 별명도 목록에 나와요', '[운영진] 별명을 회원과 한 번 짝지어 반영하면 기억해 두었다가 다음부터 자동으로 맞춰요', '[운영진] \'도형\'과 \'이도형\'처럼 비슷한 이름이 함께 있을 때 정확한 이름이 빠지던 문제를 고쳤어요', '[운영진] 10월 29일 경기는 카톡 투표 순서가 미리 채워져 있어요']],
   ['0.21.118', '2026.10.26', ['[운영진] 회비 관리의 입력 버튼 이름을 \'− 지출\', \'+ 매입\'으로 짧게 바꿨어요']],
@@ -3082,7 +3083,7 @@ function viewMembers0() {
     <td>${S.authMap?.[r.id] ? `<span class="muted" style="font-size:12px">등록됨</span> <button class="btn sm" data-act="pinreset" data-id="${r.id}">초기화</button>` : '<span class="muted" style="font-size:12px">미등록</span>'}</td>
     <td><input class="cell w-num" type="text" inputmode="numeric" maxlength="8" value="${esc(S.contacts?.[r.id]?.birth || '')}" placeholder="-" data-in="mcell" data-id="${r.id}" data-f="birth" style="width:84px"></td>
     <td><div class="telcell"><input class="cell w-tel" type="tel" value="${esc(r.phone)}" placeholder="010-0000-0000" data-in="mcell" data-id="${r.id}" data-f="phone">${r.phone ? `<a class="tel" href="tel:${esc(r.phone.replace(/[^0-9+]/g, ''))}" aria-label="${esc(r.name)}에게 전화">📞</a>` : ''}</div></td>
-    <td><input class="cell w-memo" type="text" value="${esc(r.memo)}" placeholder="메모" data-in="mcell" data-id="${r.id}" data-f="memo"></td>
+    <td><input class="cell w-memo" type="text" value="${esc(r.memo)}" title="${esc(r.memo)}" placeholder="메모" data-in="mcell" data-id="${r.id}" data-f="memo"></td>
     <td class="num"><button class="attcell" data-act="attp" data-id="${r.id}"><b>${r.att}</b>회</button></td><td class="num"><div class="att-rate sm"><div class="att-bar"><i style="width:${r.attr}%"></i></div><span>${r.attr}%</span></div></td><td class="num">${r.attLast ? r.attLast.slice(5).replace('-', '.') : '-'}${(MS[r.id] || 0) >= MISS_N ? `<span class="missb">${MS[r.id]}회 연속 불참</span>` : ''}</td>
     <td class="acts"><button class="btn sm danger" data-act="mdel" data-id="${r.id}">삭제</button></td></tr>`).join('')}</tbody></table></div>
   <p class="note">칸을 눌러 바로 고치면 저장돼요. 회원 유형: 운영진(운영모드) · 특별회원(운영모드) · 정회원 · 장불회원(쉬는 회원, 신청·명단에서 빠져요) · 게스트. 장불회원으로 바꿔도 지난 기록은 그대로 남아요. 탈퇴·제명은 위 '탈퇴·제명' 메뉴에서 관리해요. 정회원이 ${MISS_N}회 연속 불참하면 줄이 주황색으로 표시돼요. 연락처와 메모는 운영모드에서만 보여요.</p>`;

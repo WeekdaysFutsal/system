@@ -778,7 +778,7 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.120"}
+:root{--cssv:"0.21.121"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
@@ -1023,3 +1023,8 @@ table.atbl th.seq,table.atbl td.seq{width:44px;text-align:center;font-family:var
 .out-tag.left{background:rgba(149,161,178,.2);color:var(--muted)}.out-tag.expelled{background:rgba(228,103,92,.2);color:#FF8A8A}
 .out-tbl td{color:var(--muted)}.out-tbl td b{color:var(--ink)}
 .cell.w-st.st-left,.cell.w-st.st-expelled{color:#FF8A8A}
+/* 0.21.121 회원 표 폭 줄이기 (PC) */
+.grid .cell.w-memo{min-width:0;width:100px}
+@media (min-width:900px){.grid .cell.w-tel{min-width:0;width:124px}.grid td{padding:4px 5px}.grid th{padding:10px 6px}}
+@media (min-width:900px) and (max-width:1180px){.grid .cell.w-memo{width:64px}.grid .cell.w-tel{width:108px}.grid{font-size:13px}.grid td{padding:4px 3px}.grid th{padding:10px 4px}.grid .att-rate.sm .att-bar{width:36px}}
+@media (min-width:900px) and (max-width:1180px){.grid .att-rate.sm .att-bar{min-width:28px}.grid .cell.w-name{min-width:80px}.grid .cell.w-st{min-width:0}}
