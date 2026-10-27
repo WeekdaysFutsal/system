@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.125';
+const APP_VERSION = '0.21.126';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -766,7 +766,7 @@ window.addEventListener('pagehide', () => { if (S.presId) try { S.store.del('pre
 function fitPool() { const short = innerHeight < 760; const sr = document.querySelector('.dmroot .seatrow'); if (sr) { const hd = sr.querySelector('.seat .sv2'); if (hd) sr.style.setProperty('--seatmin', Math.ceil(hd.offsetHeight + (short ? 52 : 100)) + 'px') }
   const g = document.querySelector('.dmroot .felt .pool .namegrid'); if (g && g.children.length) { let fw = 52; g.style.setProperty('--pfw', fw + 'px'); while (fw > 34 && g.scrollHeight > g.clientHeight + 1) { fw -= 3; g.style.setProperty('--pfw', fw + 'px') } }
 }
-function render() { if (S.auth && !S.admin && S.players[S.auth.pid] && isGone(S.players[S.auth.pid])) { S.auth = null; saveAuth(null); setTimeout(() => toast('탈퇴·제명 처리되어 로그아웃됐어요.'), 0) }
+function render() { setTimeout(fitAp, 0); if (S.auth && !S.admin && S.players[S.auth.pid] && isGone(S.players[S.auth.pid])) { S.auth = null; saveAuth(null); setTimeout(() => toast('탈퇴·제명 처리되어 로그아웃됐어요.'), 0) }
   if (isTyping()) { S.pending = true; return } S.pending = false; draftSnap();
   S.dm = !isDesk();
   if (S.ready >= 3 || S.err) hideBoot();
@@ -858,30 +858,33 @@ function vMemberNotice(s) {
 
 function vApply(s) {
   const ad = S.admin; const ids = s.applicants || [];
-  let h = `<h2>신청 조건<small>수정은 일정 메뉴에서</small></h2><div class="panel apinfo ro">${[['정원', s.capacity ? s.capacity + '명' : '-'], ['신청 오픈', s.applyOpen ? fmtDT(s.applyOpen) : '-'], ['신청 마감', s.applyClose ? fmtDT(s.applyClose) : '-'], ['순위 규칙', isBase(s) ? 'The Base 0~3순위' : '선착순'], ['구장 예약자', idsToNames(s.p0) || '-'], ['경기 운영자', idsToNames(s.ops) || '-']].map(([k, v]) => `<div class="field"><span>${k}</span><b>${esc(v)}</b></div>`).join('')}${ad ? `<div class="apstaff"><button class="btn sm" data-act="staffedit" data-id="${s.date}">✏️ 구장 예약자 · 경기 운영자 변경</button><small>경기가 끝난 뒤에도 바꿀 수 있어요. 운영비 정산에 바로 반영돼요.</small></div>` : ''}</div>`;
+  let h = `<div class="panel apinfo ro five" title="신청 조건 · 정원·오픈·마감은 일정 메뉴에서 고쳐요">${[['정원', s.capacity ? s.capacity + '명' : '-'], ['신청 오픈', s.applyOpen ? fmtDT(s.applyOpen) : '-'], ['신청 마감', s.applyClose ? fmtDT(s.applyClose) : '-'], ['순위 규칙', isBase(s) ? 'The Base 0~3순위' : '선착순'], ['구장 예약자', idsToNames(s.p0) || '-']].map(([k, v]) => `<div class="field"><span>${k}</span><b>${esc(v)}${k === '구장 예약자' && ad ? `<button class="btn sm apedit" data-act="staffedit" data-id="${s.date}" data-v="p0" title="구장 예약자 변경 (경기가 끝난 뒤에도 바꿀 수 있어요)">✏️ 변경</button>` : ''}</b></div>`).join('')}</div>`;
   const ast = sStatus(s); const cc = appCounts(s);
-  h += `<h2>신청자<small>신청 ${cc.sel + cc.wait}${s.capacity ? ' / ' + s.capacity : ''}명${cc.wait ? `, 대기 ${cc.wait}명` : ''}</small><span class="st st-${ast.k}">${ast.label}</span></h2>
-  <p class="note" style="margin:-4px 2px 10px">${ast.k === 'open' ? `회원들이 앱에서 직접 신청하는 중이에요. ${s.applyClose ? fmtDT(s.applyClose) + '에 자동 마감돼요.' : ''}` : ast.k === 'soon' ? `${fmtDT(s.applyOpen)}에 앱 신청이 열려요.` : '앱 신청이 마감됐어요.'}</p>`;
-  h += vApplyTable(s);
-  if (ad && s.stage === 'apply') h += `<div class="panel pad" style="display:flex;gap:8px;margin-top:10px"><input class="inp" type="text" placeholder="한 명씩 추가 (게스트는 이름(게))" data-in="addone" id="addone"><button class="btn" data-act="addone">추가</button></div>`;
+  h += `<h2 class="aph">신청자<small>신청 ${cc.sel + cc.wait}${s.capacity ? ' / ' + s.capacity : ''}명${cc.wait ? `, 대기 ${cc.wait}명` : ''}</small><span class="st st-${ast.k}">${ast.label}</span><small class="aph-note">${ast.k === 'open' ? `회원들이 앱에서 직접 신청하는 중이에요. ${s.applyClose ? fmtDT(s.applyClose) + '에 자동 마감돼요.' : ''}` : ast.k === 'soon' ? `${fmtDT(s.applyOpen)}에 앱 신청이 열려요.` : '앱 신청이 마감됐어요.'}</small></h2>`;
+  const tb0 = vApplyTable(s); const ni = tb0.indexOf('<div class="apnotes">'); const tbl = ni < 0 ? tb0 : tb0.slice(0, ni), notes = ni < 0 ? '' : tb0.slice(ni);
+  h += tbl;
+  if (ad && s.stage === 'apply') { const okN = cc.sel >= 3;
+    h += `<div class="apbar"><div class="apadd"><input class="inp" type="text" placeholder="한 명씩 추가 (게스트는 이름(게))" data-in="addone" id="addone"><button class="btn" data-act="addone">추가</button></div>${ast.k === 'open' ? '<button class="btn" data-act="closenow">지금 신청 마감하기</button>' : ''}<button class="btn primary" data-act="gostage" data-v="captain" ${okN ? '' : 'disabled'}>신청 확정하고 주장 정하기</button></div>` }
   if (ad && S.rejNames?.length && ['apply', 'captain'].includes(s.stage)) h += `<div class="panel pad rejbox"><span>명단에 없는 이름: <b>${S.rejNames.map(esc).join(', ')}</b></span><div class="row"><button class="btn sm primary" data-act="rejguest">게스트로 추가</button><button class="btn sm" data-act="rejclose">닫기</button></div></div>`;
-  if (ad && ast.k === 'open') h += `<div class="row" style="margin-top:10px"><button class="btn" data-act="closenow">지금 신청 마감하기</button></div>`;
+  if (ad && ast.k === 'open' && s.stage !== 'apply') h += `<div class="row" style="margin-top:10px"><button class="btn" data-act="closenow">지금 신청 마감하기</button></div>`;
   if (s.stage !== 'apply' && ids.length % 3 && ids.length) h += `<p class="note">${ids.length}명은 3팀으로 딱 나눠지지 않아서 ${[0, 1, 2].map(i => Math.floor(ids.length / 3) + (i < ids.length % 3 ? 1 : 0)).join('·')}명으로 나뉘어요.</p>`;
-  if (ad) h += `<div style="height:14px"></div><button class="btn primary block" data-act="gostage" data-v="captain" ${(s.stage === 'apply' ? cc.sel : ids.length) < 3 ? 'disabled' : ''}>${s.stage === 'apply' ? '신청 확정하고 주장 정하기' : '다음: 주장 정하기'}</button>`;
+  if (ad && s.stage !== 'apply') h += `<div style="height:14px"></div><button class="btn primary block" data-act="gostage" data-v="captain" ${ids.length < 3 ? 'disabled' : ''}>다음: 주장 정하기</button>`;
+  h += notes;
   if (ad && s.stage !== 'apply') h += resetBar(s);
   return h;
 }
 function vCaptain(s) {
   const ad = S.admin && s.draftStatus === 'ready' && !s.ladder; const sid = s.date; const closed = applyClosed(s);
-  let h = `<div class="helpers"><div class="hp-intro"><b>경기 도우미 지정</b><span>주장 3명과 주차 · 공당 · 물당을 이 화면에서 한 번에 정해요.</span></div>`;
+  let h = `<div class="helpers"><div class="hp-intro"><b>경기 도우미 지정</b><span>경기 운영자, 주장 3명과 주차 · 공당 · 물당을 이 화면에서 한 번에 정해요.</span></div>`;
+  h += `<section class="hp-sec hp-ops"><div class="hp-hd"><b>🧑‍💼 경기 운영자</b><small>따로 신청하지 않아도 0순위로 자동 신청되고, 운영비 정산에서 0원이에요</small></div><div class="hp-opsrow"><span class="${(s.ops || []).length ? '' : 'muted'}">${idsToNames(s.ops) || '아직 지정하지 않았어요'}</span>${S.admin ? `<button class="btn sm" data-act="staffedit" data-id="${sid}" data-v="ops">${(s.ops || []).length ? '✏️ 변경' : '＋ 지정'}</button>` : ''}</div></section>`;
   // 주장 (가로 3칸)
-  h += `<section class="hp-sec"><div class="hp-hd"><b>👑 주장</b><small>${KEYS.filter(k => s.captains?.[k]).length}/3명 · 카드를 눌러서 정해요</small></div><div class="capgrid">${KEYS.map(k => { const c = s.captains?.[k];
+  h += `<section class="hp-sec hp-cap"><div class="hp-hd"><b>👑 주장</b><small>${KEYS.filter(k => s.captains?.[k]).length}/3명 · 카드를 눌러서 정해요</small></div><div class="capgrid">${KEYS.map(k => { const c = s.captains?.[k];
     return `<button class="capcard ${c ? 'on' : ''}" data-act="capslot" data-k="${k}" ${ad ? '' : 'disabled'}><span class="cc-tag" style="background:${NEUTRAL[k]};color:${inkOn(NEUTRAL[k])}">${k}팀</span><b class="cc-name">${c ? esc(pname(c)) : '＋ 주장 선택'}</b>${ad && c ? '<small class="cc-edit">눌러서 변경</small>' : ''}</button>` }).join('')}</div>
     ${S.admin && s.draftStatus === 'ready' ? `<button class="btn primary block cta hp-open" data-act="openroom" ${KEYS.some(k => !s.captains?.[k]) ? 'disabled' : ''}>${KEYS.some(k => !s.captains?.[k]) ? '주장 3명을 정하면 드래프트 방을 열 수 있어요' : '🎯 드래프트 방 열기'}</button>` : ''}</section>`;
   if (S.admin) {
     // 주차
     const pa = parkApps(s), win = s.parkWin || [];
-    h += `<section class="hp-sec"><div class="hp-hd"><b>🚗 주차</b><small>신청 ${pa.length}명 · ${PARK_SLOTS}자리</small></div><div class="hp-card">
+    h += `<section class="hp-sec hp-park"><div class="hp-hd"><b>🚗 주차</b><small>신청 ${pa.length}명 · ${PARK_SLOTS}자리</small></div><div class="hp-card">
       <div class="hp-list">${win.length ? win.map(id => { const a = (s.park || {})[id] || {}; return `<span class="hp-pill win"><b>${esc(pname(id))}</b>${a.car ? `<small>${esc(a.car)}</small>` : ''}</span>` }).join('') : `<span class="hp-empty">${pa.length ? '아직 당첨자가 없어요' : '주차 신청자가 없어요'}</span>`}</div>
       <div class="hp-btns">${closed && pa.length ? `<button class="btn primary" data-act="parkdraw" data-id="${sid}">🎲 ${win.length ? '다시 추첨' : '추첨하기'}</button>` : ''}<button class="btn" data-act="parkedit" data-id="${sid}">명단 · 직접 지정</button></div>
       ${closed ? '' : '<p class="hp-note">신청이 마감되면 추첨할 수 있어요.</p>'}</div></section>`;
@@ -1230,9 +1233,9 @@ function viewSheet() {
   else if (sh.type === 'rosters') { const s = S.sessions[sh.sid]; h += s ? `<h4>팀 명단 · ${fmtDate(s.date)}</h4>${rosterGrid(s)}` : '' }
   else if (sh.type === 'changelog') h += `<h4>업데이트 내용</h4>${sh.fresh ? `<p class="cl-new">🎉 ${APP_VERSION} 버전으로 업데이트됐어요</p>` : ''}<div class="cl">${CHANGELOG.map(([v, d, items], i) => `<section class="${i === 0 ? 'cur' : ''}"><div class="cl-hd"><b>${v}</b><small>${d}</small>${v === APP_VERSION ? '<em>현재</em>' : ''}</div><ul>${items.map(t => `<li>${esc(t)}</li>`).join('')}</ul></section>`).join('')}</div>`;
   else if (sh.type === 'staffedit') { const ss = S.sessions[sh.sid];
-    h += `<h4>${fmtDate(sh.sid)} 예약자 · 운영자</h4><p>구장 예약자는 직접 참가 신청을 하면 0순위가 돼요(신청하지 않으면 명단에 나오지 않아요). 경기 운영자는 따로 신청하지 않아도 0순위로 자동 신청돼요. 여러 명은 쉼표로 구분해요.</p><div class="panel">
-      <div class="field"><label>구장 예약자<input id="se-res" class="inp" type="text" list="mem-list2" value="${esc(idsToNames(ss.p0))}"></label></div>
-      <div class="field"><label>경기 운영자<input id="se-ops" class="inp" type="text" list="mem-list2" value="${esc(idsToNames(ss.ops))}"></label></div>
+    h += `<h4>${fmtDate(sh.sid)} ${sh.only === 'p0' ? '구장 예약자' : sh.only === 'ops' ? '경기 운영자' : '예약자 · 운영자'}</h4><p>구장 예약자는 직접 참가 신청을 하면 0순위가 돼요(신청하지 않으면 명단에 나오지 않아요). 경기 운영자는 따로 신청하지 않아도 0순위로 자동 신청돼요. 여러 명은 쉼표로 구분해요.</p><div class="panel">
+       <div class="field" ${sh.only === 'ops' ? 'hidden' : ''}><label>구장 예약자<input id="se-res" class="inp" type="text" list="mem-list2" value="${esc(idsToNames(ss.p0))}"></label></div>
+       <div class="field" ${sh.only === 'p0' ? 'hidden' : ''}><label>경기 운영자<input id="se-ops" class="inp" type="text" list="mem-list2" value="${esc(idsToNames(ss.ops))}"></label></div>
       <datalist id="mem-list2">${memberNames().map(n => `<option value="${esc(n)}">`).join('')}</datalist></div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="staffsave">저장</button></div>` }
   else if (sh.type === 'appname') { const names = memberNames();
     h += `<h4>신청 순번 확보 완료! 🎉</h4><p>이름과 비밀번호 4자리로 로그인하면 신청이 확정돼요. 팀 명단에 쓰이는 이름 그대로 적어 주세요.</p><div class="panel">${myPid() ? `<div class="field"><span>이름</span><b>${esc(pname(myPid()))}</b></div>` : loginFields('an', S.me)}${parkFields(S.sessions[sh.sid], myPid())}</div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="appnamego">${myPid() ? '신청 확정' : '로그인하고 신청 확정'}</button></div><p class="note">지금 닫아도 순번은 유지돼요. 나중에 홈의 "이름 입력하기"로 입력할 수 있어요.</p>` }
@@ -1261,6 +1264,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.126', '2026.10.27', ['[운영진] 신청접수 화면을 간결하게 바꿨어요. 신청 조건(정원·오픈·마감·순위 규칙·구장 예약자)은 한 줄, 공당·물당도 한 줄로 보여요', '[운영진] 신청자 표는 제목 줄이 고정되고 목록만 스크롤돼요. 신청자 추가 · 신청 마감 · 확정하고 주장 정하기 버튼이 한 줄로 표 바로 아래에 있어 스크롤 없이 보여요', '[운영진] 경기 운영자는 \'도우미 지정\' 단계에서 정해요', '화면 곳곳의 빈 여백을 줄여 불필요한 스크롤을 줄였어요']],
   ['0.21.125', '2026.10.27', ['[운영진] 운영모드 신청접수 표 아래에도 신청했다가 취소한 사람 목록이 취소 시각과 함께 보여요']],
   ['0.21.124', '2026.10.27', ['[운영진] 연속 불참 ⚠️ 아이콘의 동그란 배경을 없애고, 이름 바로 오른쪽에 붙어 보이게 했어요']],
   ['0.21.123', '2026.10.27', ['[운영진] 회원 관리 표에서 제목 줄은 고정되고 아래 회원 목록만 스크롤돼요']],
@@ -2347,6 +2351,12 @@ async function cancelApp(sid, pid, key, byAdmin, force) {
 const TIER_DESC = ['구장 예약자·경기 운영자급, 정원과 상관없이 선발', '직전 경기 미참여자', '그 외 선착순', '직전 경기 마감 후 취소자'];
 function tierSheet(sh) { const ss = S.sessions[sh.sid]; const r = ss && classify(ss).rows.find(x => x.k === sh.k); if (!r) return '<h4>순위 변경</h4><p>신청자를 찾지 못했어요. 이미 삭제됐을 수 있어요.</p>';
   return `<h4>순위 변경 · ${r.pid ? esc(pname(r.pid)) : '이름 입력 대기'}</h4><p>지금 ${TIER[r.tier]}${r.tierOv ? ' (직접 지정)' : ''} · 자동 계산이면 ${TIER[r.tier0]}예요. 바꾸면 선발·대기가 바로 다시 계산돼요.</p><div class="tierpick">${[0, 1, 2, 3].map(t => `<button class="btn${r.tier === t ? ' primary' : ''}" data-act="tierpick" data-v="${t}"><b class="t${t}">${TIER[t]}</b><small>${TIER_DESC[t]}</small></button>`).join('')}</div>${r.tierOv ? '<div class="row" style="margin-top:12px"><button class="btn block" data-act="tierpick" data-v="auto">↺ 자동 계산으로 되돌리기</button></div>' : ''}` }
+// 신청접수 표: 아래 버튼 줄까지 한 화면에 보이도록 표 높이를 맞춰요(제목 줄은 고정)
+function fitAp() { const nav = innerWidth < 900 ? (document.querySelector('.tabs')?.offsetHeight || 64) : 0; const padB = innerWidth < 900 ? 10 : 36;
+  [['.apscroll', ['.apbar', '.apnotes']], ['.memwrap', ['.memwrap ~ .note']]].forEach(([sel, below]) => { const w = document.querySelector(sel); if (!w) return; const top = w.getBoundingClientRect().top + scrollY;
+    const bh = below.reduce((a, q) => { const e = document.querySelector(q); if (!e) return a; const cs = getComputedStyle(e); return a + e.offsetHeight + parseFloat(cs.marginTop || 0) + parseFloat(cs.marginBottom || 0) }, 0);
+    w.style.maxHeight = Math.max(innerWidth < 900 ? 300 : 240, Math.floor(innerHeight - top - bh - nav - padB - 2)) + 'px' }) }
+addEventListener('resize', () => { clearTimeout(S.fitT); S.fitT = setTimeout(fitAp, 120) });
 function vApplyTable(s) {
   const ad = S.admin; const c = classify(s); const frozen = s.stage !== 'apply'; const closed = applyClosed(s); const late = lateSet(s); const prevAny = prevAnyId(s);
   let rows = [...c.sel, ...c.wait];
@@ -2362,7 +2372,7 @@ function vApplyTable(s) {
   const dsum = `<div class="panel dsum">${dline('ball', '⚽', '공당')}${dline('drink', '🥤', '물당')}${stale.length ? `<div class="dsum-row stale"><b>⚠️ 정리</b><span>신청자가 아닌 ${stale.map(p => esc(pname(p))).join(', ')} 님의 주차·공당·물당 기록이 남아 있어요.</span><span></span><button class="btn sm danger" data-act="stalefix">정리하기</button></div>` : ''}</div>`;
   const betaNote = ad && !frozen && betaOn() ? `<div class="betatools"><button class="btn sm primary" data-act="kakaopaste">📷 카톡 투표 명단 반영</button>${Array.isArray(s.appOrder) && s.appOrder.length ? '<button class="btn sm" data-act="orderreset">↺ 실제 신청 순서로 되돌리기</button>' : ''}</div><p class="note betanote">🧪 베타테스트 기간이라 신청 순번을 바꿀 수 있어요. ▲▼로 한 칸씩, #으로 원하는 자리로 옮겨요. 0~3순위 규칙은 그대로라 같은 순위 안에서만 옮겨져요. (설정에서 정식 오픈하면 잠겨요)</p>` : '';
   const vtog = ad && !frozen ? `<div class="vtog" role="group" aria-label="정렬"><button class="btn sm${byTime ? '' : ' primary'}" data-act="aview" data-v="rank">순위순</button><button class="btn sm${byTime ? ' primary' : ''}" data-act="aview" data-v="time">신청순</button><small>${byTime ? `신청이 들어온 순서대로 보여요. 상태 칸에서 선발·대기를 확인하세요.${betaOn() ? ' (▲▼ 순번 변경은 순위순에서 할 수 있어요)' : ''}` : '순위(0~3순위)에 따라 선발 → 대기 순으로 보여요.'}</small></div>` : '';
-  const h = dsum + betaNote + vtog + `<div class="panel sheetwrap"><table class="grid atbl"><thead><tr><th class="seq">No.</th><th>신청순</th><th class="stick">이름</th><th>순위</th><th>구분</th><th>신청 시각</th>${mvOn ? '<th>순번 변경</th>' : ''}<th>주차</th><th>공당</th><th>물당</th><th>상태</th><th>마감 후 취소</th>${ad ? '<th>관리</th>' : ''}</tr></thead><tbody>
+  const h = dsum + (betaNote || vtog ? `<div class="aptools">${betaNote}${vtog}</div>` : '') + `<div class="panel sheetwrap apscroll"><table class="grid atbl"><thead><tr><th class="seq">No.</th><th>신청순</th><th class="stick">이름</th><th>순위</th><th>구분</th><th>신청 시각</th>${mvOn ? '<th>순번 변경</th>' : ''}<th>주차</th><th>공당</th><th>물당</th><th>상태</th><th>마감 후 취소</th>${ad ? '<th>관리</th>' : ''}</tr></thead><tbody>
   ${rows.length ? rows.map((r, i) => { const pk = r.pid && s.park?.[r.pid]?.car;
     return `<tr class="${r.sel ? '' : 'wrow'}"><td class="num seq">${i + 1}</td><td class="num">${r.auto ? '자동' : r.n}</td><td class="stick"><b>${r.pid ? esc(pname(r.pid)) : '<i class="nn">이름 입력 대기</i>'}</b>${(() => { const [k, t] = appSrc(s, r); return k === 'auto' ? '' : `<span class="src src-${k}">${t}</span>` })()}</td><td>${tcell(r)}</td>
       <td class="muted">${r.auto ? roleOf(s, r.pid) + ' (자동)' : r.pid ? (roleOf(s, r.pid) || (late.has(r.pid) ? '지난 경기 마감 후 취소' : '')) : ''}</td>
@@ -2372,9 +2382,8 @@ function vApplyTable(s) {
       <td class="num"><input type="checkbox" class="staffck" ${ad && closed && r.pid && !r.auto ? `data-in="latetoggle" data-id="${r.pid}"` : 'disabled'} aria-label="마감 후 취소"></td>
       ${ad ? `<td class="acts">${r.pid && !r.auto ? `<button class="btn sm" data-act="p0toggle" data-id="${r.pid}">${(s.p0 || []).includes(r.pid) ? '예약자 해제' : '예약자'}</button>` : ''}${r.auto ? `<button class="btn sm" data-act="staffedit" data-id="${s.date}">변경</button>` : ''}${!r.pid ? `<button class="btn sm" data-act="appnameadmin" data-id="${r.k}">이름</button>` : ''}${closed && r.pid && !r.auto ? `<button class="btn sm danger" data-act="latecancel" data-id="${r.pid}">${r.sel ? '마감 후 취소' : '대기 취소'}</button>` : ''}${canRm && !r.auto ? `<button class="btn sm danger" data-act="apprm" data-id="${r.k}" data-pid="${r.pid || ''}" aria-label="삭제" title="신청 삭제 (3순위 기록 없음)">삭제</button>` : ''}</td>` : ''}</tr>` }).join('') : `<tr><td colspan="${11 + (mvOn ? 1 : 0) + (ad ? 1 : 0)}" class="empty">아직 신청자가 없어요.</td></tr>`}${Object.entries(s.late || {}).filter(([, v]) => v).map(([pid, t]) => `<tr class="lrow"><td class="num seq"></td><td class="num">-</td><td class="stick"><b>${esc(pname(pid))}</b></td><td></td><td class="muted">신청 마감 후 취소</td><td class="num muted">${fmtTS(t)}</td>${mvOn ? '<td></td>' : ''}<td></td><td></td><td></td><td><b class="t3">취소</b></td><td class="num"><input type="checkbox" class="staffck" checked ${ad ? `data-in="lateuntoggle" data-id="${pid}"` : 'disabled'} aria-label="마감 후 취소 해제"></td>${ad ? '<td></td>' : ''}</tr>`).join('')}${(() => { const inL = new Set(rows.map(r => r.pid).filter(Boolean)); const cc = Object.entries(s.cancels || {}).filter(([p0, v]) => v && S.players[p0] && !inL.has(p0) && !s.late?.[p0]).sort((x, y) => x[1] - y[1]); const cols = 11 + (mvOn ? 1 : 0) + (ad ? 1 : 0);
     return cc.length ? `<tr class="offhd"><td colspan="${cols}">취소 ${cc.length}명 <small>신청했다가 마감 전에 취소한 사람이에요</small></td></tr>` + cc.map(([pid, t]) => `<tr class="offrow"><td class="num seq"></td><td class="num">-</td><td class="stick">${esc(pname(pid))}</td><td></td><td class="muted">취소</td><td class="num muted">${fmtTS(t)}</td>${mvOn ? '<td></td>' : ''}<td></td><td></td><td></td><td><b class="muted">취소</b></td><td></td>${ad ? '<td></td>' : ''}</tr>`).join('') : '' })()}</tbody></table></div>`;
-  return h
-    + (ad && (canTier || canRm) ? `<p class="note">🛠 운영진: ${canTier ? '순위 칸을 누르면 0~3순위를 직접 바꿀 수 있어요(✎ 표시는 직접 바꾼 순위). ' : ''}${canRm ? '“삭제”는 마감 후 취소(3순위) 기록 없이 명단에서 지워요. 다음 경기 3순위로 남기려면 “마감 후 취소”를 쓰세요.' : ''}</p>` : '')
-    + `<p class="note">신청 ${c.sel.length + c.wait.length}${s.capacity ? ' / ' + s.capacity : ''}명 (선발 ${c.sel.length}명, 대기 ${c.wait.length}명). ${c.base ? '' : '<b>The Base 구장이 아니라서 순위 없이 신청 순서대로(선착순) 선발해요.</b>'}</p><details class="rules-d"><summary>순위 규칙 보기</summary><p>0순위 구장 예약자·경기 운영자(정원 무관) → 1순위 직전 경기 미참여 → 2순위 선착순 → 3순위 직전 경기(${prevAny ? fmtDate(prevAny) : '없음'}) 신청 마감 후 취소자. 같은 순위 안에서는 신청 순서대로예요. (The Base 구장에만 적용)</p></details>`;
+  const tip = ad && (canTier || canRm) ? `<p>🛠 운영진: ${canTier ? '순위 칸을 누르면 0~3순위를 직접 바꿀 수 있어요(✎ 표시는 직접 바꾼 순위). ' : ''}${canRm ? '“삭제”는 마감 후 취소(3순위) 기록 없이 명단에서 지워요. 다음 경기 3순위로 남기려면 “마감 후 취소”를 쓰세요.' : ''}</p>` : '';
+  return h + `<div class="apnotes"><details class="rules-d"><summary>신청 ${c.sel.length + c.wait.length}${s.capacity ? ' / ' + s.capacity : ''}명 (선발 ${c.sel.length}명, 대기 ${c.wait.length}명)${c.base ? '' : ' · <b>선착순 구장</b>'} · 순위 규칙·운영 도움말 보기</summary>${c.base ? '' : '<p><b>The Base 구장이 아니라서 순위 없이 신청 순서대로(선착순) 선발해요.</b></p>'}<p>0순위 구장 예약자·경기 운영자(정원 무관) → 1순위 직전 경기 미참여 → 2순위 선착순 → 3순위 직전 경기(${prevAny ? fmtDate(prevAny) : '없음'}) 신청 마감 후 취소자. 같은 순위 안에서는 신청 순서대로예요. (The Base 구장에만 적용)</p>${tip}</details></div>`;
 }
 
 /* ───────── monthly schedule poster ───────── */
@@ -2667,7 +2676,7 @@ function viewNoticeMenu() {
 /* ───────── admin: 일정 (calendar + list) ───────── */
 function viewPlan() {
   const mv = S.mview || 'cal';
-  let h = subnav([['cal', '달력'], ['list', '목록']], mv, 'mview') + `<div class="subact"><button class="btn sm" data-act="fillnos">회차 자동 채우기</button><button class="btn primary sm" data-act="caladd">＋ 경기 추가</button></div>`;
+  let h = subnav([['cal', '달력'], ['list', '목록']], mv, 'mview') + `<div class="subact up"><button class="btn sm" data-act="fillnos">회차 자동 채우기</button><button class="btn primary sm" data-act="caladd">＋ 경기 추가</button></div>`;
   if (mv === 'list') return h + viewManageList();
   const all = Object.keys(S.sessions).sort(); const nx = nextSid();
   if (!S.planSel) S.planSel = (S.sid && S.sessions[S.sid]) ? S.sid : nx || all[all.length - 1] || today();
@@ -3091,7 +3100,7 @@ function viewMembers0() {
     <td><input class="cell w-memo" type="text" value="${esc(r.memo)}" title="${esc(r.memo)}" placeholder="메모" data-in="mcell" data-id="${r.id}" data-f="memo"></td>
     <td class="num"><button class="attcell" data-act="attp" data-id="${r.id}"><b>${r.att}</b>회</button></td><td class="num"><div class="att-rate sm"><div class="att-bar"><i style="width:${r.attr}%"></i></div><span>${r.attr}%</span></div></td><td class="num">${r.attLast ? r.attLast.slice(5).replace('-', '.') : '-'}</td>
     <td class="acts"><button class="btn sm danger" data-act="mdel" data-id="${r.id}">삭제</button></td></tr>`).join('')}</tbody></table></div>
-  <p class="note">칸을 눌러 바로 고치면 저장돼요. 회원 유형: 운영진(운영모드) · 특별회원(운영모드) · 정회원 · 장불회원(쉬는 회원, 신청·명단에서 빠져요) · 게스트. 장불회원으로 바꿔도 지난 기록은 그대로 남아요. 탈퇴·제명은 위 '탈퇴·제명' 메뉴에서 관리해요. 정회원이 ${MISS_N}회 연속 불참하면 줄이 주황색이 되고 이름 옆에 ⚠️가 떠요. ⚠️를 누르거나 마우스를 올리면 몇 회 연속 불참인지 보여요. 연락처와 메모는 운영모드에서만 보여요.</p>`;
+  <details class="rules-d note mhelp"><summary>표 사용법 · 회원 유형 도움말</summary><p>칸을 눌러 바로 고치면 저장돼요. 회원 유형: 운영진(운영모드) · 특별회원(운영모드) · 정회원 · 장불회원(쉬는 회원, 신청·명단에서 빠져요) · 게스트. 장불회원으로 바꿔도 지난 기록은 그대로 남아요. 탈퇴·제명은 위 '탈퇴·제명' 메뉴에서 관리해요. 정회원이 ${MISS_N}회 연속 불참하면 줄이 주황색이 되고 이름 옆에 ⚠️가 떠요. ⚠️를 누르거나 마우스를 올리면 몇 회 연속 불참인지 보여요. 연락처와 메모는 운영모드에서만 보여요.</p></details>`;
   return h;
 }
 function parseMemberLines(txt) {
@@ -3386,7 +3395,7 @@ document.addEventListener('click', async e => {
     case 'parkapply': S.sheet = { type: 'parkapply', sid: id }; render(); break;
     case 'parksave': { const sid = S.sheet.sid; const me = myPid(); if (!me) { toast('먼저 이름을 입력해 주세요.'); break } if (await saveParking(sid, me, document.getElementById('pk-car2').value)) { S.sheet = null; render() } break }
     case 'parkcancel': { const me = myPid(); if (!me || !confirm('주차 신청을 취소할까요?')) break; await w(() => S.store.update(sp(id), { [`park.${me}`]: null }), '주차 신청을 취소했어요.'); break }
-    case 'staffedit': if (!needAdmin()) break; S.sheet = { type: 'staffedit', sid: id }; render(); break;
+    case 'staffedit': if (!needAdmin()) break; S.sheet = { type: 'staffedit', sid: id, only: el.dataset.v || null }; render(); break;
     case 'staffsave': { const sid = S.sheet.sid; const res = await namesToIds(document.getElementById('se-res').value), ops = await namesToIds(document.getElementById('se-ops').value);
       if (await w(() => S.store.update(sp(sid), { p0: res, ops }), '저장했어요.')) { S.sheet = null; render() } break }
     case 'appname': { const ss = S.sessions[id]; const a = ss && myApp(ss); if (a) { S.sheet = { type: 'appname', sid: id, key: a.k }; render() } break }

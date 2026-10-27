@@ -778,7 +778,7 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.125"}
+:root{--cssv:"0.21.126"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
@@ -1055,3 +1055,61 @@ table.atbl th.seq,table.atbl td.seq{width:44px;text-align:center;font-family:var
 .atbl tr.offhd td small{font-weight:500;margin-left:6px}
 .atbl tr.offrow td{color:var(--muted);opacity:.85}
 .atbl tr.offrow td.stick{text-decoration:line-through;text-decoration-color:rgba(149,161,178,.6)}
+/* 0.21.126 신청접수 화면 압축 */
+.aph{margin:14px 0 8px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.aph .aph-note{font-size:12px;color:var(--muted);font-weight:500;margin-left:2px}
+.apinfo.ro.five{grid-template-columns:repeat(2,minmax(0,1fr))}
+.apinfo.ro.five .field{padding:8px 12px}
+.apinfo.ro.five .field b{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.apinfo .apedit{padding:2px 8px;font-size:11.5px;min-height:0;height:24px}
+@media (min-width:900px){
+  .apinfo.ro.five{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .apinfo.ro.five .field{border-bottom:0;border-right:1px solid var(--line)}
+  .apinfo.ro.five .field:last-child{border-right:0}
+  .dsum{display:grid;grid-template-columns:1fr 1fr;column-gap:22px;padding:2px 14px}
+  .dsum .dsum-row{grid-template-columns:58px minmax(0,auto) minmax(0,1fr) auto;border-bottom:0;padding:7px 0}
+  .dsum .dsum-row>span:nth-child(3){grid-column:auto;grid-row:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dsum .dsum-row+.dsum-row{border-left:1px solid var(--line2);padding-left:18px}
+  .dsum .dsum-row.stale{grid-column:1/-1;border-left:0}
+}
+.aptools{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:0 0 8px}
+.aptools .betatools,.aptools .vtog{margin:0}
+.aptools .betanote{order:3;margin:0;padding:0;background:none;font-size:11.5px;flex:1 1 100%}
+@media (min-width:900px){.aptools .betanote{flex:1 1 0;min-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.aptools .betanote:hover{white-space:normal}}
+.sheetwrap.apscroll{overflow:auto;overscroll-behavior:contain}
+.apscroll .atbl thead th{position:sticky;top:0;z-index:3;background:var(--surface);box-shadow:0 1px 0 var(--line)}
+.apscroll .atbl thead th.stick{left:0;z-index:4}
+.apscroll .atbl tbody td.stick{z-index:2}
+.apbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.apbar .apadd{display:flex;gap:6px;flex:1 1 320px}.apbar .apadd .inp{flex:1}
+.apbar>.btn{flex:0 0 auto}
+.apbar>.btn.primary{flex:1 1 220px}
+.apnotes{margin-top:6px}.apnotes .note{margin:4px 2px}
+.hp-ops .hp-opsrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:4px 2px}
+.hp-ops .hp-opsrow span{font-weight:700}
+@media (min-width:1100px){.abar{display:flex!important;align-items:center;gap:24px;padding-top:8px!important;padding-bottom:8px!important}.abar .actx{flex:0 0 400px;margin:0;max-width:none}.abar .aflow{flex:1;margin:0!important;max-width:none}.abar .aflow span{font-size:12.5px}.abar .aflow i{width:24px;height:24px;font-size:11px}.abar .aflow li:not(:last-child)::after{top:11px}}
+/* 0.21.126 PC 여백 줄이기 */
+@media (min-width:900px){
+  .wrap{padding-bottom:24px!important}
+  h2{margin-top:16px;margin-bottom:8px}
+  .subnav{margin-top:6px;margin-bottom:10px}
+  .helpers{margin-top:8px}.hp-sec{margin-top:12px}
+  .capcard{min-height:72px;padding:10px 4px;gap:4px}
+  .note{margin-top:6px;margin-bottom:6px}
+}
+.apnotes .rules-d{margin:6px 2px 0}.apnotes .rules-d summary{font-size:12.5px;color:var(--muted)}.apnotes .rules-d p{font-size:12.5px;color:var(--muted);margin:6px 0}
+@media (min-width:900px){.subnav + .subact.up{position:relative;z-index:2;margin-top:-50px;margin-bottom:14px;justify-content:flex-end;pointer-events:none;min-height:40px}.subnav + .subact.up>*{pointer-events:auto}}
+.apinfo.ro.five{margin-top:12px!important}
+@media (min-width:900px){.dsum .dsum-row .btn.sm{height:30px;min-height:0;padding:0 12px;font-size:12.5px}.dsum .dsum-row{padding:5px 0}.aptools .btn.sm,.aptools .btn{height:34px;min-height:0}}
+@media (min-width:1000px){
+  .helpers{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:16px;align-items:start}
+  .helpers>*{grid-column:1/-1}
+  .helpers>.hp-ops{grid-column:1;grid-row:2}
+  .helpers>.hp-park{grid-column:2;grid-row:2/4}
+  .helpers>.hp-cap{grid-column:1;grid-row:3}
+  .helpers .hp-cap .capgrid{gap:8px}
+  .helpers .hp-park .panel,.helpers .hp-park>div:not(.hp-hd){padding-top:8px;padding-bottom:8px}
+}
+@media (max-width:899px){.aptools .betanote,.aptools .vtog small{display:none}.apbar>.btn{flex:1 1 40%}.apbar .apadd{flex:1 1 100%}}
+.mhelp{margin:8px 2px 0}.mhelp summary{font-size:12.5px;color:var(--muted)}.mhelp p{font-size:12.5px;color:var(--muted);margin:6px 0}
+@media (max-width:899px){.apbar>.btn{width:auto!important;min-width:0;flex:1 1 0!important;font-size:13.5px;padding-left:8px;padding-right:8px}.apbar>.btn.primary{flex:1.3 1 0!important}}
