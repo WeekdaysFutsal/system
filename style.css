@@ -778,7 +778,7 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.121"}
+:root{--cssv:"0.21.122"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
@@ -1028,3 +1028,14 @@ table.atbl th.seq,table.atbl td.seq{width:44px;text-align:center;font-family:var
 @media (min-width:900px){.grid .cell.w-tel{min-width:0;width:124px}.grid td{padding:4px 5px}.grid th{padding:10px 6px}}
 @media (min-width:900px) and (max-width:1180px){.grid .cell.w-memo{width:64px}.grid .cell.w-tel{width:108px}.grid{font-size:13px}.grid td{padding:4px 3px}.grid th{padding:10px 4px}.grid .att-rate.sm .att-bar{width:36px}}
 @media (min-width:900px) and (max-width:1180px){.grid .att-rate.sm .att-bar{min-width:28px}.grid .cell.w-name{min-width:80px}.grid .cell.w-st{min-width:0}}
+/* 0.21.122 연속 불참 경고 아이콘 */
+.nmcell{display:flex;align-items:center;gap:2px;position:relative}
+.nmcell .cell.w-name{flex:1;min-width:0}
+.misswarn{position:relative;flex:none;width:26px;height:26px;border-radius:50%;font-size:15px;line-height:26px;text-align:center;padding:0;background:rgba(255,159,67,.18)}
+.misswarn::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 6px);transform:translateX(-50%);padding:5px 9px;border-radius:8px;background:#FF9F43;color:#1A1205;font:800 12px/1.2 var(--body);white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s;z-index:5;box-shadow:0 4px 12px rgba(0,0,0,.35)}
+.misswarn:hover::after,.misswarn:focus::after,.misswarn:focus-visible::after{opacity:1}
+.grid tbody tr:first-child .misswarn::after{bottom:auto;top:calc(100% + 6px)}
+.sheetwrap .grid td.stick{overflow:visible}
+.nmcell .cell.w-name{min-width:96px}
+@media (min-width:900px) and (max-width:1180px){.nmcell .cell.w-name{min-width:56px}}
+@media (min-width:900px) and (max-width:1180px){.misswarn{width:22px;height:22px;font-size:13px;line-height:22px}}
