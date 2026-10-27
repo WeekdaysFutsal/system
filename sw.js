@@ -4,14 +4,20 @@ try {
   firebase.initializeApp({ apiKey: 'AIzaSyCvO0DUvGG0i8gRJ74Ppn1aqUZ3QiG5pFs', authDomain: 'wd-futsal.firebaseapp.com', projectId: 'wd-futsal', storageBucket: 'wd-futsal.firebasestorage.app', messagingSenderId: '663428055388', appId: '1:663428055388:web:92aaceb1b0c5088176c199' });
   firebase.messaging();
 } catch (e) { /* 오프라인 등으로 못 불러와도 앱은 정상 동작 */ }
+// 앱 아이콘 숫자(배지): 알림이 올 때마다 1씩 올리고, 앱을 열면 안 읽은 알림 수로 다시 맞춰요 (iOS 16.4+ 홈 화면 앱·알림 허용 필요)
+const BADGE = 'wf-badge';
+async function badgeGet() { try { const r = await (await caches.open(BADGE)).match('/n'); return r ? (parseInt(await r.text(), 10) || 0) : 0 } catch { return 0 } }
+async function badgeSet(n) { n = Math.max(0, n | 0); try { await (await caches.open(BADGE)).put('/n', new Response(String(n))) } catch { } try { if (n && self.navigator.setAppBadge) await self.navigator.setAppBadge(n); else if (self.navigator.clearAppBadge) await self.navigator.clearAppBadge() } catch { } }
+self.addEventListener('push', e => { e.waitUntil(badgeGet().then(n => badgeSet(n + 1))) });
+self.addEventListener('message', e => { if (e.data && e.data.type === 'badge') e.waitUntil(badgeSet(e.data.n)) });
 self.addEventListener('notificationclick', e => { e.notification.close(); const url = e.notification?.data?.FCM_MSG?.fcmOptions?.link || e.notification?.data?.link || self.registration.scope;
   e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(ws => { for (const w of ws) if (w.url.startsWith(self.registration.scope) && 'focus' in w) return w.focus().then(fw => (url !== self.registration.scope && fw && fw.navigate) ? fw.navigate(url).catch(() => fw) : fw); return clients.openWindow(url) })) });
 // WD_FUTSAL service worker
 // - 버전이 붙은 파일(app.js?v=, style.css?v=, config.js?v=)과 이미지: 저장본을 바로 쓰고(빠름), 새 버전은 주소가 달라져 자동으로 새로 받아요.
 // - 앱 첫 화면(HTML): 항상 서버의 최신본을 먼저 확인하고, 오프라인이면 저장본을 써요.
-const C = 'wf-0.21.128';
+const C = 'wf-0.21.129';
 self.addEventListener('install', e => { self.skipWaiting() });
-self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C).map(k => caches.delete(k)))).then(() => self.clients.claim())));
+self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C && k !== BADGE).map(k => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.origin !== location.origin) return;

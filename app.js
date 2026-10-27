@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.128';
+const APP_VERSION = '0.21.129';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1264,6 +1264,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.129', '2026.10.27', ['알림이 오면 홈 화면 앱 아이콘에 숫자가 떠요. 앱을 열어 알림을 읽으면 숫자가 줄어들고, 다 읽으면 사라져요 (아이폰은 iOS 16.4 이상 · 홈 화면에 추가 · 알림 허용 필요)']],
   ['0.21.128', '2026.10.27', ['표가 있는 화면에서 화면 스크롤과 표 스크롤이 겹치지 않게 고쳤어요. 출석 관리·회원 관리·신청접수처럼 표가 한 화면에 들어가는 화면은 화면은 고정되고 표 안에서만 스크롤돼요', '[운영진] 휴대폰 신청접수 화면을 더 간결하게 줄여 표와 버튼이 한 화면에 들어와요']],
   ['0.21.127', '2026.10.27', ['앱의 모든 표에서 제목 줄은 고정되고 아래 내용만 스크롤돼요 (회원·출석·신청 현황·운영비 정산·회비 관리·탈퇴/제명·기록 표 등)']],
   ['0.21.126', '2026.10.27', ['[운영진] 신청접수 화면을 간결하게 바꿨어요. 신청 조건(정원·오픈·마감·순위 규칙·구장 예약자)은 한 줄, 공당·물당도 한 줄로 보여요', '[운영진] 신청자 표는 제목 줄이 고정되고 목록만 스크롤돼요. 신청자 추가 · 신청 마감 · 확정하고 주장 정하기 버튼이 한 줄로 표 바로 아래에 있어 스크롤 없이 보여요', '[운영진] 경기 운영자는 \'도우미 지정\' 단계에서 정해요', '화면 곳곳의 빈 여백을 줄여 불필요한 스크롤을 줄였어요']],
@@ -1443,11 +1444,16 @@ function selSet(s0) { if (!s0) return new Set(); return new Set(s0.stage === 'ap
 function watchPromote(sid, before, exclude) { const s0 = S.sessions[sid], q0 = S.q?.[sid]; let n = 0; // 서버 반영이 늦어도 최대 12초까지 기다렸다가 확인해요
   const chk = () => { const s1 = S.sessions[sid]; if ((s1 === s0 && S.q?.[sid] === q0) && ++n < 8) return setTimeout(chk, 1500); const after = selSet(s1); const up = [...after].filter(p0 => !before.has(p0) && !(exclude || []).includes(p0)); if (up.length) queuePush({ type: 'promote', pids: up, sid }) }; setTimeout(chk, 1500) }
 function watchInbox() { const pid = myPid(); if (!S.store || S.inboxPid === pid) return; try { S.unInbox && S.unInbox() } catch { } S.inboxPid = pid; S.inbox = []; if (!pid) return;
-  S.unInbox = S.store.watchCol('inbox/' + pid + '/items', docs => { S.inbox = docs.sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 50); renderSoon() }, { order: 'at', limit: 50 }, () => { }) }
+  S.unInbox = S.store.watchCol('inbox/' + pid + '/items', docs => { S.inbox = docs.sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 50); syncBadge(); renderSoon() }, { order: 'at', limit: 50 }, () => { }) }
+// 앱 아이콘 숫자 = 안 읽은 알림 수 (서비스 워커에도 알려서 다음 알림부터 이어서 세요)
+function syncBadge() { const n = myPid() ? (S.inbox || []).filter(x => !x.read).length : 0; if (S.badgeN === n) return; S.badgeN = n;
+  try { if (n && navigator.setAppBadge) navigator.setAppBadge(n).catch(() => { }); else if (navigator.clearAppBadge) navigator.clearAppBadge().catch(() => { }) } catch { }
+  try { navigator.serviceWorker?.ready.then(r => r.active?.postMessage({ type: 'badge', n })).catch(() => { }) } catch { } }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { S.badgeN = null; syncBadge() } });
 function inboxSheet() { const L = S.inbox || []; const ico = { open: '📢', closing: '⏰', promote: '🎉', captain: '👑', team: '📣', day: '⚽', notice: '📝' };
   const when = t => { const d = new Date(t); const diff = (Date.now() - t) / 60000; return diff < 1 ? '방금' : diff < 60 ? Math.floor(diff) + '분 전' : diff < 1440 ? Math.floor(diff / 60) + '시간 전' : `${d.getMonth() + 1}.${d.getDate()} ${p2(d.getHours())}:${p2(d.getMinutes())}` };
   return `<h4>🔔 받은 알림</h4>${L.length ? `<div class="inbox">${L.map(x => `<div class="ib ${x.read ? '' : 'new'}"><button class="ib-del" data-act="ibdel" data-id="${x.id}" aria-label="이 알림 지우기">✕</button><span class="ib-ico">${ico[x.type] || '🔔'}</span><div><b>${esc(String(x.title || '').replace(/^[📢⏰🎉👑📣⚽📝]\s*/u, ''))}</b><p>${esc(x.body || '').replace(/\n/g, '<br>')}</p><small>${when(x.at || 0)}</small></div></div>`).join('')}</div>` : '<p class="empty">아직 받은 알림이 없어요.</p>'}${L.length ? '<button class="btn sm danger" style="margin-top:10px" data-act="ibclear">모두 지우기</button>' : ''}<p class="note" style="margin:10px 0 0">최근 50개까지 보여요. 휴대폰 알림을 켜지 않아도 여기에는 쌓여요.</p>` }
-async function markInboxRead() { const pid = myPid(); const un = (S.inbox || []).filter(x => !x.read && x.id); un.forEach(x => x.read = true); for (const x of un) { try { await S.store.update(`inbox/${pid}/items/${x.id}`, { read: true }) } catch { } } }
+async function markInboxRead() { const pid = myPid(); const un = (S.inbox || []).filter(x => !x.read && x.id); un.forEach(x => x.read = true); syncBadge(); for (const x of un) { try { await S.store.update(`inbox/${pid}/items/${x.id}`, { read: true }) } catch { } } }
 async function queuePush(doc) { try { await S.store.add('pushQueue', { ...doc, by: myPid() || (S.admin ? 'admin' : ''), at: Date.now() }) } catch (e) { console.warn('push queue', e) } }
 /* ───────── 기록 시트(구글 시트) 연동: 경기 기록은 시트, 실시간 데이터는 Firebase ───────── */
 // 시트 주소: 운영모드 → 설정에서 바꿀 수 있어요 (Firebase meta/sheet). 비어 있으면 config.js 값
@@ -2562,7 +2568,7 @@ function loginScreen() {
     <p class="note">처음이면 지금 입력한 비밀번호로 바로 등록돼요. 비밀번호를 잊었다면 운영진에게 초기화를 요청하세요.</p>
     <button class="linkbtn" data-act="opmode">운영진이신가요? 운영모드로 들어가기 ›</button></div></div>`;
 }
-function logout() { const pt = load('pushToken', null); if (pt) { S.store?.del('pushTokens/' + pt).catch(() => { }); save('pushToken', null) } S.auth = null; /* 이 기기의 알림 연결만 끊어요(다른 기기 설정은 그대로) */ saveAuth(null); S.me = ''; save('me', ''); toast('로그아웃했어요.'); render() }
+function logout() { setTimeout(() => { S.badgeN = null; syncBadge() }, 0); const pt = load('pushToken', null); if (pt) { S.store?.del('pushTokens/' + pt).catch(() => { }); save('pushToken', null) } S.auth = null; /* 이 기기의 알림 연결만 끊어요(다른 기기 설정은 그대로) */ saveAuth(null); S.me = ''; save('me', ''); toast('로그아웃했어요.'); render() }
 async function verifyAuth() { if (!S.auth) return; try { const a = await S.store.get('auth/' + S.auth.pid); if (!a || a.h !== S.auth.h || !S.players[S.auth.pid] || isGone(S.players[S.auth.pid])) { const g = isGone(S.players[S.auth.pid]); S.auth = null; saveAuth(null); toast(g ? '탈퇴·제명 처리되어 로그아웃됐어요.' : '다시 로그인해 주세요.'); render() } else { S.me = S.players[S.auth.pid].name; render() } } catch { } }
 function myCar() { const pid = myPid(); return (pid && S.contacts?.[pid]?.car) || load('car', '') || '' }
 async function adminPinOk(pin) { const h = S.meta?.admin?.h; if (h) return (await sha('wd-admin:' + pin)) === h; return pin === String(CFG.adminPin ?? '0000') }
