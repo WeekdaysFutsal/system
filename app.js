@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.123';
+const APP_VERSION = '0.21.124';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1261,6 +1261,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.124', '2026.10.27', ['[운영진] 연속 불참 ⚠️ 아이콘의 동그란 배경을 없애고, 이름 바로 오른쪽에 붙어 보이게 했어요']],
   ['0.21.123', '2026.10.27', ['[운영진] 회원 관리 표에서 제목 줄은 고정되고 아래 회원 목록만 스크롤돼요']],
   ['0.21.122', '2026.10.27', ['[운영진] 10회 이상 연속 불참한 정회원은 회원 관리 표에서 이름 옆에 ⚠️ 아이콘이 떠요. 아이콘을 누르거나 마우스를 올리면 몇 회 연속 불참인지 보여요']],
   ['0.21.121', '2026.10.27', ['[운영진] PC에서 회원 관리 표의 메모·연락처 칸 폭을 줄여 옆으로 밀지 않아도 한 화면에 보이게 했어요 (메모에 마우스를 올리면 전체 내용이 보여요)']],
@@ -3080,7 +3081,7 @@ function viewMembers0() {
   if (nsel) h += `<div class="bulkbar"><b>${nsel}명 선택</b><button class="btn sm" data-act="mselclear">선택 해제</button><button class="btn sm danger" data-act="mbulkdel">선택 삭제</button></div>`;
   if (!rows.length) return h + `<div class="panel"><p class="empty">${q || fk.length ? '조건에 맞는 회원이 없어요.' : '회원이 없어요. 회원 추가나 명단 붙여넣기로 등록하세요.'}</p></div>`;
   h += `<div class="panel sheetwrap memwrap"><table class="grid"><thead><tr><th class="ck"><input type="checkbox" class="staffck" data-in="mselall" aria-label="모두 선택" ${rows.length && rows.every(r => S.msel?.[r.id]) ? 'checked' : ''}></th>${mTh('name', 'stick')}${mTh('status')}${mTh('login')}${mTh('birth')}${mTh('phone')}${mTh('memo')}${mTh('att')}${mTh('attr')}${mTh('attLast')}<th>관리</th></tr></thead><tbody>
-  ${rows.map(r => `<tr class="${S.msel?.[r.id] ? 'msel' : ''} ${(MS[r.id] || 0) >= MISS_N ? 'miss10' : ''}" ${(MS[r.id] || 0) >= MISS_N ? `title="${MS[r.id]}회 연속 불참"` : ''}><td class="ck"><input type="checkbox" class="staffck" data-in="msel" data-id="${r.id}" ${S.msel?.[r.id] ? 'checked' : ''} aria-label="${esc(r.name)} 선택"></td><td class="stick"><div class="nmcell"><input class="cell w-name" type="text" value="${esc(r.name)}" data-in="mcell" data-id="${r.id}" data-f="name">${(MS[r.id] || 0) >= MISS_N ? `<button type="button" class="misswarn" data-tip="${MS[r.id]}회 연속 불참" aria-label="${MS[r.id]}회 연속 불참" title="${MS[r.id]}회 연속 불참">⚠️</button>` : ''}</div></td>
+  ${rows.map(r => `<tr class="${S.msel?.[r.id] ? 'msel' : ''} ${(MS[r.id] || 0) >= MISS_N ? 'miss10' : ''}" ${(MS[r.id] || 0) >= MISS_N ? `title="${MS[r.id]}회 연속 불참"` : ''}><td class="ck"><input type="checkbox" class="staffck" data-in="msel" data-id="${r.id}" ${S.msel?.[r.id] ? 'checked' : ''} aria-label="${esc(r.name)} 선택"></td><td class="stick"><div class="nmcell ${(MS[r.id] || 0) >= MISS_N ? 'miss' : ''}"><input class="cell w-name" type="text" value="${esc(r.name)}" data-in="mcell" data-id="${r.id}" data-f="name" ${(MS[r.id] || 0) >= MISS_N ? `style="width:calc(${[...r.name].reduce((a, ch) => a + (/[가-힣]/.test(ch) ? 1.05 : .62), 0).toFixed(2)}em + 14px)"` : ''}>${(MS[r.id] || 0) >= MISS_N ? `<button type="button" class="misswarn" data-tip="${MS[r.id]}회 연속 불참" aria-label="${MS[r.id]}회 연속 불참" title="${MS[r.id]}회 연속 불참">⚠️</button>` : ''}</div></td>
     <td><select class="cell w-st st-${r.status}" data-in="mcell" data-id="${r.id}" data-f="status">${Object.entries(MSTAT).map(([k, n]) => `<option value="${k}" ${r.status === k ? 'selected' : ''}>${n}</option>`).join('')}</select></td>
     <td>${S.authMap?.[r.id] ? `<span class="muted" style="font-size:12px">등록됨</span> <button class="btn sm" data-act="pinreset" data-id="${r.id}">초기화</button>` : '<span class="muted" style="font-size:12px">미등록</span>'}</td>
     <td><input class="cell w-num" type="text" inputmode="numeric" maxlength="8" value="${esc(S.contacts?.[r.id]?.birth || '')}" placeholder="-" data-in="mcell" data-id="${r.id}" data-f="birth" style="width:84px"></td>
