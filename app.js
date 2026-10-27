@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.131';
+const APP_VERSION = '0.21.132';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1264,6 +1264,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.132', '2026.10.27', ['일정 달력에 경기 신청 개시(📢)와 신청 마감(⏰) 날짜·시각이 표시돼요. 표시된 날을 누르면 해당 경기가 선택돼요']],
   ['0.21.131', '2026.10.27', ['앱 아이콘을 새로 만들었어요. 엠블럼에 형광 라임 링과 경기장 라인을 더한 디자인이에요 (이미 설치했다면 홈 화면 아이콘을 지우고 다시 추가하면 바뀌어요)']],
   ['0.21.130', '2026.10.27', ['아직 앱으로 설치하지 않았다면 오른쪽 위 알림 버튼 옆에 \'📲 앱 설치\' 버튼이 보여요. 안드로이드·PC 크롬은 바로 설치 창이 뜨고, 아이폰·삼성인터넷은 내 폰에 맞는 설치 방법 안내로 바로 연결돼요']],
   ['0.21.129', '2026.10.27', ['알림이 오면 홈 화면 앱 아이콘에 숫자가 떠요. 앱을 열어 알림을 읽으면 숫자가 줄어들고, 다 읽으면 사라져요 (아이폰은 iOS 16.4 이상 · 홈 화면에 추가 · 알림 허용 필요)']],
@@ -1631,20 +1632,23 @@ function schedCard(id, noApply) { let h = '';
       <ol class="tl">${steps.map(([l, v, done], i) => `<li class="${done ? 'done' : i === curI ? 'now' : ''}"><i></i><span>${l}</span><em>${v ? fmtDT(v) : done ? '완료' : i === 2 ? '신청 마감 후' : '-'}</em></li>`).join('')}</ol>
       <div class="sched-ft"><span class="st st-${st.k}">${st.label}</span><button class="linkbtn appcnt" data-act="applist" data-id="${id}">신청 ${appTotal(s)}${s.capacity ? ' / ' + s.capacity : ''}명${appCounts(s).wait ? `, 대기 ${appCounts(s).wait}` : ''} ›</button>${id >= today() ? `<button class="btn sm calbtn" data-act="caladd2" data-id="${id}">📅 캘린더에 추가</button>` : ''}</div>${noApply ? '' : (st.k === 'open' || applyState(s)?.k === 'in' ? `<div style="margin-top:10px">${applyBox(s, true)}</div>` : '')}</div>` }
   return h }
+// 달력에 신청 개시(📢)·신청 마감(⏰) 표시
+function applyMarks() { const M = {}; Object.values(S.sessions).forEach(x => { if (!x || x.practice) return; [['open', x.applyOpen], ['close', x.applyClose]].forEach(([k, v]) => { if (!v) return; const d = String(v).slice(0, 10); (M[d] ??= []).push({ k, sid: x.date, t: String(v).slice(11, 16) }) }) }); return M }
+const markHtml = (L) => L ? `<span class="amk">${L.map(x => `<i class="amk-${x.k}" title="${fmtDate(x.sid)} 경기 신청 ${x.k === 'open' ? '개시' : '마감'} ${x.t}">${x.k === 'open' ? '📢' : '⏰'}<small>${x.k === 'open' ? '신청' : '마감'}${x.t ? ' ' + x.t : ''}</small></i>`).join('')}</span>` : '';
 function viewSchedule() {
   const all = Object.keys(S.sessions).sort(); const nx = nextSid(); const fit = S.dm;
   if (!S.schSel || !S.sessions[S.schSel]) S.schSel = nx || all[all.length - 1] || today();
   const ym = S.schM || S.schSel.slice(0, 7); const [y, m] = ym.split('-').map(Number);
-  const first = new Date(y, m - 1, 1), days = new Date(y, m, 0).getDate(), pad = first.getDay(), t = today(); const rows = Math.ceil((pad + days) / 7);
+  const first = new Date(y, m - 1, 1), days = new Date(y, m, 0).getDate(), pad = first.getDay(), t = today(); const rows = Math.ceil((pad + days) / 7); const AM = applyMarks();
   let cells = ''; for (let i = 0; i < pad; i++) cells += '<span class="scd blank"></span>';
   for (let d = 1; d <= days; d++) { const id = `${y}-${p2(m)}-${p2(d)}`; const s = S.sessions[id]; const wd = (pad + d - 1) % 7; const st = s ? sStatus(s) : null;
-    cells += `<button class="scd${s ? ' has st-' + st.k : ''}${id === t ? ' today' : ''}${id === S.schSel ? ' sel' : ''}${id < t ? ' past' : ''}${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}" data-act="schday" data-id="${id}" aria-pressed="${id === S.schSel}"><span class="dn">${d}</span>${s ? `<em class="ev"><b>${esc((s.time || '').slice(0, 5))}</b><small>${esc(s.venue || '')}</small></em>` : ''}</button>` }
+    cells += `<button class="scd${s ? ' has st-' + st.k : ''}${AM[id] ? ' mk' : ''}${id === t ? ' today' : ''}${id === S.schSel ? ' sel' : ''}${id < t ? ' past' : ''}${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}" data-act="schday" data-id="${id}" aria-pressed="${id === S.schSel}"><span class="dn">${d}</span>${s ? `<em class="ev"><b>${esc((s.time || '').slice(0, 5))}</b><small>${esc(s.venue || '')}</small></em>` : ''}${markHtml(AM[id])}</button>` }
   for (let i = pad + days; i < rows * 7; i++) cells += '<span class="scd blank"></span>';
   const cnt = all.filter(id => id.startsWith(ym)).length;
   const cal = `<div class="scal panel"><div class="cal-hd"><button data-act="schm" data-d="-1" aria-label="이전 달">‹</button><b>${y}년 ${m}월<small>${cnt ? ` · 경기 ${cnt}회` : ''}</small></b><button data-act="schm" data-d="1" aria-label="다음 달">›</button></div>
     <div class="scw">${'일월화수목금토'.split('').map((x, i) => `<span class="${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${x}</span>`).join('')}</div>
     <div class="scgrid" style="grid-template-rows:repeat(${rows},minmax(0,1fr))">${cells}</div>
-    <div class="cal-leg"><span><i class="lg-open"></i>신청 중</span><span><i class="lg-game"></i>경기</span><span><i class="lg-done"></i>종료</span><span><i class="lg-sel"></i>선택한 날</span></div></div>`;
+    <div class="cal-leg"><span><i class="lg-open"></i>신청 중</span><span><i class="lg-game"></i>경기</span><span><i class="lg-done"></i>종료</span><span>📢 신청 개시</span><span>⏰ 신청 마감</span></div></div>`;
   const sel = S.sessions[S.schSel];
   const det = sel ? schedCard(S.schSel, fit) : `<div class="panel sched"><p class="empty">${fmtDate(S.schSel)}에는 경기가 없어요.<br>색칠된 날짜를 눌러 보세요.</p></div>`;
   const dock = '';
@@ -2704,17 +2708,17 @@ function viewPlan() {
   if (mv === 'list') return h + viewManageList();
   const all = Object.keys(S.sessions).sort(); const nx = nextSid();
   if (!S.planSel) S.planSel = (S.sid && S.sessions[S.sid]) ? S.sid : nx || all[all.length - 1] || today();
-  const ym = S.planM || S.planSel.slice(0, 7); S.planM = ym; const [y, m] = ym.split('-').map(Number);
+  const ym = S.planM || S.planSel.slice(0, 7); S.planM = ym; const [y, m] = ym.split('-').map(Number); const AM = applyMarks();
   const first = new Date(y, m - 1, 1), days = new Date(y, m, 0).getDate(), pad = first.getDay(), t = today(); const rows = Math.ceil((pad + days) / 7);
   let cells = ''; for (let i = 0; i < pad; i++) cells += '<span class="scd blank"></span>';
   for (let d = 1; d <= days; d++) { const id = `${y}-${p2(m)}-${p2(d)}`; const s = S.sessions[id]; const wd = (pad + d - 1) % 7; const st = s ? sStatus(s) : null;
-    cells += `<button class="scd${s ? ' has st-' + st.k : ''}${id === t ? ' today' : ''}${id === S.planSel ? ' sel' : ''}${id < t ? ' past' : ''}${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}" data-act="planday" data-id="${id}"><span class="dn">${d}</span>${s ? `<em class="ev"><b>${esc((s.time || '').slice(0, 5))}</b><small>${esc(s.venue || '')}</small></em>` : ''}</button>` }
+    cells += `<button class="scd${s ? ' has st-' + st.k : ''}${AM[id] ? ' mk' : ''}${id === t ? ' today' : ''}${id === S.planSel ? ' sel' : ''}${id < t ? ' past' : ''}${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}" data-act="planday" data-id="${id}"><span class="dn">${d}</span>${s ? `<em class="ev"><b>${esc((s.time || '').slice(0, 5))}</b><small>${esc(s.venue || '')}</small></em>` : ''}${markHtml(AM[id])}</button>` }
   for (let i = pad + days; i < rows * 7; i++) cells += '<span class="scd blank"></span>';
   const cnt = all.filter(id => id.startsWith(ym)).length;
   const cal = `<div class="scal panel"><div class="cal-hd"><button data-act="planm" data-d="-1" aria-label="이전 달">‹</button><b>${y}년 ${m}월<small>${cnt ? ` · 경기 ${cnt}회` : ''}</small></b><button data-act="planm" data-d="1" aria-label="다음 달">›</button></div>
     <div class="scw">${'일월화수목금토'.split('').map((x, i) => `<span class="${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${x}</span>`).join('')}</div>
     <div class="scgrid" style="grid-template-rows:repeat(${rows},minmax(0,1fr))">${cells}</div>
-    <div class="cal-leg"><span><i class="lg-open"></i>신청 중</span><span><i class="lg-game"></i>경기</span><span><i class="lg-done"></i>종료</span><span class="leg-hint">빈 날짜를 누르면 경기를 추가할 수 있어요</span></div></div>`;
+    <div class="cal-leg"><span><i class="lg-open"></i>신청 중</span><span><i class="lg-game"></i>경기</span><span><i class="lg-done"></i>종료</span><span>📢 신청 개시</span><span>⏰ 신청 마감</span><span class="leg-hint">빈 날짜를 누르면 경기를 추가할 수 있어요</span></div></div>`;
   return h + `<div class="schwrap planwrap">${cal}<div class="schdetail">${planSide(S.planSel)}</div></div>`;
 }
 function planSide(id) {
@@ -3400,7 +3404,7 @@ document.addEventListener('click', async e => {
     case 'pinchange': { const pid = myPid(); if (!pid) break; const p1 = prompt('새 비밀번호 (숫자 4자리)'); if (p1 === null) break; if (!/^\d{4}$/.test(p1)) { toast('숫자 4자리로 입력해 주세요.'); break } const p2x = prompt('새 비밀번호를 한 번 더 입력하세요'); if (p2x !== p1) { toast('두 번 입력한 번호가 달라요.'); break }
       const h = await pinHash(pid, p1); if (await w(() => S.store.set('auth/' + pid, { h, at: Date.now() }), '비밀번호를 바꿨어요.')) { S.auth = { pid, h }; saveAuth(S.auth, !!load('auth', null)); render() } break }
     case 'pinreset': { if (!needAdmin() || !confirm(`${pname(id)} 님의 비밀번호를 초기화할까요? 다음 로그인 때 새 번호를 등록하게 돼요.`)) break; await w(() => S.store.del('auth/' + id), '비밀번호를 초기화했어요.'); break }
-    case 'schday': S.schSel = id; render(); break;
+    case 'schday': { const mk = !S.sessions[id] && applyMarks()[id]; S.schSel = mk ? mk[0].sid : id; if (mk) S.schM = mk[0].sid.slice(0, 7); render(); if (mk) toast(`${fmtDate(mk[0].sid)} 경기 신청 ${mk[0].k === 'open' ? '개시' : '마감'}일이에요.`); break }
     case 'schm': { const [yy, mm] = (S.schM || S.schSel.slice(0, 7)).split('-').map(Number); const d = new Date(yy, mm - 1 + (+el.dataset.d), 1); S.schM = `${d.getFullYear()}-${p2(d.getMonth() + 1)}`; render(); break }
     case 'rdgo': if (!id) break; goResult(id); break;
     case 'gohome': S.tab = S.admin ? 'manage' : 'mhome'; S.sub = null; S.detail = null; S.openMatch = null; S.sheet = null; S.step = null; render(); window.scrollTo(0, 0); break;

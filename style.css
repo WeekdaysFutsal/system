@@ -778,7 +778,7 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.131"}
+:root{--cssv:"0.21.132"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
@@ -1153,3 +1153,10 @@ table.atbl th.seq,table.atbl td.seq{width:44px;text-align:center;font-family:var
 .appbar .instbtn{display:inline-flex;align-items:center;gap:4px;height:36px;padding:0 11px;border-radius:999px;background:rgba(198,255,61,.14);border:1px solid rgba(198,255,61,.45);color:#D9FF7A;font-size:14px;white-space:nowrap;flex:none}
 .appbar .instbtn b{font-size:12.5px;font-weight:800}
 @media (max-width:480px){.appbar .instbtn b{display:none}.appbar .instbtn{width:40px;height:40px;padding:0;justify-content:center;font-size:18px}}
+/* 0.21.132 달력 신청 개시·마감 표시 */
+.scd .amk{display:flex;flex-direction:column;gap:1px;width:100%;margin-top:2px;min-width:0}
+.scd .amk i{display:flex;align-items:center;gap:2px;font-style:normal;font-size:10px;line-height:1.25;padding:1px 3px;border-radius:5px;white-space:nowrap;overflow:hidden;min-width:0}
+.scd .amk i small{font-size:9.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis}
+.scd .amk .amk-open{background:rgba(127,227,196,.16);color:#7FE3C4}
+.scd .amk .amk-close{background:rgba(255,159,67,.16);color:#FFB46B}
+@media (max-width:480px){.scd .amk i small{display:none}.scd .amk{flex-direction:row;justify-content:center;gap:2px}.scd .amk i{padding:0 1px;background:none!important;font-size:11px}}
