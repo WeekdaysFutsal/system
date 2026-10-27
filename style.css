@@ -778,7 +778,7 @@ h2,.sheet h4,.turn .t,.hero-empty,.act .lv b,.steps button i,.mm-card h3,.mm-hd 
 .mr-chip:disabled{opacity:1;cursor:default}
 .ms-none{font-size:13px;color:var(--muted);padding:6px 2px}
 .ms-empty{margin:0;font-size:13px;color:var(--muted)}
-:root{--cssv:"0.21.119"}
+:root{--cssv:"0.21.120"}
 .mm-cbar{background:var(--surface)!important;border:1px solid var(--line)!important;color:var(--ink)!important}
 .mm-cbar.me{background:rgba(198,255,61,.08)!important;border-color:rgba(198,255,61,.4)!important}
 .mm-cbar b{color:var(--ink)!important}.mm-cbar small{color:var(--muted)!important}
@@ -1012,3 +1012,14 @@ table.atbl th.seq,table.atbl td.seq{width:44px;text-align:center;font-family:var
 .fee-m span{display:flex;justify-content:space-between;gap:6px;color:var(--muted);font-size:12px}.fee-m span em{font-style:normal;font-weight:700}.fee-m span.t{color:var(--ink);font-weight:800;border-top:1px solid var(--line);padding-top:4px;margin-top:2px}.fee-m span:last-child{margin-top:2px}
 @media (max-width:600px){.fee-tbl td.l:nth-child(2){min-width:0}.fee-tbl td.l:nth-child(3){min-width:90px}}
 @media (max-width:600px){.fee-tbl th:nth-child(2),.fee-tbl td:nth-child(2){display:none}.fee-tbl tr.r-game td:first-child{box-shadow:inset 3px 0 #6E8FF0}.fee-tbl tr.r-out td:first-child{box-shadow:inset 3px 0 #FF8A8A}.fee-tbl tr.r-in td:first-child{box-shadow:inset 3px 0 #7FE3C4}.fee-tbl td:first-child,.fee-tbl th:first-child{padding-left:8px}.fee-tbl{font-size:12px}.fee-tbl th,.fee-tbl td{padding:8px 3px}.fee-tbl td.l:nth-child(3){min-width:80px}}
+/* 0.21.120 탈퇴·제명 · 연속 불참 */
+.grid tr.miss10 td{background:rgba(255,159,67,.13)}
+.grid tr.miss10 td.stick{background:#3A2B1C}
+.grid tr.miss10 td.stick .cell{color:#FFB46B;font-weight:700}
+.missb{display:inline-block;margin-left:4px;padding:1px 7px;border-radius:999px;background:#FF9F43;color:#1A1205;font-size:10.5px;font-weight:800;white-space:nowrap;vertical-align:middle}
+.mtools .seg button[data-k="miss"]{color:#FFB46B}
+.out-f{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.out-f #out-name{flex:1 1 160px}.out-f #out-why{flex:2 1 200px}.out-f #out-date{width:150px;flex:none}
+.out-tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:800}
+.out-tag.left{background:rgba(149,161,178,.2);color:var(--muted)}.out-tag.expelled{background:rgba(228,103,92,.2);color:#FF8A8A}
+.out-tbl td{color:var(--muted)}.out-tbl td b{color:var(--ink)}
+.cell.w-st.st-left,.cell.w-st.st-expelled{color:#FF8A8A}

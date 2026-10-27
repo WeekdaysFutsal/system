@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.119';
+const APP_VERSION = '0.21.120';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -349,7 +349,7 @@ async function setStage(st) { const s = cur(); if (stageIdx(st) > stageIdx(s.sta
 async function addApplicants(names) {
   const s = cur(); const ids = [], rejected = [];
   for (const nm of names) { const guest = /\(\s*게(스트)?\s*\)/.test(nm); const name = nm.replace(/\(\s*게(스트)?\s*\)/g, '').trim(); if (!name) continue;
-    const ex = findPlayer(name); if (ex) { ids.push(ex); continue }
+    const ex = findPlayer(name); if (ex && isGone(S.players[ex])) { rejected.push(name + `(${MSTAT[mstatus(S.players[ex])]})`); continue } if (ex) { ids.push(ex); continue }
     if (!guest) { rejected.push(name); continue } const id = await ensurePlayer(nm); if (id) ids.push(id) }
   S.rejNames = rejected.length ? rejected : null; if (rejected.length) toast(`회원 명단에 없는 이름이에요: ${rejected.join(', ')}. 오타가 아니라면 아래 "게스트로 추가"를 눌러 주세요.`);
   if (!ids.length) { render(); return }
@@ -766,7 +766,7 @@ window.addEventListener('pagehide', () => { if (S.presId) try { S.store.del('pre
 function fitPool() { const short = innerHeight < 760; const sr = document.querySelector('.dmroot .seatrow'); if (sr) { const hd = sr.querySelector('.seat .sv2'); if (hd) sr.style.setProperty('--seatmin', Math.ceil(hd.offsetHeight + (short ? 52 : 100)) + 'px') }
   const g = document.querySelector('.dmroot .felt .pool .namegrid'); if (g && g.children.length) { let fw = 52; g.style.setProperty('--pfw', fw + 'px'); while (fw > 34 && g.scrollHeight > g.clientHeight + 1) { fw -= 3; g.style.setProperty('--pfw', fw + 'px') } }
 }
-function render() {
+function render() { if (S.auth && !S.admin && S.players[S.auth.pid] && isGone(S.players[S.auth.pid])) { S.auth = null; saveAuth(null); setTimeout(() => toast('탈퇴·제명 처리되어 로그아웃됐어요.'), 0) }
   if (isTyping()) { S.pending = true; return } S.pending = false; draftSnap();
   S.dm = !isDesk();
   if (S.ready >= 3 || S.err) hideBoot();
@@ -898,7 +898,7 @@ function vCaptain(s) {
         <div class="hp-btns"><button class="btn primary" data-act="dutydraw" data-kind="${kind}" data-id="${sid}" ${closed && !spin && dutyPool(s, kind).length ? '' : 'disabled'}>${sel.length ? '🎲 다시 확정' : `🎲 ${nm} ${n}명 확정`}</button><button class="btn" data-act="dutyedit" data-id="${sid}">직접 고르기</button></div></div>` };
     h += `<section class="hp-sec"><div class="hp-hd"><b>🧺 공당 · 물당</b><small>신청자는 자동 포함 · 인원이 넘치거나 모자라면 추첨 · 공당 먼저, 물당은 공당 제외</small></div><div class="hp-two">${duty('ball', '⚽', '공당')}${duty('drink', '🥤', '물당')}</div>${closed ? `<button class="btn primary block hp-both" data-act="dutyboth" data-id="${sid}" ${spin ? 'disabled' : ''}>🎲 공당 → 물당 한 번에 확정</button>` : '<p class="hp-note">신청이 마감되면 확정할 수 있어요.</p>'}</section>`;
     // 참관자
-    const vs = s.viewers || []; const pool = byName(Object.keys(S.players).filter(id => mstatus(S.players[id]) !== 'dormant' && !captainsOf(s).includes(id)));
+    const vs = s.viewers || []; const pool = byName(Object.keys(S.players).filter(id => !isOut(S.players[id]) && !captainsOf(s).includes(id)));
     h += `<section class="hp-sec"><div class="hp-hd"><b>👀 드래프트 참관자</b><small>지정한 회원만 드래프트를 볼 수 있어요 · ${vs.length}명</small></div><div class="hp-card"><div class="dpick">${pool.map(id => `<button class="chip ${vs.includes(id) ? 'sel' : ''}" data-act="viewertog" data-id="${id}">${vs.includes(id) ? '👀 ' : ''}${esc(pname(id))}</button>`).join('')}</div></div></section>`;
   }
   h += `<p class="note">주장으로 지정된 회원은 로그인하면 오른쪽 위 👑 버튼으로 드래프트 방에 바로 들어와요. 드래프트는 ① 팀 색 선택 → ② 순번 정하기 → ③ 팀원 선택 순서로 진행해요.</p></div>`;
@@ -1261,6 +1261,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.120', '2026.10.27', ['[운영진] 회원 메뉴에 \'탈퇴·제명\' 관리를 추가했어요. 처리일과 사유를 기록하고, 정회원으로 되돌릴 수도 있어요', '탈퇴·제명 처리된 회원은 로그인할 수 없어요. 신청·명단에서도 빠지지만 회원 정보와 지난 경기 기록은 그대로 남아요', '[운영진] 정회원이 10회 연속 불참하면 회원 관리 표에서 줄이 주황색으로 표시되고, \'10회 연속 불참\' 버튼으로 모아 볼 수 있어요']],
   ['0.21.119', '2026.10.26', ['[운영진] 카톡 투표 명단 반영: 이름 앞의 \'F.M.\' 머리말을 떼고 읽고, \'창민\'처럼 이름만 쓴 경우도 성까지 맞는 회원을 찾아줘요. HY·jb 같은 영어 별명도 목록에 나와요', '[운영진] 별명을 회원과 한 번 짝지어 반영하면 기억해 두었다가 다음부터 자동으로 맞춰요', '[운영진] \'도형\'과 \'이도형\'처럼 비슷한 이름이 함께 있을 때 정확한 이름이 빠지던 문제를 고쳤어요', '[운영진] 10월 29일 경기는 카톡 투표 순서가 미리 채워져 있어요']],
   ['0.21.118', '2026.10.26', ['[운영진] 회비 관리의 입력 버튼 이름을 \'− 지출\', \'+ 매입\'으로 짧게 바꿨어요']],
   ['0.21.117', '2026.10.26', ['[운영진] 회비 관리를 경기 운영비 · 기타 지출 · 매입(찬조 등) 세 가지로 나눠 기록하고, 구분별로 골라 볼 수 있어요', '[운영진] 경기가 끝나면(경기 기록이 모두 끝나거나 날짜가 지나면) 그 경기 정산표의 최종 금액이 경기 운영비로 자동으로 들어가요. 정산 완료 전에 고친 금액도 바로 반영돼요', '[운영진] 월별 현황에서 달마다 경기 운영비·기타 지출·매입·합계를 볼 수 있어요']],
@@ -1674,7 +1675,7 @@ function attEntries(period) { const t = today(); const up = attUp().dates || {};
 function attSessions(period) { return attEntries(period).ids }
 function attRows(period) { const { ids, E } = attEntries(period); const m = {}; ids.forEach(id => E[id].forEach(p => (m[p] ??= []).push(id)));
   const up = attUp(); const useBase = period === 'all'; const base = useBase ? (up.base || {}) : {}; const total = ids.length + (useBase ? (+up.baseTotal || 0) : 0);
-  const pids = new Set([...Object.keys(m), ...Object.keys(base).filter(p => S.players[p]), ...Object.keys(S.players).filter(id => !['guest', 'dormant'].includes(mstatus(S.players[id])))]);
+  const pids = new Set([...Object.keys(m), ...Object.keys(base).filter(p => S.players[p]), ...Object.keys(S.players).filter(id => !['guest', 'dormant', 'left', 'expelled'].includes(mstatus(S.players[id])))]);
   const rows = [...pids].filter(id => S.players[id]).map(id => { const a = m[id] || []; const b = +base[id] || 0; let st = 0; for (let i = ids.length - 1; i >= 0 && a.includes(ids[i]); i--) st++; const n = a.length + b;
     return { id, n, base: b, rate: total ? Math.min(1, n / total) : 0, last: a[a.length - 1] || '', dates: a, streak: st, guest: mstatus(S.players[id]) === 'guest' } });
   rows.sort((x, y) => y.n - x.n || (y.last > x.last ? 1 : y.last < x.last ? -1 : 0) || pname(x.id).localeCompare(pname(y.id), 'ko'));
@@ -2068,7 +2069,7 @@ async function addSampleManual() {
   if (ok) toast(skipSid.size ? `샘플을 넣었어요. ${[...skipSid].map(fmtDate).join(', ')}은 이미 경기가 있어서 건너뛰었어요.` : '샘플 데이터를 넣었어요.');
 }
 async function makePractice() {
-  const pool = Object.entries(S.players).filter(([, p]) => mstatus(p) !== 'dormant').map(([id]) => id);
+  const pool = Object.entries(S.players).filter(([, p]) => !isOut(p)).map(([id]) => id);
   if (pool.length < 9) { toast('회원이 9명 이상 있어야 연습 경기를 만들 수 있어요.'); return }
   let d = today(); while (S.sessions[d]) { const x = new Date(d + 'T00:00'); x.setDate(x.getDate() + 1); d = `${x.getFullYear()}-${p2(x.getMonth() + 1)}-${p2(x.getDate())}` }
   if (!confirm(`${fmtDate(d)}에 경기모드 연습용 경기(팀 구성까지 끝난 상태)를 만들까요?\n회원 중 ${Math.min(18, pool.length)}명을 무작위로 세 팀에 나눠요. 설정 → "연습 경기 지우기"로 언제든 지울 수 있어요.`)) return;
@@ -2086,7 +2087,7 @@ function listCol(path) { return new Promise(res => { let un = null, done = false
 function freeDate(from) { let d = from || today(); const x0 = () => { const x = new Date(d + 'T00:00'); x.setDate(x.getDate() + 1); d = `${x.getFullYear()}-${p2(x.getMonth() + 1)}-${p2(x.getDate())}` }; while (S.sessions[d]) x0(); return d }
 const SIM = { apply: ['신청접수', 'apply'], captain: ['도우미 지정', 'captain'], draft: ['드래프트', 'draft'], trade: ['팀원조정', 'trade'] };
 async function makeSim(kind) {
-  const pool = Object.entries(S.players).filter(([, p]) => mstatus(p) !== 'dormant').map(([id]) => id);
+  const pool = Object.entries(S.players).filter(([, p]) => !isOut(p)).map(([id]) => id);
   if (pool.length < 12) { toast('회원이 12명 이상 있어야 연습 데이터를 만들 수 있어요.'); return }
   const tmr = new Date(); tmr.setDate(tmr.getDate() + 1); const d = freeDate(`${tmr.getFullYear()}-${p2(tmr.getMonth() + 1)}-${p2(tmr.getDate())}`);
   if (!confirm(`${fmtDate(d)}에 "${SIM[kind][0]}" 연습용 가상 경기를 만들까요?\n설정 → "연습 데이터 모두 지우기"로 언제든 지울 수 있어요.`)) return;
@@ -2522,6 +2523,7 @@ async function loginFlow(name, pin, remember) {
   if (!name) { toast('이름을 입력해 주세요.'); return null } if (!/^\d{4}$/.test(pin)) { toast('비밀번호는 숫자 4자리로 입력해 주세요.'); return null }
   const pid = findPlayer(name);
   if (!pid) { const msg = '회원 목록에 포함되어 있지 않습니다. 다시 확인해보세요.'; toast(msg); document.querySelectorAll('.lgerr').forEach(e => { e.textContent = `"${name}" — ${msg}`; e.hidden = false }); return null }
+  if (isGone(S.players[pid])) { const msg = `${MSTAT[mstatus(S.players[pid])]} 처리된 회원이라 로그인할 수 없어요. 운영진에게 문의해 주세요.`; toast(msg); document.querySelectorAll('.lgerr').forEach(e => { e.textContent = msg; e.hidden = false }); return null }
   const h = await pinHash(pid, pin); let a = null; try { a = await S.store.get('auth/' + pid) } catch { }
   if (!a || !a.h) { if (!confirm(`${name} 님의 비밀번호를 ${pin.replace(/./g, '•')}(으)로 등록할까요? 다른 기기에서도 이 번호로 로그인해요.`)) return null;
     if (!(await w(() => S.store.set('auth/' + pid, { h, at: Date.now() })))) return null; toast('비밀번호를 등록했어요.') }
@@ -2535,7 +2537,7 @@ function loginScreen() {
     <button class="linkbtn" data-act="opmode">운영진이신가요? 운영모드로 들어가기 ›</button></div></div>`;
 }
 function logout() { const pt = load('pushToken', null); if (pt) { S.store?.del('pushTokens/' + pt).catch(() => { }); save('pushToken', null) } S.auth = null; /* 이 기기의 알림 연결만 끊어요(다른 기기 설정은 그대로) */ saveAuth(null); S.me = ''; save('me', ''); toast('로그아웃했어요.'); render() }
-async function verifyAuth() { if (!S.auth) return; try { const a = await S.store.get('auth/' + S.auth.pid); if (!a || a.h !== S.auth.h || !S.players[S.auth.pid]) { S.auth = null; saveAuth(null); toast('다시 로그인해 주세요.'); render() } else { S.me = S.players[S.auth.pid].name; render() } } catch { } }
+async function verifyAuth() { if (!S.auth) return; try { const a = await S.store.get('auth/' + S.auth.pid); if (!a || a.h !== S.auth.h || !S.players[S.auth.pid] || isGone(S.players[S.auth.pid])) { const g = isGone(S.players[S.auth.pid]); S.auth = null; saveAuth(null); toast(g ? '탈퇴·제명 처리되어 로그아웃됐어요.' : '다시 로그인해 주세요.'); render() } else { S.me = S.players[S.auth.pid].name; render() } } catch { } }
 function myCar() { const pid = myPid(); return (pid && S.contacts?.[pid]?.car) || load('car', '') || '' }
 async function adminPinOk(pin) { const h = S.meta?.admin?.h; if (h) return (await sha('wd-admin:' + pin)) === h; return pin === String(CFG.adminPin ?? '0000') }
 function loginCard() {
@@ -2574,7 +2576,7 @@ const CHO_TABS = ['ㄱ', 'ㄴ', 'ㄷ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅅ', 'ㅇ', 'ㅈ',
 function choOf(name) { const c = String(name || '').trim().charCodeAt(0); if (c >= 0xAC00 && c <= 0xD7A3) { const k = CHO[Math.floor((c - 0xAC00) / 588)]; return CHO_BASE[k] || k } return '기타' }
 function pushComposer() { const ids = Object.keys(S.sessions).filter(id => !S.sessions[id].practice).sort().reverse().slice(0, 12); if (!S.pnSid || !S.sessions[S.pnSid]) S.pnSid = runSid() || ids[0] || null;
   const s0 = S.pnSid ? S.sessions[S.pnSid] : null; const G = pushGroups(s0); S.pnSel ??= [];
-  const members = byName(Object.keys(S.players).filter(id => mstatus(S.players[id]) !== 'dormant'));
+  const members = byName(Object.keys(S.players).filter(id => !isOut(S.players[id])));
   const grp = [['all', '전체 회원', members.length], ['apps', '신청자 (대기 포함)', G.apps?.length || 0], ['sel', '참가자 (대기 제외)', G.sel?.length || 0], ['ball', '⚽ 공당', G.ball?.length || 0], ['drink', '🥤 물당', G.drink?.length || 0], ['park', '🚗 주차 신청자', G.park?.length || 0]];
   const sel = new Set(S.pnSel); const q = (S.pnQ || '').trim();
   const byCho = {}; members.forEach(id => { const k = choOf(pname(id)); (byCho[k] ??= []).push(id) }); const tabs = [...CHO_TABS, ...(byCho['기타'] ? ['기타'] : [])];
@@ -3010,14 +3012,18 @@ async function mergeDups() { const groups = dupGroups(); if (!groups.length) { t
     for (const d of Object.keys(map)) { const evs = new Map(); Object.entries(S.events).forEach(([id, e]) => { if (e.scorer === d || e.assist === d) evs.set(id, e) });
       for (const f of ['scorer', 'assist']) { try { (await S.store.query('events', [[f, '==', d]])).forEach(e => evs.set(e.id, e)) } catch { } }
       for (const [id, e] of evs) { const up = {}; if (e.scorer === d) up.scorer = map[d]; if (e.assist === d) up.assist = map[d]; if (Object.keys(up).length) await S.store.update('events/' + id, up) }
-      const c = map[d]; const P = S.players[c] || {}, D = S.players[d] || {}; const order = ['staff', 'special', 'active', 'guest', 'dormant']; const st = [mstatus(P), mstatus(D)].sort((a, b) => order.indexOf(a) - order.indexOf(b))[0];
+      const c = map[d]; const P = S.players[c] || {}, D = S.players[d] || {}; const order = ['staff', 'special', 'active', 'guest', 'dormant', 'left', 'expelled']; const st = [mstatus(P), mstatus(D)].sort((a, b) => order.indexOf(a) - order.indexOf(b))[0];
       await S.store.update('players/' + c, { status: st, staff: st === 'staff', guest: st === 'guest', createdAt: Math.min(P.createdAt || 9e15, D.createdAt || 9e15) });
       const cc = S.contacts?.[c] || {}, dc = S.contacts?.[d]; if (dc) { const m = { ...dc, ...Object.fromEntries(Object.entries(cc).filter(([, v]) => v)) }; await S.store.set('contacts/' + c, m); await S.store.del('contacts/' + d) }
       for (const col of ['auth', 'notifPrefs']) { try { const dv = await S.store.get(col + '/' + d); if (dv) { const cv = await S.store.get(col + '/' + c); if (!cv) await S.store.set(col + '/' + c, dv); await S.store.del(col + '/' + d) } } catch { } }
       try { for (const t of await S.store.query('pushTokens', [['pid', '==', d]])) await S.store.update('pushTokens/' + t.id, { pid: c }) } catch { }
       await S.store.del('players/' + d) } });
   S.merging = false; if (ok) toast(`${plan.length}명의 중복 회원을 합쳤어요.`); render() }
-const MSTAT = { staff: '운영진', special: '특별회원', active: '정회원', dormant: '장불회원', guest: '게스트' }; // 운영진·특별회원은 운영모드에 들어갈 수 있어요. (신청 0순위는 경기별 구장 예약자·경기 운영자만)
+const MSTAT = { staff: '운영진', special: '특별회원', active: '정회원', dormant: '장불회원', guest: '게스트', left: '탈퇴', expelled: '제명' };
+const GONE = new Set(['left', 'expelled']); const OUTST = new Set(['dormant', 'left', 'expelled']); // 탈퇴·제명: 로그인 불가, 신청·명단에서 빠지고 회원 정보와 지난 기록은 남아요
+const isGone = p => GONE.has(mstatus(p)); const isOut = p => OUTST.has(mstatus(p));
+const MISS_N = 10; // 정회원이 이만큼 연속으로 불참하면 회원 관리에서 표시해요
+function missStreaks() { const { ids, E } = attEntries('all'); const o = {}; Object.entries(S.players).forEach(([id, p]) => { if (mstatus(p) !== 'active') return; const first = ids.find(d => (E[d] || []).includes(id)) || ''; const cr = p.createdAt ? tsDay(p.createdAt) : ''; const c0 = first && cr ? (first < cr ? first : cr) : first || cr; let n = 0; for (let i = ids.length - 1; i >= 0; i--) { if (c0 && ids[i] < c0) break; if ((E[ids[i]] || []).includes(id)) break; n++ } o[id] = n }); return o } // 운영진·특별회원은 운영모드에 들어갈 수 있어요. (신청 0순위는 경기별 구장 예약자·경기 운영자만)
 function mstatus(p) { const st = p?.status || (p?.guest ? 'guest' : 'active'); return st === 'active' && p?.staff ? 'staff' : st }
 function stopAdminWatch() { for (const k of ['unsubAuth', 'unsubContacts', 'unRules']) { try { S[k]?.() } catch { } S[k] = null } }
 function watchContacts() { if (!S.admin || S.unsubContacts || !S.store) return; S.unsubAuth = S.store.watchCol('auth', docs => { const o = {}; docs.forEach(d => o[d.id] = true); S.authMap = o; render() }); S.unsubContacts = S.store.watchCol('contacts', docs => { const o = {}; docs.forEach(d => { const { id, ...r } = d; o[id] = r }); S.contacts = o; render() }) }
@@ -3045,31 +3051,41 @@ function colFilterSheet(k) { const c = mcol(k); const all = memberRows(); const 
     <div class="cf-all"><button class="linkbtn" data-act="colall">모두 선택</button><button class="linkbtn" data-act="colnone">모두 해제</button><span class="muted">${tmp.length}/${vals.length}개 선택</span></div>
     <div class="cf-list">${shown.map(v => `<label class="cf-item"><input type="checkbox" data-in="colfv" value="${esc(v)}" ${tmp.includes(v) ? 'checked' : ''}><span>${v === '' ? '<i class="muted">(비어 있음)</i>' : esc(v)}</span><small>${cnt[v]}</small></label>`).join('') || '<p class="muted">맞는 값이 없어요.</p>'}</div>
     <div class="row" style="margin-top:12px"><button class="btn" data-act="colclear" data-k="${k}">필터 해제</button><button class="btn primary" data-act="colapply" data-k="${k}" ${tmp.length ? '' : 'disabled'}>적용</button></div>` }
-function viewMembers() { const tg = subnav([['list', '회원 관리'], ['att', '출석 관리']], S.memv === 'att' ? 'att' : 'list', 'memv'); if (S.memv === 'att') return tg + viewAttendance(); return tg + viewMembers0() }
+function viewMembers() { const mv = ['att', 'out'].includes(S.memv) ? S.memv : 'list'; const nOut = Object.values(S.players).filter(isGone).length; const tg = subnav([['list', '회원 관리'], ['att', '출석 관리'], ['out', `탈퇴·제명${nOut ? ' ' + nOut : ''}`]], mv, 'memv'); if (mv === 'att') return tg + viewAttendance(); if (mv === 'out') return tg + viewOut(); return tg + viewMembers0() }
+function viewOut() { const ids = Object.keys(S.players).filter(id => isGone(S.players[id])).sort((a, b) => (S.players[b].outAt || '').localeCompare(S.players[a].outAt || '') || pname(a).localeCompare(pname(b), 'ko'));
+  const cand = byName(Object.keys(S.players).filter(id => !isGone(S.players[id]))); const AT = {}; attRows('all').rows.forEach(r => AT[r.id] = r); const kd = S.outKind || 'left';
+  return `<section class="panel pad out-add"><h3 class="stl-h">탈퇴 · 제명 등록 <small>등록하면 로그인할 수 없고, 신청·명단에서 빠져요. 회원 정보와 지난 경기 기록은 그대로 남아요.</small></h3>
+    <div class="out-f"><input id="out-name" class="inp" list="out-list" placeholder="회원 이름"><datalist id="out-list">${cand.map(id => `<option value="${esc(pname(id))}">`).join('')}</datalist>
+    <span class="stl-seg" role="group">${['left', 'expelled'].map(k => `<button class="${kd === k ? 'on' : ''}" data-act="outkind" data-v="${k}" aria-pressed="${kd === k}">${MSTAT[k]}</button>`).join('')}</span>
+    <input id="out-date" class="inp" type="date" value="${today()}" aria-label="처리일"><input id="out-why" class="inp" placeholder="사유 (운영진만 보여요)"><button class="btn sm primary" data-act="outadd">등록</button></div></section>
+  ${ids.length ? `<div class="panel sheetwrap" style="margin-top:12px"><table class="grid out-tbl"><thead><tr><th>이름</th><th>구분</th><th>처리일</th><th>사유</th><th>연락처</th><th>출석</th><th>최근 출석</th><th>관리</th></tr></thead><tbody>
+    ${ids.map(id => { const p = S.players[id], c = S.contacts?.[id] || {}, st = mstatus(p); return `<tr class="out-${st}"><td><b>${esc(p.name)}</b></td><td><span class="out-tag ${st}">${MSTAT[st]}</span></td><td><input class="cell" type="date" value="${esc(p.outAt || '')}" data-in="outcell" data-id="${id}" data-f="outAt" style="width:140px"></td><td><input class="cell w-memo" type="text" value="${esc(c.outReason || '')}" placeholder="사유" data-in="outcell" data-id="${id}" data-f="outReason"></td><td>${esc(c.phone || '')}</td><td class="num">${AT[id]?.n || 0}회</td><td class="num">${AT[id]?.last ? AT[id].last.slice(2).replace(/-/g, '.') : '-'}</td><td class="acts"><button class="btn sm" data-act="outundo" data-id="${id}">정회원으로 되돌리기</button></td></tr>` }).join('')}</tbody></table></div>`
+  : '<div class="panel" style="margin-top:12px"><p class="empty">탈퇴·제명 처리된 회원이 없어요.</p></div>'}
+  <p class="note">탈퇴·제명 회원은 회원 관리의 '전체' 목록에서 빠지고, 위 표에서만 관리해요. 되돌리면 다시 로그인할 수 있어요.</p>` }
 function viewMembers0() {
   const q = (S.mq || '').trim(); const f = S.mstat || 'all';
-  const allRows = memberRows(); let rows = allRows; const cnt = k => allRows.filter(r => r.status === k).length;
-  if (f !== 'all') rows = rows.filter(r => r.status === f);
+  const allRows = memberRows(); let rows = allRows.filter(r => !GONE.has(r.status)); const cnt = k => allRows.filter(r => r.status === k).length; const MS = missStreaks(); const nMiss = Object.values(MS).filter(n => n >= MISS_N).length;
+  if (f === 'miss') rows = rows.filter(r => (MS[r.id] || 0) >= MISS_N); else if (f !== 'all') rows = allRows.filter(r => r.status === f);
   if (q) rows = rows.filter(r => r.name.includes(q) || r.phone.replace(/-/g, '').includes(q.replace(/-/g, '')) || r.memo.includes(q));
   rows = mApplyCols(rows); const fk = Object.keys(S.colF || {}).filter(k => S.colF[k]);
-  let h = `<div class="mg-top subact"><h2 style="margin:0">회원 ${Object.keys(S.players).length}명</h2><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="mbulk">명단 붙여넣기</button><button class="btn sm" data-act="mcsv">CSV 저장</button><button class="btn primary sm" data-act="madd">＋ 회원 추가</button></div></div>
+  let h = `<div class="mg-top subact"><h2 style="margin:0">회원 ${allRows.filter(r => !GONE.has(r.status)).length}명</h2><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="mbulk">명단 붙여넣기</button><button class="btn sm" data-act="mcsv">CSV 저장</button><button class="btn primary sm" data-act="madd">＋ 회원 추가</button></div></div>
   <div class="mtools"><input class="inp" type="search" id="mq" placeholder="이름, 연락처, 메모 검색" value="${esc(q)}" data-in="mq">
-  <div class="seg">${[['all', `전체 ${Object.keys(S.players).length}`], ...Object.entries(MSTAT).map(([k, n]) => [k, `${n} ${cnt(k)}`])].map(([k, n]) => `<button role="tab" data-act="mstat" data-k="${k}" aria-selected="${f === k}">${n}</button>`).join('')}</div>
+  <div class="seg">${[['all', `전체 ${allRows.filter(r => !GONE.has(r.status)).length}`], ...Object.entries(MSTAT).filter(([k]) => !GONE.has(k)).map(([k, n]) => [k, `${n} ${cnt(k)}`]), ...(nMiss ? [['miss', `⚠️ ${MISS_N}회 연속 불참 ${nMiss}`]] : [])].map(([k, n]) => `<button role="tab" data-act="mstat" data-k="${k}" aria-selected="${f === k}">${n}</button>`).join('')}</div>
 </div>${fk.length || S.colSort ? `<div class="cf-bar">${fk.map(k => `<button class="chip sel" data-act="colclear" data-k="${k}">${mcol(k)[1]}: ${S.colF[k].length > 2 ? S.colF[k].slice(0, 2).map(v => esc(v || '(빈칸)')).join(', ') + ` 외 ${S.colF[k].length - 2}` : S.colF[k].map(v => esc(v || '(빈칸)')).join(', ')} ✕</button>`).join('')}${S.colSort ? `<span class="chip">정렬: ${mcol(S.colSort.k)[1]} ${S.colSort.d > 0 ? '▲' : '▼'}</span>` : ''}<button class="linkbtn" data-act="colreset">모두 초기화</button><span class="muted">${rows.length}명 표시</span></div>` : ''}`;
   { const dg = dupGroups(); if (dg.length) h += `<div class="panel pad dupbar"><div><b>⚠️ 같은 이름 회원 ${dg.length}명</b><p class="note" style="margin:4px 0 0">${dg.map(ids => esc(S.players[ids[0]].name) + ` ×${ids.length}`).join(', ')} · 한 사람으로 합치면 신청·팀·경기 기록·골/도움·연락처가 모두 합쳐져요.</p></div><button class="btn primary" data-act="mergedups" ${S.merging ? 'disabled' : ''}>${S.merging ? '합치는 중…' : '한 사람으로 합치기'}</button></div>` }
   const nsel = Object.values(S.msel || {}).filter(Boolean).length;
   if (nsel) h += `<div class="bulkbar"><b>${nsel}명 선택</b><button class="btn sm" data-act="mselclear">선택 해제</button><button class="btn sm danger" data-act="mbulkdel">선택 삭제</button></div>`;
   if (!rows.length) return h + `<div class="panel"><p class="empty">${q || fk.length ? '조건에 맞는 회원이 없어요.' : '회원이 없어요. 회원 추가나 명단 붙여넣기로 등록하세요.'}</p></div>`;
   h += `<div class="panel sheetwrap"><table class="grid"><thead><tr><th class="ck"><input type="checkbox" class="staffck" data-in="mselall" aria-label="모두 선택" ${rows.length && rows.every(r => S.msel?.[r.id]) ? 'checked' : ''}></th>${mTh('name', 'stick')}${mTh('status')}${mTh('login')}${mTh('birth')}${mTh('phone')}${mTh('memo')}${mTh('att')}${mTh('attr')}${mTh('attLast')}<th>관리</th></tr></thead><tbody>
-  ${rows.map(r => `<tr class="${S.msel?.[r.id] ? 'msel' : ''}"><td class="ck"><input type="checkbox" class="staffck" data-in="msel" data-id="${r.id}" ${S.msel?.[r.id] ? 'checked' : ''} aria-label="${esc(r.name)} 선택"></td><td class="stick"><input class="cell w-name" type="text" value="${esc(r.name)}" data-in="mcell" data-id="${r.id}" data-f="name"></td>
+  ${rows.map(r => `<tr class="${S.msel?.[r.id] ? 'msel' : ''} ${(MS[r.id] || 0) >= MISS_N ? 'miss10' : ''}" ${(MS[r.id] || 0) >= MISS_N ? `title="${MS[r.id]}회 연속 불참"` : ''}><td class="ck"><input type="checkbox" class="staffck" data-in="msel" data-id="${r.id}" ${S.msel?.[r.id] ? 'checked' : ''} aria-label="${esc(r.name)} 선택"></td><td class="stick"><input class="cell w-name" type="text" value="${esc(r.name)}" data-in="mcell" data-id="${r.id}" data-f="name"></td>
     <td><select class="cell w-st st-${r.status}" data-in="mcell" data-id="${r.id}" data-f="status">${Object.entries(MSTAT).map(([k, n]) => `<option value="${k}" ${r.status === k ? 'selected' : ''}>${n}</option>`).join('')}</select></td>
     <td>${S.authMap?.[r.id] ? `<span class="muted" style="font-size:12px">등록됨</span> <button class="btn sm" data-act="pinreset" data-id="${r.id}">초기화</button>` : '<span class="muted" style="font-size:12px">미등록</span>'}</td>
     <td><input class="cell w-num" type="text" inputmode="numeric" maxlength="8" value="${esc(S.contacts?.[r.id]?.birth || '')}" placeholder="-" data-in="mcell" data-id="${r.id}" data-f="birth" style="width:84px"></td>
     <td><div class="telcell"><input class="cell w-tel" type="tel" value="${esc(r.phone)}" placeholder="010-0000-0000" data-in="mcell" data-id="${r.id}" data-f="phone">${r.phone ? `<a class="tel" href="tel:${esc(r.phone.replace(/[^0-9+]/g, ''))}" aria-label="${esc(r.name)}에게 전화">📞</a>` : ''}</div></td>
     <td><input class="cell w-memo" type="text" value="${esc(r.memo)}" placeholder="메모" data-in="mcell" data-id="${r.id}" data-f="memo"></td>
-    <td class="num"><button class="attcell" data-act="attp" data-id="${r.id}"><b>${r.att}</b>회</button></td><td class="num"><div class="att-rate sm"><div class="att-bar"><i style="width:${r.attr}%"></i></div><span>${r.attr}%</span></div></td><td class="num">${r.attLast ? r.attLast.slice(5).replace('-', '.') : '-'}</td>
+    <td class="num"><button class="attcell" data-act="attp" data-id="${r.id}"><b>${r.att}</b>회</button></td><td class="num"><div class="att-rate sm"><div class="att-bar"><i style="width:${r.attr}%"></i></div><span>${r.attr}%</span></div></td><td class="num">${r.attLast ? r.attLast.slice(5).replace('-', '.') : '-'}${(MS[r.id] || 0) >= MISS_N ? `<span class="missb">${MS[r.id]}회 연속 불참</span>` : ''}</td>
     <td class="acts"><button class="btn sm danger" data-act="mdel" data-id="${r.id}">삭제</button></td></tr>`).join('')}</tbody></table></div>
-  <p class="note">칸을 눌러 바로 고치면 저장돼요. 회원 유형: 운영진(운영모드) · 특별회원(운영모드) · 정회원 · 장불회원(쉬는 회원, 신청·명단에서 빠져요) · 게스트. 장불회원으로 바꿔도 지난 기록은 그대로 남아요. 연락처와 메모는 운영모드에서만 보여요.</p>`;
+  <p class="note">칸을 눌러 바로 고치면 저장돼요. 회원 유형: 운영진(운영모드) · 특별회원(운영모드) · 정회원 · 장불회원(쉬는 회원, 신청·명단에서 빠져요) · 게스트. 장불회원으로 바꿔도 지난 기록은 그대로 남아요. 탈퇴·제명은 위 '탈퇴·제명' 메뉴에서 관리해요. 정회원이 ${MISS_N}회 연속 불참하면 줄이 주황색으로 표시돼요. 연락처와 메모는 운영모드에서만 보여요.</p>`;
   return h;
 }
 function parseMemberLines(txt) {
@@ -3171,9 +3187,10 @@ document.addEventListener('change', e => { const el = e.target;
   if (el.dataset.in === 'lateuntoggle' && S.admin) { if (!confirm(`${pname(el.dataset.id)} 님의 마감 후 취소 표시를 지울까요? (다음 경기 3순위가 해제돼요. 참가 명단에는 다시 들어가지 않아요)`)) { el.checked = true; return } w(() => S.store.update(sp(S.sid), { [`late.${el.dataset.id}`]: null }), '해제했어요.'); return }
   if (el.dataset.in === 'msel') { (S.msel ??= {})[el.dataset.id] = el.checked; render(); return }
   if (el.dataset.in === 'mselall') { S.msel = {}; if (el.checked) document.querySelectorAll('[data-in=msel]').forEach(x => S.msel[x.dataset.id] = true); render(); return }
+  if (el.dataset.in === 'outcell' && S.admin) { const id = el.dataset.id, f = el.dataset.f, v = el.value.trim(); if (f === 'outAt') w(() => S.store.update('players/' + id, { outAt: v }), '저장했어요.'); else { const c = S.contacts?.[id] || {}; if ((c.outReason || '') !== v) w(() => S.store.set('contacts/' + id, { ...c, outReason: v.slice(0, 80) }), '저장했어요.') } return }
   if (el.dataset.in === 'mcell' && S.admin) { const id = el.dataset.id, f = el.dataset.f, v = el.value.trim();
     if (f === 'name') { if (!v) { render(); return } if (v !== S.players[id]?.name) { if (findPlayer(v)) { toast('같은 이름의 회원이 이미 있어요.'); render(); return } w(() => S.store.update('players/' + id, { name: v.slice(0, 20) }), '저장했어요.') } return }
-    if (f === 'status') { w(() => S.store.update('players/' + id, { status: v, guest: v === 'guest', staff: v === 'staff' }), `${S.players[id]?.name || ''} 님을 ${MSTAT[v] || v}(으)로 바꿨어요.`); return }
+    if (f === 'status') { const out = GONE.has(v); w(() => S.store.update('players/' + id, { status: v, guest: v === 'guest', staff: v === 'staff', outAt: out ? (GONE.has(mstatus(S.players[id])) && S.players[id].outAt || today()) : null }), `${S.players[id]?.name || ''} 님을 ${MSTAT[v] || v}(으)로 바꿨어요.${out ? ' 로그인이 막히고 회원 정보는 남아요.' : ''}`); return }
     const c = S.contacts?.[id] || {}; if ((c[f] || '') !== v) w(() => S.store.set('contacts/' + id, { ...c, [f]: v }), '저장했어요.'); return }
   if (el.dataset.in === 'cell' && S.admin) { const f = el.dataset.f, sid = el.dataset.sid; const v = f === 'capacity' || f === 'no' ? (+el.value || 0) : el.value; if (S.sessions[sid]?.[f] !== v) w(() => S.store.update(sp(sid), { [f]: v }), '저장했어요.'); return } if (el.dataset.in === 'sidpick') { S.sid = el.value; S.openMatch = null; render(); return } if (el.dataset.in === 'sfield' && el.type === 'time' && S.admin) w(() => S.store.update(sp(S.sid), { time: el.value })) });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'addone') { e.preventDefault(); document.querySelector('[data-act="addone"]').click() } if (e.key === 'Escape') { if (S.sheet) { S.sheet = null; render() } else if (S.openMatch) { S.openMatch = null; render() } } });
@@ -3223,9 +3240,9 @@ document.addEventListener('click', async e => {
     case 'rulereset': { const def = SYS_RULES[S.ruleId]; if (!def) break; S.ruleF = { ...S.ruleF, title: def.title, body: def.body, ...(def.kind === 'event' ? { event: def.event, offsetMin: def.offsetMin, target: def.target } : {}) }; render(); break }
     case 'pushoff': await pushDisable(); break;
     case 'pngrp': { if (!needAdmin()) break; const k = el.dataset.k; S.pnTitle = document.getElementById('pn-title')?.value || S.pnTitle; S.pnBody = document.getElementById('pn-body')?.value || S.pnBody;
-      if (k === 'none') S.pnSel = []; else if (k === 'all') S.pnSel = Object.keys(S.players).filter(id => mstatus(S.players[id]) !== 'dormant'); else S.pnSel = [...(pushGroups(S.sessions[S.pnSid])[k] || [])]; render(); break }
+      if (k === 'none') S.pnSel = []; else if (k === 'all') S.pnSel = Object.keys(S.players).filter(id => !isOut(S.players[id])); else S.pnSel = [...(pushGroups(S.sessions[S.pnSid])[k] || [])]; render(); break }
     case 'pntab': S.pnTitle = document.getElementById('pn-title')?.value || S.pnTitle; S.pnBody = document.getElementById('pn-body')?.value || S.pnBody; S.pnTab = el.dataset.k; S.pnQ = ''; render(); break;
-    case 'pnchoall': case 'pnchonone': { S.pnTitle = document.getElementById('pn-title')?.value || S.pnTitle; S.pnBody = document.getElementById('pn-body')?.value || S.pnBody; const ids = Object.keys(S.players).filter(x => mstatus(S.players[x]) !== 'dormant' && choOf(pname(x)) === S.pnTab); const set = new Set(S.pnSel || []); ids.forEach(x => act === 'pnchoall' ? set.add(x) : set.delete(x)); S.pnSel = [...set]; render(); break }
+    case 'pnchoall': case 'pnchonone': { S.pnTitle = document.getElementById('pn-title')?.value || S.pnTitle; S.pnBody = document.getElementById('pn-body')?.value || S.pnBody; const ids = Object.keys(S.players).filter(x => !isOut(S.players[x]) && choOf(pname(x)) === S.pnTab); const set = new Set(S.pnSel || []); ids.forEach(x => act === 'pnchoall' ? set.add(x) : set.delete(x)); S.pnSel = [...set]; render(); break }
     case 'pntog': { S.pnTitle = document.getElementById('pn-title')?.value || S.pnTitle; S.pnBody = document.getElementById('pn-body')?.value || S.pnBody; const set = new Set(S.pnSel || []); set.has(id) ? set.delete(id) : set.add(id); S.pnSel = [...set]; render(); break }
     case 'pushsend': { if (!needAdmin()) break; const t = document.getElementById('pn-title')?.value.trim(), b0 = document.getElementById('pn-body')?.value.trim(); const pids = [...new Set(S.pnSel || [])];
       if (!pids.length) { toast('받는 사람을 골라 주세요.'); break } if (!t || !b0) { toast('제목과 내용을 입력해 주세요.'); break } if (!confirm(`${pids.length}명에게 알림을 보낼까요?`)) break;
@@ -3404,6 +3421,11 @@ document.addEventListener('click', async e => {
     case 'apord': S.apord = el.dataset.v === 'time' ? 'time' : 'rank'; render(); break;
     case 'resv': S.resv = el.dataset.k; render(); break;
     case 'memv': S.memv = el.dataset.k; render(); window.scrollTo(0, 0); break;
+    case 'outkind': S.outKind = el.dataset.v; render(); break;
+    case 'outadd': { if (!needAdmin()) break; const nm = (document.getElementById('out-name')?.value || '').trim(); const pid = nm && findPlayer(nm); if (!pid) { toast('회원 이름을 확인해 주세요.'); break } const kd = S.outKind || 'left'; const dt = document.getElementById('out-date')?.value || today(); const why = (document.getElementById('out-why')?.value || '').trim().slice(0, 80);
+      if (!confirm(`${pname(pid)} 님을 ${MSTAT[kd]} 처리할까요?\n로그인할 수 없고 신청·명단에서 빠져요. 회원 정보와 지난 기록은 남아요.`)) break;
+      if (await w(() => S.store.update('players/' + pid, { status: kd, guest: false, staff: false, outAt: dt }), `${pname(pid)} 님을 ${MSTAT[kd]} 처리했어요.`)) { if (why) { const c = S.contacts?.[pid] || {}; S.store.set('contacts/' + pid, { ...c, outReason: why }).catch(() => { }) } render() } break }
+    case 'outundo': { if (!needAdmin() || !confirm(`${pname(id)} 님을 정회원으로 되돌릴까요? 다시 로그인할 수 있어요.`)) break; await w(() => S.store.update('players/' + id, { status: 'active', outAt: null }), '정회원으로 되돌렸어요.'); break }
     case 'attper': S.attPer = el.dataset.k; S.attOpen = null; render(); break;
     case 'attopen': S.attOpen = S.attOpen === id ? null : id; render(); break;
     case 'dutyn': { if (!needAdmin()) break; const ss = S.sessions[id]; const k = el.dataset.kind; const f = k === 'drink' ? 'drinkN' : 'ballN'; const v = Math.min(Math.max(1, participants(ss).length), Math.max(1, dutyN(ss, k) + (+el.dataset.d))); await w(() => S.store.update(sp(id), { [f]: v })); break }
