@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.130';
+const APP_VERSION = '0.21.131';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1264,6 +1264,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.131', '2026.10.27', ['앱 아이콘을 새로 만들었어요. 엠블럼에 형광 라임 링과 경기장 라인을 더한 디자인이에요 (이미 설치했다면 홈 화면 아이콘을 지우고 다시 추가하면 바뀌어요)']],
   ['0.21.130', '2026.10.27', ['아직 앱으로 설치하지 않았다면 오른쪽 위 알림 버튼 옆에 \'📲 앱 설치\' 버튼이 보여요. 안드로이드·PC 크롬은 바로 설치 창이 뜨고, 아이폰·삼성인터넷은 내 폰에 맞는 설치 방법 안내로 바로 연결돼요']],
   ['0.21.129', '2026.10.27', ['알림이 오면 홈 화면 앱 아이콘에 숫자가 떠요. 앱을 열어 알림을 읽으면 숫자가 줄어들고, 다 읽으면 사라져요 (아이폰은 iOS 16.4 이상 · 홈 화면에 추가 · 알림 허용 필요)']],
   ['0.21.128', '2026.10.27', ['표가 있는 화면에서 화면 스크롤과 표 스크롤이 겹치지 않게 고쳤어요. 출석 관리·회원 관리·신청접수처럼 표가 한 화면에 들어가는 화면은 화면은 고정되고 표 안에서만 스크롤돼요', '[운영진] 휴대폰 신청접수 화면을 더 간결하게 줄여 표와 버튼이 한 화면에 들어와요']],
