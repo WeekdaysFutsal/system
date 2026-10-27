@@ -3,7 +3,7 @@ const CFG = window.WF_CONFIG || {};
 const KEYS = ['A', 'B', 'C'];
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.21.126';
+const APP_VERSION = '0.21.127';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4' };
@@ -1264,6 +1264,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.21.127', '2026.10.27', ['앱의 모든 표에서 제목 줄은 고정되고 아래 내용만 스크롤돼요 (회원·출석·신청 현황·운영비 정산·회비 관리·탈퇴/제명·기록 표 등)']],
   ['0.21.126', '2026.10.27', ['[운영진] 신청접수 화면을 간결하게 바꿨어요. 신청 조건(정원·오픈·마감·순위 규칙·구장 예약자)은 한 줄, 공당·물당도 한 줄로 보여요', '[운영진] 신청자 표는 제목 줄이 고정되고 목록만 스크롤돼요. 신청자 추가 · 신청 마감 · 확정하고 주장 정하기 버튼이 한 줄로 표 바로 아래에 있어 스크롤 없이 보여요', '[운영진] 경기 운영자는 \'도우미 지정\' 단계에서 정해요', '화면 곳곳의 빈 여백을 줄여 불필요한 스크롤을 줄였어요']],
   ['0.21.125', '2026.10.27', ['[운영진] 운영모드 신청접수 표 아래에도 신청했다가 취소한 사람 목록이 취소 시각과 함께 보여요']],
   ['0.21.124', '2026.10.27', ['[운영진] 연속 불참 ⚠️ 아이콘의 동그란 배경을 없애고, 이름 바로 오른쪽에 붙어 보이게 했어요']],
@@ -2352,7 +2353,10 @@ const TIER_DESC = ['구장 예약자·경기 운영자급, 정원과 상관없�
 function tierSheet(sh) { const ss = S.sessions[sh.sid]; const r = ss && classify(ss).rows.find(x => x.k === sh.k); if (!r) return '<h4>순위 변경</h4><p>신청자를 찾지 못했어요. 이미 삭제됐을 수 있어요.</p>';
   return `<h4>순위 변경 · ${r.pid ? esc(pname(r.pid)) : '이름 입력 대기'}</h4><p>지금 ${TIER[r.tier]}${r.tierOv ? ' (직접 지정)' : ''} · 자동 계산이면 ${TIER[r.tier0]}예요. 바꾸면 선발·대기가 바로 다시 계산돼요.</p><div class="tierpick">${[0, 1, 2, 3].map(t => `<button class="btn${r.tier === t ? ' primary' : ''}" data-act="tierpick" data-v="${t}"><b class="t${t}">${TIER[t]}</b><small>${TIER_DESC[t]}</small></button>`).join('')}</div>${r.tierOv ? '<div class="row" style="margin-top:12px"><button class="btn block" data-act="tierpick" data-v="auto">↺ 자동 계산으로 되돌리기</button></div>' : ''}` }
 // 신청접수 표: 아래 버튼 줄까지 한 화면에 보이도록 표 높이를 맞춰요(제목 줄은 고정)
-function fitAp() { const nav = innerWidth < 900 ? (document.querySelector('.tabs')?.offsetHeight || 64) : 0; const padB = innerWidth < 900 ? 10 : 36;
+function stickyTopH() { let h = 0; document.querySelectorAll('.appbar, .tabs, .abar, .subnav').forEach(e => { const cs = getComputedStyle(e); if (cs.position !== 'sticky' && cs.position !== 'fixed') return; const r = e.getBoundingClientRect(); if (r.top < innerHeight / 2 && r.height < innerHeight / 3) h = Math.max(h, parseFloat(cs.top || 0) + r.height + (e.classList.contains('abar') ? (parseFloat(getComputedStyle(document.querySelector('.appbar') || e).height) || 0) : 0)) }); return h }
+function fitTables() { const nav = innerWidth < 900 ? (document.querySelector('.tabs')?.offsetHeight || 64) : 0; const top = stickyTopH();
+  document.querySelectorAll('.sheetwrap:not(.apscroll):not(.memwrap), .tblwrap, .stl-tw').forEach(w => { w.style.maxHeight = Math.max(240, Math.floor(innerHeight - top - nav - 20)) + 'px' }) }
+function fitAp() { fitTables(); const nav = innerWidth < 900 ? (document.querySelector('.tabs')?.offsetHeight || 64) : 0; const padB = innerWidth < 900 ? 10 : 36;
   [['.apscroll', ['.apbar', '.apnotes']], ['.memwrap', ['.memwrap ~ .note']]].forEach(([sel, below]) => { const w = document.querySelector(sel); if (!w) return; const top = w.getBoundingClientRect().top + scrollY;
     const bh = below.reduce((a, q) => { const e = document.querySelector(q); if (!e) return a; const cs = getComputedStyle(e); return a + e.offsetHeight + parseFloat(cs.marginTop || 0) + parseFloat(cs.marginBottom || 0) }, 0);
     w.style.maxHeight = Math.max(innerWidth < 900 ? 300 : 240, Math.floor(innerHeight - top - bh - nav - padB - 2)) + 'px' }) }
