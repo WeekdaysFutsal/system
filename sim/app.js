@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.19';
+const APP_VERSION = '0.4.20';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1367,6 +1367,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.20','2026.10.28',['받은 알림 목록이 깨져 보이던 문제 수정: 알림마다 아이콘·제목·내용·시간이 카드로 보이고, 안 읽은 알림은 테두리로 구분']],
   ['0.4.19','2026.10.28',['경기 시간: 전반 6분 · GK 교체(하프타임) 3초 · 후반 6분으로 맞추고, 경기 사이 쉬는 시간을 없앴어요. 경기 시간이 끝나면 타이머가 더 이상 올라가지 않고 00:00에서 멈춰요','밸런스 조정: 선수 이름을 큼직한 버튼으로 바꿈 — 한 명 누르고 다른 팀 선수를 누르면 바로 맞바꿔요 (교체 가능한 선수는 점선 표시)','밸런스 조정 화면 팀 카드와 아래 버튼 폭을 맞추고, BLACK 같은 어두운 팀 머리줄을 다른 팀과 같은 모양으로','다음 단계 버튼이 채팅 입력창과 겹치지 않게 채팅창 위로 올림','포스터 글꼴은 드롭다운에서 고르고, 포스터 시안은 한 줄로 정렬','경기진행(운영): 경기 일정을 GAME 01~09 카드로 크게, 경기 시간은 ＋/−가 위아래인 칸 3개와 대진 변경·삭제 버튼을 한 줄에 배치']],
   ['0.4.18','2026.10.28',['드래프트가 끝난 뒤에도 팀 색을 바꿀 수 있어요: 드래프트 테이블의 팀 이름(▾)을 누르거나, 팀 공지 화면 맨 위 “팀 색”에서 바꿔요 (운영진은 모든 팀, 회원은 자기 팀) · 바꾸면 포스터도 새로 만들어져요']],
   ['0.4.17','2026.10.28',['홈 드래프트 카드: 팀별 주장을 세로 목록 대신 팀마다 칸을 나눠 가로로 표시 (2·3·4팀 모두 한 줄)']],
@@ -1586,7 +1587,7 @@ function syncBadge() { const n = myPid() ? (S.inbox || []).filter(x => !x.read).
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { S.badgeN = null; syncBadge() } });
 function inboxSheet() { const L = S.inbox || []; const ico = { open: '📢', closing: '⏰', promote: '🎉', captain: '👑', team: '📣', day: '⚽', notice: '📝' };
   const when = t => { const d = new Date(t); const diff = (Date.now() - t) / 60000; return diff < 1 ? '방금' : diff < 60 ? Math.floor(diff) + '분 전' : diff < 1440 ? Math.floor(diff / 60) + '시간 전' : `${d.getMonth() + 1}.${d.getDate()} ${p2(d.getHours())}:${p2(d.getMinutes())}` };
-  return `<h4>🔔 받은 알림</h4>${L.length ? `<div class="inbox">${L.map(x => `<div class="ib ${x.read ? '' : 'new'}"><button class="ib-del" data-act="ibdel" data-id="${x.id}" aria-label="이 알림 지우기">✕</button><span class="ib-ico">${ico[x.type] || '🔔'}</span><div><b>${esc(String(x.title || '').replace(/^[📢⏰🎉👑📣⚽📝]\s*/u, ''))}</b><p>${esc(x.body || '').replace(/\n/g, '<br>')}</p><small>${when(x.at || 0)}</small></div></div>`).join('')}</div>` : '<p class="empty">아직 받은 알림이 없어요.</p>'}${L.length ? '<button class="btn sm danger" style="margin-top:10px" data-act="ibclear">모두 지우기</button>' : ''}${ibm(`최근 50개까지 보여요. 휴대폰 알림을 켜지 않아도 여기에는 쌓여요.`)}` }
+  return `<h4>🔔 받은 알림</h4>${L.length ? `<div class="inbox">${L.map(x => `<div class="nti ${x.read ? '' : 'new'}"><span class="nti-ico">${ico[x.type] || '🔔'}</span><div class="nti-b"><b>${esc(String(x.title || '').replace(/^[📢⏰🎉👑📣⚽📝]\s*/u, ''))}</b><p>${esc(x.body || '').replace(/\n/g, '<br>')}</p><small>${when(x.at || 0)}</small></div><button class="nti-del" data-act="ibdel" data-id="${x.id}" aria-label="이 알림 지우기">✕</button></div>`).join('')}</div>` : '<p class="empty">아직 받은 알림이 없어요.</p>'}${L.length ? '<button class="btn sm danger" style="margin-top:10px" data-act="ibclear">모두 지우기</button>' : ''}${ibm(`최근 50개까지 보여요. 휴대폰 알림을 켜지 않아도 여기에는 쌓여요.`)}` }
 async function markInboxRead() { const pid = myPid(); const un = (S.inbox || []).filter(x => !x.read && x.id); un.forEach(x => x.read = true); syncBadge(); for (const x of un) { try { await S.store.update(`inbox/${pid}/items/${x.id}`, { read: true }) } catch { } } }
 async function queuePush(doc) { try { await S.store.add('pushQueue', { ...doc, by: myPid() || (S.admin ? 'admin' : ''), at: Date.now() }) } catch (e) { console.warn('push queue', e) } }
 /* ───────── 기록 시트(구글 시트) 연동: 경기 기록은 시트, 실시간 데이터는 Firebase ───────── */
