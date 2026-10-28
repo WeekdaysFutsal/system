@@ -19,7 +19,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.3';
+const APP_VERSION = '0.4.4';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#6E7A88' };
@@ -1361,6 +1361,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.4', '2026.10.28', ['[운영진] 테스트 계정(이름 “테스트”)으로 로그인하면 일반 회원 화면을 그대로 볼 수 있어요. 회원 명단에는 들어가지 않고, 보기 전용이라 신청·채팅 등은 저장되지 않아요']],
   ['0.4.3', '2026.10.28', ['드래프트 테이블은 운영진 · 주장 · 운영진이 지정한 참관자만 볼 수 있어요. 다른 회원에게는 드래프트 보기 버튼이 나오지 않아요', '[운영진] 주차는 사다리타기로 뽑아요. 결과를 이미지로 저장하거나 공유해서 카톡방에 올릴 수 있어요', '[운영진] 팀·도우미 화면을 팀 구성 · 경기 운영자 · 주장 · 주차 · 공당 · 물당 6개 카드로 정리했어요. 카드마다 번호 · 상태(✓/남은 수) · 버튼 자리가 같아요']],
   ['0.4.2', '2026.10.28', ['[운영진] 모든 운영 단계에서 다음 단계로 넘어가는 버튼이 같은 자리(PC 오른쪽 아래 · 휴대폰 아래 메뉴 위)에 나와요. 할 일이 남아 있으면 버튼이 잠기고, 남은 항목(✓/○)이 버튼 옆에 보여요', '[운영진] 팀·도우미 단계는 경기 운영자 · 주장 · 공당 · 물당 · 주차를 모두 정하면 “드래프트 방 열기”가 열려요', '[운영진] 휴대폰 운영 단계 막대는 지금 단계 이름만 보여줘요']],
   ['0.4.1', '2026.10.28', ['[운영진] 경기진행 화면에 경기 일정이 없을 때 버튼 글자가 깨져 보이던 문제를 고쳤어요 (예: “9경기 일정 만들기”)']],
@@ -1664,6 +1665,11 @@ function pastSids() { const t = today(); return Object.keys(S.sessions).filter(i
 async function loadOld(sid) { if (!S.cut || sid >= S.cut || (S.oldLoaded ??= {})[sid] || !S.store?.query) return; S.oldLoaded[sid] = 1;
   try { const [ms, ev] = await Promise.all([S.store.query('matches', [['session', '==', sid]]), S.store.query('events', [['session', '==', sid]])]);
     S.oldMatches ??= {}; S.oldEvents ??= {}; ms.forEach(d => { const { id, ...r } = d; S.oldMatches[id] = r; S.matches[id] = r }); ev.forEach(d => { const { id, ...r } = d; S.oldEvents[id] = r; S.events[id] = r }); render() } catch (e) { S.oldLoaded[sid] = 0; console.warn(e) } }
+// 테스트 계정: 회원 명단에 넣지 않고 이 기기에서만 일반 회원처럼 보여요. 보기 전용이라 데이터는 저장되지 않아요.
+const TEST_PID = '__test', TEST_P = { name: '테스트', status: 'active', test: true };
+function isTest() { return S.auth?.pid === TEST_PID }
+function guardTest() { if (!S.store || S.store.__tg) return; S.store.__tg = 1; ['set', 'update', 'add', 'del', 'txn', 'patch'].forEach(m => { const f = S.store[m]; if (typeof f !== 'function') return; S.store[m] = (...a) => { if (!isTest()) return f(...a); if (Date.now() - (S.lastTap || 0) < 1500 && Date.now() - (S.testToast || 0) > 1500) { S.testToast = Date.now(); toast('테스트 계정은 보기만 할 수 있어요. 저장되지 않아요.') } return Promise.reject(new Error('aborted')) } }) }
+addEventListener('pointerdown', () => { S.lastTap = Date.now() }, true);
 function myPid() { return S.auth?.pid && S.players[S.auth.pid] ? S.auth.pid : null }
 function myTeamIn(s) { const me = myPid(); return me ? KEYS.find(k => teamPlayers(s, k).includes(me)) || null : null }
 function backbar(label) { return `<button class="backlink" data-act="sub" data-v="">‹ ${label}</button>` }
@@ -2361,7 +2367,7 @@ function applyBox(s, compact) {
 async function fixEarly(sid, qp, doc) { const open = S.sessions[sid]?.applyOpen ? new Date(S.sessions[sid].applyOpen).getTime() : 0; if (!open) return;
   for (let i = 0; i < 4; i++) { let at = null; try { at = tsMs((await S.store.get(qp))?.at) } catch { return } if (at == null || at >= open) return;
     await new Promise(r => setTimeout(r, Math.min(1500, open - at + 5))); try { await S.store.set(qp, { ...doc, at: S.store.stamp() }) } catch { return } } }
-async function doApply(sid, cancel) { const tap0 = S.applyTap && Date.now() - S.applyTap.local < 2000 ? S.applyTap.srv : nowS(); S.applyTap = null; // 손가락이 닿은 순간
+async function doApply(sid, cancel) { if (isTest()) { toast('테스트 계정은 보기만 할 수 있어요. 신청은 저장되지 않아요.'); return } const tap0 = S.applyTap && Date.now() - S.applyTap.local < 2000 ? S.applyTap.srv : nowS(); S.applyTap = null; // 손가락이 닿은 순간
   const s = S.sessions[sid]; if (!s) { toast('경기 정보를 찾지 못했어요. 화면을 새로고침해 주세요.'); return }
   if (cancel) { const mine = myApp(s); if (!mine) return; if (mine.auto) { toast('자동 신청은 운영진에게 말해 주세요.'); return } await cancelApp(sid, mine.pid, mine.k, false); return }
   if (S.applyBusy && Date.now() - S.applyBusyAt < 20000) return;
@@ -2758,6 +2764,7 @@ function loginFields(prefix, name) {
 async function loginFlow(name, pin, remember) {
   name = (name || '').replace(/\(\s*게\s*\)/g, '').trim().slice(0, 20); pin = (pin || '').trim();
   if (!name) { toast('이름을 입력해 주세요.'); return null } if (!/^\d{4}$/.test(pin)) { toast('비밀번호는 숫자 4자리로 입력해 주세요.'); return null }
+  if (name === TEST_P.name && pin === '9999' && !findPlayer(name)) { S.players[TEST_PID] = TEST_P; S.auth = { pid: TEST_PID, h: 'test' }; saveAuth(S.auth, remember); S.me = name; save('me', name); guardTest(); toast('테스트 계정으로 들어왔어요 · 일반 회원 화면 (보기 전용)'); return TEST_PID }
   const pid = findPlayer(name);
   if (!pid) { const msg = '회원 목록에 포함되어 있지 않습니다. 다시 확인해보세요.'; toast(msg); document.querySelectorAll('.lgerr').forEach(e => { e.textContent = `"${name}" — ${msg}`; e.hidden = false }); return null }
   if (isGone(S.players[pid])) { const msg = `${MSTAT[mstatus(S.players[pid])]} 처리된 회원이라 로그인할 수 없어요. 운영진에게 문의해 주세요.`; toast(msg); document.querySelectorAll('.lgerr').forEach(e => { e.textContent = msg; e.hidden = false }); return null }
@@ -2774,7 +2781,7 @@ function loginScreen() {
     <button class="linkbtn" data-act="opmode">운영진이신가요? 운영모드로 들어가기 ›</button></div></div>`;
 }
 function logout() { setTimeout(() => { S.badgeN = null; syncBadge() }, 0); const pt = load('pushToken', null); if (pt) { S.store?.del('pushTokens/' + pt).catch(() => { }); save('pushToken', null) } S.auth = null; /* 이 기기의 알림 연결만 끊어요(다른 기기 설정은 그대로) */ saveAuth(null); S.me = ''; save('me', ''); toast('로그아웃했어요.'); render() }
-async function verifyAuth() { if (!S.auth) return; try { const a = await S.store.get('auth/' + S.auth.pid); if (!a || a.h !== S.auth.h || !S.players[S.auth.pid] || isGone(S.players[S.auth.pid])) { const g = isGone(S.players[S.auth.pid]); S.auth = null; saveAuth(null); toast(g ? '탈퇴·제명 처리되어 로그아웃됐어요.' : '다시 로그인해 주세요.'); render() } else { S.me = S.players[S.auth.pid].name; render() } } catch { } }
+async function verifyAuth() { if (!S.auth) return; if (isTest()) { S.players[TEST_PID] = TEST_P; S.me = TEST_P.name; guardTest(); render(); return } try { const a = await S.store.get('auth/' + S.auth.pid); if (!a || a.h !== S.auth.h || !S.players[S.auth.pid] || isGone(S.players[S.auth.pid])) { const g = isGone(S.players[S.auth.pid]); S.auth = null; saveAuth(null); toast(g ? '탈퇴·제명 처리되어 로그아웃됐어요.' : '다시 로그인해 주세요.'); render() } else { S.me = S.players[S.auth.pid].name; render() } } catch { } }
 // 앱 설치 버튼: 아직 홈 화면 앱으로 열지 않은 사람에게만 보여요
 const devOS = () => { const ua = navigator.userAgent; return /SamsungBrowser/i.test(ua) ? 'sam' : /Android/i.test(ua) ? 'chr' : /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) ? 'ios' : '' };
 function installable() { return !isStandalone() && !S.installed && (!!S.bip || !!devOS()) }
@@ -3855,13 +3862,13 @@ function swipeTab(dir) {
       : `오류 코드: ${c || e?.message || '알 수 없음'}` }
   if (!S.store) { hideBoot(); S.err = '데이터 서버에 연결하지 못했어요. ' + why; S.ready = 3; render(); return }
   const onErr = e => { const c = e?.code || ''; hideBoot(); S.err = '데이터를 불러오지 못했어요. ' + (c === 'permission-denied' ? 'Firestore 규칙이 게시되지 않았거나 익명 로그인이 꺼져 있어요.' : c === 'not-found' || /does not exist/i.test(e?.message || '') ? 'Firestore Database가 아직 만들어지지 않았어요.' : `오류 코드: ${c || e?.message || '알 수 없음'}`); S.ready = 3; render() };
-  let posterT; const sub = (p, key) => { let first = true; S.store.watchCol(p, docs => { const o = {}; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); S[key] = o; if (first) { first = false; S.ready++; if (S.ready === 3) { setTimeout(maybeSeed, 300); verifyAuth(); syncClock(); setInterval(syncClock, 5 * 60 * 1000) } }
+  let posterT; const sub = (p, key) => { let first = true; S.store.watchCol(p, docs => { const o = {}; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); if (key === 'players' && isTest()) o[TEST_PID] = TEST_P; S[key] = o; if (first) { first = false; S.ready++; if (S.ready === 3) { setTimeout(maybeSeed, 300); verifyAuth(); syncClock(); setInterval(syncClock, 5 * 60 * 1000) } }
     if (key === 'sessions' && !S.resumed) { S.resumed = true; if (!S.pendingLink) { if (S.sid && !S.sessions[S.sid]) S.sid = null; if (S.tab !== 'draft' || !myTeam(S.sessions[S.sid])) resumeCaptain() } }
     if (key === 'sessions' && S.pendingLink) { const sid = S.pendingLink; S.pendingLink = null; S.sid = S.sessions[sid] ? sid : null; if (!S.sessions[sid] || !myTeam(S.sessions[sid])) { toast('만료되었거나 잘못된 주장 링크예요. 운영진에게 새 링크를 받아 주세요.'); S.tab = 'mhome' } else toast(`${team(S.sessions[sid], myTeam(S.sessions[sid])).name} 주장으로 드래프트에 참여해요.`) }
     if (key === 'sessions' && S.tab === 'notice' && S.admin) S.schedImg = {};
     if (key === 'sessions' && S.sid && (S.tab === 'notice' || S.sub === 'poster')) { clearTimeout(posterT); posterT = setTimeout(refreshPoster, 300) }
     renderSoon() }, null, onErr) };
-  sub('players', 'players'); sub('sessions', 'sessions'); const CUT = (() => { const d = new Date(); d.setDate(d.getDate() - 90); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}` })(); S.cut = CUT;
+  guardTest(); sub('players', 'players'); sub('sessions', 'sessions'); const CUT = (() => { const d = new Date(); d.setDate(d.getDate() - 90); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}` })(); S.cut = CUT;
   { let first = true; S.store.watchCol('matches', docs => { const o = { ...(S.oldMatches || {}) }; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); S.matches = o; if (first) { first = false; S.ready++; if (S.ready === 3) { setTimeout(maybeSeed, 300); verifyAuth(); syncClock(); setInterval(syncClock, 5 * 60 * 1000) } } renderSoon() }, { where: [['session', '>=', CUT]] }, onErr) }
   S.store.watchCol('meta', docs => { const o = {}; docs.forEach(d => { const { id, ...r } = d; o[id] = r }); S.meta = o; try { const L = Object.keys(o).filter(k => /^bootbg(_\d+)?$/.test(k)).sort().map(k => o[k]?.img).filter(Boolean).slice(0, 5); const js = JSON.stringify(L); if (L.length) { if (localStorage.getItem('wfsim:bootbgs') !== js) localStorage.setItem('wfsim:bootbgs', js) } else localStorage.removeItem('wfsim:bootbgs'); localStorage.removeItem('wfsim:bootbg') } catch { } if (S.tab === 'notice' && S.admin) { S.schedImg = {}; refreshSchedule() } }, null, () => { });
   S.store.watchCol('events', docs => { const o = { ...(S.oldEvents || {}) }; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); S.events = o; renderSoon() }, { where: [['session', '>=', S.cut]] }, onErr);

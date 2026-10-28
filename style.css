@@ -1418,3 +1418,4 @@ h2{margin:18px 0 8px}
 .pl-res{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px}.pl-res>b{font-size:14px;margin-right:4px}
 :root{--cssv:"0.4.3"}
 body:has(.scrim) .nextbar{display:none}
+:root{--cssv:"0.4.4"}
