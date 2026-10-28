@@ -19,7 +19,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.4';
+const APP_VERSION = '0.4.5';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#6E7A88' };
@@ -142,9 +142,9 @@ function team(s, k) { const t = s?.teams?.[k] || {}; const p = PALETTE.find(x =>
   return { name: k + '팀', color: NEUTRAL[k], picked: false } }
 function allPicked(s) { return TK(s).every(k => team(s, k).picked) }
 const memberNames = () => Object.values(S.players).map(p => p.name).sort((a, b) => a.localeCompare(b, 'ko'));
-const DEV_NAMES = ['박종현']; // 개발자: 운영진이 아니어도 운영모드 버튼이 보여요
-const isMaster = () => { const n = normName(S.players[myPid()]?.name); return !!n && DEV_NAMES.some(x => normName(x) === n) }; // 앱 Master: 모든 기능 + 비밀번호 없이 운영모드 + 드래프트 접속자 보기
-const canOp = () => S.admin || !S.auth || ['staff', 'special'].includes(mstatus(S.players[myPid()])) || DEV_NAMES.includes(S.players[myPid()]?.name);
+const DEV_NAMES = []; // (예전 개발자 계정은 일반 회원으로 바뀌었어요. 모든 권한은 마스터 계정이 가져요)
+const MASTER_PID = '__master', MASTER_P = { name: '마스터', status: 'staff', master: true }; const isMaster = () => S.auth?.pid === MASTER_PID; // 앱 Master: 모든 기능 + 비밀번호 없이 운영모드 + 드래프트 접속자 보기
+const canOp = () => S.admin || !S.auth || isMaster() || ['staff', 'special'].includes(mstatus(S.players[myPid()]));
 const FIG_SVG = '<svg class="pfs" viewBox="0 0 80 72" aria-hidden="true"><path class="pf-body" d="M27 4Q40 11 53 4L66 7Q73 9 76 17L79 33L65 35L64 67Q40 71 16 67L15 35L1 33L4 17Q7 9 14 7Z"/><path class="pf-cuff" d="M1.9 28.6L15 30.6V35L1 33ZM78.1 28.6L65 30.6V35L79 33Z"/><path class="pf-seam" d="M15 31V21M65 31V21"/><path class="pf-colw" d="M27 4Q40 12.5 53 4"/><path class="pf-coll" d="M27 4Q40 11 53 4M25.5 5.4Q40 15.5 54.5 5.4"/></svg>';
 const figHTML = n => { const L = Math.max(2, [...String(n)].length); return `${FIG_SVG}<b class="pfn" style="--nl:${L}">${esc(n)}</b>` }; // 반팔 유니폼 아이콘 + 가슴에 전체 이름 (글자 수에 맞춰 크기 자동 조절)
 const PICO = '<i class="pico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="4.3"/><path d="M3.6 21.5c0-4.6 3.8-8 8.4-8s8.4 3.4 8.4 8z"/></svg></i>'; // 드래프트 이름표의 사람 아이콘
@@ -171,7 +171,7 @@ const IS_ARTIFACT = !!window.WF_ARTIFACT;
 function isMe(id) { const me = myPid(); if (!me || !id) return false; if (id === me) return true; const a = normName(S.players[id]?.name), b = normName(S.players[me]?.name); return !!a && a === b } // 같은 이름이면 같은 사람(주장 코드 없이 입장)
 function myTeam(s) { if (!s) return null; const me = myPid(); if (me) { const k = KEYS.find(k => isMe(s.captains?.[k])); if (k) return k } const l = S.capLinks[s.date || S.sid]; if (!l) return null; return s.captainTokens?.[l.k] && s.captainTokens[l.k] === l.t ? l.k : null }
 function byName(ids) { return [...ids].sort((a, b) => pname(a).localeCompare(pname(b), 'ko')) }
-const QV = ['7KeA7Jyg6reg']; function quietView() { const n = normName(S.players[myPid()]?.name); if (!n) return false; try { return QV.some(x => normName(decodeURIComponent(escape(atob(x)))) === n) } catch { return false } }
+function quietView() { return isMaster() } // 마스터: 드래프트·접속자 목록·채팅에 흔적을 남기지 않고 모두 볼 수 있어요
 function viewSid() { const me = myPid(); if (!me) return null; const t = today(); const q = quietView() || isMaster(); return Object.keys(S.sessions).sort().find(id => { const s = S.sessions[id]; return id >= t && ((s.viewers || []).includes(me) || (q && (s.room?.open || s.draftStatus === 'live'))) && (s.draftStatus !== 'done' || s.stage === 'trade') }) || null }
 function canDraftView(s) { if (!s) return false; if (S.admin) return true; const me = myPid(); if (!me) return false; return KEYS.some(k => isMe(s.captains?.[k])) || (s.viewers || []).includes(me) || quietView() || isMaster() }
 function capSid() { const me = myPid(); if (!me) return null; const t = today(); return Object.keys(S.sessions).sort().find(id => { const s = S.sessions[id]; return id >= t && KEYS.some(k => isMe(s.captains?.[k])) && (s.draftStatus !== 'done' || s.stage === 'trade') }) || null }
@@ -785,7 +785,7 @@ function placeBall() { const seat = document.querySelector('.board-table .seat.b
 /* 드래프트 접속자: 각 접속 화면이 15초마다 표시를 남기고, Master만 목록을 봐요 */
 function presRole() { const s = cur(); if (S.admin) return '운영진'; const k = s && myTeam(s); if (k) return `${team(s, k).name} 주장`; if (quietView()) return '숨김 참관'; if (isMaster()) return 'Master'; if (s && (s.viewers || []).includes(myPid())) return '참관'; return '보는 중' }
 function presTick() { const on = !!document.querySelector('.board-table') && !!S.sid && !!S.store; const sid = S.sid;
-  if (on) { const id = `${sid}__${myUid()}`; if (S.presId && S.presId !== id) { S.store.del('pres/' + S.presId).catch(() => { }) } S.presId = id;
+  if (on && !isMaster()) { const id = `${sid}__${myUid()}`; if (S.presId && S.presId !== id) { S.store.del('pres/' + S.presId).catch(() => { }) } S.presId = id;
     const beat = () => S.store.set('pres/' + id, { sid, uid: myUid(), name: S.me || pname(myPid()) || '(이름 없음)', role: presRole(), at: Date.now(), dev: /Mobi/i.test(navigator.userAgent) ? '📱' : '💻' }).catch(() => { });
     if (!S.presT || S.presSid !== sid || S.presRole !== presRole()) { clearInterval(S.presT); S.presSid = sid; S.presRole = presRole(); beat(); S.presT = setInterval(beat, 15000) } }
   else if (S.presT) { clearInterval(S.presT); S.presT = null; if (S.presId) S.store.del('pres/' + S.presId).catch(() => { }); S.presId = null }
@@ -1106,7 +1106,7 @@ function vDraft(s) {
   const ph = roomPhase(s); const my = myTeam(s); const turnK = ph === 'draft' && pool(s).length ? pickTeamAt(s, (s.picks || []).length) : null;
   { const mine = !!my && turnK === my; if (mine && !S.wasMyTurn) { try { navigator.vibrate?.([120, 80, 120]) } catch { } toast('내 차례예요! 선수를 골라 주세요.') } S.wasMyTurn = mine }
   const canPick = ph === 'draft' && (S.admin || (my && my === turnK && s.room?.[my]?.in));
-  if (S.admin && s.room?.open && !s.room?.admin?.in && !S.adminJoin?.[S.sid]) { (S.adminJoin ??= {})[S.sid] = 1; w(() => S.store.update(sp(S.sid), { 'room.admin': { in: true, name: S.me || '운영진', at: Date.now() } })) }
+  if (S.admin && !isMaster() && s.room?.open && !s.room?.admin?.in && !S.adminJoin?.[S.sid]) { (S.adminJoin ??= {})[S.sid] = 1; w(() => S.store.update(sp(S.sid), { 'room.admin': { in: true, name: S.me || '운영진', at: Date.now() } })) }
   let h = '';
   // (0.21.54) 상단 단계·주장 정보 바는 없앰 — 아래 영역을 여유롭게
   // top: applicant buttons
@@ -1361,6 +1361,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.5', '2026.10.28', ['[운영진] 숨김 참관 · 개발자 권한이 있던 계정은 모두 일반 회원 권한으로 바꿨어요', '[운영진] 마스터 계정을 새로 만들었어요. 회원 명단에 없고, 운영모드를 비밀번호 없이 쓰며, 드래프트 접속자 목록 · 채팅 · 기록에 이름이 남지 않아요']],
   ['0.4.4', '2026.10.28', ['[운영진] 테스트 계정(이름 “테스트”)으로 로그인하면 일반 회원 화면을 그대로 볼 수 있어요. 회원 명단에는 들어가지 않고, 보기 전용이라 신청·채팅 등은 저장되지 않아요']],
   ['0.4.3', '2026.10.28', ['드래프트 테이블은 운영진 · 주장 · 운영진이 지정한 참관자만 볼 수 있어요. 다른 회원에게는 드래프트 보기 버튼이 나오지 않아요', '[운영진] 주차는 사다리타기로 뽑아요. 결과를 이미지로 저장하거나 공유해서 카톡방에 올릴 수 있어요', '[운영진] 팀·도우미 화면을 팀 구성 · 경기 운영자 · 주장 · 주차 · 공당 · 물당 6개 카드로 정리했어요. 카드마다 번호 · 상태(✓/남은 수) · 버튼 자리가 같아요']],
   ['0.4.2', '2026.10.28', ['[운영진] 모든 운영 단계에서 다음 단계로 넘어가는 버튼이 같은 자리(PC 오른쪽 아래 · 휴대폰 아래 메뉴 위)에 나와요. 할 일이 남아 있으면 버튼이 잠기고, 남은 항목(✓/○)이 버튼 옆에 보여요', '[운영진] 팀·도우미 단계는 경기 운영자 · 주장 · 공당 · 물당 · 주차를 모두 정하면 “드래프트 방 열기”가 열려요', '[운영진] 휴대폰 운영 단계 막대는 지금 단계 이름만 보여줘요']],
@@ -2367,7 +2368,7 @@ function applyBox(s, compact) {
 async function fixEarly(sid, qp, doc) { const open = S.sessions[sid]?.applyOpen ? new Date(S.sessions[sid].applyOpen).getTime() : 0; if (!open) return;
   for (let i = 0; i < 4; i++) { let at = null; try { at = tsMs((await S.store.get(qp))?.at) } catch { return } if (at == null || at >= open) return;
     await new Promise(r => setTimeout(r, Math.min(1500, open - at + 5))); try { await S.store.set(qp, { ...doc, at: S.store.stamp() }) } catch { return } } }
-async function doApply(sid, cancel) { if (isTest()) { toast('테스트 계정은 보기만 할 수 있어요. 신청은 저장되지 않아요.'); return } const tap0 = S.applyTap && Date.now() - S.applyTap.local < 2000 ? S.applyTap.srv : nowS(); S.applyTap = null; // 손가락이 닿은 순간
+async function doApply(sid, cancel) { if (isMaster()) { toast('마스터 계정은 신청 기록을 남기지 않아요.'); return } if (isTest()) { toast('테스트 계정은 보기만 할 수 있어요. 신청은 저장되지 않아요.'); return } const tap0 = S.applyTap && Date.now() - S.applyTap.local < 2000 ? S.applyTap.srv : nowS(); S.applyTap = null; // 손가락이 닿은 순간
   const s = S.sessions[sid]; if (!s) { toast('경기 정보를 찾지 못했어요. 화면을 새로고침해 주세요.'); return }
   if (cancel) { const mine = myApp(s); if (!mine) return; if (mine.auto) { toast('자동 신청은 운영진에게 말해 주세요.'); return } await cancelApp(sid, mine.pid, mine.k, false); return }
   if (S.applyBusy && Date.now() - S.applyBusyAt < 20000) return;
@@ -2764,6 +2765,7 @@ function loginFields(prefix, name) {
 async function loginFlow(name, pin, remember) {
   name = (name || '').replace(/\(\s*게\s*\)/g, '').trim().slice(0, 20); pin = (pin || '').trim();
   if (!name) { toast('이름을 입력해 주세요.'); return null } if (!/^\d{4}$/.test(pin)) { toast('비밀번호는 숫자 4자리로 입력해 주세요.'); return null }
+  if (name === MASTER_P.name && pin === '1009' && !findPlayer(name)) { S.players[MASTER_PID] = MASTER_P; S.auth = { pid: MASTER_PID, h: 'm' }; saveAuth(S.auth, remember); S.me = '운영진'; toast('마스터 계정으로 들어왔어요'); return MASTER_PID }
   if (name === TEST_P.name && pin === '9999' && !findPlayer(name)) { S.players[TEST_PID] = TEST_P; S.auth = { pid: TEST_PID, h: 'test' }; saveAuth(S.auth, remember); S.me = name; save('me', name); guardTest(); toast('테스트 계정으로 들어왔어요 · 일반 회원 화면 (보기 전용)'); return TEST_PID }
   const pid = findPlayer(name);
   if (!pid) { const msg = '회원 목록에 포함되어 있지 않습니다. 다시 확인해보세요.'; toast(msg); document.querySelectorAll('.lgerr').forEach(e => { e.textContent = `"${name}" — ${msg}`; e.hidden = false }); return null }
@@ -2781,7 +2783,7 @@ function loginScreen() {
     <button class="linkbtn" data-act="opmode">운영진이신가요? 운영모드로 들어가기 ›</button></div></div>`;
 }
 function logout() { setTimeout(() => { S.badgeN = null; syncBadge() }, 0); const pt = load('pushToken', null); if (pt) { S.store?.del('pushTokens/' + pt).catch(() => { }); save('pushToken', null) } S.auth = null; /* 이 기기의 알림 연결만 끊어요(다른 기기 설정은 그대로) */ saveAuth(null); S.me = ''; save('me', ''); toast('로그아웃했어요.'); render() }
-async function verifyAuth() { if (!S.auth) return; if (isTest()) { S.players[TEST_PID] = TEST_P; S.me = TEST_P.name; guardTest(); render(); return } try { const a = await S.store.get('auth/' + S.auth.pid); if (!a || a.h !== S.auth.h || !S.players[S.auth.pid] || isGone(S.players[S.auth.pid])) { const g = isGone(S.players[S.auth.pid]); S.auth = null; saveAuth(null); toast(g ? '탈퇴·제명 처리되어 로그아웃됐어요.' : '다시 로그인해 주세요.'); render() } else { S.me = S.players[S.auth.pid].name; render() } } catch { } }
+async function verifyAuth() { if (!S.auth) return; if (isMaster()) { S.players[MASTER_PID] = MASTER_P; S.me = '운영진'; render(); return } if (isTest()) { S.players[TEST_PID] = TEST_P; S.me = TEST_P.name; guardTest(); render(); return } try { const a = await S.store.get('auth/' + S.auth.pid); if (!a || a.h !== S.auth.h || !S.players[S.auth.pid] || isGone(S.players[S.auth.pid])) { const g = isGone(S.players[S.auth.pid]); S.auth = null; saveAuth(null); toast(g ? '탈퇴·제명 처리되어 로그아웃됐어요.' : '다시 로그인해 주세요.'); render() } else { S.me = S.players[S.auth.pid].name; render() } } catch { } }
 // 앱 설치 버튼: 아직 홈 화면 앱으로 열지 않은 사람에게만 보여요
 const devOS = () => { const ua = navigator.userAgent; return /SamsungBrowser/i.test(ua) ? 'sam' : /Android/i.test(ua) ? 'chr' : /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) ? 'ios' : '' };
 function installable() { return !isStandalone() && !S.installed && (!!S.bip || !!devOS()) }
@@ -3420,6 +3422,7 @@ document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]'); if (!el) return;
   if (el.classList.contains('scrim') && e.target.closest('[data-stop]')) return;
   if (el.disabled) return; const act = el.dataset.act, id = el.dataset.id;
+  if (isMaster() && ['dutyreq', 'parkapply', 'parkcancel', 'mmrecask'].includes(act)) { toast('마스터 계정은 신청 기록을 남기지 않아요.'); return }
   if (LOCK_ACTS.has(act)) { const lsid = act === 'dbsave' ? id : S.sid; if (S.sessions[lsid]?.closed) { toast('정산이 끝나 기록이 잠긴 경기예요. 고치려면 운영비 정산에서 잠금을 풀어 주세요.'); return } } const s = cur(); const m = S.openMatch ? M(S.openMatch) : null;
   if (act && act.startsWith('mm') && !['mmtoggle', 'mmtake', 'mmrelease', 'mmmode', 'mmrecask', 'mmrecok', 'mmrecno', 'mmreclaim', 'mmpick'].includes(act) && S.tab === 'mm' && !mmIsCtl()) { toast('보기 전용이에요. 진행자만 조작할 수 있어요.'); return }
   switch (act) {
@@ -3862,7 +3865,7 @@ function swipeTab(dir) {
       : `오류 코드: ${c || e?.message || '알 수 없음'}` }
   if (!S.store) { hideBoot(); S.err = '데이터 서버에 연결하지 못했어요. ' + why; S.ready = 3; render(); return }
   const onErr = e => { const c = e?.code || ''; hideBoot(); S.err = '데이터를 불러오지 못했어요. ' + (c === 'permission-denied' ? 'Firestore 규칙이 게시되지 않았거나 익명 로그인이 꺼져 있어요.' : c === 'not-found' || /does not exist/i.test(e?.message || '') ? 'Firestore Database가 아직 만들어지지 않았어요.' : `오류 코드: ${c || e?.message || '알 수 없음'}`); S.ready = 3; render() };
-  let posterT; const sub = (p, key) => { let first = true; S.store.watchCol(p, docs => { const o = {}; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); if (key === 'players' && isTest()) o[TEST_PID] = TEST_P; S[key] = o; if (first) { first = false; S.ready++; if (S.ready === 3) { setTimeout(maybeSeed, 300); verifyAuth(); syncClock(); setInterval(syncClock, 5 * 60 * 1000) } }
+  let posterT; const sub = (p, key) => { let first = true; S.store.watchCol(p, docs => { const o = {}; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); if (key === 'players' && isTest()) o[TEST_PID] = TEST_P; if (key === 'players' && isMaster()) o[MASTER_PID] = MASTER_P; S[key] = o; if (first) { first = false; S.ready++; if (S.ready === 3) { setTimeout(maybeSeed, 300); verifyAuth(); syncClock(); setInterval(syncClock, 5 * 60 * 1000) } }
     if (key === 'sessions' && !S.resumed) { S.resumed = true; if (!S.pendingLink) { if (S.sid && !S.sessions[S.sid]) S.sid = null; if (S.tab !== 'draft' || !myTeam(S.sessions[S.sid])) resumeCaptain() } }
     if (key === 'sessions' && S.pendingLink) { const sid = S.pendingLink; S.pendingLink = null; S.sid = S.sessions[sid] ? sid : null; if (!S.sessions[sid] || !myTeam(S.sessions[sid])) { toast('만료되었거나 잘못된 주장 링크예요. 운영진에게 새 링크를 받아 주세요.'); S.tab = 'mhome' } else toast(`${team(S.sessions[sid], myTeam(S.sessions[sid])).name} 주장으로 드래프트에 참여해요.`) }
     if (key === 'sessions' && S.tab === 'notice' && S.admin) S.schedImg = {};
