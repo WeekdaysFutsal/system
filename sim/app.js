@@ -19,7 +19,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.10';
+const APP_VERSION = '0.4.11';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -873,7 +873,7 @@ function stepGuide(s, step) {
   else if (step === 'captain') { const caps = TK(s).filter(k => s.captains?.[k]).length; w = ['ops'];
     const two = nC(s) === 2; const nOp = (s.ops || []).filter(p => p && S.players[p]).length, nRs = (s.p0 || []).filter(p => p && S.players[p]).length;
     const todo = [[true, `팀 수 ${nT(s)}팀${two ? ' · 구장 2면' : ''}`], ...(two ? [[nOp === 2, `구장별 경기 운영자 ${nOp}/2`], [nRs === 2, `구장 예약자 ${nRs}/2`]] : [[(s.ops || []).length, `경기 운영자${op ? ' ' + op : ''}`]]), [caps === nT(s), `주장 ${caps}/${nT(s)}`], [(s.duty?.ball || []).length && (s.duty?.drink || []).length, '공당·물당']];
-    a = `팀 구성 준비 · ${todo.map(([ok, l]) => `<span class="${ok ? 'ok' : 'todo'}">${ok ? '✓' : '○'} ${esc(l)}</span>`).join(' ')}`; tip = `신청 ${n}명 기준 ${recTeams(n)}팀을 추천해요. 다 정하면 드래프트를 시작해요. 주장으로 지정된 회원은 로그인하면 오른쪽 위 👑 버튼으로 드래프트 방에 바로 들어와요. 드래프트는 ① 팀 색 선택 → ② 순번 정하기 → ③ 팀원 선택 순서로 진행해요.` }
+    a = `팀 구성 준비<span class="sg-chips">${todo.map(([ok, l]) => `<span class="${ok ? 'ok' : 'todo'}">${ok ? '✓' : '○'} ${esc(l)}</span>`).join('')}</span>`; tip = `신청 ${n}명 기준 ${recTeams(n)}팀을 추천해요. 다 정하면 드래프트를 시작해요. 주장으로 지정된 회원은 로그인하면 오른쪽 위 👑 버튼으로 드래프트 방에 바로 들어와요. 드래프트는 ① 팀 색 선택 → ② 순번 정하기 → ③ 팀원 선택 순서로 진행해요.` }
   else if (step === 'draft') { w = ['cap', 'ops']; a = s.draftStatus === 'done' ? '드래프트 완료 · 팀 확정·공지로 넘어가요' : '주장이 차례대로 선수를 뽑아요'; tip = '주장이 자리에 없으면 운영진이 대신 지명할 수 있어요.' }
   else if (step === 'trade') { w = ['ops']; const sent = !!s.teamNoticeAt; a = `밸런스 조정 → 팀 공지 → <span class="${sent ? 'ok' : 'todo'}">${sent ? '✓ 알림 보냄' : '○ 팀 발표 알림'}</span> → 경기 일정`; tip = '회원은 알림을 받으면 홈 화면에서 자기 팀을 확인해요.' }
   else if (step === 'match') { const at = attState(s); w = ['op']; a = `경기 ${done}/${ms.length || NG(s)} 기록 · 출석 체크 지각 ${at.late} · 불참 ${at.ab}`; tip = nC(s) === 2 ? `두 구장이 동시에 진행돼요. 1구장 ${esc(courtOps(s, 1).map(pname).join('') || '미지정')} · 2구장 ${esc(courtOps(s, 2).map(pname).join('') || '미지정')} 운영자가 각자 기록해요. 회원은 경기모드에서 두 구장을 골라 Live로 봐요.` : `경기 기록은 경기 운영자${op ? `(${esc(op)})` : ''}가 해요. 다른 회원은 요청해서 권한을 넘겨받아요. 회원은 경기모드에서 Live로 봐요.` }
@@ -1363,6 +1363,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.11','2026.10.28',['표가 둥근 카드 모서리를 벗어나 각진 모서리가 보이던 문제 수정 (기록실 팀 순위·득점 순위, 신청자 표 등)','운영모드 ‘지금 할 일’ 체크 항목을 칩으로 정리하고, 팀 구성 카드의 ‘추천’ 배지 줄바꿈 해결','모바일 하단 다음 단계 버튼 영역을 불투명 배경으로 바꿔 뒤 내용과 겹쳐 보이지 않게 함','입력 칸 제목 옆 ⓘ가 다음 줄로 떨어지던 문제, 통장 잔액 입력칸 폭, 설정 화면 PC 정렬, 홈 경기 리뷰 카드 빈 공간 정리']],
   ['0.4.10','2026.10.28',['주장·참관자용 드래프트 카드도 같은 디자인으로 통일 (작은 “드래프트 보기” 버튼, 줄바꿈 없음)','공당·물당·주차 아이콘을 선 아이콘으로 통일, 신청 마감 카드도 같은 3칸 카드로 정리','글자 대비 전수 점검: 일정 달력 경기일 칸의 날짜·신청 표시, 토·일 요일 글씨, 마감 배지, 팀 색 변경 버튼, D팀 색 보정']],
   ['0.4.9','2026.10.28',['회원 홈 드래프트 카드 재설계: 진행 단계(대기·진행·완료)를 한 줄 막대로 정리하고 겹침 해결','공당·물당·주차를 큰 글씨의 3칸 카드로 분리 (내가 맡은 칸은 강조)']],
   ['0.4.8', '2026.10.28', ['팀이 확정·공개되기 전에는 주장과 팀 구성이 보이지 않고, 드래프트 진행 상황(대기 · 진행 · 완료)만 보여요. 확정되면 홈에 “팀 결과 보기” 버튼이 나와요', '화면 위 “참관” 버튼을 없앴어요 (지정된 참관자는 홈의 “드래프트 테이블 보기”로 들어가요)']],
@@ -1611,7 +1612,7 @@ function sheetCard() { if (!S.admin) return ''; const k = sheetKey(); const st =
     ${ex ? `<div class="sc-row"><span>시트 연결</span><b class="${st === true ? 'ok' : st === false ? 'bad' : ''}">${st === true ? `✅ 연결됨${S.sheetName ? ' · ' + esc(S.sheetName) : ''}` : st === false ? '⚠️ 연결 안 됨' : '확인 전'}</b><button class="btn sm" data-act="sheetping">연결 확인</button></div>` : ''}
     <div class="sc-row"><span>이 기기의 연동 키</span><b>${k ? '입력됨 ••••' + esc(k.slice(-4)) : '없음'}</b><button class="btn sm" data-act="sheetkey">${k ? '바꾸기' : '입력하기'}</button></div>
     ${ibm(`시트 주소는 모든 운영진 기기에 함께 적용되고, 연동 키는 기기마다 따로 넣어요. 연동 키가 있는 운영진 기기에서 경기 기록(팀 구성·결과·골·출석)이 바뀌면 자동으로 시트에 저장돼요.`)}<p class="note">${S.sheetLast ? ` 마지막 저장 ${new Date(S.sheetLast).toTimeString().slice(0, 5)}` : ''}${S.sheetErr ? ` · 오류: ${esc(S.sheetErr)}` : ''}</p>
-    <div class="row"><button class="btn primary" data-act="sheetmigrate" ${k && ex ? '' : 'disabled'}>⬆ 지금까지 기록 모두 시트로 옮기기</button><button class="btn" data-act="sheetsum" ${k && ex ? '' : 'disabled'}>선수기록 다시 계산</button></div>
+    <div class="row stack2"><button class="btn primary" data-act="sheetmigrate" ${k && ex ? '' : 'disabled'}>⬆ 지금까지 기록 모두 시트로 옮기기</button><button class="btn" data-act="sheetsum" ${k && ex ? '' : 'disabled'}>선수기록 다시 계산</button></div>
     ${S.sheetMig ? `<p class="note">${esc(S.sheetMig)}</p>` : ''}</div>` }
 // 내 정보: 시즌 기록 (출석률 · 골 · 도움 · 팀 우승 · 최근 팀 순위 · 경기별 기록)
 function mySeason() { const me = myPid(); if (!me || !S.players[me]) return ''; const P = playerStats()[me] || { days: 0, g: 0, a: 0, wins: 0 };
@@ -2880,7 +2881,7 @@ function readRuleForm() { const g = id => document.getElementById(id); const R =
   if (g('rf-at')) R.at = g('rf-at').value; if (g('rf-event')) { R.event = g('rf-event').value; R.offsetMin = (+g('rf-dir').value) * ((+g('rf-h').value || 0) * 60 + (+g('rf-m').value || 0)) } return R }
 /* 운영 → 회비 관리: 통장 잔액(기준) + 정산 완료 경기 + 경기 외 입출금으로 회비 현황을 보여줘요 */
 function viewFee() { const B = bankState(); const ed = S.bankEdit || !B;
-  const setForm = `<section class="panel pad bank"><h3 class="stl-h">🏦 ${B ? '통장 잔액 다시 맞추기' : '지금 통장 잔액 넣기'}</h3><div class="bank-set"><span class="stl-m"><input id="bank-base" class="inp" inputmode="numeric" value="${B ? wn(B.bal) : ''}" placeholder="지금 통장에 있는 돈" aria-label="현재 통장 잔액"><em>원</em></span><button class="btn sm primary" data-act="bankset">저장</button>${B ? '<button class="btn sm" data-act="bankedit" data-v="0">취소</button>' : ''}</div>${ibm(`지금 통장 잔액을 한 번만 넣으면, 이후 끝나는 경기의 운영비와 아래에 넣는 기타 지출·매입으로 잔액을 자동 계산해요. 이미 정산 완료된 경기는 이 잔액에 들어 있는 걸로 봐요.${B ? ' 다시 맞추면 그동안의 기타 지출·매입 내역은 지워지고 새로 시작해요.' : ''}`)}</section>`;
+  const setForm = `<section class="panel pad bank"><h3 class="stl-h">🏦 ${B ? '통장 잔액 다시 맞추기' : '지금 통장 잔액 넣기'}</h3><div class="bank-set"><span class="stl-m"><input id="bank-base" class="inp" inputmode="numeric" value="${B ? wn(B.bal) : ''}" placeholder="통장 잔액" aria-label="현재 통장 잔액"><em>원</em></span><button class="btn sm primary" data-act="bankset">저장</button>${B ? '<button class="btn sm" data-act="bankedit" data-v="0">취소</button>' : ''}</div>${ibm(`지금 통장 잔액을 한 번만 넣으면, 이후 끝나는 경기의 운영비와 아래에 넣는 기타 지출·매입으로 잔액을 자동 계산해요. 이미 정산 완료된 경기는 이 잔액에 들어 있는 걸로 봐요.${B ? ' 다시 맞추면 그동안의 기타 지출·매입 내역은 지워지고 새로 시작해요.' : ''}`)}</section>`;
   if (ed) return `<div class="fee">${setForm}</div>`;
   const kindOf = a => a.kind || (a.amt < 0 ? 'out' : 'in');
   const items = [...B.games.map(g => ({ k: 'game', date: g.sid, memo: fmtDate(g.sid) + ' 경기', amt: g.net, sid: g.sid, done: g.done })), ...B.adj.map(a => ({ k: kindOf(a), date: a.date, memo: a.memo || FEE_KIND[kindOf(a)][0], amt: +a.amt || 0, id: a.id }))].sort((a, z) => a.date.localeCompare(z.date));
