@@ -20,7 +20,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.14';
+const APP_VERSION = '0.4.15';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1364,6 +1364,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.15','2026.10.28',['PC 홈 배치 변경: 윗줄은 지난 경기(팀 순위 | 경기별 결과), 아랫줄은 다음 경기(경기 정보 | 진행 카드)로 가로 배치 — 팀 순위가 쓸데없이 늘어나던 문제 해결','경기별 결과 점수 글씨 크게','신청 마감 카드에도 공당·물당·주차 칸 표시 (PC)','모바일 홈 드래프트 카드를 더 촘촘하게']],
   ['0.4.14','2026.10.28',['기록실 팀 구성: 주장 C 표시를 이름 뒤로 옮겨 이름 줄을 맞추고, PC에서는 2열로 배치해 빈 공간을 줄임','기록실 PC: 득점 순위를 왼쪽(팀 순위+팀 구성) 높이에 맞추고 박스 안에서 스크롤 · 제목줄 고정 → 경기별 결과까지 한 화면에']],
   ['0.4.13','2026.10.28',['기록실: 팀 구성을 팀 순위 바로 아래로 옮김','경기별 결과를 1~9경기 가로 카드로 크게 배치 (큰 점수, 이긴 팀 점수 강조, 팀 이름 표시) · 모바일은 3개씩 줄바꿈']],
   ['0.4.12','2026.10.28',['달력: 칸 안 글씨가 잘리던 문제 수정 — 운영 달력은 시간·구장(예: 21:00 3구장)을 한 줄로, 신청 개시·마감 표시는 칸 아래에 고정 / 회원 달력은 📢·⏰ 아이콘만 칸 오른쪽 위에','운영 달력 입력: 회차·시간·정원 한 줄, 장소·신청 오픈·신청 마감은 한 줄 전체로 넓혀 날짜가 잘리지 않게','기록실 PC 배치: 왼쪽 팀 순위 + 경기별 결과, 오른쪽 득점 순위로 빈 공간 없앰 · 표 머리줄이 혼자 떠 있던 문제 수정','BLACK처럼 어두운 팀 카드: 흰 테두리 대신 밝은 회색 머리줄로 통일']],
@@ -1741,7 +1742,7 @@ function homeAction(s, st, fit) {
   if (st.k === 'open') return `<div class="act">${AB(s)}${appTotal(s) ? `<button class="btn sm" data-act="applist">신청자 보기</button>` : ''}</div>`;
   const capHint = '';
   const dl = dutyLine(s);
-  if (st.k === 'closed') return `<div class="act"><b>신청이 마감됐어요</b>${dl}<p>선발 ${appCounts(s).sel}명으로 드래프트를 준비해요.</p>${AB(s)}${fit ? '' : capsLine(s)}${capHint}<button class="btn sm" data-act="applist">신청자 보기</button></div>`;
+  if (st.k === 'closed') return `<div class="act"><b>신청이 마감됐어요</b>${fit ? dl : dutyTiles(s)}<p>선발 ${appCounts(s).sel}명으로 드래프트를 준비해요.</p>${AB(s)}${fit ? '' : capsLine(s)}${capHint}<button class="btn sm" data-act="applist">신청자 보기</button></div>`;
   if (st.k === 'draft') { const done = s.draftStatus === 'done'; return canDraftView(s) ? draftSteps(s, `<button class="btn sm primary mdr-act" data-act="sub" data-v="draft">${done ? '팀 구성 보기' : '드래프트 보기'}</button>`, fit ? '' : capsLine(s)) : draftSteps(s) }
   if (st.k === 'teams') return matchdayCard(s, fit);
   const live = sessMatches(s.date).filter(m => m.status === 'live');
