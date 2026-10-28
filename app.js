@@ -19,7 +19,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.6';
+const APP_VERSION = '0.4.7';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#6E7A88' };
@@ -905,12 +905,12 @@ function adminBar() {
     <ol class="aflow">${flow}</ol></div>`;
 }
 function capStrip() { if (S.admin || S.tab === 'draft') return ''; const cs = capSid(); if (!cs) return ''; const s = S.sessions[cs]; const k = myTeam(s);
-  return `<button class="capstrip" data-act="gocap" data-id="${cs}">👑 ${fmtDate(cs)} 경기 <b>${esc(team(s, k).name)} 주장</b>이에요 · ${s.room?.open && s.draftStatus !== 'done' ? '드래프트 방이 열렸어요' : s.draftStatus === 'done' ? '밸런스 조정 중' : '팀 선정 준비 중'} <span>팀 선정 화면 ›</span></button>` }
+  return `<button class="capstrip" data-act="gocap" data-id="${cs}">👑 ${fmtDate(cs)} 경기 <b>${esc(team(s, k).name)} 주장</b>이에요 · ${s.room?.open && s.draftStatus !== 'done' ? (s.draftStatus === 'live' ? '드래프트 진행 중…' : '드래프트 대기 중…') : s.draftStatus === 'done' ? '밸런스 조정 중' : '팀 선정 준비 중'} <span>팀 선정 화면 ›</span></button>` }
 function appbar() {
   const s = S.sid ? S.sessions[S.sid] : null; const back = false;
   return `<header class="appbar"><div class="in">${back ? '<button class="back" data-act="home" aria-label="경기일 목록">‹</button>' : `<img src="${EMBLEM_SRC}" alt="홈으로" data-act="gohome" style="cursor:pointer">`}
-  <div class="ttl" data-act="gohome" role="button" tabindex="0" aria-label="홈으로"><b>${esc(CFG.club?.name || 'WEEKDAYS FUTSAL CLUB')}</b><span></span></div>
-  ${!S.dm && !S.admin && S.auth && mmOpenNow() ? `<button class="mmtop ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" aria-label="${S.tab === 'mm' ? '일반모드로 돌아가기' : '경기모드 열기'}"><span class="mmball">${XICO.mm}</span><b>${S.tab === 'mm' ? '일반모드' : '경기모드'}</b>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : ''}${!S.admin && installable() ? `<button class="instbtn" data-act="appinstall" aria-label="앱으로 설치" title="홈 화면에 앱으로 설치">📲<b>앱 설치</b></button>` : ''}${S.auth && !S.admin ? (() => { const n = (S.inbox || []).filter(x => !x.read).length; return `<button class="bell" data-act="inbox" aria-label="받은 알림${n ? ' ' + n + '개 안 읽음' : ''}">${XICO.bell}${n ? `<i>${n > 9 ? '9+' : n}</i>` : ''}</button>` })() : ''}${!S.admin && capSid() ? `<button class="capico" data-act="gocap" data-id="${capSid()}" aria-label="팀 드래프트 입장" title="팀 드래프트 입장">👑<b>드래프트</b></button>` : !S.admin && viewSid() && S.sessions[viewSid()]?.draftStatus !== 'done' ? `<button class="capico view" data-act="gocap" data-id="${viewSid()}" aria-label="드래프트 참관" title="드래프트 참관">👀<b>참관</b></button>` : ''}${S.admin ? `<span class="appver" title="현재 앱 버전">v${APP_VERSION}</span>` : ''}${canOp() ? `<button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">운영모드</button>` : ''}</div>${capStrip()}${mmReqGlobal()}</header>`;
+  <div class="ttl" data-act="gohome" role="button" tabindex="0" aria-label="홈으로"><b>${esc(CFG.club?.name || 'WEEKDAYS FUTSAL CLUB')}</b><span class="ttl-v">v${APP_VERSION}</span></div>
+  ${!S.dm && !S.admin && S.auth && mmOpenNow() ? `<button class="mmtop ${S.tab === 'mm' ? 'on' : ''}" data-act="mmtoggle" aria-label="${S.tab === 'mm' ? '일반모드로 돌아가기' : '경기모드 열기'}"><span class="mmball">${XICO.mm}</span><b>${S.tab === 'mm' ? '일반모드' : '경기모드'}</b>${liveAny() ? '<i class="mmlive"></i>' : ''}</button>` : ''}${!S.admin && installable() ? `<button class="instbtn" data-act="appinstall" aria-label="앱으로 설치" title="홈 화면에 앱으로 설치">📲<b>앱 설치</b></button>` : ''}${S.auth && !S.admin ? (() => { const n = (S.inbox || []).filter(x => !x.read).length; return `<button class="bell" data-act="inbox" aria-label="받은 알림${n ? ' ' + n + '개 안 읽음' : ''}">${XICO.bell}${n ? `<i>${n > 9 ? '9+' : n}</i>` : ''}</button>` })() : ''}${!S.admin && capSid() ? `<button class="capico" data-act="gocap" data-id="${capSid()}" aria-label="팀 드래프트 입장" title="팀 드래프트 입장">👑<b>드래프트</b></button>` : !S.admin && viewSid() && S.sessions[viewSid()]?.draftStatus !== 'done' ? `<button class="capico view" data-act="gocap" data-id="${viewSid()}" aria-label="드래프트 참관" title="드래프트 참관">👀<b>참관</b></button>` : ''}<span class="appver" title="현재 앱 버전">v${APP_VERSION}</span>${canOp() ? `<button class="opbtn ${S.admin ? 'on' : ''}" data-act="opmode">운영모드</button>` : ''}</div>${capStrip()}${mmReqGlobal()}</header>`;
 }
 function tabs() {
   const t = S.admin ? [['manage', '일정'], ['run', '경기'], ['notice', '운영'], ['members', '회원'], ['settings', '설정']] : [['mhome', '홈'], ['sched', '일정'], ...(isDesk() || !mmOpenNow() ? [] : [['mm', '경기모드']]), ['results', '기록실'], ['settings', '내 정보']]; // 아래 메뉴는 항상 고정 — 드래프트는 오른쪽 위 버튼으로 입장
@@ -1110,7 +1110,7 @@ function vDraft(s) {
     return `<button class="jf pfb ${pend ? 'pend vest' : ''}" ${pt ? `style="--tc:${pt.color};--ti:${inkOn(pt.color)}"` : ''} data-act="pick" data-id="${id}" ${canPick ? '' : 'disabled'}>${figHTML(pname(id))}</button>` }).join('')}</div></div>` : '';
   // middle: board
   const o = s.order && orderDecided(s) && ph !== 'ladder' && ph !== 'cards' ? s.order : TK(s); const [L, B, R] = o; const n3 = nT(s) === 3;
-  const hIn = !!s.room?.admin?.in, hNm = s.room?.admin?.name && s.room.admin.name !== '운영진' ? s.room.admin.name : '', np = (s.picks || []).length;
+  const hIn = presAdmins().length > 0, hNm = '', np = (s.picks || []).length; // 운영진 접속 표시는 실제로 화면을 보고 있는 운영진(15초마다 신호)만 기준으로 해요
   const hostH = `<div class="seat host hostbox ${hIn ? '' : 'off'}">${bubbleFor(m => m.admin)}<div class="hb-id"><span class="hb-av">운영</span><span class="hb-nm"><b>운영진${presAdmins().length > 1 ? ` ${presAdmins().length}명` : ''}</b>${(() => { const ns = presAdmins().filter(n => n !== '운영진'); const list = ns.length ? ns : hNm ? [hNm] : []; return list.length ? `<span class="hb-names">${list.map(n => `<i>${esc(n)}</i>`).join('')}</span>` : '' })()}</span><i class="dot ${hIn ? 'on' : ''}" title="${hIn ? '진행 중' : '대기 중'}"></i></div>
     ${S.admin && ph !== 'closed' ? `<div class="hb-act">${ph === 'draft' && allIn(s) ? '<button class="hbtn ok" data-act="finishdraft">✅ 확정</button>' : ''}${ph === 'draft' && np ? '<button class="hbtn undo" data-act="undo">↶ 되돌리기</button>' : ''}${ph === 'draft' && !np ? '<button class="hbtn" data-act="ordedit">✎ 순번 바꾸기</button>' : ''}<button class="hbtn more" data-act="roommenu" aria-label="진행 메뉴">⋯ 메뉴</button></div>` : `<span class="hb-st">${hIn ? '진행 중' : '대기 중'}</span>`}</div>`;
   const seatsRow = `<div class="seatrow sr-n${nT(s)}">${o.map(k => `<div class="pos-x">${seatHTML(s, k, ph)}</div>`).join('')}</div>`;
@@ -1134,7 +1134,7 @@ async function openRoom() {
   const tokens = { ...(s.captainTokens || {}) }; TK(s).forEach(k => { if (!tokens[k]) tokens[k] = rand() });
   const ok = await w(() => S.store.update(sp(S.sid), { stage: 'draft', draftStatus: 'ready', picks: [], pending: null, ladder: null, cardgame: null, order: [...TK(s)], captainTokens: tokens,
     room: { open: true, A: { in: false }, B: { in: false }, C: { in: false }, admin: { in: true, name: S.me || '운영진', at: Date.now() } }, teams: Object.fromEntries(KEYS.map(k => [k, { players: [], colorName: null }])) }));
-  if (ok) { sysChat('드래프트 방이 열렸어요. 주장님들 입장해 주세요!'); S.step = 'draft'; render() }
+  if (ok) { sysChat('드래프트 대기 중… 주장님들 입장해 주세요!'); S.step = 'draft'; render() }
 }
 async function joinRoom(k) { const s = cur(); if (myTeam(s) !== k) return; if (await w(() => S.store.update(sp(S.sid), { [`room.${k}`]: { in: true, at: Date.now() } }))) sysChat(`👑 ${pname(s.captains[k])} 주장 입장`) }
 async function leaveRoom() {
@@ -1299,7 +1299,7 @@ function viewSheet() {
   const sh = S.sheet; let h = `<div class="scrim" data-act="closesheet"><div class="sheet" role="dialog" aria-modal="true" data-stop><div class="grab"></div>`;
   if (sh.type === 'adminpin') h += `<h4>운영모드</h4><p>운영진 비밀번호를 입력하세요.</p><div class="panel"><div class="field"><label for="ap-pin">비밀번호</label><input id="ap-pin" class="inp pin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="••••"></div></div><div class="row" style="margin-top:12px"><button class="btn primary cta" data-act="adminpinok">운영모드 들어가기</button></div>`;
   else if (sh.type === 'cappop') { const s = S.sessions[sh.sid]; const k = myTeam(s);
-    h += `<div class="cappop"><div class="cp-crown">👑</div><h4>${esc(pname(myPid()))} 님, 주장으로 지정됐어요!</h4><p>${fmtDate(sh.sid)} ${esc(s.time || '')} 경기의 <b>${esc(team(s, k).name)}</b> 주장이에요.<br>${s.room?.open ? '드래프트 방이 열렸어요. 지금 입장해 주세요.' : '운영진이 드래프트 방을 열면 팀원을 선정해요.'}</p><button class="btn primary block cta" data-act="gocap" data-id="${sh.sid}">팀 선정 화면으로 가기</button></div>` }
+    h += `<div class="cappop"><div class="cp-crown">👑</div><h4>${esc(pname(myPid()))} 님, 주장으로 지정됐어요!</h4><p>${fmtDate(sh.sid)} ${esc(s.time || '')} 경기의 <b>${esc(team(s, k).name)}</b> 주장이에요.<br>${s.room?.open ? (s.draftStatus === 'live' ? '드래프트 진행 중… 지금 입장해 주세요.' : '드래프트 대기 중… 지금 입장해 주세요.') : '운영진이 드래프트 방을 열면 팀원을 선정해요.'}</p><button class="btn primary block cta" data-act="gocap" data-id="${sh.sid}">팀 선정 화면으로 가기</button></div>` }
   else if (sh.type === 'import') h += importSheet();
   else if (sh.type === 'attimp') h += attImpSheet();
   else if (sh.type === 'attp') h += attPersonSheet(sh.id);
@@ -1355,6 +1355,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.7', '2026.10.28', ['드래프트 상태를 “드래프트 대기 중…” · “드래프트 진행 중…”으로 보여줘요', '회원 화면에서도 오른쪽 위에 현재 버전이 보여요', '드래프트 테이블의 운영진 접속 표시가 실제로 화면을 보고 있는 운영진만 기준으로 바뀌었어요. 나간 운영진이 계속 접속 중으로 보이던 문제를 고쳤어요']],
   ['0.4.6', '2026.10.28', ['[운영진] 내부 안정성 수정']],
   ['0.4.5', '2026.10.28', ['[운영진] 숨김 참관 · 개발자 권한이 있던 계정은 모두 일반 회원 권한으로 바꿨어요', '[운영진] 마스터 계정을 새로 만들었어요. 회원 명단에 없고, 운영모드를 비밀번호 없이 쓰며, 드래프트 접속자 목록 · 채팅 · 기록에 이름이 남지 않아요']],
   ['0.4.4', '2026.10.28', ['[운영진] 테스트 계정(이름 “테스트”)으로 로그인하면 일반 회원 화면을 그대로 볼 수 있어요. 회원 명단에는 들어가지 않고, 보기 전용이라 신청·채팅 등은 저장되지 않아요']],
@@ -1726,7 +1727,7 @@ function homeAction(s, st, fit) {
   const dl = dutyLine(s);
   if (st.k === 'closed') return `<div class="act"><b>신청이 마감됐어요</b>${dl}<p>선발 ${appCounts(s).sel}명으로 드래프트를 준비해요.</p>${AB(s)}${fit ? '' : capsLine(s)}${capHint}<button class="btn sm" data-act="applist">신청자 보기</button></div>`;
   if (st.k === 'draft' && s.draftStatus === 'done') return `<div class="act"><b>팀이 정해졌어요</b><p>운영진이 팀 밸런스를 마지막으로 맞추고 있어요.</p></div>${matchdayCard(s, fit)}`;
-  if (st.k === 'draft') { const live = s.draftStatus !== 'done'; return `<div class="act live">${dl}<b>${live ? `<span class="dot"></span> ${s.draftStatus === 'live' ? '지금 드래프트 중이에요' : '드래프트 방이 열렸어요'}` : '팀 밸런스를 맞추는 중이에요'}</b>${fit ? '' : capsLine(s)}${!live || canDraftView(s) ? `<button class="btn primary block" data-act="sub" data-v="draft">${live ? '드래프트 테이블 보기' : '팀 구성 보기'}</button>` : '<p class="muted" style="margin:6px 0 0">드래프트가 끝나면 팀 구성을 볼 수 있어요.</p>'}${live ? capHint : ''}</div>` }
+  if (st.k === 'draft') { const live = s.draftStatus !== 'done'; return `<div class="act live">${dl}<b>${live ? `<span class="dot"></span> ${s.draftStatus === 'live' ? '드래프트 진행 중…' : '드래프트 대기 중…'}` : '팀 밸런스를 맞추는 중이에요'}</b>${fit ? '' : capsLine(s)}${!live || canDraftView(s) ? `<button class="btn primary block" data-act="sub" data-v="draft">${live ? '드래프트 테이블 보기' : '팀 구성 보기'}</button>` : '<p class="muted" style="margin:6px 0 0">드래프트가 끝나면 팀 구성을 볼 수 있어요.</p>'}${live ? capHint : ''}</div>` }
   if (st.k === 'teams') return matchdayCard(s, fit);
   const live = sessMatches(s.date).filter(m => m.status === 'live');
   return `<div class="act live"><b><span class="dot"></span> 경기 진행 중</b>${live.map(m => { const [a, b] = score(m); return `<div class="lv">${bib(team(s, m.home).color)}${esc(team(s, m.home).name)} <b>${a} : ${b}</b> ${esc(team(s, m.away).name)}${bib(team(s, m.away).color)} <span data-clock="${m.id}"></span></div>` }).join('')}<button class="btn primary block" data-act="sub" data-v="match">경기 현황과 순위 보기</button></div>${matchdayCard(s, fit, true)}`;
