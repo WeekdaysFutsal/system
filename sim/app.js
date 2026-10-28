@@ -11,6 +11,7 @@ const nC = s => nT(s) === 4 ? 2 : 1;
 const CK = (b, c) => c === 2 ? b + '2' : b;
 const mcourt = m => +m?.court === 2 ? 2 : 1;
 function courtOps(s, c) { const o = s?.ops || []; return nC(s) === 2 ? (o[c - 1] && S.players[o[c - 1]] ? [o[c - 1]] : []) : o.filter(p => p && S.players[p]) }
+function venueShort(s) { const one = v => { v = String(v || ''); const m = v.match(/(\d+)\s*구장/); return m ? m[1] + '구장' : v.split(/\s+/).pop().slice(0, 6) }; return nC(s) === 2 && s.venue2 ? `${one(s.venue).replace('구장', '')}·${one(s.venue2)}` : one(s.venue) }
 function venueTxt(s) { return nC(s) === 2 && s.venue2 ? `${s.venue || ''} · ${s.venue2}` : s.venue }
 function courtShort(s, c) { const a = (s.venue || '').split(' '), b = (s.venue2 || '').split(' '); let i = 0; while (i < a.length - 1 && i < b.length - 1 && a[i] === b[i]) i++; return ((c === 2 ? b : a).slice(i).join(' ')) || courtName(s, c) }
 function courtName(s, c) { return c === 2 ? (s.venue2 || '2구장') : (s.venue || '1구장') }
@@ -19,7 +20,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.11';
+const APP_VERSION = '0.4.12';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1363,6 +1364,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.12','2026.10.28',['달력: 칸 안 글씨가 잘리던 문제 수정 — 운영 달력은 시간·구장(예: 21:00 3구장)을 한 줄로, 신청 개시·마감 표시는 칸 아래에 고정 / 회원 달력은 📢·⏰ 아이콘만 칸 오른쪽 위에','운영 달력 입력: 회차·시간·정원 한 줄, 장소·신청 오픈·신청 마감은 한 줄 전체로 넓혀 날짜가 잘리지 않게','기록실 PC 배치: 왼쪽 팀 순위 + 경기별 결과, 오른쪽 득점 순위로 빈 공간 없앰 · 표 머리줄이 혼자 떠 있던 문제 수정','BLACK처럼 어두운 팀 카드: 흰 테두리 대신 밝은 회색 머리줄로 통일']],
   ['0.4.11','2026.10.28',['표가 둥근 카드 모서리를 벗어나 각진 모서리가 보이던 문제 수정 (기록실 팀 순위·득점 순위, 신청자 표 등)','운영모드 ‘지금 할 일’ 체크 항목을 칩으로 정리하고, 팀 구성 카드의 ‘추천’ 배지 줄바꿈 해결','모바일 하단 다음 단계 버튼 영역을 불투명 배경으로 바꿔 뒤 내용과 겹쳐 보이지 않게 함','입력 칸 제목 옆 ⓘ가 다음 줄로 떨어지던 문제, 통장 잔액 입력칸 폭, 설정 화면 PC 정렬, 홈 경기 리뷰 카드 빈 공간 정리']],
   ['0.4.10','2026.10.28',['주장·참관자용 드래프트 카드도 같은 디자인으로 통일 (작은 “드래프트 보기” 버튼, 줄바꿈 없음)','공당·물당·주차 아이콘을 선 아이콘으로 통일, 신청 마감 카드도 같은 3칸 카드로 정리','글자 대비 전수 점검: 일정 달력 경기일 칸의 날짜·신청 표시, 토·일 요일 글씨, 마감 배지, 팀 색 변경 버튼, D팀 색 보정']],
   ['0.4.9','2026.10.28',['회원 홈 드래프트 카드 재설계: 진행 단계(대기·진행·완료)를 한 줄 막대로 정리하고 겹침 해결','공당·물당·주차를 큰 글씨의 3칸 카드로 분리 (내가 맡은 칸은 강조)']],
@@ -1792,7 +1794,7 @@ function viewSchedule() {
   const first = new Date(y, m - 1, 1), days = new Date(y, m, 0).getDate(), pad = first.getDay(), t = today(); const rows = Math.ceil((pad + days) / 7); const AM = applyMarks();
   let cells = ''; for (let i = 0; i < pad; i++) cells += '<span class="scd blank"></span>';
   for (let d = 1; d <= days; d++) { const id = `${y}-${p2(m)}-${p2(d)}`; const s = S.sessions[id]; const wd = (pad + d - 1) % 7; const st = s ? sStatus(s) : null;
-    cells += `<button class="scd${s ? ' has st-' + st.k : ''}${AM[id] ? ' mk' : ''}${id === t ? ' today' : ''}${id === S.schSel ? ' sel' : ''}${id < t ? ' past' : ''}${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}" data-act="schday" data-id="${id}" aria-pressed="${id === S.schSel}"><span class="dn">${d}</span>${s ? `<em class="ev"><b>${esc((s.time || '').slice(0, 5))}</b><small>${esc(venueTxt(s) || '')}</small></em>` : ''}${markHtml(AM[id])}</button>` }
+    cells += `<button class="scd${s ? ' has st-' + st.k : ''}${AM[id] ? ' mk' : ''}${id === t ? ' today' : ''}${id === S.schSel ? ' sel' : ''}${id < t ? ' past' : ''}${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}" data-act="schday" data-id="${id}" aria-pressed="${id === S.schSel}"><span class="dn">${d}</span>${s ? `<em class="ev"><b>${esc((s.time || '').slice(0, 5))}</b><small>${esc(venueShort(s))}</small></em>` : ''}${markHtml(AM[id])}</button>` }
   for (let i = pad + days; i < rows * 7; i++) cells += '<span class="scd blank"></span>';
   const cnt = all.filter(id => id.startsWith(ym)).length;
   const cal = `<div class="scal panel"><div class="cal-hd"><button data-act="schm" data-d="-1" aria-label="이전 달">‹</button><b>${y}년 ${m}월<small>${cnt ? ` · 경기 ${cnt}회` : ''}</small></b><button data-act="schm" data-d="1" aria-label="다음 달">›</button></div>
@@ -2932,7 +2934,7 @@ function viewPlan() {
   const first = new Date(y, m - 1, 1), days = new Date(y, m, 0).getDate(), pad = first.getDay(), t = today(); const rows = Math.ceil((pad + days) / 7);
   let cells = ''; for (let i = 0; i < pad; i++) cells += '<span class="scd blank"></span>';
   for (let d = 1; d <= days; d++) { const id = `${y}-${p2(m)}-${p2(d)}`; const s = S.sessions[id]; const wd = (pad + d - 1) % 7; const st = s ? sStatus(s) : null;
-    cells += `<button class="scd${s ? ' has st-' + st.k : ''}${AM[id] ? ' mk' : ''}${id === t ? ' today' : ''}${id === S.planSel ? ' sel' : ''}${id < t ? ' past' : ''}${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}" data-act="planday" data-id="${id}"><span class="dn">${d}</span>${s ? `<em class="ev"><b>${esc((s.time || '').slice(0, 5))}</b><small>${esc(venueTxt(s) || '')}</small></em>` : ''}${markHtml(AM[id])}</button>` }
+    cells += `<button class="scd${s ? ' has st-' + st.k : ''}${AM[id] ? ' mk' : ''}${id === t ? ' today' : ''}${id === S.planSel ? ' sel' : ''}${id < t ? ' past' : ''}${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}" data-act="planday" data-id="${id}"><span class="dn">${d}</span>${s ? `<em class="ev"><b>${esc((s.time || '').slice(0, 5))}</b><small>${esc(venueShort(s))}</small></em>` : ''}${markHtml(AM[id])}</button>` }
   for (let i = pad + days; i < rows * 7; i++) cells += '<span class="scd blank"></span>';
   const cnt = all.filter(id => id.startsWith(ym)).length;
   const cal = `<div class="scal panel"><div class="cal-hd"><button data-act="planm" data-d="-1" aria-label="이전 달">‹</button><b>${y}년 ${m}월<small>${cnt ? ` · 경기 ${cnt}회` : ''}</small></b><button data-act="planm" data-d="1" aria-label="다음 달">›</button></div>
@@ -2948,7 +2950,7 @@ function planSide(id) {
   const f = (lab, fld, type, extra = '') => `<label class="pf"><span>${lab}</span><input class="inp" type="${type}" value="${esc(s[fld] ?? '')}" data-in="cell" data-sid="${id}" data-f="${fld}" ${extra}></label>`;
   return `<div class="panel sched pside"><div class="sched-hd"><div><b>${fmtDate(id)}${s.no ? ` · ${s.no}회` : ''}</b><span><span class="st st-${st.k}">${st.label}</span> 신청 ${c.sel + c.wait}${s.capacity ? '/' + s.capacity : ''}명${c.wait ? `, 대기 ${c.wait}` : ''}</span></div><span class="dday sm">${dday(id)}</span></div>
     <button class="btn primary block" data-act="gorun" data-id="${id}">이 경기 진행 화면 열기 →</button>
-    <div class="pgrid">${f('회차', 'no', 'number', 'min="1"')}${f('시간', 'time', 'time')}<label class="pf"><span>장소</span>${venuePicker((S.venueCustom ??= {})[id] ? (s.venue && !VENUES.includes(s.venue) ? s.venue : '__custom') : s.venue, `data-in="venuesel" data-sid="${id}"`, `data-in="cell" data-sid="${id}" data-f="venue"`)}</label>${f('정원', 'capacity', 'number', 'min="3"')}${f('신청 오픈', 'applyOpen', 'datetime-local')}${f('신청 마감', 'applyClose', 'datetime-local')}</div>
+    <div class="pgrid">${f('회차', 'no', 'number', 'min="1"')}${f('시간', 'time', 'time')}${f('정원', 'capacity', 'number', 'min="3"')}<label class="pf pf-w"><span>장소</span>${venuePicker((S.venueCustom ??= {})[id] ? (s.venue && !VENUES.includes(s.venue) ? s.venue : '__custom') : s.venue, `data-in="venuesel" data-sid="${id}"`, `data-in="cell" data-sid="${id}" data-f="venue"`)}</label>${f('신청 오픈', 'applyOpen', 'datetime-local')}${f('신청 마감', 'applyClose', 'datetime-local')}</div>
     <div class="plinks">
       <button class="plink" data-act="staffedit" data-id="${id}"><span>구장 예약자 · 운영자</span><b>${esc(idsToNames(s.p0) || '-')} · ${esc(idsToNames(s.ops) || '-')}</b></button>
       <button class="plink" data-act="dutyedit" data-id="${id}"><span>공당 · 물당</span><b>${(s.duty?.ball || []).length || (s.duty?.drink || []).length ? `${esc(idsToNames(s.duty?.ball) || '-')} · ${esc(idsToNames(s.duty?.drink) || '-')}` : dutyReqLabel(s) || (applyClosed(s) ? '지정하기' : '아직 신청 없음')}</b></button>

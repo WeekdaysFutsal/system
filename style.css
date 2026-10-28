@@ -1491,3 +1491,27 @@ body:has(.scrim) .nextbar{display:none}
 .nb-go{width:100%;min-width:0}.nb-sp{height:120px}}
 .tabs{background:var(--bg)!important}
 :root{--cssv:"0.4.11"}
+/* 운영 달력 폼: 회차·시간·정원 3칸, 장소·신청 시각은 한 줄 전체 */
+.pgrid{grid-template-columns:minmax(0,.8fr) minmax(0,1.4fr) minmax(0,.8fr)!important}
+.pgrid>:nth-child(n+4){grid-column:1/-1}
+.pgrid input[type=datetime-local]{width:100%;min-width:0;font-size:15px}
+/* 달력 칸: 시간·구장 한 줄, 표시가 칸을 벗어나지 않게 */
+.scd .ev{flex-direction:row!important;flex-wrap:wrap;gap:0 4px;align-items:baseline!important}
+.scd .ev small{display:inline!important;font-size:11px;font-weight:700;opacity:.8;white-space:nowrap;overflow:visible}
+.scd{overflow:hidden}
+.scd .amk{position:absolute!important;left:4px!important;right:4px!important;bottom:4px!important;top:auto!important;width:auto!important;display:flex!important;flex-direction:column!important;align-items:stretch;gap:2px!important}
+.scd .ev{margin-top:4px!important}
+.scd .amk i{max-width:100%;overflow:hidden}
+/* 어두운 팀(BLACK 등) 카드: 테두리선 대신 밝힌 머리줄 */
+.tdk.rdt{border-color:var(--line)!important}
+.tdk .rdt-hd,.tdk.rdt .rdt-hd,.tdk .rcard-hd{outline:none!important;background:#2B313A!important;color:#fff!important}
+.tdk .rdt li em{outline:none!important;background:#2B313A!important;color:#fff!important}
+/* 기록실: 짧은 표는 머리줄 고정 해제, PC는 팀순위+경기별 결과 | 득점순위 */
+.rdgrid .tblwrap table thead th{position:static!important}
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){.rdgrid{grid-template-areas:"st rk" "ms rk" "tm tm"!important;grid-template-rows:auto 1fr auto;align-items:start}}
+.scd.mk .ev{padding-top:3px!important;padding-bottom:3px!important}
+.schwrap .scd .amk{left:auto!important;right:5px!important;top:5px!important;bottom:auto!important;flex-direction:row!important;gap:2px!important}
+.schwrap .scd .amk i{background:none!important;padding:0!important;font-size:12px!important}
+.schwrap .scd .amk i small{display:none!important}
+.rounds3:has(>.rgrid3){display:block!important}
+:root{--cssv:"0.4.12"}
