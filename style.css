@@ -1376,3 +1376,19 @@ h2{margin:18px 0 8px}
 .abar .aflow .sn{font-weight:inherit}
 @media (max-width:640px){.abar .aflow li:not(.now) .fn{display:none}.abar .aflow li.now>button>span{overflow:visible;position:relative;z-index:1}.abar .aflow span{font-size:11px}}
 :root{--cssv:"0.4.1"}
+/* 다음 단계 버튼: 항상 같은 자리 */
+.nb-sp{height:84px}
+.nextbar{position:fixed;z-index:30;left:0;right:0;bottom:0;pointer-events:none;padding:0 16px 16px}
+.nb-in{pointer-events:auto;max-width:1180px;margin:0 auto;display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:nowrap}
+.nb-left{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;min-width:0;padding:6px 10px;border-radius:12px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(6px)}
+.nb-left:empty{display:none}
+.nb-c{font-size:12px;font-weight:800;padding:3px 9px;border-radius:999px;background:rgba(255,181,71,.16);color:#FFB547;white-space:nowrap}
+.nb-c.ok{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}.nb-c.opt{background:var(--surface);color:var(--muted)}
+.nextbar .btn{min-height:52px;border-radius:14px;box-shadow:0 10px 26px -10px rgba(0,0,0,.6)}
+.nb-go{min-width:220px;font-size:15px!important;font-weight:900!important}
+.nb-go:disabled{opacity:1!important;background:var(--surface)!important;color:var(--muted)!important;border:1px solid var(--line)!important}
+@media (max-width:899px){.nextbar{bottom:calc(var(--tabh,64px) + env(safe-area-inset-bottom,0px));padding:0 12px 8px}.nb-in{flex-wrap:wrap}.nb-left{flex:1 1 100%;justify-content:flex-start;padding:4px 6px}.nb-go{flex:1;min-width:0}.nb-sp{height:130px}}
+.nextbar.up{bottom:var(--cdh,0px)}
+@media (max-width:899px){.nextbar.up{bottom:calc(var(--cdh,0px) + var(--tabh,64px))}}
+@media (max-width:640px){.abar .aflow li:not(.now) span{visibility:hidden}.abar .aflow li.now>button>span{visibility:visible;width:max-content;max-width:none;padding-right:6px;background:var(--surface,#15181D);overflow:visible}.abar .aflow li.now .fn{display:inline!important}}
+:root{--cssv:"0.4.2"}

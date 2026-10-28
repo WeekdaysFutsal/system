@@ -19,7 +19,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.1';
+const APP_VERSION = '0.4.2';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#6E7A88' };
@@ -949,11 +949,10 @@ function vApply(s) {
   const tb0 = vApplyTable(s); const ni = tb0.indexOf('<div class="apnotes">'); const tbl = ni < 0 ? tb0 : tb0.slice(0, ni), notes = ni < 0 ? '' : tb0.slice(ni);
   h += tbl;
   if (ad && s.stage === 'apply') { const okN = cc.sel >= 3;
-    h += `<div class="apbar"><div class="apadd"><input class="inp" type="text" placeholder="한 명씩 추가 (게스트는 이름(게))" data-in="addone" id="addone"><button class="btn" data-act="addone">추가</button></div>${ast.k === 'open' ? '<button class="btn" data-act="closenow">지금 신청 마감하기</button>' : ''}<button class="btn primary" data-act="gostage" data-v="captain" ${okN ? '' : 'disabled'}>신청 확정하고 주장 정하기</button></div>` }
+    h += `<div class="apbar"><div class="apadd"><input class="inp" type="text" placeholder="한 명씩 추가 (게스트는 이름(게))" data-in="addone" id="addone"><button class="btn" data-act="addone">추가</button></div></div>` }
   if (ad && S.rejNames?.length && ['apply', 'captain'].includes(s.stage)) h += `<div class="panel pad rejbox"><span>명단에 없는 이름: <b>${S.rejNames.map(esc).join(', ')}</b></span><div class="row"><button class="btn sm primary" data-act="rejguest">게스트로 추가</button><button class="btn sm" data-act="rejclose">닫기</button></div></div>`;
   if (ad && ast.k === 'open' && s.stage !== 'apply') h += `<div class="row" style="margin-top:10px"><button class="btn" data-act="closenow">지금 신청 마감하기</button></div>`;
   { const nT = TK(s).length; if (s.stage !== 'apply' && ids.length % nT && ids.length) h += `<p class="note">${ids.length}명은 ${nT}팀으로 딱 나눠지지 않아서 ${TK(s).map((_, i) => Math.floor(ids.length / nT) + (i < ids.length % nT ? 1 : 0)).join('·')}명으로 나뉘어요.</p>` }
-  if (ad && s.stage !== 'apply') h += `<div style="height:14px"></div><button class="btn primary block" data-act="gostage" data-v="captain" ${ids.length < 3 ? 'disabled' : ''}>다음: 주장 정하기</button>`;
   h += notes;
   if (ad && s.stage !== 'apply') h += resetBar(s);
   return h;
@@ -978,7 +977,7 @@ function vCaptain(s) {
   if (nC(s) === 2) h += courtSec(s);
   h += `<section class="hp-sec hp-cap"><div class="hp-hd"><b>👑 주장</b><small>${TK(s).filter(k => s.captains?.[k]).length}/${TK(s).length}명</small></div><div class="capgrid${' n' + nT(s)}">${TK(s).map(k => { const c = s.captains?.[k];
     return `<button class="capcard ${c ? 'on' : ''}" data-act="capslot" data-k="${k}" ${ad ? '' : 'disabled'}><span class="cc-tag" style="background:${NEUTRAL[k]};color:${inkOn(NEUTRAL[k])}">${k}팀</span><b class="cc-name">${c ? esc(pname(c)) : '＋ 주장 선택'}</b>${ad && c ? '<small class="cc-edit">눌러서 변경</small>' : ''}</button>` }).join('')}</div>
-    ${S.admin && (s.draftStatus || 'ready') === 'ready' ? `<button class="btn primary block cta hp-open" data-act="openroom" ${TK(s).some(k => !s.captains?.[k]) ? 'disabled' : ''}>${TK(s).some(k => !s.captains?.[k]) ? `주장 ${TK(s).length}명을 정하면` + ' 드래프트 방을 열 수 있어요' : '🎯 드래프트 방 열기'}</button>` : ''}</section>`;
+    </section>`;
   if (S.admin) {
     // 주차
     const pa = parkApps(s), win = s.parkWin || [];
@@ -1232,7 +1231,7 @@ function vTrade(s) {
       <button class="tchd" data-act="${canC ? 'colorpick' : 'noop'}" data-k="${k}" ${canC ? '' : 'tabindex="-1"'}><span>${esc(t.name)}</span>${canC ? '<i>색 변경 ▾</i>' : ''}<small>${ps.length}명</small></button>
       <ol>${ps.map((id, j) => j === 0 ? `<li class="cap"><em>C</em><span>${esc(pname(id))}</span></li>`
         : `<li class="${S.sel === id ? 'swap' : ''}">${ad ? `<button data-act="selswap" data-id="${id}"><span>${esc(pname(id))}</span></button>` : `<span>${esc(pname(id))}</span>`}</li>`).join('')}</ol></div>` }).join('')}</div>`;
-  if (ad) h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="goposter" data-id="${s.date}" ${allPicked(s) ? '' : 'disabled'}>👥 팀 공지 이미지</button><button class="btn" data-act="teamnoti" ${allPicked(s) ? '' : 'disabled'}>🔔 팀 발표 알림${s.teamNoticeAt ? ' ✓' : ''}</button><button class="btn primary" data-act="mkmatches" ${allPicked(s) ? '' : 'disabled'}>${sessMatches(s.date).length ? '경기진행으로 →' : '팀 확정하고 경기 일정 만들기 →'}</button></div>`;
+  if (ad) h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="goposter" data-id="${s.date}" ${allPicked(s) ? '' : 'disabled'}>👥 팀 공지 이미지</button><button class="btn" data-act="teamnoti" ${allPicked(s) ? '' : 'disabled'}>🔔 팀 발표 알림${s.teamNoticeAt ? ' ✓' : ''}</button></div>`;
   h += chatPanel(!!(my || S.admin), S.dm);
   if (ad) h += `<div class="panel pad redobar"><div><b>↺ 드래프트 다시하기</b>${ibm(`주장과 팀 색은 그대로 두고, 순번 정하기부터 팀원 선택까지 다시 해요. 지금 팀 구성은 지워져요.`)}</div><button class="btn primary" data-act="redodraft">드래프트 다시하기</button></div>`;
   if (S.admin) h += resetBar(s);
@@ -1363,6 +1362,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.2', '2026.10.28', ['[운영진] 모든 운영 단계에서 다음 단계로 넘어가는 버튼이 같은 자리(PC 오른쪽 아래 · 휴대폰 아래 메뉴 위)에 나와요. 할 일이 남아 있으면 버튼이 잠기고, 남은 항목(✓/○)이 버튼 옆에 보여요', '[운영진] 팀·도우미 단계는 경기 운영자 · 주장 · 공당 · 물당 · 주차를 모두 정하면 “드래프트 방 열기”가 열려요', '[운영진] 휴대폰 운영 단계 막대는 지금 단계 이름만 보여줘요']],
   ['0.4.1', '2026.10.28', ['[운영진] 경기진행 화면에 경기 일정이 없을 때 버튼 글자가 깨져 보이던 문제를 고쳤어요 (예: “9경기 일정 만들기”)']],
   ['0.4.0', '2026.10.28', ['화면을 숫자·그래프 중심으로 정리했어요. 한눈에 볼 것은 큰 숫자·게이지로, 자세히 관리할 것은 표로 보여줘요', '홈: 신청 → 마감 → 팀 발표 → 경기 단계 막대, 신청 오픈까지 카운트다운, 남은 자리 칸과 큰 “경기 신청하기” 버튼, 신청 후 내 순번을 크게 보여줘요', '기록실: 우승팀·득점왕 요약, 경기 결과를 라운드별 칸으로, 득점 순위는 표로 바꿨어요', '내 정보: 내 시즌 기록(출석률 · 골 · 도움 · 팀 우승 · 최근 팀 순위 · 경기별 기록)을 볼 수 있어요', '경기모드: 선수를 눌러 골을 넣으면 바로 “도움은?” 줄이 떠요. 골 기록은 표로 보여주고, 회원 화면에는 실시간 순위 표가 나와요', '[운영진] 운영 단계는 진행 막대로, 신청접수는 신청 게이지·마감 카운트다운·예약자 칸으로, 팀·도우미는 준비 상황 링으로, 경기진행 일정은 경기 칸으로, 정산은 지출 비율 막대와 1인 몫 계산식으로 보여줘요']],
   ['0.3.5', '2026.10.28', ['[운영진] 신청접수 화면 공당·물당: PC는 지정·신청 명단을 한눈에 보여주고, 모바일은 신청자 수만 보여줘요 (숫자를 누르면 명단)']],
@@ -2018,15 +2018,40 @@ function viewRun() {
   const sid = adminSid(); if (!sid) return `<div class="panel" style="margin-top:14px"><p class="empty">경기가 없어요. 일정 메뉴에서 먼저 추가하세요.</p></div>`;
   S.sid = sid; const s = S.sessions[sid]; const ms = sessMatches(sid);
   let step = S.step || (s.stage === 'match' && ms.length && ms.every(m => m.status === 'done') ? 'result' : s.stage);
-  if (step === 'draft' && S.dm) return `<div class="dmroot">${adminBar()}${vDraft(s)}</div>`;
+  if (step === 'draft' && S.dm) return `<div class="dmroot">${adminBar()}${vDraft(s)}</div>${s.draftStatus === 'done' ? nextBar(s, 'draft') : ''}`;
   let h = adminBar();
   if (step === 'notice') step = 'trade';
   h += stepGuide(s, step);
   if (step === 'settle') h += vSettle(s);
   else if (step === 'result') h += ms.length ? vResultDetail(s) + `` : `<div class="panel pad" style="margin-top:14px"><p class="empty" style="padding:8px 0">아직 경기 기록이 없어요. 팀 확정 단계에서 경기 일정을 만들거나, "기록 붙여넣기"로 지난 기록을 넣을 수 있어요.</p><button class="btn sm" style="margin-top:8px" data-act="impopen">📋 기록 붙여넣기</button></div>`;
   else h += ({ apply: vApply, captain: vCaptain, draft: vDraft, trade: vTrade, match: vMatchDay })[step](s);
-  return h;
+  return h + nextBar(s, step);
 }
+// 운영 단계마다 같은 자리(PC 오른쪽 아래 · 휴대폰 아래 메뉴 위)에 '다음 단계' 버튼을 둬요. 할 일이 남아 있으면 버튼이 잠기고 남은 항목이 왼쪽에 보여요.
+function nextBar(s, step) { if (!S.admin) return ''; const ms = sessMatches(s.date); const st = stageIdx(s.stage); const go = v => `data-act="flowgo" data-v="${v}"`;
+  let items = [], btn = '', label = '', on = true, sec = '';
+  const chk = (ok, txt) => items.push([!!ok, txt]);
+  if (step === 'apply') { const c = appCounts(s);
+    if (s.stage === 'apply') { chk(c.sel >= 3, `선발 ${c.sel}명`); chk(applyClosed(s), applyClosed(s) ? '신청 마감' : '신청 받는 중'); on = c.sel >= 3; btn = 'data-act="gostage" data-v="captain"'; label = '신청 확정 · 팀·도우미로';
+      if (sStatus(s).k === 'open') sec = '<button class="btn" data-act="closenow">지금 마감</button>' }
+    else { btn = go('captain'); label = '팀·도우미로' } }
+  else if (step === 'captain') { const nOp = (s.ops || []).filter(p => p && S.players[p]).length, nCap = TK(s).filter(k => s.captains?.[k]).length; const pk = parkApps(s).length, pw = (s.parkWin || []).length;
+    chk(nOp >= nC(s), `운영자 ${Math.min(nOp, nC(s))}/${nC(s)}`); chk(nCap === nT(s), `주장 ${nCap}/${nT(s)}`); chk((s.duty?.ball || []).length, '공당'); chk((s.duty?.drink || []).length, '물당'); chk(!pk || pw >= Math.min(pk, PARK_SLOTS), pk ? `주차 ${pw}/${Math.min(pk, PARK_SLOTS)}` : '주차 신청 없음');
+    if ((s.draftStatus || 'ready') !== 'ready' || s.room) { btn = go('draft'); label = '드래프트로'; items = [] }
+    else { on = items.every(x => x[0]); btn = 'data-act="openroom"'; label = '드래프트 방 열기' } }
+  else if (step === 'draft') { const tot = (s.applicants || []).length, picked = TK(s).reduce((a, k) => a + teamPlayers(s, k).length, 0);
+    if (s.draftStatus === 'done') { btn = go('trade'); label = '팀 확정·공지로' } else { chk(false, s.draftStatus === 'live' ? `지명 ${picked}/${tot}` : '드래프트 시작 전'); on = false; btn = go('trade'); label = '팀 확정·공지로' } }
+  else if (step === 'trade') { chk(s.draftStatus === 'done', '드래프트 완료'); chk(!!s.teamNoticeAt, s.teamNoticeAt ? '팀 발표 알림 보냄' : '팀 발표 알림 (선택)'); items = items.map((x, i) => i === 1 ? [true, x[1], !s.teamNoticeAt] : x);
+    on = s.draftStatus === 'done' && allPicked(s); if (ms.length) { btn = go('match'); label = '경기진행으로' } else { btn = 'data-act="mkmatches"'; label = '팀 확정 · 경기 일정 만들기' } }
+  else if (step === 'match') { const d = ms.filter(m => m.status === 'done').length; chk(ms.length && d === ms.length, `경기 ${d}/${ms.length || NG(s)}`); on = !!ms.length && d === ms.length; btn = go('result'); label = '경기결과로' }
+  else if (step === 'result') { btn = go('settle'); label = '운영비 정산으로' }
+  else if (step === 'settle') { if (s.closed) { on = false; label = '정산 완료됨 ✓'; btn = '' }
+    else if (S.stlConfirm === s.date) { btn = 'data-act="stlclose" data-v="1"'; label = '정말 정산 완료'; sec = '<button class="btn" data-act="stlclose" data-v="0">취소</button>' }
+    else { const C = stlCalc(s); chk(C.F > 0, '구장 사용료'); btn = 'data-act="stlclose"'; label = '정산 완료하고 잠그기'; on = C.F > 0 } }
+  else return '';
+  const chips = items.map(([ok, txt, opt]) => `<span class="nb-c ${ok ? (opt ? 'opt' : 'ok') : ''}">${ok && !opt ? '✓' : '○'} ${esc(txt)}</span>`).join('');
+  setTimeout(() => { const d = document.querySelector('.chatdock'); document.documentElement.style.setProperty('--cdh', (d && d.getClientRects().length ? Math.round(d.getBoundingClientRect().height) : 0) + 'px') }, 0);
+  return `<div class="nb-sp"></div><div class="nextbar ${step === 'draft' ? 'up' : ''}" role="region" aria-label="다음 단계"><div class="nb-in"><div class="nb-left">${chips}</div>${sec}<button class="btn primary nb-go ${S.stlConfirm === s.date && step === 'settle' ? 'danger' : ''}" ${btn} ${on && btn ? '' : 'disabled'}>${esc(label)}${btn && !/v="1"/.test(btn) && step !== 'settle' ? ' →' : ''}</button></div></div>` }
 /* ───────── 운영비 정산 ─────────
    지출: 구장 사용료(경기마다 운영진 입력) · 예약자 사례금 · 물/음료 구입비(물당이 경기 후 금액·영수증 등록)
    · 운영진은 정산 제외 · 예약자는 사례금 몫 제외(구장비는 이미 지급돼 있어 돌려주지 않음) · 공당/물당은 음료 몫 제외 · 물당에게 각자 구입한 금액 환급
@@ -2121,7 +2146,7 @@ function vSettle(s) { const st = stlGet(s.date); const lock = !!s.closed; const 
     </section>
   <section id="stl-more">${stlMore(s, C)}</section>
   ${s.closed ? `<section class="stl-done"><div><b>✅ 정산 완료</b><small>${fmtTS(s.closed.at).replace(/:\d\d\.\d{3}$/, '')}${s.closed.by ? ' · ' + esc(s.closed.by) : ''} · 이 경기의 신청·팀·경기 기록·정산이 모두 잠겨 있어요.</small></div><button class="btn sm" data-act="stlunlock">🔓 잠금 풀기</button></section>`
-    : `<section class="stl-close"><div><b>정산을 마치면 경기를 마감해요${ib('낼 금액·받을 금액이 이대로 기록되고, 이 경기의 신청·팀·경기 기록·물당 등록·정산을 더 고칠 수 없게 잠가요.')}</b></div>${S.stlConfirm === s.date ? `<div class="row"><button class="btn danger" data-act="stlclose" data-v="1">정말 정산 완료</button><button class="btn" data-act="stlclose" data-v="0">취소</button></div>` : `<button class="btn primary" data-act="stlclose">✅ 정산 완료</button>`}</section>`}</div>` }
+    : `<section class="stl-close"><div><b>정산을 마치면 경기를 마감해요${ib('낼 금액·받을 금액이 이대로 기록되고, 이 경기의 신청·팀·경기 기록·물당 등록·정산을 더 고칠 수 없게 잠가요.')}</b></div></section>`}</div>` }
 /* 정산 결과 공지 이미지 */
 function stlAcct() { const cf = stlCfg(); const a = [cf.bank, cf.acct].map(x => String(x || '').trim()).filter(Boolean).join(' '); return a ? { line: a, holder: String(cf.holder || '').trim() } : null }
 // 정산 공지 이미지 글꼴: 페이퍼로지 굵기별(400~900)을 모두 받아서 기본 글꼴로 빠지지 않게 해요
