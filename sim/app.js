@@ -9,6 +9,7 @@ const RR4 = [['A', 'B'], ['C', 'D'], ['A', 'C'], ['B', 'D'], ['A', 'D'], ['B', '
 // 4팀은 구장 2면에서 동시에 진행해요: ops[0]/p0[0] = 1구장, ops[1]/p0[1] = 2구장
 const nC = s => nT(s) === 4 ? 2 : 1;
 const CK = (b, c) => c === 2 ? b + '2' : b;
+const gno = n => `GAME ${String(n).padStart(2, '0')}`;
 const mcourt = m => +m?.court === 2 ? 2 : 1;
 function courtOps(s, c) { const o = s?.ops || []; return nC(s) === 2 ? (o[c - 1] && S.players[o[c - 1]] ? [o[c - 1]] : []) : o.filter(p => p && S.players[p]) }
 function venueShort(s) { const one = v => { v = String(v || ''); const m = v.match(/(\d+)\s*구장/); return m ? m[1] + '구장' : v.split(/\s+/).pop().slice(0, 6) }; return nC(s) === 2 && s.venue2 ? `${one(s.venue).replace('구장', '')}·${one(s.venue2)}` : one(s.venue) }
@@ -20,7 +21,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.15';
+const APP_VERSION = '0.4.16';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1278,7 +1279,7 @@ function vMatchDay(s) {
   ${standings(S.sid).map(r => { const t = team(s, r.k); return `<tr><td class="rank">${r.p ? r.rank : '-'}</td><td class="l"><span class="teamcell">${bib(t.color)}${esc(t.name)}</span></td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf}</td><td>${r.ga}</td><td>${r.gf - r.ga > 0 ? '+' : ''}${r.gf - r.ga}</td><td class="pts">${r.pts}</td></tr>` }).join('')}</tbody></table></div>
   ${ibm(`승 3점, 무 1점. 승점이 같으면 골득실, 다득점, 승자승 순.`)}`;
   let sch = `<h2>경기 일정</h2>`;
-  { const cell = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); return `<button class="rgc st-${m.status}" data-act="open" data-id="${m.id}" aria-label="${m.n}경기"><em>${m.n}</em>${nC(s) === 2 ? `<span class="ctag c${mcourt(m)}">${mcourt(m)}</span>` : ''}${bib(H.color)}<b>${m.status === 'pending' ? 'vs' : a + ':' + b}</b>${bib(A.color)}</button>` };
+  { const cell = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); return `<button class="rgc st-${m.status}" data-act="open" data-id="${m.id}" aria-label="${m.n}경기"><em class="gno">${gno(m.n)}</em>${nC(s) === 2 ? `<span class="ctag c${mcourt(m)}">${mcourt(m)}</span>` : ''}${bib(H.color)}<b>${m.status === 'pending' ? 'vs' : a + ':' + b}</b>${bib(A.color)}</button>` };
     sch += `<div class="panel rgrid3">${roundsOf(ms).map(r => { const list = ms.filter(m => m.round === r); return `<div class="rgr"><span class="rgl">${nT(s) === 2 ? '' : r + (nT(s) === 4 ? '바퀴' : 'R')}</span><div class="rgcs">${list.map(cell).join('')}</div></div>` }).join('')}</div>` }
   if (S.admin) { const st = (key, lab, val, unit) => `<div class="stepper"><button data-act="tstep" data-key="${key}" data-d="-1" aria-label="${lab} 줄이기">−</button><span><small>${lab}</small>${val}${unit}</span><button data-act="tstep" data-key="${key}" data-d="1" aria-label="${lab} 늘리기">+</button></div>`;
     sch += `<h2>경기 시간 설정</h2><div class="grid2">${st('h1', '전반', T.h1 / 60, '분')}${st('gk', 'GK 교체', T.gk, '초')}${st('h2', '후반', T.h2 / 60, '분')}${st('rest', '쉬는 시간', T.rest / 60, '분')}</div>
@@ -1364,6 +1365,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.16','2026.10.28',['경기 번호를 “GAME 01” 형식으로 크게 표시 (홈 경기 리뷰, 기록실·운영모드 경기별 결과)']],
   ['0.4.15','2026.10.28',['PC 홈 배치 변경: 윗줄은 지난 경기(팀 순위 | 경기별 결과), 아랫줄은 다음 경기(경기 정보 | 진행 카드)로 가로 배치 — 팀 순위가 쓸데없이 늘어나던 문제 해결','경기별 결과 점수 글씨 크게','신청 마감 카드에도 공당·물당·주차 칸 표시 (PC)','모바일 홈 드래프트 카드를 더 촘촘하게']],
   ['0.4.14','2026.10.28',['기록실 팀 구성: 주장 C 표시를 이름 뒤로 옮겨 이름 줄을 맞추고, PC에서는 2열로 배치해 빈 공간을 줄임','기록실 PC: 득점 순위를 왼쪽(팀 순위+팀 구성) 높이에 맞추고 박스 안에서 스크롤 · 제목줄 고정 → 경기별 결과까지 한 화면에']],
   ['0.4.13','2026.10.28',['기록실: 팀 구성을 팀 순위 바로 아래로 옮김','경기별 결과를 1~9경기 가로 카드로 크게 배치 (큰 점수, 이긴 팀 점수 강조, 팀 이름 표시) · 모바일은 3개씩 줄바꿈']],
@@ -1711,7 +1713,7 @@ function viewMHome() {
   else { const s = S.sessions[last]; const rows = standings(last); const mt = myTeamIn(s); const done = sessMatches(last).filter(m => m.status === 'done').length;
     rv += `<button class="review" data-act="result" data-id="${last}">${done < NG(S.sessions[last]) ? `<div class="rv-note">${done}/${NG(S.sessions[last])}경기 기준</div>` : ''}
       <div class="rv-rows">${rows.map(r => { const t = team(s, r.k); return `<div class="rc-row ${mt === r.k ? 'mine' : ''} ${r.rank === 1 ? 'first' : ''}"><em class="rk rk${r.rank}">${r.rank === 1 ? '🏆' : r.rank}</em>${bib(t.color)}<span class="rcn"><b>${esc(t.name)}</b>${mt === r.k ? '<i class="mytag" title="내 팀">MY</i>' : ''}</span><span class="wdl"><i class="w">${r.w}승</i><i class="d">${r.d}무</i><i class="l">${r.l}패</i></span><span class="pt">${r.pts}점</span></div>` }).join('')}</div>
-      ${(() => { const ms = sessMatches(last); if (!ms.length) return ''; return `<div class="rv-games">${ms.map(m => { const [a, b] = score(m); const H = team(s, m.home), A = team(s, m.away); return `<span class="rg ${m.status === 'done' ? '' : 'pend'}"><em>${m.n}</em>${bib(H.color)}<b>${m.status === 'pending' ? '-' : a}</b><i>:</i><b>${m.status === 'pending' ? '-' : b}</b>${bib(A.color)}</span>` }).join('')}</div>` })()}
+      ${(() => { const ms = sessMatches(last); if (!ms.length) return ''; return `<div class="rv-games">${ms.map(m => { const [a, b] = score(m); const H = team(s, m.home), A = team(s, m.away); return `<span class="rg ${m.status === 'done' ? '' : 'pend'}"><em class="gno">${gno(m.n)}</em>${bib(H.color)}<b>${m.status === 'pending' ? '-' : a}</b><i>:</i><b>${m.status === 'pending' ? '-' : b}</b>${bib(A.color)}</span>` }).join('')}</div>` })()}
       <span class="more">경기 결과 자세히 보기 ›</span></button>` }
   if (!rvDown) h += rv;
   h += '</section><section>';
@@ -1830,9 +1832,9 @@ function vResultDetail(s) {
     return `<div class="rdt" style="--tc:${t.color};--ti:${inkOn(t.color)}"><div class="rdt-hd"><b>${esc(t.name)}</b><small>${rk && rk.p ? rk.rank + '위' : ''}</small></div><ul>${ps.map((id, i) => `<li class="${id === me ? 'me' : ''}"><span>${esc(pname(id))}</span>${i === 0 && captainOf(s, k) === id ? '<em title="주장">C</em>' : ''}</li>`).join('')}</ul></div>` }).join('')}</div>`;
   const mrowR = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); const win = m.status === 'done' ? (a > b ? 'win-h' : a < b ? 'win-a' : '') : '';
     return `<button class="mrow ${win}" data-act="open" data-id="${m.id}"><span class="side">${bib(H.color)}<span>${esc(H.name)}</span></span><span class="mid">${nC(s) === 2 ? `<span class="ctag c${mcourt(m)}">${mcourt(m)}구장</span>` : ''}<span class="sc">${m.status === 'pending' ? 'vs' : a + ' : ' + b}</span><span class="st">${m.n}경기${m.status === 'done' ? '' : m.status === 'live' ? ' · 진행 중' : ' · 예정'}</span></span><span class="side r"><span>${esc(A.name)}</span>${bib(A.color)}</span></button>${rdScorers(s, m)}` };
-  const cell = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); return `<button class="rgc st-${m.status}" data-act="open" data-id="${m.id}" aria-label="${m.n}경기 ${esc(H.name)} ${m.status === 'pending' ? '대' : a + '대' + b} ${esc(A.name)}"><em>${m.n}</em>${bib(H.color)}<b>${m.status === 'pending' ? 'vs' : a + ':' + b}</b>${bib(A.color)}</button>` };
+  const cell = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); return `<button class="rgc st-${m.status}" data-act="open" data-id="${m.id}" aria-label="${m.n}경기 ${esc(H.name)} ${m.status === 'pending' ? '대' : a + '대' + b} ${esc(A.name)}"><em class="gno">${gno(m.n)}</em>${bib(H.color)}<b>${m.status === 'pending' ? 'vs' : a + ':' + b}</b>${bib(A.color)}</button>` };
   const gcard = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); const pend = m.status === 'pending'; const w = !pend && m.status === 'done' ? (a > b ? 'h' : a < b ? 'a' : 'd') : '';
-    return `<button class="gsc st-${m.status} w-${w}" data-act="open" data-id="${m.id}" aria-label="${m.n}경기 ${esc(H.name)} ${pend ? '대' : a + '대' + b} ${esc(A.name)}"><em>${m.n}경기${nC(s) === 2 ? ` · ${mcourt(m)}구장` : ''}</em><span class="gsc-s">${bib(H.color)}<b class="sh">${pend ? '' : a}</b><i>${pend ? 'vs' : ':'}</i><b class="sa">${pend ? '' : b}</b>${bib(A.color)}</span><small>${esc(H.name)} · ${esc(A.name)}</small></button>` };
+    return `<button class="gsc st-${m.status} w-${w}" data-act="open" data-id="${m.id}" aria-label="${m.n}경기 ${esc(H.name)} ${pend ? '대' : a + '대' + b} ${esc(A.name)}"><em class="gno">${gno(m.n)}${nC(s) === 2 ? ` · ${mcourt(m)}구장` : ''}</em><span class="gsc-s">${bib(H.color)}<b class="sh">${pend ? '' : a}</b><i>${pend ? 'vs' : ':'}</i><b class="sa">${pend ? '' : b}</b>${bib(A.color)}</span><small>${esc(H.name)} · ${esc(A.name)}</small></button>` };
   const rounds = `<div class="gstrip">${[...ms].sort((x, y) => x.n - y.n).map(gcard).join('')}</div>`; void mrowR;
   const rk = scorerRank(s); const myRank = rk.find(r => r.id === me);
   const rkHtml = rk.length ? `<div class="panel tblwrap rdrank2"><table><thead><tr><th>순위</th><th class="l">이름</th><th class="l">팀</th><th>골</th><th>도움</th></tr></thead><tbody>${rk.map(r => `<tr class="${r.id === me ? 'me' : ''}"><td class="rank"><em class="rkn ${r.rank <= 3 ? 'top' : ''}">${r.rank}</em></td><td class="l"><b>${esc(pname(r.id))}</b></td><td class="l">${r.tname ? `<span class="teamcell">${bib(r.color)}${esc(r.tname)}</span>` : '-'}</td><td><b>${r.g}</b></td><td>${r.a || '-'}</td></tr>`).join('')}</tbody></table></div>${rk.ogN ? `<p class="note">자책골 ${rk.ogN}골은 개인 득점에서 빠져요.</p>` : ''}` : '<div class="panel"><p class="empty">선수 이름으로 기록된 골이 없어요.</p></div>';
