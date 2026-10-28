@@ -19,7 +19,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.0';
+const APP_VERSION = '0.4.1';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#6E7A88' };
@@ -1262,7 +1262,7 @@ async function pairSave() { const s = cur(); const ms = sessMatches(s.date); con
     for (const e of evsOf(m.id)) if (map[e.team] && map[e.team] !== e.team) await withTimeout(S.store.update('events/' + e.id, { team: map[e.team] }), 10000) } });
   if (ok) { S.sheet = null; S.pairDraft = null; toast(`${ch.map(m => m.n + '경기').join(', ')} 대진을 바꿨어요.`); render() } }
 function vMatchDay(s) {
-  const ms = sessMatches(S.sid); if (!ms.length) return `<div class="notice">아직 경기 일정이 없어요. ${S.admin ? '<button class="btn sm primary" data-act="mkmatches">${NG(S.sessions[S.sid])}경기 일정 만들기</button>' : ''}</div>`;
+  const ms = sessMatches(S.sid); if (!ms.length) return `<div class="notice">아직 경기 일정이 없어요. ${S.admin ? `<button class="btn sm primary" data-act="mkmatches">${NG(S.sessions[S.sid])}경기 일정 만들기</button>` : ''}</div>`;
   const done = ms.filter(m => m.status === 'done').length; const T = timing(s);
   let h = attPanel(s) + `<p class="note" style="margin-top:12px">전반 ${T.h1 / 60}분, GK 교체 ${T.gk}초, 후반 ${T.h2 / 60}분, 휴식 ${T.rest / 60}분</p>`;
   const live = ms.filter(m => m.status === 'live'); const nx = live.length ? live : ms.filter(m => m.status === 'pending').slice(0, 1);
@@ -1357,6 +1357,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.1', '2026.10.28', ['[운영진] 경기진행 화면에 경기 일정이 없을 때 버튼 글자가 깨져 보이던 문제를 고쳤어요 (예: “9경기 일정 만들기”)']],
   ['0.4.0', '2026.10.28', ['화면을 숫자·그래프 중심으로 정리했어요. 한눈에 볼 것은 큰 숫자·게이지로, 자세히 관리할 것은 표로 보여줘요', '홈: 신청 → 마감 → 팀 발표 → 경기 단계 막대, 신청 오픈까지 카운트다운, 남은 자리 칸과 큰 “경기 신청하기” 버튼, 신청 후 내 순번을 크게 보여줘요', '기록실: 우승팀·득점왕 요약, 경기 결과를 라운드별 칸으로, 득점 순위는 표로 바꿨어요', '내 정보: 내 시즌 기록(출석률 · 골 · 도움 · 팀 우승 · 최근 팀 순위 · 경기별 기록)을 볼 수 있어요', '경기모드: 선수를 눌러 골을 넣으면 바로 “도움은?” 줄이 떠요. 골 기록은 표로 보여주고, 회원 화면에는 실시간 순위 표가 나와요', '[운영진] 운영 단계는 진행 막대로, 신청접수는 신청 게이지·마감 카운트다운·예약자 칸으로, 팀·도우미는 준비 상황 링으로, 경기진행 일정은 경기 칸으로, 정산은 지출 비율 막대와 1인 몫 계산식으로 보여줘요']],
   ['0.3.5', '2026.10.28', ['[운영진] 신청접수 화면 공당·물당: PC는 지정·신청 명단을 한눈에 보여주고, 모바일은 신청자 수만 보여줘요 (숫자를 누르면 명단)']],
   ['0.3.4', '2026.10.28', ['[운영진] 신청접수 화면에서 공당·물당은 신청자 수만 보여요. 숫자를 누르면 신청한 사람 명단이 떠요 (지정은 도우미 지정 단계에서 해요)']],

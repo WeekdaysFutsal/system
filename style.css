@@ -1375,3 +1375,4 @@ h2{margin:18px 0 8px}
 @media (min-width:900px){.apkpi{margin:8px 0 4px}.apkpi>.panel{padding:8px 14px}.ak-g svg{width:58px;height:58px}.ak-g b,.ak-t b{font-size:26px}.ak-t{gap:4px!important}.ak-i{gap:4px!important}.ak-i .apedit{min-height:30px;padding:2px 10px}}
 .abar .aflow .sn{font-weight:inherit}
 @media (max-width:640px){.abar .aflow li:not(.now) .fn{display:none}.abar .aflow li.now>button>span{overflow:visible;position:relative;z-index:1}.abar .aflow span{font-size:11px}}
+:root{--cssv:"0.4.1"}
