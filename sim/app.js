@@ -19,7 +19,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.8';
+const APP_VERSION = '0.4.9';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#6E7A88' };
@@ -929,7 +929,7 @@ function sessionPicker() { const ids = Object.keys(S.sessions).sort().reverse();
 function withSession(fn) { const s = cur(); if (!s) return `<p class="empty">아직 경기일이 없어요. 운영진이 만들면 여기에 보여요.</p>`; return sessionPicker() + fn(s) }
 function vMemberNotice(s) {
   if (stageIdx(s.stage) >= stageIdx('notice')) return vNotice(s);
-  if (!canDraftView(s) && (s.draftStatus === 'live' || s.draftStatus === 'done' || s.room?.open)) return `<div class="act">${draftSteps(s)}</div>`;
+  if (!canDraftView(s) && (s.draftStatus === 'live' || s.draftStatus === 'done' || s.room?.open)) return draftSteps(s);
   if (s.draftStatus === 'live') return `<div class="notice"><span class="dot"></span> 지금 드래프트가 진행 중이에요. 실시간으로 볼 수 있어요.</div>` + vDraft(s);
   if (s.draftStatus === 'done') return `<div class="notice">드래프트가 끝나고 팀 밸런스를 조정하는 중이에요. 곧 공지가 올라와요.</div>` + vTrade(s);
   const ids = s.applicants || []; const caps = KEYS.filter(k => s.captains?.[k]);
@@ -1363,6 +1363,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.9','2026.10.28',['회원 홈 드래프트 카드 재설계: 진행 단계(대기·진행·완료)를 한 줄 막대로 정리하고 겹침 해결','공당·물당·주차를 큰 글씨의 3칸 카드로 분리 (내가 맡은 칸은 강조)']],
   ['0.4.8', '2026.10.28', ['팀이 확정·공개되기 전에는 주장과 팀 구성이 보이지 않고, 드래프트 진행 상황(대기 · 진행 · 완료)만 보여요. 확정되면 홈에 “팀 결과 보기” 버튼이 나와요', '화면 위 “참관” 버튼을 없앴어요 (지정된 참관자는 홈의 “드래프트 테이블 보기”로 들어가요)']],
   ['0.4.7', '2026.10.28', ['드래프트 상태를 “드래프트 대기 중…” · “드래프트 진행 중…”으로 보여줘요', '회원 화면에서도 오른쪽 위에 현재 버전이 보여요', '드래프트 테이블의 운영진 접속 표시가 실제로 화면을 보고 있는 운영진만 기준으로 바뀌었어요. 나간 운영진이 계속 접속 중으로 보이던 문제를 고쳤어요']],
   ['0.4.6', '2026.10.28', ['[운영진] 내부 안정성 수정']],
@@ -1735,8 +1736,8 @@ function homeAction(s, st, fit) {
   const capHint = '';
   const dl = dutyLine(s);
   if (st.k === 'closed') return `<div class="act"><b>신청이 마감됐어요</b>${dl}<p>선발 ${appCounts(s).sel}명으로 드래프트를 준비해요.</p>${AB(s)}${fit ? '' : capsLine(s)}${capHint}<button class="btn sm" data-act="applist">신청자 보기</button></div>`;
-  if (st.k === 'draft' && s.draftStatus === 'done') return canDraftView(s) ? `<div class="act"><b>드래프트 완료</b><p>운영진이 팀 밸런스를 마지막으로 맞추고 있어요.</p><button class="btn primary block" data-act="sub" data-v="draft">팀 구성 보기</button></div>` : `<div class="act">${draftSteps(s)}<p class="muted" style="margin:6px 0 0">팀 밸런스를 조정하고 확정되면 팀 결과를 볼 수 있어요.</p></div>`;
-  if (st.k === 'draft' && !canDraftView(s)) return `<div class="act live">${dl}${draftSteps(s)}</div>`;
+  if (st.k === 'draft' && s.draftStatus === 'done') return canDraftView(s) ? `<div class="act"><b>드래프트 완료</b><p>운영진이 팀 밸런스를 마지막으로 맞추고 있어요.</p><button class="btn primary block" data-act="sub" data-v="draft">팀 구성 보기</button></div>` : draftSteps(s);
+  if (st.k === 'draft' && !canDraftView(s)) return draftSteps(s);
   if (st.k === 'draft') { const live = s.draftStatus !== 'done'; return `<div class="act live">${dl}<b>${live ? `<span class="dot"></span> ${s.draftStatus === 'live' ? '드래프트 진행 중…' : '드래프트 대기 중…'}` : '팀 밸런스를 맞추는 중이에요'}</b>${fit ? '' : capsLine(s)}${!live || canDraftView(s) ? `<button class="btn primary block" data-act="sub" data-v="draft">${live ? '드래프트 테이블 보기' : '팀 구성 보기'}</button>` : '<p class="muted" style="margin:6px 0 0">드래프트가 끝나면 팀 구성을 볼 수 있어요.</p>'}${live ? capHint : ''}</div>` }
   if (st.k === 'teams') return matchdayCard(s, fit);
   const live = sessMatches(s.date).filter(m => m.status === 'live');
@@ -1756,7 +1757,11 @@ function matchdayCard(s, fit, live) { const mt = myTeamIn(s); const t = mt && te
     ${fit ? `<button class="btn md-rbtn" data-act="rosters" data-id="${s.date}">팀 결과 보기</button>` : ''}</div>
     ${fit ? '' : rosterGrid(s)}</div>` }
 function draftSteps(s) { const k = s.draftStatus === 'done' ? 2 : s.draftStatus === 'live' ? 1 : 0; const L = [['대기', '드래프트 대기 중…'], ['진행', '드래프트 진행 중…'], ['완료', '드래프트 완료 · 팀 밸런스 조정 중']];
-  return `<div class="dsteps"><b>${k < 2 ? '<span class="dot"></span> ' : ''}${L[k][1]}</b><ol>${L.map(([n], i) => `<li class="${i < k ? 'done' : i === k ? 'now' : ''}"><i></i><span>${n}</span></li>`).join('')}</ol></div>` }
+  const d = s.duty || {}; const me = myPid(); const tile = (ico, nm, ids) => `<div class="mdr-t ${ids.includes(me) ? 'mine' : ''}"><span class="mdr-h">${XICO[ico] || ''}<b>${nm}</b></span><span class="mdr-n">${ids.length ? ids.map(id => `<i class="${id === me ? 'me' : ''}">${esc(pname(id))}</i>`).join('') : '<em>미정</em>'}</span></div>`;
+  return `<section class="mdraft"><div class="mdr-top">${k < 2 ? '<span class="dot"></span>' : ''}<b>${L[k][1]}</b></div>
+    <ol class="mdr-steps">${L.map(([n], i) => `<li class="${i < k ? 'done' : i === k ? 'now' : ''}"><i></i><span>${n}</span></li>`).join('')}</ol>
+    <p class="mdr-note">${k === 2 ? '팀 밸런스를 조정하고 확정되면 팀 결과를 볼 수 있어요.' : '팀이 확정되기 전까지 주장과 팀 구성은 공개되지 않아요.'}</p>
+    <div class="mdr-duty">${tile('ball', '공당', d.ball || [])}${tile('drink', '물당', d.drink || [])}${tile('park', '주차', s.parkWin || [])}</div></section>` }
 function capsLine(s) { if (!teamsPublic(s) && !canDraftView(s)) return ''; const ks = KEYS.filter(k => s.captains?.[k]); return ks.length ? `<div class="caps">${ks.map(k => `${tag(team(s, k))}<span>👑 ${esc(pname(s.captains[k]))}</span>`).join('')}</div>` : '' }
 
 function calEvent(id) { const s = S.sessions[id] || {}; const st = new Date(`${id}T${s.time || '21:00'}:00+09:00`), en = new Date(st.getTime() + 2 * 3600e3);
