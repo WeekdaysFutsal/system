@@ -20,7 +20,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.13';
+const APP_VERSION = '0.4.14';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1358,6 +1358,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.14','2026.10.28',['기록실 팀 구성: 주장 C 표시를 이름 뒤로 옮겨 이름 줄을 맞추고, PC에서는 2열로 배치해 빈 공간을 줄임','기록실 PC: 득점 순위를 왼쪽(팀 순위+팀 구성) 높이에 맞추고 박스 안에서 스크롤 · 제목줄 고정 → 경기별 결과까지 한 화면에']],
   ['0.4.13','2026.10.28',['기록실: 팀 구성을 팀 순위 바로 아래로 옮김','경기별 결과를 1~9경기 가로 카드로 크게 배치 (큰 점수, 이긴 팀 점수 강조, 팀 이름 표시) · 모바일은 3개씩 줄바꿈']],
   ['0.4.12','2026.10.28',['달력: 칸 안 글씨가 잘리던 문제 수정 — 운영 달력은 시간·구장(예: 21:00 3구장)을 한 줄로, 신청 개시·마감 표시는 칸 아래에 고정 / 회원 달력은 📢·⏰ 아이콘만 칸 오른쪽 위에','운영 달력 입력: 회차·시간·정원 한 줄, 장소·신청 오픈·신청 마감은 한 줄 전체로 넓혀 날짜가 잘리지 않게','기록실 PC 배치: 왼쪽 팀 순위 + 경기별 결과, 오른쪽 득점 순위로 빈 공간 없앰 · 표 머리줄이 혼자 떠 있던 문제 수정','BLACK처럼 어두운 팀 카드: 흰 테두리 대신 밝은 회색 머리줄로 통일']],
   ['0.4.11','2026.10.28',['표가 둥근 카드 모서리를 벗어나 각진 모서리가 보이던 문제 수정 (기록실 팀 순위·득점 순위, 신청자 표 등)','운영모드 ‘지금 할 일’ 체크 항목을 칩으로 정리하고, 팀 구성 카드의 ‘추천’ 배지 줄바꿈 해결','모바일 하단 다음 단계 버튼 영역을 불투명 배경으로 바꿔 뒤 내용과 겹쳐 보이지 않게 함','입력 칸 제목 옆 ⓘ가 다음 줄로 떨어지던 문제, 통장 잔액 입력칸 폭, 설정 화면 PC 정렬, 홈 경기 리뷰 카드 빈 공간 정리']],
@@ -1819,7 +1820,7 @@ function vResultDetail(s) {
     ${rows.map(r => { const t = team(s, r.k); return `<tr class="${r.rank === 1 && done === ms.length && ms.length ? 'champ' : ''}"><td class="rank"><em class="rk rk${r.p ? r.rank : 0}">${r.p ? r.rank : '-'}</em></td><td class="l"><span class="teamcell">${bib(t.color)}<b>${esc(t.name)}</b></span></td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf}</td><td>${r.ga}</td><td>${r.gf - r.ga > 0 ? '+' : ''}${r.gf - r.ga}</td><td class="pts">${r.pts}</td></tr>` }).join('')}</tbody></table></div>
     ${ibm(`승 3점, 무 1점. 승점이 같으면 골득실, 다득점, 승자승 순.`)}`;
   const tm = `<div class="rdteams${' n' + nT(s)}">${TK(s).map(k => { const t = team(s, k); const ps = teamPlayers(s, k); const rk = rows.find(r => r.k === k);
-    return `<div class="rdt" style="--tc:${t.color};--ti:${inkOn(t.color)}"><div class="rdt-hd"><b>${esc(t.name)}</b><small>${rk && rk.p ? rk.rank + '위' : ''}</small></div><ul>${ps.map((id, i) => `<li class="${id === me ? 'me' : ''}">${i === 0 && captainOf(s, k) === id ? '<em>C</em>' : ''}${esc(pname(id))}</li>`).join('')}</ul></div>` }).join('')}</div>`;
+    return `<div class="rdt" style="--tc:${t.color};--ti:${inkOn(t.color)}"><div class="rdt-hd"><b>${esc(t.name)}</b><small>${rk && rk.p ? rk.rank + '위' : ''}</small></div><ul>${ps.map((id, i) => `<li class="${id === me ? 'me' : ''}"><span>${esc(pname(id))}</span>${i === 0 && captainOf(s, k) === id ? '<em title="주장">C</em>' : ''}</li>`).join('')}</ul></div>` }).join('')}</div>`;
   const mrowR = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); const win = m.status === 'done' ? (a > b ? 'win-h' : a < b ? 'win-a' : '') : '';
     return `<button class="mrow ${win}" data-act="open" data-id="${m.id}"><span class="side">${bib(H.color)}<span>${esc(H.name)}</span></span><span class="mid">${nC(s) === 2 ? `<span class="ctag c${mcourt(m)}">${mcourt(m)}구장</span>` : ''}<span class="sc">${m.status === 'pending' ? 'vs' : a + ' : ' + b}</span><span class="st">${m.n}경기${m.status === 'done' ? '' : m.status === 'live' ? ' · 진행 중' : ' · 예정'}</span></span><span class="side r"><span>${esc(A.name)}</span>${bib(A.color)}</span></button>${rdScorers(s, m)}` };
   const cell = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); return `<button class="rgc st-${m.status}" data-act="open" data-id="${m.id}" aria-label="${m.n}경기 ${esc(H.name)} ${m.status === 'pending' ? '대' : a + '대' + b} ${esc(A.name)}"><em>${m.n}</em>${bib(H.color)}<b>${m.status === 'pending' ? 'vs' : a + ':' + b}</b>${bib(A.color)}</button>` };
