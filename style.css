@@ -1266,3 +1266,9 @@ h2{margin:18px 0 8px}
 .bank .bank-top{align-items:center}.panel.bank{padding-top:10px;padding-bottom:10px}
 @media (min-width:900px){.stl-tbl .stl-chips{flex-wrap:nowrap}.stl-tbl td.roles{white-space:nowrap}.stl-tbl tbody td{padding-top:6px;padding-bottom:6px}}
 :root{--cssv:"0.3.3"}
+/* 신청접수: 공당·물당 신청 수 (숫자를 누르면 명단) */
+.dcnt{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;margin:8px 2px}
+.dcnt-i{display:inline-flex;align-items:center;gap:6px;font-size:13.5px}.dcnt-i b{font-weight:800}
+.ibc{display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:900;font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ibc:hover{filter:brightness(1.1)}.dcnt0{color:var(--muted);font-weight:700;font-size:13px}
+:root{--cssv:"0.3.4"}
