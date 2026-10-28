@@ -19,7 +19,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.3.4';
+const APP_VERSION = '0.3.5';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#6E7A88' };
@@ -1355,6 +1355,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.3.5', '2026.10.28', ['[운영진] 신청접수 화면 공당·물당: PC는 지정·신청 명단을 한눈에 보여주고, 모바일은 신청자 수만 보여줘요 (숫자를 누르면 명단)']],
   ['0.3.4', '2026.10.28', ['[운영진] 신청접수 화면에서 공당·물당은 신청자 수만 보여요. 숫자를 누르면 신청한 사람 명단이 떠요 (지정은 도우미 지정 단계에서 해요)']],
   ['0.3.3', '2026.10.28', ['화면 속 긴 설명을 ⓘ 아이콘으로 바꿨어요. 아이콘을 누르면(PC는 마우스를 올리면) 설명이 떠요', '설명이 빠진 자리만큼 화면을 줄여서, 스크롤 없이 한 화면에 더 많이 보여요 (도우미 지정 · 공당/물당 · 운영 단계 안내 · 정산표 등)', '[운영진] 드래프트 참관자 목록은 접어 두고, 눌렀을 때 펼쳐요']],
   ['0.3.2', '2026.10.28', ['[운영진] 경기를 2팀 · 3팀 · 4팀으로 운영할 수 있어요. 도우미 지정의 “팀 구성”에서 고르고, 신청 인원에 맞는 팀 수를 추천해요 (12명 이하 2팀 · 13~21명 3팀 · 22명 이상 4팀)', '2팀은 맞대결을 원하는 경기 수(기본 6경기)만큼, 3팀은 지금처럼 9경기, 4팀은 풀리그 6경기를 1~3바퀴 진행해요. 드래프트 · 타이머 · 휘슬 · 골 기록 · 순위 · 포스터가 팀 수에 맞춰 나와요', '[운영진] 4팀은 구장 2면에서 동시에 경기해요. 구장마다 경기 운영자와 구장 예약자를 1명씩 정하고, 경기모드에서 구장을 골라 각자 기록해요. 정산은 두 구장 사용료를 합쳐 나누고 예약자 2명 모두 사례금을 받아요', '[운영진] 운영 단계마다 “지금 할 일” 안내와 “운영 흐름” 안내를 보여줘요. 팀 확정 후 “팀 발표 알림”을 보내고, 경기진행 화면에서 지각 · 불참 출석 체크를 하면 정산에 그대로 반영돼요', 'PC 드래프트 화면에서 2팀 · 4팀일 때 화면 폭을 모두 써요']],
@@ -2502,8 +2503,10 @@ function vApplyTable(s) {
   const tcell = r => canTier && !r.auto ? `<button class="tierbtn t${r.tier}${r.tierOv ? ' ov' : ''}" data-act="tierset" data-k="${r.k}" title="순위 변경">${TIER[r.tier]}${r.tierOv ? ' ✎' : ''}</button>` : tb(r.tier);
   const dline = (k, ico, nm) => { const req = Object.entries(s.dutyReq?.[k] || {}).filter(([, v]) => v).sort((a, b) => a[1] - b[1]).map(([p]) => p);
     return `<span class="dcnt-i"><b>${ico} ${nm} 신청</b>${req.length ? `<span class="ibc" role="button" tabindex="0" aria-label="${nm} 신청자 보기" data-t="${esc(`<b>${ico} ${nm} 신청 ${req.length}명</b><br>${req.map((p, i) => `${i + 1}. ${esc(pname(p))}`).join('<br>')}`)}">${req.length}명</span>` : '<span class="dcnt0">0명</span>'}</span>` };
+  const dlineP = (k, ico, nm) => { const req = Object.entries(s.dutyReq?.[k] || {}).filter(([, v]) => v).sort((a, b) => a[1] - b[1]).map(([p]) => p); const fix = s.duty?.[k] || [];
+    return `<div class="dsum-row"><b>${ico} ${nm}</b><span>${fix.length ? `<em class="ok">지정</em> ${fix.map(p => esc(pname(p))).join(', ')}` : '<em class="muted">미지정</em>'}</span><span>${req.length ? `🙋 신청 ${req.length}명 · ${req.map(p => esc(pname(p))).join(', ')}` : '<span class="muted">신청 없음</span>'}</span>${ad ? `<button class="btn sm" data-act="dutyedit" data-id="${s.date}">${applyClosed(s) ? '지정하기' : '신청 현황'}</button>` : ''}</div>` }; // PC: 지정·신청 명단을 한눈에
   const stale = ad ? staleExtraPids(s) : [];
-  const dsum = `<div class="dcnt">${dline('ball', '⚽', '공당')}${dline('drink', '🥤', '물당')}</div>${stale.length ? `<div class="panel dsum">` : ''}${stale.length ? `<div class="dsum-row stale"><b>⚠️ 정리</b><span>신청자가 아닌 ${stale.map(p => esc(pname(p))).join(', ')} 님의 주차·공당·물당 기록이 남아 있어요.</span><span></span><button class="btn sm danger" data-act="stalefix">정리하기</button></div></div>` : ''}`;
+  const dsum = `<div class="dcnt">${dline('ball', '⚽', '공당')}${dline('drink', '🥤', '물당')}</div><div class="panel dsum dsum-pc">${dlineP('ball', '⚽', '공당')}${dlineP('drink', '🥤', '물당')}</div>${stale.length ? `<div class="panel dsum">` : ''}${stale.length ? `<div class="dsum-row stale"><b>⚠️ 정리</b><span>신청자가 아닌 ${stale.map(p => esc(pname(p))).join(', ')} 님의 주차·공당·물당 기록이 남아 있어요.</span><span></span><button class="btn sm danger" data-act="stalefix">정리하기</button></div></div>` : ''}`;
   const betaNote = ad && !frozen && betaOn() ? `<div class="betatools"><button class="btn sm primary" data-act="kakaopaste">📷 카톡 투표 명단 반영</button>${Array.isArray(s.appOrder) && s.appOrder.length ? '<button class="btn sm" data-act="orderreset">↺ 실제 신청 순서로 되돌리기</button>' : ''}</div>${ibm(`🧪 베타테스트 기간이라 신청 순번을 바꿀 수 있어요. ▲▼로 한 칸씩, #으로 원하는 자리로 옮겨요. 0~3순위 규칙은 그대로라 같은 순위 안에서만 옮겨져요. (설정에서 정식 오픈하면 잠겨요)`)}` : '';
   const vtog = ad && !frozen ? `<div class="vtog" role="group" aria-label="정렬"><button class="btn sm${byTime ? '' : ' primary'}" data-act="aview" data-v="rank">순위순</button><button class="btn sm${byTime ? ' primary' : ''}" data-act="aview" data-v="time">신청순</button><small>${byTime ? `신청이 들어온 순서대로 보여요. 상태 칸에서 선발·대기를 확인하세요.${betaOn() ? ' (▲▼ 순번 변경은 순위순에서 할 수 있어요)' : ''}` : '순위(0~3순위)에 따라 선발 → 대기 순으로 보여요.'}</small></div>` : '';
   const h = dsum + (betaNote || vtog ? `<div class="aptools">${betaNote}${vtog}</div>` : '') + `<div class="panel sheetwrap apscroll"><table class="grid atbl"><thead><tr><th class="seq">No.</th><th>신청순</th><th class="stick">이름</th><th>순위</th><th>구분</th><th>신청 시각</th>${mvOn ? '<th>순번 변경</th>' : ''}<th>주차</th><th>공당</th><th>물당</th><th>상태</th><th>마감 후 취소</th>${ad ? '<th>관리</th>' : ''}</tr></thead><tbody>
