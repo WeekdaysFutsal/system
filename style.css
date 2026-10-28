@@ -1576,3 +1576,10 @@ body:has(.scrim) .nextbar{display:none}
 @media (max-width:420px){.cap-tiles[style*="--n:4"]{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .cap-t .teamtag{font-size:12px!important;padding:2px 9px!important;min-width:0!important;height:auto!important;line-height:1.5!important;border-radius:7px!important}
 :root{--cssv:"0.4.17"}
+.tok-c{border:0;cursor:pointer;font:inherit}
+.tcolrow{display:grid;grid-template-columns:repeat(var(--n,3),minmax(0,1fr));gap:8px;margin-bottom:6px}
+.tcol{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:58px;border-radius:12px;border:1px solid var(--line);background:var(--tc);color:var(--ti);font:inherit;cursor:pointer}
+.tcol b{font-family:var(--latin);font-size:17px;letter-spacing:.5px}
+.tcol small{font-size:11px;font-weight:800;padding:1px 8px;border-radius:99px;background:rgba(11,13,16,.78);color:#fff}
+.tcol:disabled{cursor:default;opacity:1}
+:root{--cssv:"0.4.18"}

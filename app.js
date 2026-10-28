@@ -21,7 +21,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.17';
+const APP_VERSION = '0.4.18';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1049,7 +1049,7 @@ function seatHTML(s, k, ph) {
   return `<div class="seat ${t.picked ? 'picked' : ''} ${turn || cturn ? 'onturn' : ''} ${turn ? 'balltgt' : ''} ${me ? 'me' : ''} ${inkOn(t.color) === '#131C2B' ? 'light' : ''}" data-k="${k}" style="--tc:${t.color};--ti:${inkOn(t.color)}">
     ${bubbleFor(m => m.team === k)}
     <div class="sv2 shd"><div class="snm">${orderDecided(s) && o >= 0 && ph !== 'ladder' && ph !== 'cards' ? `<em class="ord2">${o + 1}</em>` : ''}<b>${esc(pname(cap) || '미정')}</b><i class="dot ${inRoom ? 'on' : ''}" title="${inRoom ? '입장' : '대기'}"></i>${me ? '<span class="meb">나</span>' : ''}</div>
-      <div class="sinfo"><span class="tok">${esc(t.name)}</span><b class="cnt2">${cap ? ps.length + 1 : 0}<small>명</small></b></div></div>
+      <div class="sinfo">${s.draftStatus === 'done' && t.picked && (S.admin || me) ? `<button class="tok tok-c" data-act="colorpick" data-k="${k}" title="팀 색 바꾸기">${esc(t.name)} ▾</button>` : `<span class="tok">${esc(t.name)}</span>`}<b class="cnt2">${cap ? ps.length + 1 : 0}<small>명</small></b></div></div>
     ${(() => { const mine = me || S.admin; const adm = S.admin; const pend = s.pending && s.pending.t === k ? s.pending.p : null; const last = (s.picks || []).slice(-1)[0]; const seen = (S.seenStk ??= new Set());
       const items = ps.map(id => { const key = s.date + ':' + id; const nw = !seen.has(key); seen.add(key); const can = adm && last && last.p === id && last.t === k;
         return can ? `<button class="jf mini vest ${nw ? 'new' : ''} ${can ? 'undo' : ''}" data-act="unpick" data-id="${id}" data-pid="${id}" title="${can ? '눌러서 선택 취소' : ''}">${figHTML(pname(id) + (can ? ' ✕' : ''))}</button>` : `<div class="jf mini vest ${nw ? 'new' : ''}" data-pid="${id}">${figHTML(pname(id))}</div>` });
@@ -1242,7 +1242,8 @@ function vNotice(s, inMenu) {
   if (!img) queueMicrotask(refreshPoster);
   const picker = ad ? designPanel('team', S.sid, teamDesign(s)) : '';
   if (ad) queueMicrotask(() => fillThumbs('team', S.sid));
-  let h = `<div class="dgrid"><section>${form}${picker}</section><section><h2>포스터 미리보기</h2><img class="poster" alt="매치데이 공지 이미지 미리보기" src="${img || ''}" width="1086" height="1448">
+  const my0 = myTeam(s); const crow = (ad || my0) ? `<h2>팀 색${ib('팀 색을 누르면 바꿀 수 있어요. 바꾸면 포스터도 새로 만들어져요.')}</h2><div class="tcolrow" style="--n:${nT(s)}">${TK(s).map(k => { const t = team(s, k); const can = ad || my0 === k; return `<button class="tcol" style="--tc:${t.color};--ti:${inkOn(t.color)}" ${can ? `data-act="colorpick" data-k="${k}"` : 'disabled'}><b>${esc(t.name)}</b>${can ? '<small>색 변경 ▾</small>' : ''}</button>` }).join('')}</div>` : '';
+  let h = `<div class="dgrid"><section>${crow}${form}${picker}</section><section><h2>포스터 미리보기</h2><img class="poster" alt="매치데이 공지 이미지 미리보기" src="${img || ''}" width="1086" height="1448">
   <div class="row" style="margin-top:10px"><button class="btn primary" data-act="share">공유하기</button><button class="btn" data-act="download">이미지 저장</button></div>
   <button class="btn block" style="margin-top:8px" data-act="copytext">공지 텍스트 복사</button>`;
   if (ad && !inMenu) h += sessMatches(s.date).length ? `<div style="height:14px"></div><button class="btn block" data-act="gorun" data-id="${s.date}" data-step="match">경기 진행 화면으로</button>` : `<div style="height:14px"></div><button class="btn primary block" data-act="mkmatches">경기 일정 만들기 (9경기)</button>`;
@@ -1359,6 +1360,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.18','2026.10.28',['드래프트가 끝난 뒤에도 팀 색을 바꿀 수 있어요: 드래프트 테이블의 팀 이름(▾)을 누르거나, 팀 공지 화면 맨 위 “팀 색”에서 바꿔요 (운영진은 모든 팀, 회원은 자기 팀) · 바꾸면 포스터도 새로 만들어져요']],
   ['0.4.17','2026.10.28',['홈 드래프트 카드: 팀별 주장을 세로 목록 대신 팀마다 칸을 나눠 가로로 표시 (2·3·4팀 모두 한 줄)']],
   ['0.4.16','2026.10.28',['경기 번호를 “GAME 01” 형식으로 크게 표시 (홈 경기 리뷰, 기록실·운영모드 경기별 결과)']],
   ['0.4.15','2026.10.28',['PC 홈 배치 변경: 윗줄은 지난 경기(팀 순위 | 경기별 결과), 아랫줄은 다음 경기(경기 정보 | 진행 카드)로 가로 배치 — 팀 순위가 쓸데없이 늘어나던 문제 해결','경기별 결과 점수 글씨 크게','신청 마감 카드에도 공당·물당·주차 칸 표시 (PC)','모바일 홈 드래프트 카드를 더 촘촘하게']],
