@@ -1515,3 +1515,18 @@ body:has(.scrim) .nextbar{display:none}
 .schwrap .scd .amk i small{display:none!important}
 .rounds3:has(>.rgrid3){display:block!important}
 :root{--cssv:"0.4.12"}
+/* 기록실: 경기별 결과 가로 배치 */
+.rdgrid{grid-template-areas:"st" "tm" "rk" "ms"}
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){.rdgrid{grid-template-areas:"st rk" "tm rk" "ms ms"!important;grid-template-rows:auto 1fr auto!important}}
+.gstrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px}
+.gsc{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 6px 10px;border-radius:14px;background:var(--surface);border:1px solid var(--line);color:var(--ink);font:inherit;cursor:pointer;min-width:0}
+.gsc em{font-style:normal;font-size:13px;font-weight:800;color:var(--muted)}
+.gsc-s{display:flex;align-items:center;gap:6px}
+.gsc-s b{font-family:var(--latin);font-size:30px;font-weight:800;line-height:1;min-width:18px;text-align:center}
+.gsc-s i{font-style:normal;font-size:20px;font-weight:800;color:var(--muted)}
+.gsc.w-h .sh,.gsc.w-a .sa{color:var(--accent)}
+.gsc small{font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.gsc.st-live{border-color:var(--accent)}
+.gsc:hover{border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}
+@media (max-width:420px){.gsc-s b{font-size:26px}.gsc{padding:10px 4px 8px}}
+:root{--cssv:"0.4.13"}

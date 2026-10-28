@@ -20,7 +20,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.12';
+const APP_VERSION = '0.4.13';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1358,6 +1358,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.13','2026.10.28',['기록실: 팀 구성을 팀 순위 바로 아래로 옮김','경기별 결과를 1~9경기 가로 카드로 크게 배치 (큰 점수, 이긴 팀 점수 강조, 팀 이름 표시) · 모바일은 3개씩 줄바꿈']],
   ['0.4.12','2026.10.28',['달력: 칸 안 글씨가 잘리던 문제 수정 — 운영 달력은 시간·구장(예: 21:00 3구장)을 한 줄로, 신청 개시·마감 표시는 칸 아래에 고정 / 회원 달력은 📢·⏰ 아이콘만 칸 오른쪽 위에','운영 달력 입력: 회차·시간·정원 한 줄, 장소·신청 오픈·신청 마감은 한 줄 전체로 넓혀 날짜가 잘리지 않게','기록실 PC 배치: 왼쪽 팀 순위 + 경기별 결과, 오른쪽 득점 순위로 빈 공간 없앰 · 표 머리줄이 혼자 떠 있던 문제 수정','BLACK처럼 어두운 팀 카드: 흰 테두리 대신 밝은 회색 머리줄로 통일']],
   ['0.4.11','2026.10.28',['표가 둥근 카드 모서리를 벗어나 각진 모서리가 보이던 문제 수정 (기록실 팀 순위·득점 순위, 신청자 표 등)','운영모드 ‘지금 할 일’ 체크 항목을 칩으로 정리하고, 팀 구성 카드의 ‘추천’ 배지 줄바꿈 해결','모바일 하단 다음 단계 버튼 영역을 불투명 배경으로 바꿔 뒤 내용과 겹쳐 보이지 않게 함','입력 칸 제목 옆 ⓘ가 다음 줄로 떨어지던 문제, 통장 잔액 입력칸 폭, 설정 화면 PC 정렬, 홈 경기 리뷰 카드 빈 공간 정리']],
   ['0.4.10','2026.10.28',['주장·참관자용 드래프트 카드도 같은 디자인으로 통일 (작은 “드래프트 보기” 버튼, 줄바꿈 없음)','공당·물당·주차 아이콘을 선 아이콘으로 통일, 신청 마감 카드도 같은 3칸 카드로 정리','글자 대비 전수 점검: 일정 달력 경기일 칸의 날짜·신청 표시, 토·일 요일 글씨, 마감 배지, 팀 색 변경 버튼, D팀 색 보정']],
@@ -1822,7 +1823,9 @@ function vResultDetail(s) {
   const mrowR = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); const win = m.status === 'done' ? (a > b ? 'win-h' : a < b ? 'win-a' : '') : '';
     return `<button class="mrow ${win}" data-act="open" data-id="${m.id}"><span class="side">${bib(H.color)}<span>${esc(H.name)}</span></span><span class="mid">${nC(s) === 2 ? `<span class="ctag c${mcourt(m)}">${mcourt(m)}구장</span>` : ''}<span class="sc">${m.status === 'pending' ? 'vs' : a + ' : ' + b}</span><span class="st">${m.n}경기${m.status === 'done' ? '' : m.status === 'live' ? ' · 진행 중' : ' · 예정'}</span></span><span class="side r"><span>${esc(A.name)}</span>${bib(A.color)}</span></button>${rdScorers(s, m)}` };
   const cell = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); return `<button class="rgc st-${m.status}" data-act="open" data-id="${m.id}" aria-label="${m.n}경기 ${esc(H.name)} ${m.status === 'pending' ? '대' : a + '대' + b} ${esc(A.name)}"><em>${m.n}</em>${bib(H.color)}<b>${m.status === 'pending' ? 'vs' : a + ':' + b}</b>${bib(A.color)}</button>` };
-  const rounds = `<div class="panel rgrid3">${roundsOf(ms).map(r => { const list = ms.filter(m => m.round === r); return list.length ? `<div class="rgr"><span class="rgl">${nT(s) === 2 ? '' : r + (nT(s) === 4 ? '바퀴' : 'R')}</span><div class="rgcs">${list.map(cell).join('')}</div></div>` : '' }).join('')}</div>`; void mrowR;
+  const gcard = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); const pend = m.status === 'pending'; const w = !pend && m.status === 'done' ? (a > b ? 'h' : a < b ? 'a' : 'd') : '';
+    return `<button class="gsc st-${m.status} w-${w}" data-act="open" data-id="${m.id}" aria-label="${m.n}경기 ${esc(H.name)} ${pend ? '대' : a + '대' + b} ${esc(A.name)}"><em>${m.n}경기${nC(s) === 2 ? ` · ${mcourt(m)}구장` : ''}</em><span class="gsc-s">${bib(H.color)}<b class="sh">${pend ? '' : a}</b><i>${pend ? 'vs' : ':'}</i><b class="sa">${pend ? '' : b}</b>${bib(A.color)}</span><small>${esc(H.name)} · ${esc(A.name)}</small></button>` };
+  const rounds = `<div class="gstrip">${[...ms].sort((x, y) => x.n - y.n).map(gcard).join('')}</div>`; void mrowR;
   const rk = scorerRank(s); const myRank = rk.find(r => r.id === me);
   const rkHtml = rk.length ? `<div class="panel tblwrap rdrank2"><table><thead><tr><th>순위</th><th class="l">이름</th><th class="l">팀</th><th>골</th><th>도움</th></tr></thead><tbody>${rk.map(r => `<tr class="${r.id === me ? 'me' : ''}"><td class="rank"><em class="rkn ${r.rank <= 3 ? 'top' : ''}">${r.rank}</em></td><td class="l"><b>${esc(pname(r.id))}</b></td><td class="l">${r.tname ? `<span class="teamcell">${bib(r.color)}${esc(r.tname)}</span>` : '-'}</td><td><b>${r.g}</b></td><td>${r.a || '-'}</td></tr>`).join('')}</tbody></table></div>${rk.ogN ? `<p class="note">자책골 ${rk.ogN}골은 개인 득점에서 빠져요.</p>` : ''}` : '<div class="panel"><p class="empty">선수 이름으로 기록된 골이 없어요.</p></div>';
   const fin = done === ms.length && ms.length; const ch = fin ? rows.filter(r => r.rank === 1) : []; const top = rk[0];
@@ -1830,7 +1833,7 @@ function vResultDetail(s) {
   return `${champ}<div class="rdgrid"><section class="rd-st"><h2>팀 순위${done === ms.length && ms.length ? '<span class="final">최종</span>' : ''}</h2>${st}</section>
   <section class="rd-tm"><h2>팀 구성</h2>${tm}</section>
   <section class="rd-rk"><h2>득점 순위${myRank ? `<small>나 ${myRank.rank}위 · ${myRank.g}골</small>` : ''}</h2>${rkHtml}</section>
-  <section class="rd-ms"><h2>경기별 결과</h2>${ms.length ? `<div class="rounds3">${rounds}</div>` : '<div class="panel"><p class="empty">경기 기록이 없어요.</p></div>'}</section></div>`;
+  <section class="rd-ms"><h2>경기별 결과</h2>${ms.length ? rounds : '<div class="panel"><p class="empty">경기 기록이 없어요.</p></div>'}</section></div>`;
 }
 /* ───────── 출석 현황 ───────── */
 function attPids(s) { const ps = new Set(); KEYS.forEach(k => (s.teams?.[k]?.players || []).forEach(p => p && ps.add(p))); if (!ps.size) (s.applicants || []).forEach(p => p && ps.add(p)); return [...ps] }
