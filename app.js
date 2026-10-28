@@ -9,6 +9,8 @@ const RR4 = [['A', 'B'], ['C', 'D'], ['A', 'C'], ['B', 'D'], ['A', 'D'], ['B', '
 // 4팀은 구장 2면에서 동시에 진행해요: ops[0]/p0[0] = 1구장, ops[1]/p0[1] = 2구장
 const nC = s => nT(s) === 4 ? 2 : 1;
 const CK = (b, c) => c === 2 ? b + '2' : b;
+function gameCard(s, m) { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); const pend = m.status === 'pending'; const w = m.status === 'done' ? (a > b ? 'h' : a < b ? 'a' : 'd') : '';
+  return `<button class="gsc st-${m.status} w-${w}" data-act="open" data-id="${m.id}" aria-label="${m.n}경기 ${esc(H.name)} ${pend ? '대' : a + '대' + b} ${esc(A.name)}"><em class="gno">${gno(m.n)}${nC(s) === 2 ? ` · ${mcourt(m)}구장` : ''}${m.status === 'live' ? ' <i class="glive">LIVE</i>' : ''}</em><span class="gsc-s">${bib(H.color)}<b class="sh">${pend ? '' : a}</b><i>${pend ? 'vs' : ':'}</i><b class="sa">${pend ? '' : b}</b>${bib(A.color)}</span><small>${esc(H.name)} · ${esc(A.name)}</small></button>` }
 const gno = n => `GAME ${String(n).padStart(2, '0')}`;
 const mcourt = m => +m?.court === 2 ? 2 : 1;
 function courtOps(s, c) { const o = s?.ops || []; return nC(s) === 2 ? (o[c - 1] && S.players[o[c - 1]] ? [o[c - 1]] : []) : o.filter(p => p && S.players[p]) }
@@ -21,8 +23,8 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.18';
-const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
+const APP_VERSION = '0.4.19';
+const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
 const VENUES = CFG.venues || ['용산 아이파크몰 The Base 1구장', '용산 아이파크몰 The Base 2구장', '용산 아이파크몰 The Base 3구장', '용산 아이파크몰 The Base 4구장', '용산 아이파크몰 The Base 5구장', '용산 아이파크몰 The Base 6구장', '용산 아이파크몰 The Base 7구장', '서울 월드컵경기장 풋살장 A면', '서울 월드컵경기장 풋살장 B면', '서울 월드컵경기장 풋살장 C면', '마루공원 풋살장 1면', '마루공원 풋살장 2면', '일원 에코파크 풋살장'];
@@ -162,7 +164,7 @@ function markDark(root) { if (!root || root.nodeType !== 1) return; const els = 
   new MutationObserver(ms => { for (const m of ms) { if (m.type === 'attributes') markDark(m.target); else m.addedNodes.forEach(markDark) } }).observe(app, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] }) }; go() })();
 function bib(c) { return `<span class="bib" style="background:${c}"></span>` }
 function tag(t) { return `<span class="teamtag" style="background:${t.color};color:${inkOn(t.color)}">${esc(t.name)}</span>` }
-function timing(s) { return { ...DEF_TIMING, ...(s?.timing || {}) } }
+function timing(s) { const t = s?.timingV === 2 ? (s.timing || {}) : {}; return { ...DEF_TIMING, ...t, rest: 0 } } // 이전에 저장된 경기별 시간은 무시하고 새 기본값 사용
 function cur() { return S.sid ? S.sessions[S.sid] : null }
 function stageIdx(st) { return STAGES.findIndex(x => x[0] === st) }
 let toastT; function toast(t) { document.querySelectorAll('.toast').forEach(x => x.remove()); const d = document.createElement('div'); d.className = 'toast'; d.setAttribute('role', 'status'); d.textContent = t; document.body.appendChild(d); clearTimeout(toastT); toastT = setTimeout(() => d.remove(), Math.min(7000, Math.max(2600, String(t).length * 75))) }
@@ -299,14 +301,13 @@ function clockInfo(m) {
   if (m.status === 'done') return { label: '종료', time: fmt(Math.min(e, c)), phase: 'done', e, a, b, c };
   if (m.status === 'pending' && !run && e < .5) {
     const pr = prevMatch(m);
-    if (pr && pr.status === 'done' && pr.endedAt) { const restEnd = pr.endedAt + T.rest * 1000; const r = (restEnd - nowS()) / 1000;
-      return { label: '시작 대기', time: fmt(a), phase: 'ready', e, a, b, c, restEnd } }
+    if (pr && pr.status === 'done') return { label: '시작 대기', time: fmt(a), phase: 'ready', e, a, b, c };
     return { label: '시작 전', time: fmt(a), phase: 'ready', e, a, b, c };
   }
   if (e < a) return { label: '전반' + ps, time: fmt(Math.ceil(a - e)), phase: 'h1', e, a, b, c };
   if (e < b) return { label: 'GK 교체' + ps, time: '00:' + p2(Math.ceil(b - e)), phase: 'gk', e, a, b, c };
   if (e < c) return { label: '후반' + ps, time: fmt(Math.ceil(c - e)), phase: 'h2', e, a, b, c };
-  return { label: '경기 시간 종료' + ps, time: '+' + fmt(Math.floor(e - c)), phase: 'full', over: true, e, a, b, c };
+  return { label: '경기 시간 종료' + ps, time: '00:00', phase: 'full', over: true, e, a, b, c };
 }
 function table(sid, filter) {
   const rows = {}; TK(S.sessions[sid]).forEach(k => rows[k] = { k, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 });
@@ -447,6 +448,8 @@ const FONT_FILES = [
   ['PaperlogyK', '100 900', 'https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-9Black.woff2'],
   ['SCDreamH', '100 900', 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-8Heavy.woff', 'woff'],
   ['SCDreamM', '100 900', 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-6Bold.woff', 'woff']];
+async function setPosterFont(kind, v) { if (!POSTER_FONTS.some(x => x[0] === v)) return; toast('글꼴을 불러오는 중이에요…');
+  const base = kind === 'team' ? teamDesign(cur()) : schedDesign(); const d = { ...base, font: v }; S.cand[kind] = candList(kind).map(x => ({ ...x, font: v })); await applyDesign(kind, d); toast(`${POSTER_FONTS.find(x => x[0] === v)[1]} 글꼴로 바꿨어요.`); render() }
 // 포스터 글꼴 (모두 무료 폰트). 'auto'는 디자인마다 어울리는 글꼴을 골라요.
 const POSTER_FONTS = [['auto', '디자인 추천', ''], ['paperlogy', '페이퍼로지', '"PaperlogyH"'], ['paperlogyk', '페이퍼로지 블랙', '"PaperlogyK"'], ['scdream', '에스코어드림', '"SCDreamH"'], ['pretendard', '프리텐다드', '"PretendardH"'], ['nanumgothic', '나눔고딕', '"Nanum Gothic"'], ['nanummyeongjo', '나눔명조', '"Nanum Myeongjo"'], ['nanumpen', '나눔손글씨 펜', '"Nanum Pen Script"'], ['nanumbrush', '나눔손글씨 붓', '"Nanum Brush Script"']];
 const THEME_FONT = { stadium: 'paperlogy', night: 'scdream', clean: 'pretendard', stripe: 'paperlogyk' };
@@ -716,9 +719,9 @@ async function drawSched(ym, d) {
 async function thumbOf(kind, d, key) { S.dthumb ??= {}; const k = `${kind}:${key}:${dKey(d)}`; if (S.dthumb[k]) return S.dthumb[k]; const big = kind === 'team' ? await drawTeam(cur(), d) : await drawSched(key, d); const t = document.createElement('canvas'); const r = big.height / big.width; t.width = 200; t.height = Math.round(200 * r); t.getContext('2d').drawImage(big, 0, 0, t.width, t.height); return (S.dthumb[k] = t.toDataURL('image/jpeg', .8)) }
 function candList(kind) { S.cand ??= {}; return S.cand[kind] || (S.cand[kind] = DESIGN_PRESETS[kind].map(x => ({ ...x }))) }
 function designPanel(kind, key, curD) { const L = candList(kind); const on = dKey(curD); const curF = curD.font || 'auto';
-  return `<h2>포스터 시안${ib(`마음에 드는 시안을 고르세요`)}</h2><div class="pthemes dz" data-kind="${kind}">${L.map((d, i) => { const t = S.dthumb?.[`${kind}:${key}:${dKey(d)}`]; const sel = dKey(d) === on || (d.lay === curD.lay && d.pal === curD.pal && d.seed === curD.seed); return `<button class="pth ${sel ? 'on' : ''}" data-act="pdesign" data-k="${kind}" data-i="${i}" aria-pressed="${sel}">${t ? `<img src="${t}" alt="">` : `<span class="pth-ph" style="background:linear-gradient(160deg,${PAL[d.pal].bg} 0 55%,${PAL[d.pal].acc} 55%)"></span>`}<b>${dName(kind, d)}</b></button>` }).join('')}</div>
+  return `<h2>포스터 시안${ib(`마음에 드는 시안을 고르세요`)}</h2><div class="pthemes dz" data-kind="${kind}" style="--n:${L.length}">${L.map((d, i) => { const t = S.dthumb?.[`${kind}:${key}:${dKey(d)}`]; const sel = dKey(d) === on || (d.lay === curD.lay && d.pal === curD.pal && d.seed === curD.seed); return `<button class="pth ${sel ? 'on' : ''}" data-act="pdesign" data-k="${kind}" data-i="${i}" aria-pressed="${sel}">${t ? `<img src="${t}" alt="">` : `<span class="pth-ph" style="background:linear-gradient(160deg,${PAL[d.pal].bg} 0 55%,${PAL[d.pal].acc} 55%)"></span>`}<b>${dName(kind, d)}</b></button>` }).join('')}</div>
   <div class="row" style="margin:4px 0 14px;gap:8px"><button class="btn" data-act="pnew" data-k="${kind}">🎲 새 시안 보기</button>${S.candNew?.[kind] ? `<button class="btn sm" data-act="preset" data-k="${kind}">기본 시안으로</button>` : ''}</div>
-  <h2>포스터 글꼴${ib(`모두 무료 글꼴이에요`)}</h2><div class="pfonts">${POSTER_FONTS.map(([k, n, fam]) => `<button class="pfo ${k === curF ? 'on' : ''}" data-act="pfont" data-k="${kind}" data-v="${k}" aria-pressed="${k === curF}" ${fam ? `style="font-family:${fam.replace(/"/g, "'")},inherit"` : ''}>${n}${k === 'auto' ? `<small>${POSTER_FONTS.find(x => x[0] === fontOf({ ...curD, font: 'auto' }))?.[1] || ''}</small>` : ''}</button>`).join('')}</div>` }
+  <h2>포스터 글꼴${ib(`모두 무료 글꼴이에요`)}</h2><label class="sr" for="pfsel-${kind}">포스터 글꼴</label><select id="pfsel-${kind}" class="inp pfsel" data-in="pfontsel" data-k="${kind}">${POSTER_FONTS.map(([k, n]) => `<option value="${k}" ${k === curF ? 'selected' : ''}>${n}${k === 'auto' ? ` (${POSTER_FONTS.find(x => x[0] === fontOf({ ...curD, font: 'auto' }))?.[1] || ''})` : ''}</option>`).join('')}</select>` }
 async function fillThumbs(kind, key) { if (S.thumbBusy?.[kind]) return; (S.thumbBusy ??= {})[kind] = 1; try { const L = candList(kind); for (let i = 0; i < L.length; i++) { const d = L[i]; const box = document.querySelector(`.pth[data-k="${kind}"][data-i="${i}"]`); if (!box || box.querySelector('img')) continue; const t = await thumbOf(kind, d, key); const b2 = document.querySelector(`.pth[data-k="${kind}"][data-i="${i}"]`); if (b2 && !b2.querySelector('img')) b2.insertAdjacentHTML('afterbegin', `<img src="${t}" alt="">`), b2.querySelector('.pth-ph')?.remove() } } catch (e) { console.error(e) } finally { S.thumbBusy[kind] = 0 } }
 function clearThumbs(kind, key) { for (const k in (S.dthumb || {})) if (k.startsWith(`${kind}:${key}:`)) delete S.dthumb[k] }
 async function applyDesign(kind, d) { if (kind === 'team') { const s = cur(); if (!s) return; await w(() => S.store.update(sp(S.sid), { posterDesign: d, posterTheme: null })); S.store.set('meta/poster', { ...(S.meta?.poster || {}), design: d }).catch(() => { }); const cv = await drawTeam({ ...s, posterDesign: d }, d); S.poster[S.sid] = cv.toDataURL('image/png'); const im = document.querySelector('img.poster:not(.schedimg)'); if (im) im.src = S.poster[S.sid] }
@@ -1222,11 +1225,12 @@ function vTrade(s) {
   let h = s.draftStatus !== 'done' ? `<div class="notice">드래프트가 끝나면 팀 구성을 볼 수 있어요.</div>` : '';
   h += `<div class="tradehd"><b>밸런스 조정</b>${ib(ad ? '선수 한 명을 누르고 다른 팀 선수를 누르면 맞바꿔요. 팀 색 이름을 누르면 색을 바꿀 수 있어요.' : my ? '팀 색 이름을 누르면 우리 팀 색을 바꿀 수 있어요. 운영진이 밸런스를 조정하는 중이에요.' : '운영진이 팀 밸런스를 조정하는 중이에요.')}</div>`;
   h += `<div class="tradehost">${bubbleFor(m => m.admin)}<span class="av on hostav">운영</span><b>운영진</b></div>`;
+  const selK = S.sel ? TK(s).find(k => teamPlayers(s, k).includes(S.sel)) : null; if (ad) h += `<p class="tswap-hint ${S.sel ? 'on' : ''}">${S.sel ? `<b>${esc(pname(S.sel))}</b> 선택 · 바꿀 선수를 누르세요` : '선수를 누르고, 다른 팀 선수를 누르면 서로 맞바꿔요'}</p>`;
   h += `<div class="tcards${' n' + nT(s)}">${TK(s).map(k => { const t = team(s, k); const ps = teamPlayers(s, k); const canC = S.admin || my === k;
     return `<div class="tcard ${my === k ? 'me' : ''}" style="--tc:${t.color};--ti:${inkOn(t.color)}">${bubbleFor(m => m.team === k)}
       <button class="tchd" data-act="${canC ? 'colorpick' : 'noop'}" data-k="${k}" ${canC ? '' : 'tabindex="-1"'}><span>${esc(t.name)}</span>${canC ? '<i>색 변경 ▾</i>' : ''}<small>${ps.length}명</small></button>
-      <ol>${ps.map((id, j) => j === 0 ? `<li class="cap"><em>C</em><span>${esc(pname(id))}</span></li>`
-        : `<li class="${S.sel === id ? 'swap' : ''}">${ad ? `<button data-act="selswap" data-id="${id}"><span>${esc(pname(id))}</span></button>` : `<span>${esc(pname(id))}</span>`}</li>`).join('')}</ol></div>` }).join('')}</div>`;
+      <ol class="tpl">${ps.map((id, j) => { if (j === 0) return `<li><span class="tp cap"><b>${esc(pname(id))}</b><em>C</em></span></li>`;
+        const on = S.sel === id, tgt = ad && selK && selK !== k; return `<li>${ad ? `<button class="tp ${on ? 'on' : ''} ${tgt ? 'tgt' : ''} ${ad && selK === k && !on ? 'dim' : ''}" data-act="selswap" data-id="${id}" aria-pressed="${on}"><b>${esc(pname(id))}</b></button>` : `<span class="tp"><b>${esc(pname(id))}</b></span>`}</li>` }).join('')}</ol></div>` }).join('')}</div>`;
   if (ad) h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="goposter" data-id="${s.date}" ${allPicked(s) ? '' : 'disabled'}>👥 팀 공지 이미지</button><button class="btn" data-act="teamnoti" ${allPicked(s) ? '' : 'disabled'}>🔔 팀 발표 알림${s.teamNoticeAt ? ' ✓' : ''}</button></div>`;
   h += chatPanel(!!(my || S.admin), S.dm);
   if (ad) h += `<div class="panel pad redobar"><div><b>↺ 드래프트 다시하기</b>${ibm(`주장과 팀 색은 그대로 두고, 순번 정하기부터 팀원 선택까지 다시 해요. 지금 팀 구성은 지워져요.`)}</div><button class="btn primary" data-act="redodraft">드래프트 다시하기</button></div>`;
@@ -1266,19 +1270,16 @@ async function pairSave() { const s = cur(); const ms = sessMatches(s.date); con
 function vMatchDay(s) {
   const ms = sessMatches(S.sid); if (!ms.length) return `<div class="notice">아직 경기 일정이 없어요. ${S.admin ? `<button class="btn sm primary" data-act="mkmatches">${NG(S.sessions[S.sid])}경기 일정 만들기</button>` : ''}</div>`;
   const done = ms.filter(m => m.status === 'done').length; const T = timing(s);
-  let h = attPanel(s) + `<p class="note" style="margin-top:12px">전반 ${T.h1 / 60}분, GK 교체 ${T.gk}초, 후반 ${T.h2 / 60}분, 휴식 ${T.rest / 60}분</p>`;
+  let h = attPanel(s) + (S.admin ? '' : `<p class="note" style="margin-top:12px">전반 ${T.h1 / 60}분, GK 교체 ${T.gk}초, 후반 ${T.h2 / 60}분</p>`);
   const live = ms.filter(m => m.status === 'live'); const nx = live.length ? live : ms.filter(m => m.status === 'pending').slice(0, 1);
   if (nx.length) h += `<h2>${live.length ? '<span class="dot"></span> 지금 경기' : '다음 경기'}</h2>${nx.map(m => { const [a, b] = score(m);
     return `<button class="live" data-act="open" data-id="${m.id}"><span class="ph" data-phase="${m.id}"></span><span class="sc">${bib(team(s, m.home).color)}<span class="n">${esc(team(s, m.home).name)}</span><b>${a}</b>:<b>${b}</b><span class="n">${esc(team(s, m.away).name)}</span>${bib(team(s, m.away).color)}</span><span class="tm" data-clock="${m.id}"></span></button>` }).join('')}`;
   h += `<h2>순위${done === NG(s) ? '<span class="final">최종</span>' : `<small>${done}/${NG(s)}경기 반영</small>`}</h2><div class="panel tblwrap"><table><thead><tr><th>순위</th><th class="l">팀</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득</th><th>실</th><th>득실</th><th>승점</th></tr></thead><tbody>
   ${standings(S.sid).map(r => { const t = team(s, r.k); return `<tr><td class="rank">${r.p ? r.rank : '-'}</td><td class="l"><span class="teamcell">${bib(t.color)}${esc(t.name)}</span></td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf}</td><td>${r.ga}</td><td>${r.gf - r.ga > 0 ? '+' : ''}${r.gf - r.ga}</td><td class="pts">${r.pts}</td></tr>` }).join('')}</tbody></table></div>
   ${ibm(`승 3점, 무 1점. 승점이 같으면 골득실, 다득점, 승자승 순.`)}`;
-  let sch = `<h2>경기 일정</h2>`;
-  { const cell = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); return `<button class="rgc st-${m.status}" data-act="open" data-id="${m.id}" aria-label="${m.n}경기"><em class="gno">${gno(m.n)}</em>${nC(s) === 2 ? `<span class="ctag c${mcourt(m)}">${mcourt(m)}</span>` : ''}${bib(H.color)}<b>${m.status === 'pending' ? 'vs' : a + ':' + b}</b>${bib(A.color)}</button>` };
-    sch += `<div class="panel rgrid3">${roundsOf(ms).map(r => { const list = ms.filter(m => m.round === r); return `<div class="rgr"><span class="rgl">${nT(s) === 2 ? '' : r + (nT(s) === 4 ? '바퀴' : 'R')}</span><div class="rgcs">${list.map(cell).join('')}</div></div>` }).join('')}</div>` }
-  if (S.admin) { const st = (key, lab, val, unit) => `<div class="stepper"><button data-act="tstep" data-key="${key}" data-d="-1" aria-label="${lab} 줄이기">−</button><span><small>${lab}</small>${val}${unit}</span><button data-act="tstep" data-key="${key}" data-d="1" aria-label="${lab} 늘리기">+</button></div>`;
-    sch += `<h2>경기 시간 설정</h2><div class="grid2">${st('h1', '전반', T.h1 / 60, '분')}${st('gk', 'GK 교체', T.gk, '초')}${st('h2', '후반', T.h2 / 60, '분')}${st('rest', '쉬는 시간', T.rest / 60, '분')}</div>
-    <h2>관리</h2><button class="btn primary block" data-act="pairedit" style="margin-bottom:8px">⇄ 1~${NG(s)}경기 대진 변경</button><button class="btn danger block" data-act="delmatches">경기 대진(1~${NG(s)}경기) 삭제</button>${ibm(`경기 일정(대진표)과 경기 기록만 지워요. 신청자, 팀 구성, 공지는 그대로 남고, 다시 "경기 일정 만들기"로 새 대진을 만들 수 있어요. 경기일 자체 삭제는 경기관리 메뉴에서 해요.`)}` }
+  let sch = `<h2>경기 일정<small>${done}/${ms.length} 완료</small></h2><div class="gstrip gsched" style="--gc:${nT(s) === 4 ? 4 : 3}">${[...ms].sort((x, y) => x.n - y.n).map(m => gameCard(s, m)).join('')}</div>`;
+  if (S.admin) { const st = (key, lab, val, unit) => `<div class="vstep"><button class="vs-b" data-act="tstep" data-key="${key}" data-d="1" aria-label="${lab} 늘리기">＋</button><span class="vs-v"><small>${lab}</small><b>${val}<i>${unit}</i></b></span><button class="vs-b" data-act="tstep" data-key="${key}" data-d="-1" aria-label="${lab} 줄이기">−</button></div>`;
+    sch += `<h2>경기 시간 설정 · 관리${ib(`＋/−로 전반·후반(분), GK 교체(초)를 바꿔요. 대진 삭제는 경기 일정(대진표)과 경기 기록만 지워요. 신청자, 팀 구성, 공지는 그대로 남고, 다시 “경기 일정 만들기”로 새 대진을 만들 수 있어요.`)}</h2><div class="vsteps">${st('h1', '전반', T.h1 / 60, '분')}${st('gk', 'GK 교체', T.gk, '초')}${st('h2', '후반', T.h2 / 60, '분')}<div class="mg-btns"><button class="btn primary" data-act="pairedit">⇄ 대진 변경</button><button class="btn danger" data-act="delmatches">대진 삭제</button></div></div>` }
   return `<div class="dgrid"><section>${h}</section><section>${sch}</section></div>`;
 }
 function viewMatch() {
@@ -1360,6 +1361,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.19','2026.10.28',['경기 시간: 전반 6분 · GK 교체(하프타임) 3초 · 후반 6분으로 맞추고, 경기 사이 쉬는 시간을 없앴어요. 경기 시간이 끝나면 타이머가 더 이상 올라가지 않고 00:00에서 멈춰요','밸런스 조정: 선수 이름을 큼직한 버튼으로 바꿈 — 한 명 누르고 다른 팀 선수를 누르면 바로 맞바꿔요 (교체 가능한 선수는 점선 표시)','밸런스 조정 화면 팀 카드와 아래 버튼 폭을 맞추고, BLACK 같은 어두운 팀 머리줄을 다른 팀과 같은 모양으로','다음 단계 버튼이 채팅 입력창과 겹치지 않게 채팅창 위로 올림','포스터 글꼴은 드롭다운에서 고르고, 포스터 시안은 한 줄로 정렬','경기진행(운영): 경기 일정을 GAME 01~09 카드로 크게, 경기 시간은 ＋/−가 위아래인 칸 3개와 대진 변경·삭제 버튼을 한 줄에 배치']],
   ['0.4.18','2026.10.28',['드래프트가 끝난 뒤에도 팀 색을 바꿀 수 있어요: 드래프트 테이블의 팀 이름(▾)을 누르거나, 팀 공지 화면 맨 위 “팀 색”에서 바꿔요 (운영진은 모든 팀, 회원은 자기 팀) · 바꾸면 포스터도 새로 만들어져요']],
   ['0.4.17','2026.10.28',['홈 드래프트 카드: 팀별 주장을 세로 목록 대신 팀마다 칸을 나눠 가로로 표시 (2·3·4팀 모두 한 줄)']],
   ['0.4.16','2026.10.28',['경기 번호를 “GAME 01” 형식으로 크게 표시 (홈 경기 리뷰, 기록실·운영모드 경기별 결과)']],
@@ -1830,8 +1832,7 @@ function vResultDetail(s) {
   const mrowR = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); const win = m.status === 'done' ? (a > b ? 'win-h' : a < b ? 'win-a' : '') : '';
     return `<button class="mrow ${win}" data-act="open" data-id="${m.id}"><span class="side">${bib(H.color)}<span>${esc(H.name)}</span></span><span class="mid">${nC(s) === 2 ? `<span class="ctag c${mcourt(m)}">${mcourt(m)}구장</span>` : ''}<span class="sc">${m.status === 'pending' ? 'vs' : a + ' : ' + b}</span><span class="st">${m.n}경기${m.status === 'done' ? '' : m.status === 'live' ? ' · 진행 중' : ' · 예정'}</span></span><span class="side r"><span>${esc(A.name)}</span>${bib(A.color)}</span></button>${rdScorers(s, m)}` };
   const cell = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); return `<button class="rgc st-${m.status}" data-act="open" data-id="${m.id}" aria-label="${m.n}경기 ${esc(H.name)} ${m.status === 'pending' ? '대' : a + '대' + b} ${esc(A.name)}"><em class="gno">${gno(m.n)}</em>${bib(H.color)}<b>${m.status === 'pending' ? 'vs' : a + ':' + b}</b>${bib(A.color)}</button>` };
-  const gcard = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); const pend = m.status === 'pending'; const w = !pend && m.status === 'done' ? (a > b ? 'h' : a < b ? 'a' : 'd') : '';
-    return `<button class="gsc st-${m.status} w-${w}" data-act="open" data-id="${m.id}" aria-label="${m.n}경기 ${esc(H.name)} ${pend ? '대' : a + '대' + b} ${esc(A.name)}"><em class="gno">${gno(m.n)}${nC(s) === 2 ? ` · ${mcourt(m)}구장` : ''}</em><span class="gsc-s">${bib(H.color)}<b class="sh">${pend ? '' : a}</b><i>${pend ? 'vs' : ':'}</i><b class="sa">${pend ? '' : b}</b>${bib(A.color)}</span><small>${esc(H.name)} · ${esc(A.name)}</small></button>` };
+  const gcard = m => gameCard(s, m);
   const rounds = `<div class="gstrip">${[...ms].sort((x, y) => x.n - y.n).map(gcard).join('')}</div>`; void mrowR;
   const rk = scorerRank(s); const myRank = rk.find(r => r.id === me);
   const rkHtml = rk.length ? `<div class="panel tblwrap rdrank2"><table><thead><tr><th>순위</th><th class="l">이름</th><th class="l">팀</th><th>골</th><th>도움</th></tr></thead><tbody>${rk.map(r => `<tr class="${r.id === me ? 'me' : ''}"><td class="rank"><em class="rkn ${r.rank <= 3 ? 'top' : ''}">${r.rank}</em></td><td class="l"><b>${esc(pname(r.id))}</b></td><td class="l">${r.tname ? `<span class="teamcell">${bib(r.color)}${esc(r.tname)}</span>` : '-'}</td><td><b>${r.g}</b></td><td>${r.a || '-'}</td></tr>`).join('')}</tbody></table></div>${rk.ogN ? `<p class="note">자책골 ${rk.ogN}골은 개인 득점에서 빠져요.</p>` : ''}` : '<div class="panel"><p class="empty">선수 이름으로 기록된 골이 없어요.</p></div>';
@@ -2966,7 +2967,7 @@ function planSide(id) {
 /* ───────── 경기모드 (match mode) ───────── */
 /* 일정 경기는 [시작 1시간 전 ~ 끝 예정 시각 + 1시간] 사이에만 고를 수 있어요 (연습 경기·진행 중인 경기는 예외) */
 function mmHasTeams(id) { const s = S.sessions[id]; return s && TK(s).every(k => teamPlayers(s, k).length) }
-function mmWindow(s) { const st = new Date(`${s.date}T${s.time || '21:00'}`).getTime(); const T = timing(s); const n = Math.ceil((sessMatches(s.date).length || 9) / nC(s)); const dur = n * (T.h1 + T.gk + T.h2 + (T.rest || 180)) * 1000; const ms = sessMatches(s.date); const done = ms.length && ms.every(m => m.status === 'done'); const endA = done ? Math.max(...ms.map(m => m.endedAt || 0)) : 0; const end = endA || st + dur; return { open: st - 3600e3, start: st, end, close: end + 1800e3 } } // 경기모드: 시작 1시간 전 ~ 경기 끝난 뒤 30분
+function mmWindow(s) { const st = new Date(`${s.date}T${s.time || '21:00'}`).getTime(); const T = timing(s); const n = Math.ceil((sessMatches(s.date).length || 9) / nC(s)); const dur = n * (T.h1 + T.gk + T.h2 + 0) * 1000; const ms = sessMatches(s.date); const done = ms.length && ms.every(m => m.status === 'done'); const endA = done ? Math.max(...ms.map(m => m.endedAt || 0)) : 0; const end = endA || st + dur; return { open: st - 3600e3, start: st, end, close: end + 1800e3 } } // 경기모드: 시작 1시간 전 ~ 경기 끝난 뒤 30분
 function mmOpenNow() { return Object.keys(S.sessions).some(id => !S.sessions[id].practice && mmHasTeams(id) && mmAvail(id) === 'ok') || liveAny() } // 경기모드 버튼: 시작 1시간 전 ~ 끝나고 30분 뒤
 function mmAvail(id) { const s = S.sessions[id]; if (!s) return 'none'; if (s.practice || sessMatches(id).some(m => m.status === 'live')) return 'ok'; const w0 = mmWindow(s), now = nowS(); return now < w0.open ? 'soon' : now > w0.close ? 'past' : 'ok' }
 function mmSid() {
@@ -3424,6 +3425,7 @@ document.addEventListener('change', e => { const el = e.target;
   if (el.dataset.in === 'ctxpick') { S.sid = el.value; S.planSel = el.value; S.planM = el.value.slice(0, 7); S.nsid = el.value; S.step = null; S.sel = null; S.openMatch = null; render(); return }
   if (el.dataset.in === 'latetoggle' && S.admin) { el.checked = false; cancelApp(S.sid, el.dataset.id, null, true); return }
   if (el.dataset.in === 'lateuntoggle' && S.admin) { if (!confirm(`${pname(el.dataset.id)} 님의 마감 후 취소 표시를 지울까요? (다음 경기 3순위가 해제돼요. 참가 명단에는 다시 들어가지 않아요)`)) { el.checked = true; return } w(() => S.store.update(sp(S.sid), { [`late.${el.dataset.id}`]: null }), '해제했어요.'); return }
+  if (el.dataset.in === 'pfontsel' && S.admin) { setPosterFont(el.dataset.k || 'team', el.value); return }
   if (el.dataset.in === 'msel') { (S.msel ??= {})[el.dataset.id] = el.checked; render(); return }
   if (el.dataset.in === 'mselall') { S.msel = {}; if (el.checked) document.querySelectorAll('[data-in=msel]').forEach(x => S.msel[x.dataset.id] = true); render(); return }
   if (el.dataset.in === 'outcell' && S.admin) { const id = el.dataset.id, f = el.dataset.f, v = el.value.trim(); if (f === 'outAt') w(() => S.store.update('players/' + id, { outAt: v }), '저장했어요.'); else { const c = S.contacts?.[id] || {}; if ((c.outReason || '') !== v) w(() => S.store.set('contacts/' + id, { ...c, outReason: v.slice(0, 80) }), '저장했어요.') } return }
@@ -3538,7 +3540,7 @@ document.addEventListener('click', async e => {
     case 'mmpairsave': await mmSavePairs(); break;
     case 'mmstage': S.mmStage = el.dataset.v; if (el.dataset.v === 'pair') S.mmDraft = null; if (el.dataset.v === 'time') S.mmT = null; render(); break;
     case 'mmtadj': { const f = S.mmT; const k = el.dataset.k; const v = Math.round(((+f[k]) + (+el.dataset.d)) * 10) / 10; f[k] = Math.max(k === 'gk' ? 0 : 0.5, Math.min(k === 'gk' ? 120 : 30, v)); render(); break }
-    case 'mmtimesave': { const f = S.mmT; const s = S.sessions[S.mmSid]; if (await w(() => S.store.update(sp(s.date), { timing: { ...timing(s), h1: Math.round(f.h1 * 60), gk: +f.gk, h2: Math.round(f.h2 * 60) }, 'mm.timed': true }), '경기 시간을 저장했어요.')) { S.mmStage = null; S.mmT = null; render() } break }
+    case 'mmtimesave': { const f = S.mmT; const s = S.sessions[S.mmSid]; if (await w(() => S.store.update(sp(s.date), { timingV: 2, timing: { ...timing(s), h1: Math.round(f.h1 * 60), gk: +f.gk, h2: Math.round(f.h2 * 60) }, 'mm.timed': true }), '경기 시간을 저장했어요.')) { S.mmStage = null; S.mmT = null; render() } break }
     case 'mmstart': { const m = M(id); if (!m) break; if (sessMatches(m.session).some(x => x.status === 'live' && x.id !== id && mcourt(x) === mcourt(m))) { toast('진행 중인 다른 경기를 먼저 끝내 주세요.'); break } mmCountdown(m); break }
     case 'mmpause': { const m = M(id); await w(() => S.store.update(mp(id), { timer: { running: false, acc: elapsed(m), startedAt: 0 } })); break }
     case 'mmresume': { const m = M(id); audio(); await w(() => S.store.update(mp(id), { timer: { running: true, acc: m.timer?.acc || 0, startedAt: nowS() } })); break }
@@ -3675,8 +3677,7 @@ document.addEventListener('click', async e => {
     case 'pdesign': { if (!needAdmin()) break; const kind = el.dataset.k, d = candList(kind)[+el.dataset.i]; if (!d) break; document.querySelectorAll(`.pth[data-k="${kind}"]`).forEach(b => b.classList.toggle('on', b === el)); toast('시안을 적용하는 중이에요…'); await applyDesign(kind, { ...d }); toast(`${dName(kind, d)} 시안으로 바꿨어요.`); render(); break }
     case 'pnew': { const kind = el.dataset.k; S.cand ??= {}; (S.candNew ??= {})[kind] = 1; const cd = kind === 'team' ? teamDesign(cur()) : schedDesign(); S.cand[kind] = [{ ...cd }, ...newDesigns(kind, 5)]; render(); break }
     case 'preset': { const kind = el.dataset.k; S.cand[kind] = DESIGN_PRESETS[kind].map(x => ({ ...x })); S.candNew[kind] = 0; render(); break }
-    case 'pfont': { if (!needAdmin()) break; const kind = el.dataset.k || 'team', v = el.dataset.v; if (!POSTER_FONTS.some(x => x[0] === v)) break; document.querySelectorAll(`.pfo[data-k="${kind}"]`).forEach(b => b.classList.toggle('on', b.dataset.v === v)); toast('글꼴을 불러오는 중이에요…');
-      const base = kind === 'team' ? teamDesign(cur()) : schedDesign(); const d = { ...base, font: v }; S.cand[kind] = candList(kind).map(x => ({ ...x, font: v })); await applyDesign(kind, d); toast(`${POSTER_FONTS.find(x => x[0] === v)[1]} 글꼴로 바꿨어요.`); render(); break }
+    case 'pfont': { if (!needAdmin()) break; await setPosterFont(el.dataset.k || 'team', el.dataset.v); break }
     case 'apord': S.apord = el.dataset.v === 'time' ? 'time' : 'rank'; render(); break;
     case 'resv': S.resv = el.dataset.k; render(); break;
     case 'memv': S.memv = el.dataset.k; render(); window.scrollTo(0, 0); break;
@@ -3778,7 +3779,7 @@ document.addEventListener('click', async e => {
     case 'rank': S.rankKey = el.dataset.k; render(); break;
     case 'selswap': if (!needAdmin()) break; if (!S.sel) { S.sel = id; render(); break } if (S.sel === id) { S.sel = null; render(); break }
       { const a = S.sel; S.sel = null; if (KEYS.find(k => teamPlayers(s, k).includes(a)) === KEYS.find(k => teamPlayers(s, k).includes(id))) { S.sel = id; render(); break }
-        if (confirm(`${pname(a)} ↔ ${pname(id)} 맞바꿀까요?`)) await swapPlayers(a, id); else render() } break;
+        render(); await swapPlayers(a, id) } break;
     case 'share': sharePoster(false); break;
     case 'download': sharePoster(true); break;
     case 'copytext': try { await navigator.clipboard.writeText(noticeText(s)); toast('공지 텍스트를 복사했어요.') } catch { prompt('아래 내용을 복사하세요', noticeText(s)) } break;
@@ -3795,7 +3796,7 @@ document.addEventListener('click', async e => {
     case 'pickog': { const sh = S.sheet; S.sheet = null; render(); await addGoal(M(sh.match), sh.team, null, null, true); break }
     case 'pickassist': { const sh = S.sheet; S.sheet = null; render(); await addGoal(M(sh.match), sh.team, sh.scorer, id || null, false); break }
     case 'delev': if (confirm('이 골 기록을 지울까요?')) await w(() => S.store.del('events/' + id)); break;
-    case 'tstep': { const k = el.dataset.key, d = +el.dataset.d; const T = { ...timing(s) }; if (k === 'gk') T.gk = Math.min(30, Math.max(0, T.gk + d)); else T[k] = Math.min(45 * 60, Math.max(k === 'rest' ? 0 : 60, T[k] + d * 60)); await w(() => S.store.update(sp(S.sid), { timing: T })); break }
+    case 'tstep': { const k = el.dataset.key, d = +el.dataset.d; const T = { ...timing(s) }; if (k === 'gk') T.gk = Math.min(30, Math.max(0, T.gk + d)); else T[k] = Math.min(45 * 60, Math.max(k === 'rest' ? 0 : 60, T[k] + d * 60)); delete T.rest; await w(() => S.store.update(sp(S.sid), { timing: T, timingV: 2 })); break }
     case 'delmatches': { if (!needAdmin()) break; const ms = sessMatches(S.sid); if (!ms.length) break;
       const evs = Object.entries(S.events).filter(([, e]) => e.session === S.sid); const played = ms.filter(m => m.status !== 'pending').length;
       if (!confirm(`${fmtDate(S.sid)} 경기 대진 ${ms.length}경기를 삭제할까요?${evs.length || played ? `\n진행된 경기 ${played}개와 골 기록 ${evs.length}건도 함께 지워져요.` : ''}\n신청자와 팀 구성은 그대로 남아요.`)) break;
