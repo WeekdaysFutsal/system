@@ -21,7 +21,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.16';
+const APP_VERSION = '0.4.17';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1365,6 +1365,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.17','2026.10.28',['홈 드래프트 카드: 팀별 주장을 세로 목록 대신 팀마다 칸을 나눠 가로로 표시 (2·3·4팀 모두 한 줄)']],
   ['0.4.16','2026.10.28',['경기 번호를 “GAME 01” 형식으로 크게 표시 (홈 경기 리뷰, 기록실·운영모드 경기별 결과)']],
   ['0.4.15','2026.10.28',['PC 홈 배치 변경: 윗줄은 지난 경기(팀 순위 | 경기별 결과), 아랫줄은 다음 경기(경기 정보 | 진행 카드)로 가로 배치 — 팀 순위가 쓸데없이 늘어나던 문제 해결','경기별 결과 점수 글씨 크게','신청 마감 카드에도 공당·물당·주차 칸 표시 (PC)','모바일 홈 드래프트 카드를 더 촘촘하게']],
   ['0.4.14','2026.10.28',['기록실 팀 구성: 주장 C 표시를 이름 뒤로 옮겨 이름 줄을 맞추고, PC에서는 2열로 배치해 빈 공간을 줄임','기록실 PC: 득점 순위를 왼쪽(팀 순위+팀 구성) 높이에 맞추고 박스 안에서 스크롤 · 제목줄 고정 → 경기별 결과까지 한 화면에']],
@@ -1768,7 +1769,7 @@ function draftSteps(s, act = '', extra = '') { const k = s.draftStatus === 'done
   return `<section class="mdraft"><div class="mdr-top">${k < 2 ? '<span class="dot"></span>' : ''}<b>${L[k][1]}</b>${act}</div>
     <ol class="mdr-steps">${L.map(([n], i) => `<li class="${i < k ? 'done' : i === k ? 'now' : ''}"><i></i><span>${n}</span></li>`).join('')}</ol>
     <p class="mdr-note">${note}</p>${extra}${dutyTiles(s)}</section>` }
-function capsLine(s) { if (!teamsPublic(s) && !canDraftView(s)) return ''; const ks = KEYS.filter(k => s.captains?.[k]); return ks.length ? `<div class="caps">${ks.map(k => `${tag(team(s, k))}<span>👑 ${esc(pname(s.captains[k]))}</span>`).join('')}</div>` : '' }
+function capsLine(s) { if (!teamsPublic(s) && !canDraftView(s)) return ''; const ks = TK(s); if (!ks.some(k => s.captains?.[k])) return ''; const me = myPid(); return `<div class="cap-tiles" style="--n:${ks.length}">${ks.map(k => { const c = s.captains?.[k]; return `<div class="mdr-t cap-t ${c && c === me ? 'mine' : ''}"><span class="mdr-h">${tag(team(s, k))}</span><span class="mdr-n">${c ? `<i class="${c === me ? 'me' : ''}">👑 ${esc(pname(c))}</i>` : '<em>미정</em>'}</span></div>` }).join('')}</div>` }
 
 function calEvent(id) { const s = S.sessions[id] || {}; const st = new Date(`${id}T${s.time || '21:00'}:00+09:00`), en = new Date(st.getTime() + 2 * 3600e3);
   const z = d => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, ''); const club = CFG.club?.short || 'WF';
