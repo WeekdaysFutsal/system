@@ -1650,3 +1650,4 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .nti-del{flex:none;width:30px;height:30px;border-radius:50%;border:0;background:transparent;color:var(--muted);font-size:14px;cursor:pointer}
 @media (hover:hover){.nti-del:hover{background:var(--line);color:var(--ink)}}
 :root{--cssv:"0.4.20"}
+:root{--cssv:"0.4.21"}

@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.20';
+const APP_VERSION = '0.4.21';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -822,6 +822,7 @@ function render() { simBar(); scheduleFlip(); if (S.tab === 'mm' && !S.admin && 
     if (ss && pid && !((ss.p0 || []).length === 1 && ss.p0[0] === pid)) S.store.update(sp('2026-10-21'), { p0: [pid] }).then(() => toast('10월 21일 경기 예약자를 도현우 님으로 바로잡았어요.')).catch(() => { S.fixP0 = false }) }
   if (S.fs) requestAnimationFrame(() => { fsFit(); setTimeout(fsFit, 120) });
   if (S.ready >= 3 && S.auth && !S.admin) { loadPrefs(); pushListen(); watchInbox() }
+  else if (S.ready >= 3 && S.auth && S.admin && !PUSH_SYNCED) { loadPrefs() }
   if (!S.admin && S.auth && S.ready >= 3) { const cs = capSid(); if (cs && S.tab !== 'draft' && !(S.capPop ??= {})[cs] && !S.sheet) { S.capPop[cs] = 1; S.sheet = { type: 'cappop', sid: cs } } }
   if (!S.admin && !S.auth && S.ready >= 3) { document.body.classList.remove('dm-on'); document.getElementById('app').innerHTML = loginScreen() + (S.sheet ? viewSheet() : ''); return }
   if (S.ready >= 3 && (!S.sid || !S.sessions[S.sid])) S.sid = defaultSid();
@@ -1367,6 +1368,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.21','2026.10.28',['앱을 업데이트해도 알림이 꺼지지 않게: 알림을 켜 둔 폰은 앱을 열 때마다 알림 등록을 자동으로 다시 맞춰요 (토큰이 바뀌면 새 것으로 교체)']],
   ['0.4.20','2026.10.28',['받은 알림 목록이 깨져 보이던 문제 수정: 알림마다 아이콘·제목·내용·시간이 카드로 보이고, 안 읽은 알림은 테두리로 구분']],
   ['0.4.19','2026.10.28',['경기 시간: 전반 6분 · GK 교체(하프타임) 3초 · 후반 6분으로 맞추고, 경기 사이 쉬는 시간을 없앴어요. 경기 시간이 끝나면 타이머가 더 이상 올라가지 않고 00:00에서 멈춰요','밸런스 조정: 선수 이름을 큼직한 버튼으로 바꿈 — 한 명 누르고 다른 팀 선수를 누르면 바로 맞바꿔요 (교체 가능한 선수는 점선 표시)','밸런스 조정 화면 팀 카드와 아래 버튼 폭을 맞추고, BLACK 같은 어두운 팀 머리줄을 다른 팀과 같은 모양으로','다음 단계 버튼이 채팅 입력창과 겹치지 않게 채팅창 위로 올림','포스터 글꼴은 드롭다운에서 고르고, 포스터 시안은 한 줄로 정렬','경기진행(운영): 경기 일정을 GAME 01~09 카드로 크게, 경기 시간은 ＋/−가 위아래인 칸 3개와 대진 변경·삭제 버튼을 한 줄에 배치']],
   ['0.4.18','2026.10.28',['드래프트가 끝난 뒤에도 팀 색을 바꿀 수 있어요: 드래프트 테이블의 팀 이름(▾)을 누르거나, 팀 공지 화면 맨 위 “팀 색”에서 바꿔요 (운영진은 모든 팀, 회원은 자기 팀) · 바꾸면 포스터도 새로 만들어져요']],
@@ -1567,8 +1569,16 @@ async function pushEnable() { const sup = pushSupport(); if (sup !== 'ok') { toa
     S.np = { ...Object.fromEntries(NOTI_TYPES.map(([k]) => [k, true])), ...(S.np || {}), on: true }; await S.store.set('notifPrefs/' + pid, { ...S.np, at: Date.now() }); pushListen(); toast('알림을 켰어요! 🔔'); render() }
   catch (e) { console.error(e); toast('알림을 켜지 못했어요: ' + (e.code || e.message || '알 수 없음')) } }
 async function pushDisable() { const pid = myPid(); const t = load('pushToken', null); try { if (t) await S.store.del('pushTokens/' + t) } catch { } save('pushToken', null); if (pid) { try { await S.store.set('notifPrefs/' + pid, { ...(S.np || {}), on: false, at: Date.now() }) } catch { } S.np = { ...(S.np || {}), on: false } } toast('이 폰의 알림을 껐어요.'); render() }
+// 앱이 업데이트되면(서비스워커 교체) 휴대폰의 알림 토큰이 바뀌거나 사라질 수 있어요. 앱을 열 때마다 조용히 다시 등록해서 알림이 계속 오게 해요.
+let PUSH_SYNCED = ''; async function pushResync() { const pid = myPid(); if (!pid || isTest() || isMaster() || PUSH_SYNCED === pid || pushSupport() !== 'ok' || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  const old = load('pushToken', null); if (S.np?.on === false || (!old && !S.np?.on)) return; PUSH_SYNCED = pid;
+  try { const M = await fcm(); const reg = await navigator.serviceWorker.ready; const token = await M.getToken(M.getMessaging(S.fbApp), { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg }); if (!token) return;
+    if (token !== old) { save('pushToken', token); if (old) { try { await S.store.del('pushTokens/' + old) } catch { } } }
+    await S.store.set('pushTokens/' + token, { pid, at: Date.now(), ua: navigator.userAgent.slice(0, 120), ios: isIOS() });
+    if (!S.np?.on) { S.np = { ...Object.fromEntries(NOTI_TYPES.map(([k]) => [k, true])), ...(S.np || {}), on: true }; await S.store.set('notifPrefs/' + pid, { ...S.np, at: Date.now() }) }
+    pushListen(); render() } catch (e) { PUSH_SYNCED = ''; console.warn('push resync', e) } }
 let PUSH_LISTEN = false; async function pushListen() { if (PUSH_LISTEN || pushSupport() !== 'ok' || Notification.permission !== 'granted') return; PUSH_LISTEN = true; try { const M = await fcm(); M.onMessage(M.getMessaging(S.fbApp), m => { const n = m.notification || {}; toast(`${n.title || '알림'} · ${n.body || ''}`) }) } catch (e) { console.warn(e) } }
-async function loadPrefs() { const pid = myPid(); if (!pid || S.npLoaded === pid) return; S.npLoaded = pid; try { S.np = (await S.store.get('notifPrefs/' + pid)) || null } catch { S.np = null } render() }
+async function loadPrefs() { const pid = myPid(); if (!pid || S.npLoaded === pid) return; S.npLoaded = pid; try { S.np = (await S.store.get('notifPrefs/' + pid)) || null } catch { S.np = null } render(); pushResync() }
 function notiCard() { const sup = pushSupport(); const on = typeof Notification !== 'undefined' && Notification.permission === 'granted' && !!load('pushToken', null) && S.np?.on !== false;
   if (sup === 'preview') return `<div class="panel pad"><p class="note" style="margin:0">알림은 실제 앱 주소(GitHub)에서 켤 수 있어요.</p></div>`;
   if (sup === 'ios-browser') return `<div class="panel pad"><b>📱 아이폰은 홈 화면 앱에서만 알림을 받을 수 있어요</b><p class="note" style="margin:6px 0 0">사파리 아래 공유 버튼 → <b>홈 화면에 추가</b> → 홈 화면의 WD_FUTSAL 아이콘으로 열고, 여기서 알림을 켜 주세요. (iOS 16.4 이상)</p></div>`;
