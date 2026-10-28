@@ -1426,3 +1426,12 @@ body:has(.scrim) .nextbar{display:none}
 
 .ttl .ttl-v{display:none}
 @media (max-width:600px){.appbar .appver{display:none!important}.ttl .ttl-v{display:block!important;font:600 10.5px/1.2 var(--latin);color:var(--muted);letter-spacing:.3px;margin-top:2px}}
+/* 회원: 드래프트 진행 상황 */
+.dsteps>b{display:flex;align-items:center;gap:6px;font-size:15px;font-weight:900}
+.dsteps ol{list-style:none;margin:10px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+.dsteps li{display:flex;flex-direction:column;gap:4px}.dsteps li i{display:block;height:6px;border-radius:999px;background:var(--line)}
+.dsteps li.done i{background:color-mix(in srgb,var(--accent) 45%,transparent)}.dsteps li.now i{background:var(--accent)}
+.dsteps li span{font-size:12px;color:var(--muted);font-weight:700}.dsteps li.now span{color:var(--ink);font-weight:900}
+.teamres{margin-top:10px}
+:root{--cssv:"0.4.8"}
+.act .dsteps{flex:1 1 100%;width:100%;min-width:0}
