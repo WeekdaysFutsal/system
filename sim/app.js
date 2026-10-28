@@ -19,7 +19,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.2';
+const APP_VERSION = '0.4.3';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#6E7A88' };
@@ -173,6 +173,7 @@ function myTeam(s) { if (!s) return null; const me = myPid(); if (me) { const k 
 function byName(ids) { return [...ids].sort((a, b) => pname(a).localeCompare(pname(b), 'ko')) }
 const QV = ['7KeA7Jyg6reg']; function quietView() { const n = normName(S.players[myPid()]?.name); if (!n) return false; try { return QV.some(x => normName(decodeURIComponent(escape(atob(x)))) === n) } catch { return false } }
 function viewSid() { const me = myPid(); if (!me) return null; const t = today(); const q = quietView() || isMaster(); return Object.keys(S.sessions).sort().find(id => { const s = S.sessions[id]; return id >= t && ((s.viewers || []).includes(me) || (q && (s.room?.open || s.draftStatus === 'live'))) && (s.draftStatus !== 'done' || s.stage === 'trade') }) || null }
+function canDraftView(s) { if (!s) return false; if (S.admin) return true; const me = myPid(); if (!me) return false; return KEYS.some(k => isMe(s.captains?.[k])) || (s.viewers || []).includes(me) || quietView() || isMaster() }
 function capSid() { const me = myPid(); if (!me) return null; const t = today(); return Object.keys(S.sessions).sort().find(id => { const s = S.sessions[id]; return id >= t && KEYS.some(k => isMe(s.captains?.[k])) && (s.draftStatus !== 'done' || s.stage === 'trade') }) || null }
 /* 운영모드 경기 메뉴의 기본 경기: 진행이 시작된(신청이 열렸거나 그 이후 단계) 가장 가까운 다음 경기 → 없으면 오늘 이후 첫 경기 → 없으면 가장 최근 경기 */
 function betaOn() { return S.meta?.flags?.beta !== false }
@@ -965,42 +966,39 @@ function courtSec(s) { const ad = S.admin; const ap = new Set(s.applicants || []
   return `<section class="hp-sec hp-courts"><div class="hp-hd"><b>🏟 구장 2면 운영${ib(`4팀은 두 구장에서 동시에 경기해요. 구장마다 경기 운영자(정산 0원)와 구장 예약자(사례금)를 1명씩 정해요`)}</b></div>${row(1)}${row(2)}</section>` }
 function vCaptain(s) {
   const ad = S.admin && (s.draftStatus || 'ready') === 'ready' && !s.ladder; const sid = s.date; const closed = applyClosed(s);
-  { const C = 2 * Math.PI * 24; const ring = (nm, a, b) => { const ok = b && a >= b; return `<div class="rdy ${ok ? 'ok' : ''}"><svg viewBox="0 0 60 60" role="img" aria-label="${nm} ${a}/${b}"><circle cx="30" cy="30" r="24" fill="none" stroke="var(--line)" stroke-width="6"/>${a ? `<circle cx="30" cy="30" r="24" fill="none" stroke="${ok ? 'var(--accent)' : '#FFB547'}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${(C * Math.min(1, a / (b || 1))).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 30 30)"/>` : ''}<text x="30" y="36" text-anchor="middle">${ok ? '✓' : `${a}/${b}`}</text></svg><span>${nm}</span></div>` };
-    const nOp = (s.ops || []).filter(p => p && S.players[p]).length, nCap = TK(s).filter(k => s.captains?.[k]).length, nDu = ['ball', 'drink'].filter(k => (s.duty?.[k] || []).length).length, nPk = (s.parkWin || []).length;
-    var rdyRow = `<div class="rdyrow">${ring('운영자', Math.min(nOp, nC(s)), nC(s))}${ring('주장', nCap, nT(s))}${ring('공·물당', nDu, 2)}${ring('주차', Math.min(nPk, PARK_SLOTS), PARK_SLOTS)}</div>` }
-  let h = `<div class="helpers">${rdyRow}`;
-  if (nC(s) !== 2) h += `<section class="hp-sec hp-ops"><div class="hp-hd"><b>🧑‍💼 경기 운영자${ib(`따로 신청하지 않아도 0순위로 자동 신청되고, 운영비 정산에서 0원이에요`)}</b><div class="hp-opsrow"><span class="${(s.ops || []).length ? '' : 'muted'}">${idsToNames(s.ops) || '아직 지정하지 않았어요'}</span>${S.admin ? `<button class="btn sm" data-act="staffedit" data-id="${sid}" data-v="ops">${(s.ops || []).length ? '✏️ 변경' : '＋ 지정'}</button>` : ''}</div></div></section>`;
-  // 주장 (가로 3칸)
-  { const nA = (s.applicants || []).length || appCounts(s).sel; const cur = nT(s); const rec = recTeams(nA); const split = n => Array.from({ length: n }, (_, i) => Math.floor(nA / n) + (i < nA % n ? 1 : 0)).join('·');
-    const OPT = [[2, '2팀 맞대결', `${split(2)}명 · 경기 수 직접`], [3, '3팀 풀리그', `${split(3)}명 · 9경기`], [4, '4팀 풀리그', `${split(4)}명 · 구장 2면 · 6경기×바퀴`]];
-    h += `<section class="hp-sec hp-nt"><div class="hp-hd"><b>⚽ 팀 구성${ib(`팀 수는 드래프트 방을 열기 전까지 바꿀 수 있어요. 주장 ${cur}명 · 팀 색 ${cur}개로 드래프트해요.`)}</b><small>신청 ${nA}명 · 추천 <b>${rec}팀</b>${cur !== rec ? ' (지금 설정과 달라요)' : ''}</small></div><div class="nt-opts">${OPT.map(([v, t, d]) => `<button class="nt-opt ${cur === v ? 'on' : ''}" data-act="nteams" data-v="${v}" aria-pressed="${cur === v}" ${ad ? '' : 'disabled'}><span class="ntc">${['#2F5BEA', '#E5483B', '#F2F4F7', '#F5C400'].slice(0, v).map(c => `<i style="background:${c}"></i>`).join('')}</span><b>${t}${v === rec ? '<i>추천</i>' : ''}</b><small>${d}</small></button>`).join('')}</div></section>` }
-  if (nC(s) === 2) h += courtSec(s);
-  h += `<section class="hp-sec hp-cap"><div class="hp-hd"><b>👑 주장</b><small>${TK(s).filter(k => s.captains?.[k]).length}/${TK(s).length}명</small></div><div class="capgrid${' n' + nT(s)}">${TK(s).map(k => { const c = s.captains?.[k];
-    return `<button class="capcard ${c ? 'on' : ''}" data-act="capslot" data-k="${k}" ${ad ? '' : 'disabled'}><span class="cc-tag" style="background:${NEUTRAL[k]};color:${inkOn(NEUTRAL[k])}">${k}팀</span><b class="cc-name">${c ? esc(pname(c)) : '＋ 주장 선택'}</b>${ad && c ? '<small class="cc-edit">눌러서 변경</small>' : ''}</button>` }).join('')}</div>
-    </section>`;
+  // 팀·도우미: 여섯 영역을 같은 모양의 카드로 나눠요 (번호 · 제목 · 상태 · 내용 · 버튼)
+  const card = (n, cls, title, tip, ok, stTxt, body) => `<section class="hc ${cls}"><header><span class="hc-n">${n}</span><b>${title}</b>${tip ? ib(tip) : ''}<span class="hc-st ${ok ? 'ok' : ''}">${ok ? '✓ ' : ''}${stTxt}</span></header><div class="hc-b">${body}</div></section>`;
+  const nA = (s.applicants || []).length || appCounts(s).sel; const cur = nT(s); const rec = recTeams(nA); const split = n => Array.from({ length: n }, (_, i) => Math.floor(nA / n) + (i < nA % n ? 1 : 0)).join('·');
+  const OPT = [[2, '2팀 맞대결', `${split(2)}명 · 경기 수 직접`], [3, '3팀 풀리그', `${split(3)}명 · 9경기`], [4, '4팀 풀리그', `${split(4)}명 · 구장 2면`]];
+  const teamCard = card(1, 'hc-nt', '팀 구성', `팀 수는 드래프트 방을 열기 전까지 바꿀 수 있어요. 신청 ${nA}명 기준 ${rec}팀을 추천해요.`, true, `${cur}팀${cur !== rec ? ` · 추천 ${rec}팀` : ''}`,
+    `<div class="nt-opts">${OPT.map(([v, tt, d]) => `<button class="nt-opt ${cur === v ? 'on' : ''}" data-act="nteams" data-v="${v}" aria-pressed="${cur === v}" ${ad ? '' : 'disabled'}><span class="ntc">${['#2F5BEA', '#E5483B', '#F2F4F7', '#F5C400'].slice(0, v).map(c => `<i style="background:${c}"></i>`).join('')}</span><b>${tt}${v === rec ? '<i>추천</i>' : ''}</b><small>${d}</small></button>`).join('')}</div>`);
+  const nOp = (s.ops || []).filter(p => p && S.players[p]).length;
+  const opsCard = nC(s) === 2 ? card(2, 'hc-ops', '구장 2면 운영', '4팀은 두 구장에서 동시에 경기해요. 구장마다 경기 운영자(정산 0원)와 구장 예약자(사례금)를 1명씩 정해요', nOp >= 2, `운영자 ${Math.min(nOp, 2)}/2`, courtSec(s).replace(/<div class="hp-hd">.*?<\/div>/, ''))
+    : card(2, 'hc-ops', '경기 운영자', '따로 신청하지 않아도 0순위로 자동 신청되고, 운영비 정산에서 0원이에요', nOp > 0, nOp ? `${nOp}명` : '미지정',
+      `<div class="hc-row"><span class="hc-names ${nOp ? '' : 'muted'}">${idsToNames(s.ops) || '아직 지정하지 않았어요'}</span>${S.admin ? `<button class="btn sm" data-act="staffedit" data-id="${sid}" data-v="ops">${nOp ? '변경' : '지정'}</button>` : ''}</div>`);
+  const nCap = TK(s).filter(k => s.captains?.[k]).length;
+  const capCard = card(3, 'hc-cap', '주장', '카드를 눌러 팀마다 주장을 정해요. 주장은 드래프트에서 팀 색과 선수를 골라요', nCap === nT(s), `${nCap}/${nT(s)}`,
+    `<div class="capgrid${' n' + nT(s)}">${TK(s).map(k => { const c = s.captains?.[k]; return `<button class="capcard ${c ? 'on' : ''}" data-act="capslot" data-k="${k}" ${ad ? '' : 'disabled'}><span class="cc-tag" style="background:${NEUTRAL[k]};color:${inkOn(NEUTRAL[k])}">${k}팀</span><b class="cc-name">${c ? esc(pname(c)) : '＋ 주장 선택'}</b></button>` }).join('')}</div>`);
+  let h = `<div class="hgrid">${teamCard}${opsCard}${capCard}`;
   if (S.admin) {
-    // 주차
-    const pa = parkApps(s), win = s.parkWin || [];
-    h += `<section class="hp-sec hp-park"><div class="hp-hd"><b>🚗 주차</b><small>신청 ${pa.length}명 · ${PARK_SLOTS}자리</small></div><div class="hp-card">
-      <div class="hp-list">${win.length ? win.map(id => { const a = (s.park || {})[id] || {}; return `<span class="hp-pill win"><b>${esc(pname(id))}</b>${a.car ? `<small>${esc(a.car)}</small>` : ''}</span>` }).join('') : `<span class="hp-empty">${pa.length ? '아직 당첨자가 없어요' : '주차 신청자가 없어요'}</span>`}</div>
-      <div class="hp-btns">${closed && pa.length ? `<button class="btn primary" data-act="parkdraw" data-id="${sid}">🎲 ${win.length ? '다시 추첨' : '추첨하기'}</button>` : ''}<button class="btn" data-act="parkedit" data-id="${sid}">명단 · 직접 지정</button></div>
-      ${closed ? '' : '<p class="hp-note">신청이 마감되면 추첨할 수 있어요.</p>'}</div></section>`;
-    // 공당 · 물당 (2칸)
-    const d = s.duty || {}; const ps = new Set(participants(s));
-    const ps0 = participants(s); const spin = S.dspin && S.dspin.sid === sid ? S.dspin : null;
-    const duty = (kind, ico, nm) => { const sel = d[kind] || [], other = kind === 'drink' ? (d.ball || []) : (d.drink || []); const n = dutyN(s, kind); const req = dutyReqs(s, kind).filter(id => ps0.includes(id) && !other.includes(id));
+    const pa = parkApps(s), win = s.parkWin || []; const need = Math.min(pa.length, PARK_SLOTS);
+    h += card(4, 'hc-park', '주차', `신청자 중 ${PARK_SLOTS}명을 사다리로 뽑아요. 지난 경기 당첨자는 빠져요.`, !pa.length || win.length >= need, pa.length ? `${win.length}/${need} · 신청 ${pa.length}` : '신청 없음',
+      `<div class="hp-list">${win.length ? win.map(id => { const a = (s.park || {})[id] || {}; return `<span class="hp-pill win"><b>${esc(pname(id))}</b>${a.car ? `<small>${esc(a.car)}</small>` : ''}</span>` }).join('') : `<span class="hp-empty">${pa.length ? (closed ? '사다리를 타서 정해요' : '신청이 마감되면 사다리를 타요') : '주차 신청자가 없어요'}</span>`}</div>
+      <div class="hc-acts">${closed && pa.length ? `<button class="btn sm hc-go" data-act="parkdraw" data-id="${sid}">${win.length ? '사다리 다시 타기' : '사다리 타기'}</button>` : ''}${s.parkLadder ? `<button class="btn sm" data-act="parkview" data-id="${sid}">결과 · 이미지</button>` : ''}<button class="btn sm" data-act="parkedit" data-id="${sid}">명단 · 직접 지정</button></div>`);
+    const d = s.duty || {}; const ps0 = participants(s); const spin = S.dspin && S.dspin.sid === sid ? S.dspin : null;
+    const duty = (n0, kind, nm) => { const sel = d[kind] || [], other = kind === 'drink' ? (d.ball || []) : (d.drink || []); const n = dutyN(s, kind); const req = dutyReqs(s, kind).filter(id => ps0.includes(id) && !other.includes(id));
       const sp0 = spin && spin.kind === kind; const show = sp0 ? dutyPool(s, kind) : [...new Set([...sel, ...req])];
-      return `<div class="hp-card"><div class="hp-sub"><b>${ico} ${nm}${ib(`${req.length === n ? `신청자 ${n}명을 그대로 확정해요.` : req.length > n ? `신청자 ${req.length}명 중 ${n}명을 추첨해요.` : req.length ? `신청자 ${req.length}명은 자동 포함, 부족한 ${n - req.length}명은 추첨해요.` : `참가자 중에서 ${n}명을 추첨해요.`}${kind === 'drink' ? ' 공당은 제외돼요.' : ''}`)}</b><small>${sel.length ? `${sel.length}명 확정` : '미확정'} · 🙋 ${req.length}</small><div class="stepper sm"><button class="btn sm" data-act="dutyn" data-kind="${kind}" data-d="-1" data-id="${sid}" ${n <= 1 ? 'disabled' : ''} aria-label="줄이기">−</button><b>${n}명</b><button class="btn sm" data-act="dutyn" data-kind="${kind}" data-d="1" data-id="${sid}" aria-label="늘리기">＋</button></div></div>
+      return card(n0, 'hc-duty', nm, `${req.length === n ? `신청자 ${n}명을 그대로 확정해요.` : req.length > n ? `신청자 ${req.length}명 중 ${n}명을 추첨해요.` : req.length ? `신청자 ${req.length}명은 자동 포함, 부족한 ${n - req.length}명은 추첨해요.` : `참가자 중에서 ${n}명을 추첨해요.`}${kind === 'drink' ? ' 공당은 제외돼요.' : ''}`, sel.length >= n, sel.length ? `${sel.length}/${n}` : `미정 · 신청 ${req.length}`,
+        `<div class="hc-row"><span class="hc-lab">인원</span><div class="stepper sm"><button class="btn sm" data-act="dutyn" data-kind="${kind}" data-d="-1" data-id="${sid}" ${n <= 1 ? 'disabled' : ''} aria-label="줄이기">−</button><b>${n}명</b><button class="btn sm" data-act="dutyn" data-kind="${kind}" data-d="1" data-id="${sid}" aria-label="늘리기">＋</button></div></div>
         <div class="hp-list">${show.length ? show.map(id => sp0 ? `<span class="hp-pill ${spin.hl.includes(id) ? 'win spin' : ''}"><b>${esc(pname(id))}</b></span>`
-          : closed ? `<button class="hp-pill tog ${sel.includes(id) ? 'win' : ''}" data-act="dutytog" data-kind="${kind}" data-id="${id}" data-sid="${sid}">${sel.includes(id) ? '✓ ' : ''}<b>${esc(pname(id))}</b>${req.includes(id) ? '<small>🙋 신청</small>' : ''}</button>` : `<span class="hp-pill"><b>${esc(pname(id))}</b><small>🙋 신청</small></span>`).join('') : '<span class="hp-empty">아직 신청자가 없어요</span>'}</div>
-        <div class="hp-btns"><button class="btn sm primary" data-act="dutydraw" data-kind="${kind}" data-id="${sid}" ${closed && !spin && dutyPool(s, kind).length ? '' : 'disabled'}>${sel.length ? '🎲 다시 확정' : `🎲 ${nm} ${n}명 확정`}</button><button class="btn sm" data-act="dutyedit" data-id="${sid}">직접 고르기</button></div></div>` };
-    h += `<section class="hp-sec"><div class="hp-hd"><b>🧺 공당 · 물당${ib(`신청자는 자동 포함 · 인원이 넘치거나 모자라면 추첨 · 공당 먼저, 물당은 공당 제외`)}</b></div><div class="hp-two">${duty('ball', '⚽', '공당')}${duty('drink', '🥤', '물당')}</div>${closed ? `<button class="btn primary block hp-both" data-act="dutyboth" data-id="${sid}" ${spin ? 'disabled' : ''}>🎲 공당 → 물당 한 번에 확정</button>` : ''}</section>`;
-    // 참관자
-    const vs = s.viewers || []; const pool = byName(Object.keys(S.players).filter(id => !isOut(S.players[id]) && !captainsOf(s).includes(id)));
-    h += `<details class="hp-sec hp-view" ${S.vwOpen ? 'open' : ''}><summary class="hp-hd" data-act="vwtog"><b>👀 드래프트 참관자${ib('지정한 회원만 드래프트를 볼 수 있어요')}</b><small>${vs.length ? vs.map(pname).map(esc).join(', ') : '없음'}</small><em class="hp-more">${S.vwOpen ? '접기' : '지정'}</em></summary><div class="hp-card"><div class="dpick">${pool.map(id => `<button class="chip ${vs.includes(id) ? 'sel' : ''}" data-act="viewertog" data-id="${id}">${vs.includes(id) ? '👀 ' : ''}${esc(pname(id))}</button>`).join('')}</div></div></details>`;
+          : closed ? `<button class="hp-pill tog ${sel.includes(id) ? 'win' : ''}" data-act="dutytog" data-kind="${kind}" data-id="${id}" data-sid="${sid}">${sel.includes(id) ? '✓ ' : ''}<b>${esc(pname(id))}</b>${req.includes(id) ? '<small>신청</small>' : ''}</button>` : `<span class="hp-pill"><b>${esc(pname(id))}</b><small>신청</small></span>`).join('') : '<span class="hp-empty">아직 신청자가 없어요</span>'}</div>
+        <div class="hc-acts"><button class="btn sm hc-go" data-act="dutydraw" data-kind="${kind}" data-id="${sid}" ${closed && !spin && dutyPool(s, kind).length ? '' : 'disabled'}>${sel.length ? '다시 뽑기' : `${n}명 뽑기`}</button><button class="btn sm" data-act="dutyedit" data-id="${sid}">직접 고르기</button></div>`) };
+    h += duty(5, 'ball', '공당') + duty(6, 'drink', '물당');
   }
   h += `</div>`;
-  if (S.admin) h += resetBar(s);
+  if (S.admin) { const vs = s.viewers || []; const pool = byName(Object.keys(S.players).filter(id => !isOut(S.players[id]) && !captainsOf(s).includes(id)));
+    h += `<details class="hp-view hc-viewers" ${S.vwOpen ? 'open' : ''}><summary class="hp-hd" data-act="vwtog"><b>드래프트 참관자${ib('운영진·주장 말고는 여기서 지정한 회원만 드래프트 테이블을 볼 수 있어요')}</b><small>${vs.length ? vs.map(pname).map(esc).join(', ') : '없음'}</small><em class="hp-more">${S.vwOpen ? '접기' : '지정'}</em></summary><div class="hp-card"><div class="dpick">${pool.map(id => `<button class="chip ${vs.includes(id) ? 'sel' : ''}" data-act="viewertog" data-id="${id}">${esc(pname(id))}</button>`).join('')}</div></div></details>`;
+    h += resetBar(s) }
   return h;
 }
 /* ───────── draft room (board game) ───────── */
@@ -1329,6 +1327,7 @@ function viewSheet() {
   else if (sh.type === 'colf') h += colFilterSheet(sh.k);
   else if (sh.type === 'rosters') { const s = S.sessions[sh.sid]; h += s ? `<h4>팀 명단 · ${fmtDate(s.date)}</h4>${rosterGrid(s)}` : '' }
   else if (sh.type === 'flow') h += flowSheet();
+  else if (sh.type === 'parkladder') h += parkLadderSheet(sh.sid);
   else if (sh.type === 'changelog') h += `<h4>업데이트 내용</h4>${sh.fresh ? `<p class="cl-new">🎉 ${APP_VERSION} 버전으로 업데이트됐어요</p>` : ''}<div class="cl">${CHANGELOG.map(([v, d, items], i) => `<section class="${i === 0 ? 'cur' : ''}"><div class="cl-hd"><b>${v}</b><small>${d}</small>${v === APP_VERSION ? '<em>현재</em>' : ''}</div><ul>${items.map(t => `<li>${esc(t)}</li>`).join('')}</ul></section>`).join('')}</div>`;
   else if (sh.type === 'staffedit') { const ss = S.sessions[sh.sid];
     h += `<h4>${fmtDate(sh.sid)} ${sh.only === 'p0' ? '구장 예약자' : sh.only === 'ops' ? '경기 운영자' : '예약자 · 운영자'}${ib(`구장 예약자는 직접 참가 신청을 하면 0순위가 돼요(신청하지 않으면 명단에 나오지 않아요). 경기 운영자는 따로 신청하지 않아도 0순위로 자동 신청돼요. 여러 명은 쉼표로 구분해요.`)}</h4><div class="panel">
@@ -1362,6 +1361,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.3', '2026.10.28', ['드래프트 테이블은 운영진 · 주장 · 운영진이 지정한 참관자만 볼 수 있어요. 다른 회원에게는 드래프트 보기 버튼이 나오지 않아요', '[운영진] 주차는 사다리타기로 뽑아요. 결과를 이미지로 저장하거나 공유해서 카톡방에 올릴 수 있어요', '[운영진] 팀·도우미 화면을 팀 구성 · 경기 운영자 · 주장 · 주차 · 공당 · 물당 6개 카드로 정리했어요. 카드마다 번호 · 상태(✓/남은 수) · 버튼 자리가 같아요']],
   ['0.4.2', '2026.10.28', ['[운영진] 모든 운영 단계에서 다음 단계로 넘어가는 버튼이 같은 자리(PC 오른쪽 아래 · 휴대폰 아래 메뉴 위)에 나와요. 할 일이 남아 있으면 버튼이 잠기고, 남은 항목(✓/○)이 버튼 옆에 보여요', '[운영진] 팀·도우미 단계는 경기 운영자 · 주장 · 공당 · 물당 · 주차를 모두 정하면 “드래프트 방 열기”가 열려요', '[운영진] 휴대폰 운영 단계 막대는 지금 단계 이름만 보여줘요']],
   ['0.4.1', '2026.10.28', ['[운영진] 경기진행 화면에 경기 일정이 없을 때 버튼 글자가 깨져 보이던 문제를 고쳤어요 (예: “9경기 일정 만들기”)']],
   ['0.4.0', '2026.10.28', ['화면을 숫자·그래프 중심으로 정리했어요. 한눈에 볼 것은 큰 숫자·게이지로, 자세히 관리할 것은 표로 보여줘요', '홈: 신청 → 마감 → 팀 발표 → 경기 단계 막대, 신청 오픈까지 카운트다운, 남은 자리 칸과 큰 “경기 신청하기” 버튼, 신청 후 내 순번을 크게 보여줘요', '기록실: 우승팀·득점왕 요약, 경기 결과를 라운드별 칸으로, 득점 순위는 표로 바꿨어요', '내 정보: 내 시즌 기록(출석률 · 골 · 도움 · 팀 우승 · 최근 팀 순위 · 경기별 기록)을 볼 수 있어요', '경기모드: 선수를 눌러 골을 넣으면 바로 “도움은?” 줄이 떠요. 골 기록은 표로 보여주고, 회원 화면에는 실시간 순위 표가 나와요', '[운영진] 운영 단계는 진행 막대로, 신청접수는 신청 게이지·마감 카운트다운·예약자 칸으로, 팀·도우미는 준비 상황 링으로, 경기진행 일정은 경기 칸으로, 정산은 지출 비율 막대와 1인 몫 계산식으로 보여줘요']],
@@ -1671,6 +1671,7 @@ function backbar(label) { return `<button class="backlink" data-act="sub" data-v
 const XICO = { park: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14M6 17V11l2-5h8l2 5v6"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="17" r="2"/></svg>', ball: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m12 7 4.5 3.3-1.7 5.2H9.2L7.5 10.3z"/></svg>', drink: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10l-1 18H8z"/><path d="M7.5 9h9"/></svg>', pin: '<svg class="xi xpin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>', clock: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>', bell: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>', home: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/></svg>', cal: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>', chart: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>', user: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>', run: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v16M5 5h11l-2 4 2 4H5"/></svg>', mega: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11v2l13 5V6zM16 9.5a3 3 0 0 1 0 5M7 13.5V19h3v-4.3"/></svg>', users: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5c1.8.6 3 2.4 3.5 5.5"/></svg>', gear: '<svg class="xi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>', mm: '<svg class="xi mmi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m12 7 4.5 3.3-1.7 5.2H9.2L7.5 10.3z"/></svg>' }; // A안 선 아이콘
 function viewMHome() {
   if (S.sub) { const s = cur(); if (!s) { S.sub = null } else {
+    if (S.sub === 'draft' && s.draftStatus !== 'done' && !canDraftView(s)) { S.sub = null; return viewMHome() }
     const body = S.sub === 'draft' ? (s.draftStatus === 'done' ? vTrade(s) : vDraft(s)) : S.sub === 'poster' ? vNotice(s) : vMatchDay(s);
     if (S.sub === 'draft' && S.dm && s.draftStatus !== 'done') return `<div class="dmroot">${backbar('홈으로')}${vDraft(s)}</div>`;
     return backbar('홈으로') + body } }
@@ -1723,7 +1724,7 @@ function homeAction(s, st, fit) {
   const dl = dutyLine(s);
   if (st.k === 'closed') return `<div class="act"><b>신청이 마감됐어요</b>${dl}<p>선발 ${appCounts(s).sel}명으로 드래프트를 준비해요.</p>${AB(s)}${fit ? '' : capsLine(s)}${capHint}<button class="btn sm" data-act="applist">신청자 보기</button></div>`;
   if (st.k === 'draft' && s.draftStatus === 'done') return `<div class="act"><b>팀이 정해졌어요</b><p>운영진이 팀 밸런스를 마지막으로 맞추고 있어요.</p></div>${matchdayCard(s, fit)}`;
-  if (st.k === 'draft') { const live = s.draftStatus !== 'done'; return `<div class="act live">${dl}<b>${live ? `<span class="dot"></span> ${s.draftStatus === 'live' ? '지금 드래프트 중이에요' : '드래프트 방이 열렸어요'}` : '팀 밸런스를 맞추는 중이에요'}</b>${fit ? '' : capsLine(s)}<button class="btn primary block" data-act="sub" data-v="draft">${live ? '드래프트 테이블 구경하기' : '팀 구성 보기'}</button>${live ? capHint : ''}</div>` }
+  if (st.k === 'draft') { const live = s.draftStatus !== 'done'; return `<div class="act live">${dl}<b>${live ? `<span class="dot"></span> ${s.draftStatus === 'live' ? '지금 드래프트 중이에요' : '드래프트 방이 열렸어요'}` : '팀 밸런스를 맞추는 중이에요'}</b>${fit ? '' : capsLine(s)}${!live || canDraftView(s) ? `<button class="btn primary block" data-act="sub" data-v="draft">${live ? '드래프트 테이블 보기' : '팀 구성 보기'}</button>` : '<p class="muted" style="margin:6px 0 0">드래프트가 끝나면 팀 구성을 볼 수 있어요.</p>'}${live ? capHint : ''}</div>` }
   if (st.k === 'teams') return matchdayCard(s, fit);
   const live = sessMatches(s.date).filter(m => m.status === 'live');
   return `<div class="act live"><b><span class="dot"></span> 경기 진행 중</b>${live.map(m => { const [a, b] = score(m); return `<div class="lv">${bib(team(s, m.home).color)}${esc(team(s, m.home).name)} <b>${a} : ${b}</b> ${esc(team(s, m.away).name)}${bib(team(s, m.away).color)} <span data-clock="${m.id}"></span></div>` }).join('')}<button class="btn primary block" data-act="sub" data-v="match">경기 현황과 순위 보기</button></div>${matchdayCard(s, fit, true)}`;
@@ -2487,14 +2488,42 @@ function parkSheet(sid) {
   else h += `<div class="row" style="margin-top:12px"><button class="btn primary" data-act="parkdraw" data-id="${sid}" ${elig.length && !spin ? '' : 'disabled'}>${win.length ? '🎲 다시 추첨' : `🎲 ${Math.min(PARK_SLOTS, elig.length)}명 추첨하기`}</button></div>`;
   return h;
 }
+// 주차 추첨: 사다리타기. 위에 신청자, 아래에 '당첨' 칸을 무작위로 놓고 다리를 따라 내려가요.
+function parkLadderMake(names) { const n = names.length; const rows = Math.max(8, n * 2); const rungs = [];
+  for (let r = 0; r < rows; r++) { if (n < 2) break; const c = Math.floor(Math.random() * (n - 1)); if (Math.random() < .85) rungs.push([r, c]) }
+  const slots = Array.from({ length: n }, (_, i) => i < Math.min(PARK_SLOTS, n)); for (let i = n - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [slots[i], slots[j]] = [slots[j], slots[i]] }
+  return { names, rows, rungs, slots, at: Date.now() } }
+function parkLadderPaths(L, W, top, bot, pad = 40) { const n = L.names.length; const X = i => n < 2 ? W / 2 : pad + i * (W - pad * 2) / (n - 1); const ry = r => top + (bot - top) * (r + 1) / (L.rows + 1);
+  return L.names.map((pid, c0) => { let c = c0; const pts = [[X(c), top]]; for (let r = 0; r < L.rows; r++) { const g = L.rungs.find(x => x[0] === r && (x[1] === c || x[1] === c - 1)); if (g) { const y = ry(r); pts.push([X(c), y]); c = g[1] === c ? c + 1 : c - 1; pts.push([X(c), y]) } } pts.push([X(c), bot]); return { pid, to: c, pts, win: !!L.slots[c] } }) }
+const PL_COL = ['#C6FF3D', '#6EA8FF', '#FFB547', '#FF7A9A', '#7FE3F0', '#B9C3FF', '#F5C400', '#9BE8A0', '#FF9F6E', '#D9A6FF'];
+function parkLadderSVG(s) { const L = s.parkLadder; if (!L) return ''; const n = L.names.length; const W = Math.max(320, n * 74), top = 46, bot = 46 + Math.max(220, L.rows * 22), H = bot + 50; const P = parkLadderPaths(L, W, top, bot);
+  const X = i => n < 2 ? W / 2 : 40 + i * (W - 80) / (n - 1); const ry = r => top + (bot - top) * (r + 1) / (L.rows + 1);
+  const len = pts => pts.reduce((a, p, i) => i ? a + Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) : 0, 0);
+  return `<svg class="pl-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="주차 사다리 결과: ${P.filter(p => p.win).map(p => esc(pname(p.pid))).join(', ')} 당첨">
+    ${L.names.map((_, i) => `<line x1="${X(i)}" y1="${top}" x2="${X(i)}" y2="${bot}" class="pl-v"/>`).join('')}
+    ${L.rungs.map(([r, c]) => `<line x1="${X(c)}" y1="${ry(r)}" x2="${X(c + 1)}" y2="${ry(r)}" class="pl-v"/>`).join('')}
+    ${P.map((p, i) => { const l = len(p.pts).toFixed(0); return `<polyline points="${p.pts.map(q => q.join(',')).join(' ')}" fill="none" stroke="${PL_COL[i % PL_COL.length]}" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" style="stroke-dasharray:${l};stroke-dashoffset:${l};animation:pl-draw 1.1s ease ${(i * .45).toFixed(2)}s forwards"/>` }).join('')}
+    ${L.names.map((pid, i) => `<text x="${X(i)}" y="${top - 16}" text-anchor="middle" class="pl-nm" fill="${PL_COL[i % PL_COL.length]}">${esc(pname(pid))}</text>`).join('')}
+    ${L.slots.map((w, i) => `<g><rect x="${X(i) - 30}" y="${bot + 10}" width="60" height="28" rx="8" class="${w ? 'pl-win' : 'pl-lose'}"/><text x="${X(i)}" y="${bot + 29}" text-anchor="middle" class="${w ? 'pl-wt' : 'pl-lt'}">${w ? '당첨' : '꽝'}</text></g>`).join('')}
+  </svg>` }
+function parkLadderSheet(sid) { const s = S.sessions[sid]; if (!s?.parkLadder) return '<p class="empty">사다리 결과가 없어요.</p>'; const win = (s.parkWin || []);
+  return `<h4>🚗 ${fmtDate(sid)} 주차 사다리</h4><div class="pl-wrap">${parkLadderSVG(s)}</div><div class="pl-res"><b>당첨</b>${win.map(id => `<span class="hp-pill win"><b>${esc(pname(id))}</b>${(s.park || {})[id]?.car ? `<small>${esc(s.park[id].car)}</small>` : ''}</span>`).join('')}</div>
+    <div class="row" style="margin-top:12px"><button class="btn primary" data-act="parkimg" data-id="${sid}" data-v="dl">이미지로 저장</button><button class="btn" data-act="parkimg" data-id="${sid}" data-v="share">이미지 공유</button></div>` }
+async function drawParkImg(sid) { const s = S.sessions[sid]; const L = s.parkLadder; const n = L.names.length; const W = Math.max(760, n * 140), top = 150, bot = top + Math.max(360, L.rows * 34), H = bot + 220; const PD = 100; const P = parkLadderPaths(L, W, top, bot, PD);
+  try { await document.fonts?.ready } catch { }
+  const c = document.createElement('canvas'); c.width = W * 2; c.height = H * 2; const g = c.getContext('2d'); g.scale(2, 2); const F = '"Noto Sans KR","Apple SD Gothic Neo",sans-serif';
+  g.fillStyle = '#0B0D10'; g.fillRect(0, 0, W, H); g.fillStyle = '#C6FF3D'; g.font = `900 30px ${F}`; g.textAlign = 'left'; g.fillText(`${fmtDate(sid)} 주차 추첨`, 40, 64); g.fillStyle = '#9AA3AE'; g.font = `500 18px ${F}`; g.fillText(`${venueTxt(s) || ''} · 신청 ${n}명 · ${PARK_SLOTS}자리`, 40, 96);
+  const X = i => n < 2 ? W / 2 : PD + i * (W - PD * 2) / (n - 1); const ry = r => top + (bot - top) * (r + 1) / (L.rows + 1);
+  g.strokeStyle = '#3D4450'; g.lineWidth = 4; for (let i = 0; i < n; i++) { g.beginPath(); g.moveTo(X(i), top); g.lineTo(X(i), bot); g.stroke() } L.rungs.forEach(([r, cc]) => { g.beginPath(); g.moveTo(X(cc), ry(r)); g.lineTo(X(cc + 1), ry(r)); g.stroke() });
+  P.forEach((p, i) => { g.strokeStyle = PL_COL[i % PL_COL.length]; g.lineWidth = 6; g.lineJoin = 'round'; g.beginPath(); p.pts.forEach((q, k) => k ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])); g.stroke(); g.fillStyle = PL_COL[i % PL_COL.length]; g.font = `800 20px ${F}`; g.textAlign = 'center'; g.fillText(pname(p.pid), X(i), top - 16) });
+  L.slots.forEach((w, i) => { g.fillStyle = w ? '#C6FF3D' : '#262B33'; rr(g, X(i) - 44, bot + 14, 88, 40, 10); g.fill(); g.fillStyle = w ? '#0B0D10' : '#9AA3AE'; g.font = `900 20px ${F}`; g.textAlign = 'center'; g.fillText(w ? '당첨' : '꽝', X(i), bot + 41) });
+  g.textAlign = 'left'; g.fillStyle = '#F2F4F7'; g.font = `900 24px ${F}`; g.fillText('당첨', 40, bot + 110); let x = 110; (s.parkWin || []).forEach(id => { const tx = pname(id) + ((s.park || {})[id]?.car ? `  ${s.park[id].car}` : ''); g.font = `800 20px ${F}`; const w = g.measureText(tx).width + 28; g.fillStyle = '#C6FF3D'; rr(g, x, bot + 86, w, 36, 18); g.fill(); g.fillStyle = '#0B0D10'; g.fillText(tx, x + 14, bot + 110); x += w + 10 });
+  g.fillStyle = '#5D6878'; g.font = `500 14px ${F}`; g.fillText('WEEKDAYS FUTSAL CLUB', 40, H - 28); return c }
 async function drawParking(sid) {
   const s = S.sessions[sid]; const ps = new Set(participants(s)); const elig = parkApps(s).filter(a => ps.has(a.pid) && !parkBanned(s, a.pid)).map(a => a.pid);
-  if (!elig.length) return; if ((s.parkWin || []).length && !confirm('이미 추첨 결과가 있어요. 다시 추첨할까요?')) return;
-  const pool = [...elig]; for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]] }
-  const win = pool.slice(0, PARK_SLOTS); const t0 = Date.now();
-  S.parkSpin = { sid, hl: null }; const iv = setInterval(() => { S.parkSpin.hl = elig[Math.floor(Math.random() * elig.length)]; render() }, 120);
-  await new Promise(r => setTimeout(r, 1800)); clearInterval(iv); S.parkSpin = null;
-  if (await w(() => S.store.update(sp(sid), { parkWin: win, parkDrawAt: Date.now() }))) toast(`주차 당첨: ${win.map(pname).join(', ')}`); render();
+  if (!elig.length) return; if ((s.parkWin || []).length && !confirm('이미 추첨 결과가 있어요. 사다리를 다시 탈까요?')) return;
+  const L = parkLadderMake(elig); const win = parkLadderPaths(L, 400, 0, 100).filter(p => p.win).map(p => p.pid);
+  if (await w(() => S.store.update(sp(sid), { parkWin: win, parkDrawAt: Date.now(), parkLadder: L }))) { S.sheet = { type: 'parkladder', sid }; render(); setTimeout(() => toast(`주차 당첨: ${win.map(pname).join(', ')}`), Math.min(6000, 1100 + elig.length * 450)) }
 }
 
 /* ───────── late cancel (3순위) ───────── */
@@ -3577,6 +3606,8 @@ document.addEventListener('click', async e => {
     case 'dutytog': { if (!needAdmin()) break; const sid = el.dataset.sid || S.sheet?.sid; const ss = S.sessions[sid]; const kind = el.dataset.kind; const cur1 = new Set(ss.duty?.[kind] || []); cur1.has(id) ? cur1.delete(id) : cur1.add(id); await w(() => S.store.update(sp(sid), { [`duty.${kind}`]: [...cur1] })); break }
     case 'parkedit': if (!needAdmin()) break; S.sheet = { type: 'park', sid: id }; render(); break;
     case 'parkdraw': if (!needAdmin()) break; await drawParking(id); break;
+    case 'parkview': S.sheet = { type: 'parkladder', sid: id }; render(); break;
+    case 'parkimg': { const ss = S.sessions[id]; if (!ss?.parkLadder) break; toast('이미지를 만드는 중이에요…'); try { const c = await drawParkImg(id); const b = await new Promise(r => c.toBlob(r, 'image/png')); await shareBlob(b, `WDFS_주차추첨_${id}.png`, el.dataset.v === 'dl') } catch (e) { console.error(e); toast('이미지를 만들지 못했어요.') } break }
     case 'parkapply': S.sheet = { type: 'parkapply', sid: id }; render(); break;
     case 'parksave': { const sid = S.sheet.sid; const me = myPid(); if (!me) { toast('먼저 이름을 입력해 주세요.'); break } if (await saveParking(sid, me, document.getElementById('pk-car2').value)) { S.sheet = null; render() } break }
     case 'parkcancel': { const me = myPid(); if (!me || !confirm('주차 신청을 취소할까요?')) break; await w(() => S.store.update(sp(id), { [`park.${me}`]: null }), '주차 신청을 취소했어요.'); break }

@@ -1392,3 +1392,29 @@ h2{margin:18px 0 8px}
 @media (max-width:899px){.nextbar.up{bottom:calc(var(--cdh,0px) + var(--tabh,64px))}}
 @media (max-width:640px){.abar .aflow li:not(.now) span{visibility:hidden}.abar .aflow li.now>button>span{visibility:visible;width:max-content;max-width:none;padding-right:6px;background:var(--surface,#15181D);overflow:visible}.abar .aflow li.now .fn{display:inline!important}}
 :root{--cssv:"0.4.2"}
+/* 팀·도우미: 카드 6개 정렬 */
+.hgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:12px;align-items:stretch}
+.hc{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.hc>header{display:flex;align-items:center;gap:8px;min-height:28px}
+.hc-n{width:24px;height:24px;flex:none;border-radius:50%;display:grid;place-items:center;font:800 13px var(--latin);background:var(--bg);border:1px solid var(--line);color:var(--muted)}
+.hc>header>b{font-size:15px;font-weight:900;white-space:nowrap}
+.hc-st{margin-left:auto;font-size:12px;font-weight:800;padding:3px 10px;border-radius:999px;background:rgba(255,181,71,.14);color:#FFB547;white-space:nowrap}
+.hc-st.ok{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
+.hc-b{display:flex;flex-direction:column;gap:10px;flex:1}
+.hc-row{display:flex;align-items:center;gap:10px;justify-content:space-between}.hc-names{font-size:15px;font-weight:700}.hc-lab{font-size:13px;color:var(--muted);font-weight:700}
+.hc-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto}.hc-acts .btn{min-width:0}
+.hc .btn.hc-go{border:1px solid color-mix(in srgb,var(--accent) 60%,transparent)!important;background:transparent!important;color:var(--accent)!important}
+.hc .btn.hc-go:disabled{border-color:var(--line)!important;color:var(--muted)!important}
+.hc-nt,.hc-cap{grid-column:span 2}
+.hc .nt-opts{margin:0}.hc .capgrid{margin:0}.hc .hp-list{min-height:34px}
+.hc-ops .ct-row{grid-template-columns:1fr 1fr!important}.hc-ops .ct-n{grid-column:1/-1}.hc-ops .ct-v{grid-column:1/-1}
+.hc-viewers{margin-top:14px}
+@media (max-width:899px){.hgrid{grid-template-columns:minmax(0,1fr);gap:10px}.hc-nt,.hc-cap{grid-column:auto}}
+/* 주차 사다리 */
+.pl-wrap{overflow-x:auto;margin:6px -4px 0;padding:0 4px}.pl-svg{display:block;min-width:100%;height:auto;max-height:62vh}
+.pl-v{stroke:var(--line);stroke-width:3}.pl-nm{font:800 14px var(--body)}
+.pl-win{fill:var(--accent)}.pl-lose{fill:var(--line)}.pl-wt{fill:var(--accent-ink);font:900 13px var(--body)}.pl-lt{fill:var(--muted);font:800 13px var(--body)}
+@keyframes pl-draw{to{stroke-dashoffset:0}}
+.pl-res{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px}.pl-res>b{font-size:14px;margin-right:4px}
+:root{--cssv:"0.4.3"}
+body:has(.scrim) .nextbar{display:none}
