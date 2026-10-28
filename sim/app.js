@@ -19,7 +19,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.5';
+const APP_VERSION = '0.4.6';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 180, ...(CFG.timing || {}) };
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#6E7A88' };
@@ -1361,6 +1361,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.6', '2026.10.28', ['[운영진] 내부 안정성 수정']],
   ['0.4.5', '2026.10.28', ['[운영진] 숨김 참관 · 개발자 권한이 있던 계정은 모두 일반 회원 권한으로 바꿨어요', '[운영진] 마스터 계정을 새로 만들었어요. 회원 명단에 없고, 운영모드를 비밀번호 없이 쓰며, 드래프트 접속자 목록 · 채팅 · 기록에 이름이 남지 않아요']],
   ['0.4.4', '2026.10.28', ['[운영진] 테스트 계정(이름 “테스트”)으로 로그인하면 일반 회원 화면을 그대로 볼 수 있어요. 회원 명단에는 들어가지 않고, 보기 전용이라 신청·채팅 등은 저장되지 않아요']],
   ['0.4.3', '2026.10.28', ['드래프트 테이블은 운영진 · 주장 · 운영진이 지정한 참관자만 볼 수 있어요. 다른 회원에게는 드래프트 보기 버튼이 나오지 않아요', '[운영진] 주차는 사다리타기로 뽑아요. 결과를 이미지로 저장하거나 공유해서 카톡방에 올릴 수 있어요', '[운영진] 팀·도우미 화면을 팀 구성 · 경기 운영자 · 주장 · 주차 · 공당 · 물당 6개 카드로 정리했어요. 카드마다 번호 · 상태(✓/남은 수) · 버튼 자리가 같아요']],
@@ -1669,7 +1670,7 @@ async function loadOld(sid) { if (!S.cut || sid >= S.cut || (S.oldLoaded ??= {})
 // 테스트 계정: 회원 명단에 넣지 않고 이 기기에서만 일반 회원처럼 보여요. 보기 전용이라 데이터는 저장되지 않아요.
 const TEST_PID = '__test', TEST_P = { name: '테스트', status: 'active', test: true };
 function isTest() { return S.auth?.pid === TEST_PID }
-function guardTest() { if (!S.store || S.store.__tg) return; S.store.__tg = 1; ['set', 'update', 'add', 'del', 'txn', 'patch'].forEach(m => { const f = S.store[m]; if (typeof f !== 'function') return; S.store[m] = (...a) => { if (!isTest()) return f(...a); if (Date.now() - (S.lastTap || 0) < 1500 && Date.now() - (S.testToast || 0) > 1500) { S.testToast = Date.now(); toast('테스트 계정은 보기만 할 수 있어요. 저장되지 않아요.') } return Promise.reject(new Error('aborted')) } }) }
+function guardTest() { if (!S.store || S.store.__tg) return; S.store.__tg = 1; const st = S.store; ['set', 'update', 'add', 'del', 'txn', 'patch'].forEach(m => { const f = st[m]; if (typeof f !== 'function') return; st[m] = (...a) => { if (!isTest()) return f.apply(st, a); if (Date.now() - (S.lastTap || 0) < 1500 && Date.now() - (S.testToast || 0) > 1500) { S.testToast = Date.now(); toast('테스트 계정은 보기만 할 수 있어요. 저장되지 않아요.') } return Promise.reject(new Error('aborted')) } }) }
 addEventListener('pointerdown', () => { S.lastTap = Date.now() }, true);
 function myPid() { return S.auth?.pid && S.players[S.auth.pid] ? S.auth.pid : null }
 function myTeamIn(s) { const me = myPid(); return me ? KEYS.find(k => teamPlayers(s, k).includes(me)) || null : null }
