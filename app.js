@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.25';
+const APP_VERSION = '0.4.26';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -363,7 +363,7 @@ function awakeCheck() {
   keepAwake(want);
   const KA = CAP()?.KeepAwake; if (KA && want !== S.nativeAwake) { S.nativeAwake = want; try { want ? KA.keepAwake() : KA.allowSleep() } catch { } }
 }
-document.addEventListener('visibilitychange', () => { if (!document.hidden) { awakeCheck(); if (Date.now() - (S.skewAt || 0) > 60000) syncClock() } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { setTimeout(() => { try { render() } catch { } }, 0); awakeCheck(); if (Date.now() - (S.skewAt || 0) > 60000) syncClock() } });
 window.addEventListener('online', () => { syncClock(); toast('인터넷이 다시 연결됐어요.') });
 window.addEventListener('offline', () => toast('인터넷 연결이 끊겼어요. 신청·취소는 연결된 뒤에 해 주세요.'));
 function watchPhases() {
@@ -1363,6 +1363,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.26','2026.10.29',['경기 신청 카드를 항상 홈 맨 위에: 신청 예정(카운트다운)·신청 중인 경기가 있으면 언제나 첫 화면 맨 위에 나와요 (아래 경기 정보와 중복 표시 없음)','정각 열림 이중 안전장치: 서버 시계 기준 예약 + 매초 확인으로, 폰이 잠들었다 깨어나도 바로 신청 버튼으로 바뀌어요']],
   ['0.4.25','2026.10.29',['다음 경기 신청을 오늘 경기보다 우선: 신청 오픈 24시간 전부터 홈 맨 위에 “NEXT APPLY” 카드가 고정돼요 (신청을 마치고 1시간이 지나면 오늘 경기 아래로)','경기 당일에는 오늘 경기 칸 제목이 TODAY MATCH로 보여요']],
   ['0.4.24','2026.10.29',['경기 당일에도 다음 경기 신청을 홈에서 바로: 다음 경기 신청이 1시간 안에 열리거나 신청 중이면 홈 맨 위에 “NEXT APPLY” 카드(카운트다운 → 신청 버튼 → 내 순번)가 나와요','신청 오픈 카운트다운이 1초 일찍 00:00:00이 되던 것을 바로잡음','시뮬레이션: sim/open.html에서 12:59:50부터 13:00 신청 오픈 장면을 볼 수 있어요']],
   ['0.4.23','2026.10.28',['[운영진] 팀 확정 후 불참 교체: 밸런스 조정 화면과 경기진행 화면의 “🔁 불참 교체”에서 불참자를 고르고, 대신 들어올 사람을 회원 목록(드롭다운)에서 고르거나 게스트 이름으로 추가해요','불참자는 마감 후 취소로 기록돼 다음 경기 신청 때 3순위가 되고, 같은 팀 같은 자리(주장이면 주장 자리)에 새 사람이 들어가요. 공당·물당·주차 명단에서도 빠지고, 포스터는 새로 만들어져요']],
@@ -1696,7 +1697,7 @@ function sStatus(s) {
   return { k: 'closed', label: '신청 마감' };
 }
 // 오늘 경기가 있는 날에도 다음 경기 신청(오픈 24시간 전부터·신청 중)을 홈에서 바로 할 수 있게 해요
-function nextApplySid(sid) { if (!sid) return null; const now = nowS(); return Object.keys(S.sessions).sort().find(id => { if (id <= sid || isComplete(id)) return false; const s = S.sessions[id]; const k = sStatus(s).k; if (k === 'open') return true; if (k !== 'soon' || !s.applyOpen) return false; return dt(s.applyOpen).getTime() - now < 24 * 3600e3 }) || null }
+function nextApplySid(sid) { if (!sid) return null; return Object.keys(S.sessions).sort().find(id => { if (id < sid || isComplete(id)) return false; const s = S.sessions[id]; if (s.stage !== 'apply') return false; const k = sStatus(s).k; return k === 'open' || (k === 'soon' && !!s.applyOpen) }) || null }
 function nextSid() { const t = today(); const ids = Object.keys(S.sessions).sort(); return ids.find(id => id >= t && !isComplete(id)) || null }
 function pastSids() { const t = today(); return Object.keys(S.sessions).filter(id => sessMatches(id).some(m => m.status === 'done') || (S.cut && id < S.cut && id < t && (S.sessions[id].stage === 'match' || S.sessions[id].imported))).sort().reverse() }
 async function loadOld(sid) { if (!S.cut || sid >= S.cut || (S.oldLoaded ??= {})[sid] || !S.store?.query) return; S.oldLoaded[sid] = 1;
@@ -1722,7 +1723,7 @@ function viewMHome() {
   const rvDown0 = fit && !!sid && S.sessions[sid]?.draftStatus !== 'done' && (applyState(S.sessions[sid]).k !== 'none' || ['open', 'soon'].includes(sStatus(S.sessions[sid]).k)); const dd = myDrinkDue();
   const na = nextApplySid(sid); let naCard = '', naTop = false;
   if (na) { const s2 = S.sessions[na]; const [, m2, d2] = na.split('-'); const k2 = sStatus(s2).k; naCard = `<div class="nxapply"><div class="nxa-hd"><span class="st st-${k2}">${sStatus(s2).label}</span><b>${+m2}.${+d2} (${dow(na)}) ${esc(s2.time || '')} 경기 신청</b><small>${s2.no ? s2.no + '회 · ' : ''}${esc(venueTxt(s2) || '')}</small></div>${applyBox(s2, fit)}</div>`;
-    const oT = s2.applyOpen ? dt(s2.applyOpen).getTime() : 0; naTop = k2 === 'open' ? (applyState(s2).k === 'none' || nowS() - oT < 3600e3) : true } // 다음 경기 신청이 오늘 경기보다 우선: 오픈 24시간 전부터 홈 맨 위 (신청을 마친 뒤 1시간이 지나면 아래로)
+    naTop = true } // 경기 신청 카드는 항상 홈 맨 위 (신청 예정·신청 중인 경기)
   h += `${fit ? `<div class="homefit${rvDown0 || dd || nextApplySid(sid) ? ' hf-scroll' : ''}">` : ''}${naTop ? `<div class="nxtop"><div class="sec-lab"><span>NEXT APPLY</span></div>${naCard}</div>` : ''}<div class="dgrid homegrid"><section>`;
   { if (dd) h += `<button class="dbnudge" data-act="dbopen" data-id="${dd}">🥤 <span><b>${fmtDate(dd)} 물당 구입 금액을 등록해 주세요</b></span><em>등록 ›</em></button>` }
 
@@ -1752,7 +1753,7 @@ function viewMHome() {
       ${memFlow(s, st)}
       ${st.k === 'open' ? '' : `<div class="cap capbtn" role="button" tabindex="0" data-act="applist" data-id="${sid}" aria-label="신청 현황 보기"><div class="cap-row"><span>신청 인원${appCounts(s).wait ? ` · 대기 ${appCounts(s).wait}` : ''}<em class="caplink">신청 현황 ›</em></span><b>${n}<small> / ${cap || '-'}명</small></b></div>${cap ? `<div class="bar"><i style="width:${Math.min(100, n / cap * 100)}%"></i></div>` : ''}</div>`}</div>`;
     h += homeAction(s, st, fit);
-    if (fit) { const a = applyState(s); if (st.k === 'open' || st.k === 'soon' || (st.k === 'closed' && a.k !== 'none' && s.stage !== 'match')) { const ab = applyBox(s, true); if (ab) h += `<div class="inline-apply">${ab}</div>` } }
+    if (fit && na !== sid) { const a = applyState(s); if (st.k === 'open' || st.k === 'soon' || (st.k === 'closed' && a.k !== 'none' && s.stage !== 'match')) { const ab = applyBox(s, true); if (ab) h += `<div class="inline-apply">${ab}</div>` } }
   }
   if (naCard && !naTop) h += `</div>${naCard}<div class="nx-dummy">`;
   if (rvDown) h += `</div><div class="rv-down">${rv}`;
@@ -1765,6 +1766,7 @@ function memFlow(s, st) { const k = st.k; const cur = k === 'soon' ? -1 : k === 
 function homeAction(s, st, fit) {
   const mt = myTeamIn(s); const AB = fit ? () => '' : applyBox;
   if (fit && (st.k === 'open' || st.k === 'soon')) return '';
+  if ((st.k === 'open' || st.k === 'soon') && nextApplySid(nextSid()) === s.date) return ''; // 맨 위 신청 카드에서 처리
   if (st.k === 'soon') return `<div class="act">${AB(s)}</div>`;
   if (st.k === 'open') return `<div class="act">${AB(s)}${appTotal(s) ? `<button class="btn sm" data-act="applist">신청자 보기</button>` : ''}</div>`;
   const capHint = '';
@@ -3413,7 +3415,7 @@ document.addEventListener('compositionend', e => { if (e.target.id !== 'chatin')
 function tick() {
   const cache = {}; const ci = id => cache[id] || (cache[id] = S.matches[id] ? clockInfo(M(id)) : null);
   document.querySelectorAll('[data-clock],[data-bigclock]').forEach(el => { const id = el.dataset.clock || el.dataset.bigclock; const c = ci(id); if (!c) return; if (el.textContent !== c.time) el.textContent = c.time; if (el.dataset.bigclock) { el.classList.toggle('over', !!c.over); el.classList.toggle('gk', c.phase === 'gk' || c.phase === 'rest') } });
-  document.querySelectorAll('[data-cd]').forEach(el => { const v = cdTxt(+el.dataset.cd - nowS()); if (el.textContent !== v) el.textContent = v });
+  { let due = false; document.querySelectorAll('[data-cd]').forEach(el => { const left = +el.dataset.cd - nowS(); const v = cdTxt(left); if (el.textContent !== v) el.textContent = v; if (left <= 0 && el.closest('.apbig.soon')) due = true }); if (due && Date.now() - (S.cdFlip || 0) > 400) { S.cdFlip = Date.now(); render() } } // 정각이 지났는데 아직 ‘열려요’면 바로 다시 그려요 (백그라운드 타이머 지연 대비)
   document.querySelectorAll('[data-phase]').forEach(el => { const c = ci(el.dataset.phase); if (c && el.textContent !== c.label) el.textContent = c.label });
   document.querySelectorAll('[data-seg]').forEach(el => { const [id, i] = el.dataset.seg.split(':'); const c = ci(id); if (!c) return; const r = [[0, c.a], [c.a, c.b], [c.b, c.c]][+i]; el.style.width = Math.max(0, Math.min(1, (Math.min(c.e, c.c) - r[0]) / (r[1] - r[0] || 1))) * 100 + '%' });
   const eb = document.querySelector('[data-act="end"]'); if (eb && S.openMatch) { const c = ci(S.openMatch); if (c) eb.classList.toggle('primary', c.phase === 'full') }

@@ -1681,3 +1681,4 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .nxtop{margin-bottom:6px}@media (min-width:1024px){.nxtop .nxapply{margin-top:0}}
 :root{--cssv:"0.4.24"}
 :root{--cssv:"0.4.25"}
+:root{--cssv:"0.4.26"}
