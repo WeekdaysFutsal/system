@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.39';
+const APP_VERSION = '0.4.40';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1365,6 +1365,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.40','2026.10.29',['[운영진] 유튜브 권한 오류 안내 개선 · Apps Script 코드에 authorize(권한 허용) 함수 추가']],
   ['0.4.39','2026.10.29',['유튜브 영상 버튼을 작고 차분하게 줄임']],
   ['0.4.38','2026.10.29',['경기별 결과의 점수 “:”가 줄 정가운데에 오고 숫자 높이 가운데에 맞도록 정렬 (게임 번호 칸과 영상 버튼 칸 폭을 같게)','홈 MATCH REVIEW·경기 카드의 “:” 높이도 함께 맞춤']],
   ['0.4.37','2026.10.29',['유튜브 영상 버튼 디자인 개선: 입체감 있는 빨간 재생 칩, 전체 영상·영상보기는 알약형 버튼']],
@@ -1677,6 +1678,8 @@ function doPost(e) {
   } catch (err) { return out({ ok: false, error: String(err) }) }
 }
 function doGet() { return out({ ok: true, app: 'wd-receipts' }) }
+// 처음 한 번(또는 서비스를 추가한 뒤) 편집기에서 이 함수를 선택해 실행 → 권한 허용
+function authorize() { DriveApp.getRootFolder(); if (typeof YouTube !== 'undefined') YouTube.Channels.list('id', { forHandle: 'Express_Zilpung' }); return '권한 확인 완료' }
 // 유튜브 채널의 재생목록과 영상 제목 읽기 (서비스에 YouTube Data API v3 추가 필요)
 function ytLists(ch, kw) {
   if (typeof YouTube === 'undefined') return { ok: false, error: 'YT_SERVICE' };
@@ -1701,6 +1704,7 @@ function rcptSetupSheet() { const tok = S.rcptTok || (S.rcptTok = Math.random().
     <li><a href="https://script.google.com/home/projects/create" target="_blank" rel="noopener"><b>script.google.com</b></a>에서 <b>새 프로젝트</b>를 만들어요 (운영진 구글 계정).</li>
     <li>아래 <b>코드 복사</b>를 눌러 편집기 내용을 지우고 붙여 넣은 뒤 저장해요.</li>
     <li>왼쪽 <b>서비스 ＋</b> → <b>YouTube Data API v3</b> → 추가 (경기 영상 연결용).</li>
+    <li>위쪽 함수 선택에서 <b>authorize</b>를 고르고 <b>실행</b> → 권한 검토 → 허용.</li>
     <li><b>배포 → 새 배포 → 웹 앱</b> · 실행: <b>나</b> · 액세스: <b>모든 사용자</b> → 배포 → 권한 허용.</li>
     <li>나온 <b>웹 앱 URL</b>(…/exec)을 아래에 붙여 넣고 저장해요.</li></ol>
     <button class="btn block" data-act="rcptcopy">📋 코드 복사</button>
@@ -1744,7 +1748,7 @@ function ytOpen(u) { const path = u.replace(/^https:\/\/(www\.|m\.)?youtube\.com
   window.open(u, '_blank', 'noopener') }
 async function ytSync(manual) { if (S.ytBusy || !rcptCfg().exec) return; S.ytBusy = true; if (manual) render();
   try { const r = await fetch(rcptCfg().exec, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'yt', token: rcptCfg().token, ch: ytCh(), kw: ytKw() }) }); const j = await r.json();
-    if (!j.ok) throw new Error(j.error === 'YT_SERVICE' ? 'Apps Script에 YouTube Data API 서비스를 추가해 주세요' : /알 수 없는 요청/.test(j.error || '') ? 'Apps Script 코드를 새로 복사해 다시 배포해 주세요' : j.error || '읽기 실패');
+    if (!j.ok) throw new Error(/auth\/youtube|권한이 없|permission/i.test(j.error || '') ? 'Apps Script 권한이 아직 없어요. 편집기에서 authorize 함수를 실행해 허용한 뒤, 배포 관리 → 새 버전으로 다시 배포해 주세요' : j.error === 'YT_SERVICE' ? 'Apps Script에 YouTube Data API 서비스를 추가해 주세요' : /알 수 없는 요청/.test(j.error || '') ? 'Apps Script 코드를 새로 복사해 다시 배포해 주세요' : j.error || '읽기 실패');
     const lists = j.lists.map(l => ({ id: l.id, t: l.t, d: ytDate(l.t), v: l.v })).filter(l => l.d);
     const nx = { ...ytCfg(), cid: j.cid, lists, at: Date.now(), err: null }; S.meta = { ...(S.meta || {}), yt: nx }; await S.store.set('meta/yt', nx); S.ytErr = null;
     if (manual) toast(`재생목록 ${lists.length}개를 읽었어요.`) }

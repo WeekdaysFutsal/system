@@ -1802,3 +1802,4 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 @media (max-width:420px){.ytbtn.row .ytic{width:28px;height:21px}.yt-ph{width:28px;height:21px}}
 :root{--cssv:"0.4.38"}
 :root{--cssv:"0.4.39"}
+:root{--cssv:"0.4.40"}
