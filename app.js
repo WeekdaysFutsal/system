@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.42';
+const APP_VERSION = '0.4.43';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1365,6 +1365,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.43','2026.10.29',['경기 영상 자동 확인 주기를 3시간 → 30분으로 (경기 결과 화면을 열 때 확인)']],
   ['0.4.42','2026.10.29',['[운영진] 경기 영상 지금 찾기 저장 오류(Nested arrays) 수정']],
   ['0.4.41','2026.10.29',['[운영진] 유튜브 권한 오류 해결: Apps Script 설정 파일(appsscript.json)에 드라이브·유튜브 권한을 직접 적도록 안내 + 설정 파일 복사 버튼']],
   ['0.4.40','2026.10.29',['[운영진] 유튜브 권한 오류 안내 개선 · Apps Script 코드에 authorize(권한 허용) 함수 추가']],
@@ -1757,10 +1758,11 @@ async function ytSync(manual) { if (S.ytBusy || !rcptCfg().exec) return; S.ytBus
     if (manual) toast(`재생목록 ${lists.length}개를 읽었어요.`) }
   catch (e) { S.ytErr = e.message; if (manual) toast('영상 찾기 오류: ' + e.message) }
   S.ytBusy = false; renderSoon() }
-function ytAuto() { if (S.ytBusy || S.ytTried || !rcptCfg().exec) return; const at = ytCfg().at || 0; if (Date.now() - at < 3 * 3600e3) return; S.ytTried = true; setTimeout(() => ytSync(false), 800) }
+const YT_EVERY = 30 * 60e3; // 경기 결과 화면을 열 때 마지막 확인 후 30분이 지났으면 새로 읽어요
+function ytAuto() { if (S.ytBusy || !rcptCfg().exec) return; const now = Date.now(); if (now - (ytCfg().at || 0) < YT_EVERY || now - (S.ytTried || 0) < YT_EVERY) return; S.ytTried = now; setTimeout(() => ytSync(false), 800) }
 function ytCard() { if (!S.admin) return ''; const c = ytCfg(); const on = !!rcptCfg().exec; const L = c.lists || [];
   const linked = L.filter(l => S.sessions[l.d]).map(l => { const y = ytFor(S.sessions[l.d]); return y ? Object.keys(y.v).length : 0 }); const nS = linked.length, nV = linked.reduce((p, q) => p + q, 0);
-  return `<h2>경기 영상 (유튜브)${ib('유튜브 채널의 재생목록 중 키워드가 들어간 것을 읽어, 재생목록 제목의 날짜로 경기를 찾고 영상 제목의 라운드·게임 번호와 두 팀 색으로 게임을 맞춰요. 맞는 영상만 경기 결과에 ▶ 버튼으로 붙어요. 3시간마다 자동으로 새 영상을 찾아요.')}</h2><div class="panel pad sheetcard">
+  return `<h2>경기 영상 (유튜브)${ib('유튜브 채널의 재생목록 중 키워드가 들어간 것을 읽어, 재생목록 제목의 날짜로 경기를 찾고 영상 제목의 라운드·게임 번호와 두 팀 색으로 게임을 맞춰요. 맞는 영상만 경기 결과에 ▶ 버튼으로 붙어요. 누군가 경기 결과 화면을 열 때 마지막 확인 후 30분이 지났으면 새 영상을 찾아요.')}</h2><div class="panel pad sheetcard">
     <div class="sc-row"><span>채널</span><b class="url">${esc(ytCh())}</b><button class="btn sm" data-act="ytset" data-f="ch">변경</button></div>
     <div class="sc-row"><span>키워드</span><b>${esc(ytKw() || '(전체)')}</b><button class="btn sm" data-act="ytset" data-f="kw">변경</button></div>
     <div class="sc-row"><span>연결 현황</span><b>${!on ? '<em>위 영수증 저장을 먼저 연결해 주세요</em>' : c.at ? `재생목록 ${L.length}개 · 경기 ${nS}회 · 영상 ${nV}개` : '<em>아직 안 읽음</em>'}</b><button class="btn sm" data-act="ytsync" ${on && !S.ytBusy ? '' : 'disabled'}>${S.ytBusy ? '찾는 중…' : '지금 찾기'}</button></div>
