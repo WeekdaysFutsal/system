@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.41';
+const APP_VERSION = '0.4.42';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1365,6 +1365,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.42','2026.10.29',['[운영진] 경기 영상 지금 찾기 저장 오류(Nested arrays) 수정']],
   ['0.4.41','2026.10.29',['[운영진] 유튜브 권한 오류 해결: Apps Script 설정 파일(appsscript.json)에 드라이브·유튜브 권한을 직접 적도록 안내 + 설정 파일 복사 버튼']],
   ['0.4.40','2026.10.29',['[운영진] 유튜브 권한 오류 안내 개선 · Apps Script 코드에 authorize(권한 허용) 함수 추가']],
   ['0.4.39','2026.10.29',['유튜브 영상 버튼을 작고 차분하게 줄임']],
@@ -1733,7 +1734,7 @@ function ytFor(s) { const sid = s?.date; if (!sid) return null; const L = (ytCfg
   const ms = sessMatches(sid); const out = {}; const used = new Set(); const nm = k => String(team(s, k).name || '').toUpperCase();
   const same = (m, pair) => { const a = [nm(m.home), nm(m.away)].sort().join('|'); return a === [...pair].sort().join('|') };
   const per = Math.max(1, ...ms.map(m => +m.slot || 0)); const rd = m => +m.round || Math.ceil(m.n / per); const sl = m => +m.slot || ((m.n - 1) % per) + 1;
-  const vids = L.flatMap(l => l.v || []).map(([v, t]) => ({ v, ...ytParse(t) }));
+  const vids = L.flatMap(l => l.v || []).map(x => Array.isArray(x) ? x : [x.i, x.t]).map(([v, t]) => ({ v, ...ytParse(t) }));
   const put = (m, x) => { if (!m || out[m.id] || used.has(x.v)) return false; out[m.id] = x.v; used.add(x.v); return true };
   // 1) 번호와 두 팀이 모두 맞는 영상
   vids.forEach(x => { const m = x.r ? ms.find(m => rd(m) === x.r && sl(m) === x.g) : x.n ? ms.find(m => m.n === x.n) : null; if (m && (!x.pair || same(m, x.pair))) put(m, x) });
@@ -1751,7 +1752,7 @@ function ytOpen(u) { const path = u.replace(/^https:\/\/(www\.|m\.)?youtube\.com
 async function ytSync(manual) { if (S.ytBusy || !rcptCfg().exec) return; S.ytBusy = true; if (manual) render();
   try { const r = await fetch(rcptCfg().exec, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'yt', token: rcptCfg().token, ch: ytCh(), kw: ytKw() }) }); const j = await r.json();
     if (!j.ok) throw new Error(/auth\/youtube|권한이 없|permission/i.test(j.error || '') ? 'Apps Script 권한이 아직 없어요. 편집기에서 authorize 함수를 실행해 허용한 뒤, 배포 관리 → 새 버전으로 다시 배포해 주세요' : j.error === 'YT_SERVICE' ? 'Apps Script에 YouTube Data API 서비스를 추가해 주세요' : /알 수 없는 요청/.test(j.error || '') ? 'Apps Script 코드를 새로 복사해 다시 배포해 주세요' : j.error || '읽기 실패');
-    const lists = j.lists.map(l => ({ id: l.id, t: l.t, d: ytDate(l.t), v: l.v })).filter(l => l.d);
+    const lists = j.lists.map(l => ({ id: l.id, t: l.t, d: ytDate(l.t), v: (l.v || []).map(([i, t]) => ({ i, t })) })).filter(l => l.d); // Firestore는 배열 안의 배열을 못 담아서 {i,t}로 저장
     const nx = { ...ytCfg(), cid: j.cid, lists, at: Date.now(), err: null }; S.meta = { ...(S.meta || {}), yt: nx }; await S.store.set('meta/yt', nx); S.ytErr = null;
     if (manual) toast(`재생목록 ${lists.length}개를 읽었어요.`) }
   catch (e) { S.ytErr = e.message; if (manual) toast('영상 찾기 오류: ' + e.message) }
