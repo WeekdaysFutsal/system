@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.33';
+const APP_VERSION = '0.4.34';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1314,7 +1314,8 @@ function viewSheet() {
   else if (sh.type === 'duty') h += dutySheet(sh.sid);
   else if (sh.type === 'park') h += parkSheet(sh.sid);
   else if (sh.type === 'drinkbuy') { h += drinkBuySheet(sh.sid) }
-  else if (sh.type === 'rcpt') { const v = S.sessions[sh.sid]?.drinkBuy?.[sh.pid] || {}; h += `<h4>🧾 ${esc(pname(sh.pid))} 님 영수증</h4><p>${fmtDate(sh.sid)} 경기 · 구입 금액 ${wn(+v.amt || 0)}원</p>${sh.img === null ? '<p class="empty">불러오는 중…</p>' : sh.img ? `<img class="rcpt-big" src="${sh.img}" alt="영수증">` : '<p class="empty">영수증 사진이 없어요.</p>'}` }
+  else if (sh.type === 'rcpt') { const v = S.sessions[sh.sid]?.drinkBuy?.[sh.pid] || {}; h += `<h4>🧾 ${esc(pname(sh.pid))} 님 영수증</h4><p>${fmtDate(sh.sid)} 경기 · 구입 금액 ${wn(+v.amt || 0)}원</p>${sh.img === null ? '<p class="empty">불러오는 중…</p>' : sh.img ? `<img class="rcpt-big" src="${sh.img}" alt="영수증" referrerpolicy="no-referrer">${sh.drive ? `<a class="btn block" style="margin-top:8px" href="https://drive.google.com/file/d/${esc(sh.drive)}/view" target="_blank" rel="noopener">구글 드라이브에서 보기</a>` : ''}` : '<p class="empty">영수증 사진이 없어요.</p>'}` }
+  else if (sh.type === 'rcptsetup') { h += rcptSetupSheet() }
   else if (sh.type === 'parkapply') { h += `<h4>🚗 주차 신청${ib(`${fmtDate(sh.sid)} 경기 주차를 신청해요. 신청자 중 ${PARK_SLOTS}명을 추첨해요.`)}</h4><div class="panel"><div class="field"><label for="pk-car2">차량번호</label><input id="pk-car2" class="inp" type="text" maxlength="12" placeholder="예: 12가3456" value="${esc(myCar())}"></div>${ibm(`내 정보에 차량번호를 저장해 두면 자동으로 채워져요.`)}</div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="parksave">신청</button></div>` }
   else if (sh.type === 'tier') h += tierSheet(sh);
   else if (sh.type === 'calpick') h += `<h4>📅 캘린더에 추가${ib(`${fmtDate(sh.id)} ${esc(S.sessions[sh.id]?.time || '')} 경기를 내 캘린더에 넣어요. 경기 2시간 전에 알림이 와요.`)}</h4><div class="pick" style="grid-template-columns:1fr"><button data-act="calics" data-id="${sh.id}">🍎 아이폰·기본 캘린더 (일정 파일)</button><button data-act="calgoo" data-id="${sh.id}">📆 구글 캘린더</button></div>`;
@@ -1364,6 +1365,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.34','2026.10.29',['물당 영수증을 Firebase 대신 운영진 구글 드라이브(WD_FUTSAL 영수증 폴더)에 저장 · 설정 → 기록 시트에서 연결','예전 영수증도 버튼 하나로 드라이브로 옮기고 Firebase에서는 삭제']],
   ['0.4.33','2026.10.29',['[운영진] 설정을 탭으로 정리: 내 정보 · 운영(서비스 상태·정산 규칙·운영모드 비밀번호) · 기록 시트 · 꾸미기(로딩 배경) · 연습·샘플','휴대폰에서 앱 버전 칸·비밀번호 입력칸·샘플 데이터 버튼이 꺾이거나 잘리던 것 정리']],
   ['0.4.32','2026.10.29',['주차: 지난 경기 당첨자도 주차 신청을 할 수 있어요. 추첨 때 신청자가 자리보다 많으면 지난 경기 당첨자는 빠지고, 자리가 남을 때만 지난 당첨자끼리 사다리로 정해요','신청 완료 카드 안 오른쪽에 “신청 현황 17/18 보기” 버튼']],
   ['0.4.31','2026.10.29',['경기 신청 카드 아래에 “📋 신청 현황 보기 (17 / 18명)” 버튼 추가 — 신청한 뒤에도 바로 신청자 명단을 볼 수 있어요']],
@@ -1640,6 +1642,51 @@ function sheetAutoSync() { if (!S.admin || !sheetUrl() || !sheetKey() || S.ready
   for (const sid of Object.keys(S.sessions)) { const s = S.sessions[sid]; if (sid > t || !(s.stage === 'match' || s.draftStatus === 'done')) continue; const p = sheetPayload(sid); if (!p || (!p.matches.length && !p.rosters.length)) continue;
     const h = JSON.stringify(p).length + ':' + [...JSON.stringify(p)].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) | 0, 0); if (H[sid] === h) continue;
     try { await sheetSyncDate(sid); H[sid] = h; save('sheetHash', H); S.sheetLast = Date.now() } catch (e) { S.sheetErr = e.message; break } } }, 4000) }
+// 물당 영수증은 구글 드라이브에 저장해요 (Firebase 용량 절약). 운영진이 만든 '영수증 업로드' Apps Script 웹 앱으로 올려요
+const rcptCfg = () => S.meta?.receipt || {};
+const rcptOn = () => !!(rcptCfg().exec && rcptCfg().token);
+const rcptThumb = id => `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w1600`;
+async function rcptUpload(sid, pid, dataUrl) { const r = await fetch(rcptCfg().exec, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'upload', token: rcptCfg().token, sid, pid, name: pname(pid) || pid, data: dataUrl }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error || '드라이브 업로드 실패'); return j }
+function rcptScript(token) { return `// WD_FUTSAL 물당 영수증 → 구글 드라이브 저장용 (새 Apps Script 프로젝트에 그대로 붙여 넣으세요)
+const TOKEN = '${token}';
+const FOLDER = 'WD_FUTSAL 영수증';
+function doPost(e) {
+  try {
+    const b = JSON.parse(e.postData.contents);
+    if (b.token !== TOKEN) return out({ ok: false, error: '토큰이 맞지 않아요' });
+    if (b.action === 'upload') {
+      const m = String(b.data || '').match(/^data:(image\\/[a-z+]+);base64,(.+)$/);
+      if (!m) return out({ ok: false, error: '이미지가 아니에요' });
+      const bytes = Utilities.base64Decode(m[2]);
+      if (bytes.length > 4 * 1024 * 1024) return out({ ok: false, error: '사진이 너무 커요' });
+      const sub = folder(String(b.sid || '기타').replace(/[^0-9-]/g, ''), folder(FOLDER, DriveApp.getRootFolder()));
+      const name = String(b.sid) + '_' + String(b.name || b.pid).replace(/[\\/:*?"<>|]/g, '') + '.jpg';
+      const old = sub.getFilesByName(name); while (old.hasNext()) old.next().setTrashed(true);
+      const f = sub.createFile(Utilities.newBlob(bytes, m[1], name));
+      f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      return out({ ok: true, id: f.getId(), url: f.getUrl() });
+    }
+    if (b.action === 'ping') return out({ ok: true });
+    return out({ ok: false, error: '알 수 없는 요청' });
+  } catch (err) { return out({ ok: false, error: String(err) }) }
+}
+function doGet() { return out({ ok: true, app: 'wd-receipts' }) }
+function folder(n, parent) { const it = parent.getFoldersByName(n); return it.hasNext() ? it.next() : parent.createFolder(n) }
+function out(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON) }` }
+function rcptCard() { if (!S.admin) return ''; const c = rcptCfg(); const on = rcptOn(); const left = S.rcptLeft;
+  return `<h2>물당 영수증 저장${ib('영수증 사진을 Firebase 대신 운영진 구글 드라이브의 “WD_FUTSAL 영수증” 폴더에 경기별로 저장해요. Firebase 용량을 쓰지 않아요.')}</h2><div class="panel pad sheetcard">
+    <div class="sc-row"><span>저장 위치</span><b>${on ? '☁️ 구글 드라이브' : '⚠️ Firebase (드라이브 연결 전)'}</b>${on ? '<button class="btn sm" data-act="rcptping">연결 확인</button>' : ''}</div>
+    <div class="sc-row"><span>업로드 주소</span><b class="url">${c.exec ? esc(c.exec.replace(/^https:\/\//, '').replace(/(.{30}).+(.{10})$/, '$1…$2')) : '<em>없음</em>'}</b><button class="btn sm" data-act="rcptsetup">${c.exec ? '다시 설정' : '연결하기'}</button></div>
+    ${on ? `<div class="sc-row"><span>예전 영수증</span><b>${left == null ? '<em>확인 전</em>' : left ? `Firebase에 ${left}장` : '모두 드라이브로 옮겼어요'}</b><button class="btn sm" data-act="rcptmigrate" ${left === 0 || S.rcptBusy ? 'disabled' : ''}>${S.rcptBusy ? esc(S.rcptBusy) : left == null ? '확인' : '드라이브로 옮기기'}</button></div>` : ''}</div>` }
+function rcptSetupSheet() { const tok = S.rcptTok || (S.rcptTok = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6));
+  return `<h4>☁️ 영수증을 구글 드라이브에 저장하기</h4><ol class="rs-steps">
+    <li><a href="https://script.google.com/home/projects/create" target="_blank" rel="noopener"><b>script.google.com</b></a>에서 <b>새 프로젝트</b>를 만들어요 (운영진 구글 계정).</li>
+    <li>아래 <b>코드 복사</b>를 눌러 편집기 내용을 지우고 붙여 넣은 뒤 저장해요.</li>
+    <li><b>배포 → 새 배포 → 웹 앱</b> · 실행: <b>나</b> · 액세스: <b>모든 사용자</b> → 배포 → 권한 허용.</li>
+    <li>나온 <b>웹 앱 URL</b>(…/exec)을 아래에 붙여 넣고 저장해요.</li></ol>
+    <button class="btn block" data-act="rcptcopy">📋 코드 복사</button>
+    <div class="field" style="margin-top:12px"><label for="rc-url">웹 앱 URL</label><input id="rc-url" class="inp" type="url" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(rcptCfg().exec || '')}"></div>
+    <button class="btn primary block" data-act="rcptsave">저장하고 연결 확인</button>` }
 function sheetCard() { if (!S.admin) return ''; const k = sheetKey(); const st = S.sheetPing; const ex = sheetUrl(), vw = sheetView(); const short = u => u ? esc(u.replace(/^https:\/\//, '').replace(/(.{34}).+(.{10})$/, '$1…$2')) : '<em>없음</em>';
   return `<h2>기록 시트 연동${ib(`경기 기록은 구글 시트에, 실시간 데이터는 Firebase에`)}</h2><div class="panel pad sheetcard">
     <div class="sc-row"><span>시트 원본</span><b class="url">${vw ? short(vw) : '<em>주소 없음</em>'}</b><span class="sc-btns">${sheetLink()}<button class="btn sm" data-act="sheeturl" data-f="view">${vw ? '수정' : '입력'}</button></span></div>
@@ -1664,7 +1711,7 @@ function viewSettings() { const TABS = [['me', '내 정보'], ['ops', '운영'],
   const sx = k => S.admin && k !== cur ? 'hidden' : ''; // 운영모드: 설정을 탭으로 나눠 한 번에 하나씩 보여요
   return `${S.admin ? subnav(TABS, cur, 'setv') : ''}<div class="setwrap ${S.admin ? 'tabbed' : ''}"><div class="setsec" ${sx('me')}><h2>내 정보${ib(`이름 + 비밀번호 4자리로 로그인해요`)}</h2>${loginCard()}${S.auth ? `<h2>내 시즌 기록</h2>${mySeason()}` : ''}
   </div><div class="setsec" ${sx('me')}>${S.auth && !S.admin ? `<h2>알림</h2>${notiCard()}` : ''}
-  </div><div class="setsec" ${sx('sync')}>${sheetCard()}
+  </div><div class="setsec" ${sx('sync')}>${sheetCard()}${rcptCard()}
   </div><div class="setsec" ${sx('me')}><h2>휘슬</h2><div class="panel pad"><button class="btn block" data-act="whistle">${S.whistle ? '🔊 이 폰에서 휘슬 켜짐' : '🔇 이 폰에서 휘슬 꺼짐'}</button>${ibm(`웹에서는 휘슬이 울리려면 경기 화면을 켜 두어야 해요.`)}</div>
     </div><div class="setsec" ${sx('ops')}>${S.admin ? `<h2>서비스 상태</h2><div class="panel pad"><div class="betarow"><div><b>${betaOn() ? '🧪 베타테스트 중' : '✅ 정식 서비스'}</b>${ib(betaOn() ? '운영진이 신청자 순번을 바꿀 수 있어요(카톡 투표 결과 반영용).' : '신청 순번은 서버 도착 시각으로만 정해지고, 바꿀 수 없어요.')}</div><button class="btn ${betaOn() ? 'primary' : ''}" data-act="betatoggle">${betaOn() ? '정식 오픈하기' : '베타로 되돌리기'}</button></div></div>` : ''}
     </div><div class="setsec" ${sx('ops')}>${S.admin ? `<h2>운영비 정산 규칙</h2><div class="panel pad stl-cfg">${(() => { const cf = stlCfg(); return STL_CFG.map(([k, l, d]) => `<label class="stl-f"><span><b>${l}</b>${ib(d)}</span><span class="stl-m"><input class="inp" inputmode="numeric" data-in="stlcfg" data-k="${k}" value="${(+cf[k] || 0).toLocaleString('ko-KR')}" aria-label="${l}"><em>원</em></span></label>`).join('') + [['bank', '입금 은행', '예: 카카오뱅크'], ['acct', '계좌번호', '예: 3333-01-1234567'], ['holder', '예금주', '예: 박종현']].map(([k, l, ph]) => `<label class="stl-f"><span><b>${l}</b>${k === 'bank' ? ib('정산 공지 이미지와 안내문에 나와요') : ''}</span><input class="inp stl-t" type="text" data-in="stlcfgt" data-k="${k}" value="${esc(cf[k] || '')}" placeholder="${ph}" aria-label="${l}"></label>`).join('') + `<div class="stl-f"><span><b>벌금 쓰임</b><small>보태면 구장 사용료에서 먼저 빼고 나눠요</small></span><span class="stl-seg" role="group">${[[true, '운영비에 보태기'], [false, '회비로 적립']].map(([v, t]) => `<button class="${!!cf.penUse === v ? 'on' : ''}" data-act="stlpen" data-v="${v ? 1 : 0}" aria-pressed="${!!cf.penUse === v}">${t}</button>`).join('')}</span></div><p class="note" style="margin-bottom:0">예) ${[13180, 13260].map(x => `${wn(x)} → ${wn(stlRound(x, +cf.unit || 0, +cf.cut || 0))}`).join(' · ')}</p>` })()}</div>` : ''}
@@ -3519,6 +3566,16 @@ document.addEventListener('click', async e => {
     case 'substout': S.subst = { ...(S.subst || {}), out: id }; render(); break;
     case 'substmode': S.subst = { ...(S.subst || {}), mode: el.dataset.v }; render(); break;
     case 'substdo': if (!needAdmin()) break; await substDo(); break;
+    case 'rcptsetup': if (!needAdmin()) break; S.rcptTok = rcptCfg().token || null; S.sheet = { type: 'rcptsetup' }; render(); break;
+    case 'rcptcopy': { const code = rcptScript(S.rcptTok); try { await navigator.clipboard.writeText(code); toast('코드를 복사했어요. Apps Script 편집기에 붙여 넣으세요.') } catch { prompt('아래 코드를 복사하세요', code) } break }
+    case 'rcptsave': { if (!needAdmin()) break; const u = (document.getElementById('rc-url')?.value || '').trim(); if (!/^https:\/\/script\.google\.com\/.+\/exec(\?.*)?$/.test(u)) { toast('웹 앱 주소는 https://script.google.com/…/exec 형식이어야 해요.'); break }
+      const cfg = { exec: u, token: S.rcptTok, at: Date.now() }; try { const r = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'ping', token: cfg.token }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error || '응답 오류') } catch (e) { toast('연결을 확인하지 못했어요: ' + e.message + ' (코드·배포 설정을 확인해 주세요)'); break }
+      if (await w(() => S.store.set('meta/receipt', cfg), '드라이브 연결 완료! 이제 영수증은 구글 드라이브에 저장돼요.')) { S.meta = { ...(S.meta || {}), receipt: cfg }; S.sheet = null; render() } break }
+    case 'rcptping': try { const r = await fetch(rcptCfg().exec, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'ping', token: rcptCfg().token }) }); const j = await r.json(); toast(j.ok ? '✅ 드라이브와 잘 연결돼 있어요.' : '연결 오류: ' + j.error) } catch (e) { toast('연결 오류: ' + e.message) } break;
+    case 'rcptmigrate': { if (!needAdmin() || !rcptOn()) break; let docs = []; try { docs = (await S.store.query('receipts', [])) || [] } catch (e) { toast('예전 영수증을 읽지 못했어요.'); break } S.rcptLeft = docs.length; if (!docs.length) { render(); break }
+      if (S.rcptLeft != null && el.textContent.includes('확인')) { render(); break } if (!confirm(`Firebase에 있는 영수증 ${docs.length}장을 구글 드라이브로 옮기고 Firebase에서는 지울까요?`)) { render(); break }
+      let n = 0; for (const d of docs) { S.rcptBusy = `옮기는 중 ${n}/${docs.length}`; render(); try { const sid = d.session, pid = d.pid; if (!sid || !pid || !d.img) continue; const up = await rcptUpload(sid, pid, d.img); await S.store.update(sp(sid), { [`drinkBuy.${pid}.drive`]: up.id, [`drinkBuy.${pid}.img`]: true }); await S.store.del(`receipts/${d.id}`); n++ } catch (e) { console.warn('rcpt move', e) } }
+      S.rcptBusy = null; S.rcptLeft = docs.length - n; toast(`영수증 ${n}장을 드라이브로 옮겼어요.`); render(); break }
     case 'addone': { const inp = document.getElementById('addone'); const v = inp.value.trim(); if (!v) break; inp.value = ''; inp.blur(); document.activeElement?.blur?.(); await addApplicants(v.split(/[,，\n]+/).map(x => x.trim()).filter(Boolean)); break }
     case 'capslot': S.sheet = { type: 'capslot', k: el.dataset.k }; render(); break;
     case 'pickcap': { const k = S.sheet.k; S.sheet = null; render(); await w(() => S.store.update(sp(S.sid), { [`captains.${k}`]: id || null, [`captainTokens.${k}`]: id ? rand() : null })); break }
@@ -3665,9 +3722,9 @@ document.addEventListener('click', async e => {
     case 'stlpen': { if (!needAdmin()) break; S.meta = S.meta || {}; S.meta.settle = { ...stlCfg(), penUse: el.dataset.v === '1' }; await w(() => S.store.set('meta/settle', S.meta.settle), '정산 규칙을 저장했어요.'); break }
     case 'dbopen': S.dbDraft = null; S.sheet = { type: 'drinkbuy', sid: id }; render(); break;
     case 'dbsave': { const me = myPid(); if (!me) { toast('로그인 후 등록할 수 있어요.'); break } const amt = Math.max(0, parseInt(String(document.getElementById('db-amt')?.value || '').replace(/[^\d]/g, ''), 10) || 0); if (!amt) { toast('구입 금액을 넣어 주세요.'); break }
-      const ss = S.sessions[id]; const old = ss?.drinkBuy?.[me] || {}; const img = S.dbDraft?.img; const ok = await w(async () => { if (img) await S.store.set(`receipts/${id}_${me}`, { session: id, pid: me, img, at: Date.now() }); await S.store.update(sp(id), { [`drinkBuy.${me}`]: { amt, at: Date.now(), by: me, img: !!(img || old.img) } }) }, '구입 금액을 등록했어요. 정산 때 낼 금액에서 빼 줘요.');
+      const ss = S.sessions[id]; const old = ss?.drinkBuy?.[me] || {}; const img = S.dbDraft?.img; const ok = await w(async () => { let drive = old.drive || ''; if (img) { if (rcptOn()) { toast('영수증을 드라이브에 올리는 중이에요…'); drive = (await rcptUpload(id, me, img)).id } else await S.store.set(`receipts/${id}_${me}`, { session: id, pid: me, img, at: Date.now() }) } await S.store.update(sp(id), { [`drinkBuy.${me}`]: { amt, at: Date.now(), by: me, img: !!(img || old.img), ...(drive ? { drive } : {}) } }) }, '구입 금액을 등록했어요. 정산 때 낼 금액에서 빼 줘요.');
       if (ok) { S.dbDraft = null; S.sheet = null; render() } break }
-    case 'rcptview': { const pid = el.dataset.p; S.sheet = { type: 'rcpt', sid: id, pid, img: null }; render(); try { const d = await S.store.get(`receipts/${id}_${pid}`); if (S.sheet?.type === 'rcpt') { S.sheet.img = d?.img || ''; render() } } catch { toast('영수증을 불러오지 못했어요.') } break }
+    case 'rcptview': { const pid = el.dataset.p; const dv = S.sessions[id]?.drinkBuy?.[pid]?.drive; if (dv) { S.sheet = { type: 'rcpt', sid: id, pid, img: rcptThumb(dv), drive: dv }; render(); break } S.sheet = { type: 'rcpt', sid: id, pid, img: null }; render(); try { const d = await S.store.get(`receipts/${id}_${pid}`); if (S.sheet?.type === 'rcpt') { S.sheet.img = d?.img || ''; render() } } catch { toast('영수증을 불러오지 못했어요.') } break }
     case 'flowgo': S.tab = 'run'; S.step = el.dataset.v; S.sel = null; render(); window.scrollTo(0, 0); break;
     case 'vwtog': S.vwOpen = !S.vwOpen; setTimeout(render, 0); break;
     case 'flowsheet': S.sheet = { type: 'flow' }; render(); break;

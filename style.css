@@ -1718,3 +1718,6 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .verbox span{white-space:nowrap}
 @media (max-width:600px){.verbox{flex-direction:column;align-items:stretch;gap:10px}.verbox .verbtns{display:grid;grid-template-columns:1fr 1fr;gap:6px}.verbox .verbtns .btn{width:100%}.verbox .verbtns .btn:only-child{grid-column:1/-1}}
 :root{--cssv:"0.4.33"}
+
+.rs-steps{margin:0 0 14px;padding-left:20px;line-height:1.6}.rs-steps li{margin:4px 0}
+:root{--cssv:"0.4.34"}
