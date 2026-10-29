@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.30';
+const APP_VERSION = '0.4.31';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1364,6 +1364,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.31','2026.10.29',['경기 신청 카드 아래에 “📋 신청 현황 보기 (17 / 18명)” 버튼 추가 — 신청한 뒤에도 바로 신청자 명단을 볼 수 있어요']],
   ['0.4.30','2026.10.29',['[운영진] 출석 현황 공개 설정: 회원 → 출석 관리 맨 위 스위치로 회원에게 출석 순위를 공개하거나 숨겨요','비공개로 하면 회원은 기록실 → 출석 현황에서 자기 출석 기록만 보고, 다른 회원의 기록은 보이지 않아요']],
   ['0.4.29','2026.10.29',['설치 가이드(install.html)에 “설치 후” 장 추가: 로그인 · 알림 켜기 · 경기 신청(카운트다운→정각 버튼) · 업데이트, 도움말에 알림·새 기능 안내 추가','내 정보의 “알림 켜기” 버튼이 두 줄로 꺾이던 것 수정']],
   ['0.4.28','2026.10.29',['신청이 열리는 순간 버튼 위치가 움직이지 않게: “13:00에 열려요” 자리에 그대로 “경기 신청하기” 버튼이 같은 크기로 나타나요']],
@@ -1727,7 +1728,7 @@ function viewMHome() {
   const sid = nextSid(); let h = ''; const fit = S.dm; let dock = '';
   const rvDown0 = fit && !!sid && S.sessions[sid]?.draftStatus !== 'done' && (applyState(S.sessions[sid]).k !== 'none' || ['open', 'soon'].includes(sStatus(S.sessions[sid]).k)); const dd = myDrinkDue();
   const na = nextApplySid(sid); let naCard = '', naTop = false;
-  if (na) { const s2 = S.sessions[na]; const [, m2, d2] = na.split('-'); const k2 = sStatus(s2).k; naCard = `<div class="nxapply"><div class="nxa-hd"><span class="st st-${k2}">${sStatus(s2).label}</span><b>${+m2}.${+d2} (${dow(na)}) ${esc(s2.time || '')} 경기 신청</b><small>${s2.no ? s2.no + '회 · ' : ''}${esc(venueTxt(s2) || '')}</small></div>${applyBox(s2, fit)}</div>`;
+  if (na) { const s2 = S.sessions[na]; const [, m2, d2] = na.split('-'); const k2 = sStatus(s2).k; naCard = `<div class="nxapply"><div class="nxa-hd"><span class="st st-${k2}">${sStatus(s2).label}</span><b>${+m2}.${+d2} (${dow(na)}) ${esc(s2.time || '')} 경기 신청</b><small>${s2.no ? s2.no + '회 · ' : ''}${esc(venueTxt(s2) || '')}</small></div>${applyBox(s2, fit)}${k2 === 'open' ? `<button class="nxa-list" data-act="applist" data-id="${na}"><span>📋 신청 현황 보기</span><em>${appTotal(s2)}${s2.capacity ? ' / ' + s2.capacity : ''}명 ›</em></button>` : ''}</div>`;
     naTop = true } // 경기 신청 카드는 항상 홈 맨 위 (신청 예정·신청 중인 경기)
   h += `${fit ? `<div class="homefit${rvDown0 || dd || nextApplySid(sid) ? ' hf-scroll' : ''}">` : ''}${naTop ? `<div class="nxtop"><div class="sec-lab"><span>NEXT APPLY</span></div>${naCard}</div>` : ''}<div class="dgrid homegrid"><section>`;
   { if (dd) h += `<button class="dbnudge" data-act="dbopen" data-id="${dd}">🥤 <span><b>${fmtDate(dd)} 물당 구입 금액을 등록해 주세요</b></span><em>등록 ›</em></button>` }

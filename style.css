@@ -1704,3 +1704,7 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .tgl.on{background:var(--accent)}.tgl.on i{transform:translateX(22px);background:#0B0D10}
 .att-priv{margin:12px 0 0;padding:12px 14px;border-radius:12px;background:var(--surface);border:1px dashed var(--line);font-size:13.5px;color:var(--muted);text-align:center}
 :root{--cssv:"0.4.30"}
+.nxa-list{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;min-height:48px;padding:0 16px;border-radius:14px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:15px;font-weight:800;cursor:pointer}
+.nxa-list em{font-style:normal;color:var(--accent);font-family:var(--latin);font-size:16px}
+@media (hover:hover){.nxa-list:hover{border-color:var(--accent)}}
+:root{--cssv:"0.4.31"}

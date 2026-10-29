@@ -1704,5 +1704,9 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .tgl.on{background:var(--accent)}.tgl.on i{transform:translateX(22px);background:#0B0D10}
 .att-priv{margin:12px 0 0;padding:12px 14px;border-radius:12px;background:var(--surface);border:1px dashed var(--line);font-size:13.5px;color:var(--muted);text-align:center}
 :root{--cssv:"0.4.30"}
+.nxa-list{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;min-height:48px;padding:0 16px;border-radius:14px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:15px;font-weight:800;cursor:pointer}
+.nxa-list em{font-style:normal;color:var(--accent);font-family:var(--latin);font-size:16px}
+@media (hover:hover){.nxa-list:hover{border-color:var(--accent)}}
+:root{--cssv:"0.4.31"}
 
 #simbar{position:sticky;top:0;z-index:50;background:#FFD21F;color:#1A1400;font:800 12.5px/1.3 var(--body);padding:6px 10px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;justify-content:center}#simbar label{display:flex;gap:6px;align-items:center}#simbar select{font:700 12.5px var(--body);padding:3px 6px;border-radius:6px;border:1px solid #8a7300;background:#fff8d0;color:#1A1400;max-width:62vw}
