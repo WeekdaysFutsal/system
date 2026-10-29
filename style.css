@@ -1806,3 +1806,4 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 :root{--cssv:"0.4.41"}
 :root{--cssv:"0.4.42"}
 :root{--cssv:"0.4.43"}
+:root{--cssv:"0.4.44"}
