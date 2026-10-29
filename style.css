@@ -1682,3 +1682,5 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 :root{--cssv:"0.4.24"}
 :root{--cssv:"0.4.25"}
 :root{--cssv:"0.4.26"}
+.apbig .apday{font-size:clamp(30px,8vw,44px)!important}
+:root{--cssv:"0.4.27"}

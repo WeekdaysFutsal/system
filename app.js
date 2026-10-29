@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.26';
+const APP_VERSION = '0.4.27';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1363,6 +1363,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.27','2026.10.29',['경기 신청 카드의 카운트다운은 신청 오픈 당일(0시부터)에만 보여요. 그 전에는 오픈 날짜·시각을 크게 보여줘요']],
   ['0.4.26','2026.10.29',['경기 신청 카드를 항상 홈 맨 위에: 신청 예정(카운트다운)·신청 중인 경기가 있으면 언제나 첫 화면 맨 위에 나와요 (아래 경기 정보와 중복 표시 없음)','정각 열림 이중 안전장치: 서버 시계 기준 예약 + 매초 확인으로, 폰이 잠들었다 깨어나도 바로 신청 버튼으로 바뀌어요']],
   ['0.4.25','2026.10.29',['다음 경기 신청을 오늘 경기보다 우선: 신청 오픈 24시간 전부터 홈 맨 위에 “NEXT APPLY” 카드가 고정돼요 (신청을 마치고 1시간이 지나면 오늘 경기 아래로)','경기 당일에는 오늘 경기 칸 제목이 TODAY MATCH로 보여요']],
   ['0.4.24','2026.10.29',['경기 당일에도 다음 경기 신청을 홈에서 바로: 다음 경기 신청이 1시간 안에 열리거나 신청 중이면 홈 맨 위에 “NEXT APPLY” 카드(카운트다운 → 신청 버튼 → 내 순번)가 나와요','신청 오픈 카운트다운이 1초 일찍 00:00:00이 되던 것을 바로잡음','시뮬레이션: sim/open.html에서 12:59:50부터 13:00 신청 오픈 장면을 볼 수 있어요']],
@@ -2400,7 +2401,7 @@ function cdTxt(ms) { if (!(ms > 0)) return '00:00:00'; const s = Math.ceil(ms / 
 function applyBox(s, compact) {
   const st = sStatus(s); const a = applyState(s); const c = appCounts(s);
   const nameBtn = a.noname ? `<button class="btn sm primary" data-act="appname" data-id="${s.date}">이름 입력하기</button>` : '';
-  if (st.k === 'soon') { const om = new Date(s.applyOpen).getTime(); return `<div class="apbig soon"><small>신청 오픈까지</small><b class="apcd" data-cd="${om}">${cdTxt(om - nowS())}</b><span>${fmtDT(s.applyOpen)}${s.capacity ? ` · 정원 ${s.capacity}명` : ''}</span><button class="applybtn soonbtn" disabled>${(s.applyOpen || '').slice(11, 16)}에 열려요</button></div>` }
+  if (st.k === 'soon') { const om = new Date(s.applyOpen).getTime(); const od = new Date(om); const sameDay = od.toDateString() === new Date(nowS()).toDateString(); return `<div class="apbig soon">${sameDay ? `<small>신청 오픈까지</small><b class="apcd" data-cd="${om}">${cdTxt(om - nowS())}</b>` : `<small>신청 오픈</small><b class="apcd apday">${od.getMonth() + 1}.${od.getDate()} (${DOW[od.getDay()]}) ${p2(od.getHours())}:${p2(od.getMinutes())}</b>`}<span>${sameDay ? fmtDT(s.applyOpen) + (s.capacity ? ` · 정원 ${s.capacity}명` : '') : `당일 0시부터 카운트다운이 시작돼요${s.capacity ? ` · 정원 ${s.capacity}명` : ''}`}</span><button class="applybtn soonbtn" disabled>${sameDay ? '' : `${od.getMonth() + 1}.${od.getDate()} `}${(s.applyOpen || '').slice(11, 16)}에 열려요</button></div>` }
   if (a.k === 'in' && a.auto) return `<div class="applied"><span>✓ 자동 신청 · 0순위<small>${a.role}(으)로 자동 참가 신청돼 있어요. 빠지려면 운영진에게 ${a.role} 해제를 요청해 주세요.</small></span></div>${(() => { const x = parkBox(s) + dutyBox(s); return x ? `<div class="extras">${x}</div>` : '' })()}`;
   const canLate = !a.auto && st.k !== 'open' && (s.draftStatus || 'ready') === 'ready' && ['apply', 'captain'].includes(s.stage);
   if (a.k === 'in' && a.n && !a.noname) return `<div class="apbig done"><div class="apno"><b>${a.n}</b><small>번째</small></div><div class="apinfo2"><b>신청 완료${a.tier != null && isBase(s) ? ` · ${TIER[a.tier]}` : ''}</b><small>${st.k === 'open' ? '정원 안에 들어왔어요' : '이번 경기 참가자예요'}</small>${st.k === 'open' ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">신청 취소</button>` : canLate ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">참가 취소</button>` : ''}</div></div>${(() => { const x = parkBox(s) + dutyBox(s); return x ? `<div class="extras">${x}</div>` : '' })()}`;
@@ -3415,6 +3416,7 @@ document.addEventListener('compositionend', e => { if (e.target.id !== 'chatin')
 function tick() {
   const cache = {}; const ci = id => cache[id] || (cache[id] = S.matches[id] ? clockInfo(M(id)) : null);
   document.querySelectorAll('[data-clock],[data-bigclock]').forEach(el => { const id = el.dataset.clock || el.dataset.bigclock; const c = ci(id); if (!c) return; if (el.textContent !== c.time) el.textContent = c.time; if (el.dataset.bigclock) { el.classList.toggle('over', !!c.over); el.classList.toggle('gk', c.phase === 'gk' || c.phase === 'rest') } });
+  { const dd0 = new Date(nowS()).toDateString(); if (S.cdDay && S.cdDay !== dd0 && document.querySelector('.apday')) { S.cdDay = dd0; render() } S.cdDay = dd0 } // 날짜가 바뀌면(신청 당일 0시) 카운트다운으로 바꿔요
   { let due = false; document.querySelectorAll('[data-cd]').forEach(el => { const left = +el.dataset.cd - nowS(); const v = cdTxt(left); if (el.textContent !== v) el.textContent = v; if (left <= 0 && el.closest('.apbig.soon')) due = true }); if (due && Date.now() - (S.cdFlip || 0) > 400) { S.cdFlip = Date.now(); render() } } // 정각이 지났는데 아직 ‘열려요’면 바로 다시 그려요 (백그라운드 타이머 지연 대비)
   document.querySelectorAll('[data-phase]').forEach(el => { const c = ci(el.dataset.phase); if (c && el.textContent !== c.label) el.textContent = c.label });
   document.querySelectorAll('[data-seg]').forEach(el => { const [id, i] = el.dataset.seg.split(':'); const c = ci(id); if (!c) return; const r = [[0, c.a], [c.a, c.b], [c.b, c.c]][+i]; el.style.width = Math.max(0, Math.min(1, (Math.min(c.e, c.c) - r[0]) / (r[1] - r[0] || 1))) * 100 + '%' });
