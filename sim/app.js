@@ -1722,7 +1722,11 @@ function ytParse(title) { let t = String(title).replace(/\[[^\]]*\]/g, ' ').repl
   const cols = YT_COL.map(([k, re]) => { const m = t.match(re); return m ? [k, m.index] : null }).filter(Boolean).sort((p, q) => p[1] - q[1]).map(p => p[0]);
   return { r, g, n, pair: cols.length === 2 ? cols : null } }
 // 경기일의 재생목록과 경기별 영상 { pl: 재생목록 id, v: { matchId: videoId } }
-function ytFor(s) { const sid = s?.date; if (!sid) return null; const L = (ytCfg().lists || []).filter(l => l.d === sid); if (!L.length) return null;
+// 운영진이 유튜브 연결(지금 찾기) 전에도 보이도록 넣어 둔 기본 재생목록 (연결 후에는 자동으로 읽은 목록을 써요)
+const YT_SEED = [
+  { id: 'PLLE7B0AjPR9k', d: '2026-10-21', t: '[Weekdays Futsal] 2026년 10월 21일(수)', v: [['j6j_hcIBlO8', 'Round 01 Game 01 / Blue vs. Red'], ['VNR9lnPsIVQ', 'Round 01 Game 02 / Red vs. Black'], ['VPURB_85BIY', 'Round 01 Game 03 / Black vs. Blue'], ['CKoIQChyxpw', 'Round 02 Game 01 / Blue vs. Red'], ['5CJXfvDIVWM', 'Round 02 Game 02 / Red vs. Black'], ['HGq-1M1RKtk', 'Round 02 Game 03 / Blue vs. Black'], ['rQF-wlrxm-s', 'Round 03 Game 01 / Red vs. Blue'], ['_NgxH_fFyHg', 'Round 03 Game 02 / Red vs. Black'], ['_N9StffUzx4', 'Round 03 Game 03 / Black vs. Blue']] },
+  { id: 'PLcymveartwmU', d: '2026-09-29', t: '[Weekdays Futsal] 2026년 9월 29일', v: [['vepgmSfr9fU', 'Game 01-02 / 🔵:⚫'], ['urbG7BCZUMI', 'Game 01-03 / ⚪:🔵'], ['A9q3kiCyN2w', 'Game 02-01 / ⚪:⚫'], ['RrnIUNTlv9k', 'Game 02-02 / 🔵:⚫'], ['0aFt46M2ISg', 'Game 02-03 / ⚪:🔵'], ['xYANr16GU00', 'Game 03-01 / ⚫:⚪'], ['fU90G8hwJz8', 'Game 03-02 / ⚫:🔵'], ['ZrZaBpPtjeM', 'Game 03-03 / ⚪:🔵']] }];
+function ytFor(s) { const sid = s?.date; if (!sid) return null; const L = (ytCfg().lists?.length ? ytCfg().lists : YT_SEED).filter(l => l.d === sid); if (!L.length) return null;
   const ms = sessMatches(sid); const out = {}; const used = new Set(); const nm = k => String(team(s, k).name || '').toUpperCase();
   const same = (m, pair) => { const a = [nm(m.home), nm(m.away)].sort().join('|'); return a === [...pair].sort().join('|') };
   const per = Math.max(1, ...ms.map(m => +m.slot || 0)); const rd = m => +m.round || Math.ceil(m.n / per); const sl = m => +m.slot || ((m.n - 1) % per) + 1;

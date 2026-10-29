@@ -1756,3 +1756,4 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .yt-ph{width:32px;height:32px}
 @media (max-width:420px){.grow-b{grid-template-columns:64px minmax(0,1fr) auto minmax(0,1fr);gap:6px;padding-left:10px}.grow .gno{font-size:14px}.grow .gtm b{font-size:12.5px}.grow .gs{min-width:56px}.grow .gs b{font-size:20px}.grow{gap:6px;padding-right:8px}}
 :root{--cssv:"0.4.35"}
+:root{--cssv:"0.4.36"}

@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.35';
+const APP_VERSION = '0.4.36';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1365,6 +1365,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.36','2026.10.29',['10월 21일·9월 29일 경기 영상을 미리 넣어 둬서 유튜브 연결 전에도 ▶ 버튼이 보여요']],
   ['0.4.35','2026.10.29',['경기 결과 순서를 팀 순위 → 경기별 결과 → 팀 구성으로, 경기별 결과는 왼쪽 게임 번호 · 가운데 점수 · 오른쪽 끝 ▶ 유튜브 버튼 한 줄로 정리','경기 결과에 유튜브 경기 영상 연결: 재생목록 날짜로 경기를, 영상 제목의 라운드·게임 번호와 두 팀 색으로 게임을 맞춰 ▶ 버튼 표시 (맞는 영상만)','휴대폰은 유튜브 앱, PC는 유튜브 사이트에서 열려요 · 경기 상세 화면에도 영상보기 버튼','[운영진] 설정 → 기록 시트 → 경기 영상: 채널·키워드 설정, 지금 찾기 (3시간마다 자동)']],
   ['0.4.34','2026.10.29',['물당 영수증을 Firebase 대신 운영진 구글 드라이브(WD_FUTSAL 영수증 폴더)에 저장 · 설정 → 기록 시트에서 연결','예전 영수증도 버튼 하나로 드라이브로 옮기고 Firebase에서는 삭제']],
   ['0.4.33','2026.10.29',['[운영진] 설정을 탭으로 정리: 내 정보 · 운영(서비스 상태·정산 규칙·운영모드 비밀번호) · 기록 시트 · 꾸미기(로딩 배경) · 연습·샘플','휴대폰에서 앱 버전 칸·비밀번호 입력칸·샘플 데이터 버튼이 꺾이거나 잘리던 것 정리']],
@@ -1715,7 +1716,11 @@ function ytParse(title) { let t = String(title).replace(/\[[^\]]*\]/g, ' ').repl
   const cols = YT_COL.map(([k, re]) => { const m = t.match(re); return m ? [k, m.index] : null }).filter(Boolean).sort((p, q) => p[1] - q[1]).map(p => p[0]);
   return { r, g, n, pair: cols.length === 2 ? cols : null } }
 // 경기일의 재생목록과 경기별 영상 { pl: 재생목록 id, v: { matchId: videoId } }
-function ytFor(s) { const sid = s?.date; if (!sid) return null; const L = (ytCfg().lists || []).filter(l => l.d === sid); if (!L.length) return null;
+// 운영진이 유튜브 연결(지금 찾기) 전에도 보이도록 넣어 둔 기본 재생목록 (연결 후에는 자동으로 읽은 목록을 써요)
+const YT_SEED = [
+  { id: 'PLLE7B0AjPR9k', d: '2026-10-21', t: '[Weekdays Futsal] 2026년 10월 21일(수)', v: [['j6j_hcIBlO8', 'Round 01 Game 01 / Blue vs. Red'], ['VNR9lnPsIVQ', 'Round 01 Game 02 / Red vs. Black'], ['VPURB_85BIY', 'Round 01 Game 03 / Black vs. Blue'], ['CKoIQChyxpw', 'Round 02 Game 01 / Blue vs. Red'], ['5CJXfvDIVWM', 'Round 02 Game 02 / Red vs. Black'], ['HGq-1M1RKtk', 'Round 02 Game 03 / Blue vs. Black'], ['rQF-wlrxm-s', 'Round 03 Game 01 / Red vs. Blue'], ['_NgxH_fFyHg', 'Round 03 Game 02 / Red vs. Black'], ['_N9StffUzx4', 'Round 03 Game 03 / Black vs. Blue']] },
+  { id: 'PLcymveartwmU', d: '2026-09-29', t: '[Weekdays Futsal] 2026년 9월 29일', v: [['vepgmSfr9fU', 'Game 01-02 / 🔵:⚫'], ['urbG7BCZUMI', 'Game 01-03 / ⚪:🔵'], ['A9q3kiCyN2w', 'Game 02-01 / ⚪:⚫'], ['RrnIUNTlv9k', 'Game 02-02 / 🔵:⚫'], ['0aFt46M2ISg', 'Game 02-03 / ⚪:🔵'], ['xYANr16GU00', 'Game 03-01 / ⚫:⚪'], ['fU90G8hwJz8', 'Game 03-02 / ⚫:🔵'], ['ZrZaBpPtjeM', 'Game 03-03 / ⚪:🔵']] }];
+function ytFor(s) { const sid = s?.date; if (!sid) return null; const L = (ytCfg().lists?.length ? ytCfg().lists : YT_SEED).filter(l => l.d === sid); if (!L.length) return null;
   const ms = sessMatches(sid); const out = {}; const used = new Set(); const nm = k => String(team(s, k).name || '').toUpperCase();
   const same = (m, pair) => { const a = [nm(m.home), nm(m.away)].sort().join('|'); return a === [...pair].sort().join('|') };
   const per = Math.max(1, ...ms.map(m => +m.slot || 0)); const rd = m => +m.round || Math.ceil(m.n / per); const sl = m => +m.slot || ((m.n - 1) % per) + 1;
