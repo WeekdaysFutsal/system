@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.32';
+const APP_VERSION = '0.4.33';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1364,6 +1364,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.33','2026.10.29',['[운영진] 설정을 탭으로 정리: 내 정보 · 운영(서비스 상태·정산 규칙·운영모드 비밀번호) · 기록 시트 · 꾸미기(로딩 배경) · 연습·샘플','휴대폰에서 앱 버전 칸·비밀번호 입력칸·샘플 데이터 버튼이 꺾이거나 잘리던 것 정리']],
   ['0.4.32','2026.10.29',['주차: 지난 경기 당첨자도 주차 신청을 할 수 있어요. 추첨 때 신청자가 자리보다 많으면 지난 경기 당첨자는 빠지고, 자리가 남을 때만 지난 당첨자끼리 사다리로 정해요','신청 완료 카드 안 오른쪽에 “신청 현황 17/18 보기” 버튼']],
   ['0.4.31','2026.10.29',['경기 신청 카드 아래에 “📋 신청 현황 보기 (17 / 18명)” 버튼 추가 — 신청한 뒤에도 바로 신청자 명단을 볼 수 있어요']],
   ['0.4.30','2026.10.29',['[운영진] 출석 현황 공개 설정: 회원 → 출석 관리 맨 위 스위치로 회원에게 출석 순위를 공개하거나 숨겨요','비공개로 하면 회원은 기록실 → 출석 현황에서 자기 출석 기록만 보고, 다른 회원의 기록은 보이지 않아요']],
@@ -1659,25 +1660,26 @@ function mySeason() { const me = myPid(); if (!me || !S.players[me]) return ''; 
   return `<div class="panel ms-card">${ring}<div class="ms-nums">${num(P.g || 0, '골')}${num(P.a || 0, '도움')}${num(P.wins || 0, '팀 우승', true)}</div></div>
   ${form.length ? `<div class="panel ms-form"><span>최근 ${form.length}경기 팀 순위</span><div>${form.map(x => `<i class="r${x.rk || 0}" title="${fmtDate(x.id)} ${x.rk || '-'}위">${x.rk || '-'}</i>`).join('')}</div></div>` : ''}
   ${G.length ? `<div class="panel tblwrap ms-tbl"><table><thead><tr><th class="l">날짜</th><th class="l">팀</th><th>순위</th><th>골</th><th>도움</th></tr></thead><tbody>${G.slice(0, 12).map(x => `<tr><td class="l num">${md(x.id)}</td><td class="l"><span class="teamcell">${bib(x.color)}${esc(x.name)}</span></td><td>${x.rk ? x.rk + '위' : '-'}</td><td><b>${x.g || '-'}</b></td><td>${x.a || '-'}</td></tr>`).join('')}</tbody></table></div>` : ''}` }
-function viewSettings() {
-  return `<div class="setwrap"><h2>내 정보${ib(`이름 + 비밀번호 4자리로 로그인해요`)}</h2>${loginCard()}${S.auth ? `<h2>내 시즌 기록</h2>${mySeason()}` : ''}
-  ${S.auth && !S.admin ? `<h2>알림</h2>${notiCard()}` : ''}
-  ${sheetCard()}
-  <h2>휘슬</h2><div class="panel pad"><button class="btn block" data-act="whistle">${S.whistle ? '🔊 이 폰에서 휘슬 켜짐' : '🔇 이 폰에서 휘슬 꺼짐'}</button>${ibm(`웹에서는 휘슬이 울리려면 경기 화면을 켜 두어야 해요.`)}</div>
-    ${S.admin ? `<h2>서비스 상태</h2><div class="panel pad"><div class="betarow"><div><b>${betaOn() ? '🧪 베타테스트 중' : '✅ 정식 서비스'}</b>${ib(betaOn() ? '운영진이 신청자 순번을 바꿀 수 있어요(카톡 투표 결과 반영용).' : '신청 순번은 서버 도착 시각으로만 정해지고, 바꿀 수 없어요.')}</div><button class="btn ${betaOn() ? 'primary' : ''}" data-act="betatoggle">${betaOn() ? '정식 오픈하기' : '베타로 되돌리기'}</button></div></div>` : ''}
-    ${S.admin ? `<h2>운영비 정산 규칙</h2><div class="panel pad stl-cfg">${(() => { const cf = stlCfg(); return STL_CFG.map(([k, l, d]) => `<label class="stl-f"><span><b>${l}</b>${ib(d)}</span><span class="stl-m"><input class="inp" inputmode="numeric" data-in="stlcfg" data-k="${k}" value="${(+cf[k] || 0).toLocaleString('ko-KR')}" aria-label="${l}"><em>원</em></span></label>`).join('') + [['bank', '입금 은행', '예: 카카오뱅크'], ['acct', '계좌번호', '예: 3333-01-1234567'], ['holder', '예금주', '예: 박종현']].map(([k, l, ph]) => `<label class="stl-f"><span><b>${l}</b>${k === 'bank' ? ib('정산 공지 이미지와 안내문에 나와요') : ''}</span><input class="inp stl-t" type="text" data-in="stlcfgt" data-k="${k}" value="${esc(cf[k] || '')}" placeholder="${ph}" aria-label="${l}"></label>`).join('') + `<div class="stl-f"><span><b>벌금 쓰임</b><small>보태면 구장 사용료에서 먼저 빼고 나눠요</small></span><span class="stl-seg" role="group">${[[true, '운영비에 보태기'], [false, '회비로 적립']].map(([v, t]) => `<button class="${!!cf.penUse === v ? 'on' : ''}" data-act="stlpen" data-v="${v ? 1 : 0}" aria-pressed="${!!cf.penUse === v}">${t}</button>`).join('')}</span></div><p class="note" style="margin-bottom:0">예) ${[13180, 13260].map(x => `${wn(x)} → ${wn(stlRound(x, +cf.unit || 0, +cf.cut || 0))}`).join(' · ')}</p>` })()}</div>` : ''}
-  ${S.admin ? (() => { const L = bootBgs(); const VG = 'linear-gradient(rgba(0,0,0,.62),rgba(0,0,0,.62))';
+function viewSettings() { const TABS = [['me', '내 정보'], ['ops', '운영'], ['sync', '기록 시트'], ['design', '꾸미기'], ['practice', '연습·샘플']]; const cur = TABS.some(x => x[0] === S.setv) ? S.setv : 'me';
+  const sx = k => S.admin && k !== cur ? 'hidden' : ''; // 운영모드: 설정을 탭으로 나눠 한 번에 하나씩 보여요
+  return `${S.admin ? subnav(TABS, cur, 'setv') : ''}<div class="setwrap ${S.admin ? 'tabbed' : ''}"><div class="setsec" ${sx('me')}><h2>내 정보${ib(`이름 + 비밀번호 4자리로 로그인해요`)}</h2>${loginCard()}${S.auth ? `<h2>내 시즌 기록</h2>${mySeason()}` : ''}
+  </div><div class="setsec" ${sx('me')}>${S.auth && !S.admin ? `<h2>알림</h2>${notiCard()}` : ''}
+  </div><div class="setsec" ${sx('sync')}>${sheetCard()}
+  </div><div class="setsec" ${sx('me')}><h2>휘슬</h2><div class="panel pad"><button class="btn block" data-act="whistle">${S.whistle ? '🔊 이 폰에서 휘슬 켜짐' : '🔇 이 폰에서 휘슬 꺼짐'}</button>${ibm(`웹에서는 휘슬이 울리려면 경기 화면을 켜 두어야 해요.`)}</div>
+    </div><div class="setsec" ${sx('ops')}>${S.admin ? `<h2>서비스 상태</h2><div class="panel pad"><div class="betarow"><div><b>${betaOn() ? '🧪 베타테스트 중' : '✅ 정식 서비스'}</b>${ib(betaOn() ? '운영진이 신청자 순번을 바꿀 수 있어요(카톡 투표 결과 반영용).' : '신청 순번은 서버 도착 시각으로만 정해지고, 바꿀 수 없어요.')}</div><button class="btn ${betaOn() ? 'primary' : ''}" data-act="betatoggle">${betaOn() ? '정식 오픈하기' : '베타로 되돌리기'}</button></div></div>` : ''}
+    </div><div class="setsec" ${sx('ops')}>${S.admin ? `<h2>운영비 정산 규칙</h2><div class="panel pad stl-cfg">${(() => { const cf = stlCfg(); return STL_CFG.map(([k, l, d]) => `<label class="stl-f"><span><b>${l}</b>${ib(d)}</span><span class="stl-m"><input class="inp" inputmode="numeric" data-in="stlcfg" data-k="${k}" value="${(+cf[k] || 0).toLocaleString('ko-KR')}" aria-label="${l}"><em>원</em></span></label>`).join('') + [['bank', '입금 은행', '예: 카카오뱅크'], ['acct', '계좌번호', '예: 3333-01-1234567'], ['holder', '예금주', '예: 박종현']].map(([k, l, ph]) => `<label class="stl-f"><span><b>${l}</b>${k === 'bank' ? ib('정산 공지 이미지와 안내문에 나와요') : ''}</span><input class="inp stl-t" type="text" data-in="stlcfgt" data-k="${k}" value="${esc(cf[k] || '')}" placeholder="${ph}" aria-label="${l}"></label>`).join('') + `<div class="stl-f"><span><b>벌금 쓰임</b><small>보태면 구장 사용료에서 먼저 빼고 나눠요</small></span><span class="stl-seg" role="group">${[[true, '운영비에 보태기'], [false, '회비로 적립']].map(([v, t]) => `<button class="${!!cf.penUse === v ? 'on' : ''}" data-act="stlpen" data-v="${v ? 1 : 0}" aria-pressed="${!!cf.penUse === v}">${t}</button>`).join('')}</span></div><p class="note" style="margin-bottom:0">예) ${[13180, 13260].map(x => `${wn(x)} → ${wn(stlRound(x, +cf.unit || 0, +cf.cut || 0))}`).join(' · ')}</p>` })()}</div>` : ''}
+  </div><div class="setsec" ${sx('design')}>${S.admin ? (() => { const L = bootBgs(); const VG = 'linear-gradient(rgba(0,0,0,.62),rgba(0,0,0,.62))';
     return `<h2>로딩 화면 배경${ib(`최대 5장 · 앱을 열 때마다 무작위로 보여요`)}</h2><div class="panel pad"><div class="bggrid">${Array.from({ length: 5 }, (_, i) => { const x = L[i];
       return x ? `<div class="bgslot" style="background-image:${VG},url('${x.img}')"><img src="${EMBLEM_SRC}" alt=""><button class="bgdel" data-act="bootbgdel" data-k="${x.id}" aria-label="${i + 1}번 배경 지우기">✕</button></div>` : `<label class="bgslot empty" style="cursor:pointer">＋<input type="file" accept="image/*" multiple data-in="bootbg" hidden></label>` }).join('')}</div>
     <p class="note" style="margin:8px 0 0">${L.length}/5장${ibm(`사진 속 주인공이 가운데 엠블럼에 가리지 않게 크기와 위치를 자동으로 맞추고, 전체를 어둡게 처리해요. 여러 장을 한 번에 골라도 돼요.`)}</p></div>` })() : ''}
-  ${S.admin ? `<h2>운영모드 비밀번호</h2><div class="panel pad"><div class="pinrow"><input id="apc-cur" class="inp pin" type="text" inputmode="numeric" maxlength="8" placeholder="현재"><input id="apc-new" class="inp pin" type="text" inputmode="numeric" maxlength="8" placeholder="새 번호"><input id="apc-new2" class="inp pin" type="text" inputmode="numeric" maxlength="8" placeholder="새 번호 확인"></div><button class="btn block" style="margin-top:8px" data-act="adminpinchange">비밀번호 변경</button>${ibm(`숫자 4~8자리. 바꾸면 모든 운영진이 새 번호로 들어와요.`)}</div>` : ''}
-  ${S.admin ? `<h2>시뮬레이션(연습 데이터)${ib(`가상 경기를 만들어 미리 해 보고 지워요`)}</h2><div class="panel pad">${ibm(`실제 회원 명단으로 원하는 단계의 가상 경기를 만들어요. 만든 뒤 바로 그 단계 화면으로 이동해요. 실제 경기와 회원 정보는 건드리지 않아요.`)}
+  </div><div class="setsec" ${sx('ops')}>${S.admin ? `<h2>운영모드 비밀번호</h2><div class="panel pad"><div class="pinrow"><input id="apc-cur" class="inp pin" type="text" inputmode="numeric" maxlength="8" placeholder="현재"><input id="apc-new" class="inp pin" type="text" inputmode="numeric" maxlength="8" placeholder="새 번호"><input id="apc-new2" class="inp pin" type="text" inputmode="numeric" maxlength="8" placeholder="한 번 더"></div><button class="btn block" style="margin-top:8px" data-act="adminpinchange">비밀번호 변경</button>${ibm(`숫자 4~8자리. 바꾸면 모든 운영진이 새 번호로 들어와요.`)}</div>` : ''}
+  </div><div class="setsec" ${sx('practice')}>${S.admin ? `<h2>시뮬레이션(연습 데이터)${ib(`가상 경기를 만들어 미리 해 보고 지워요`)}</h2><div class="panel pad">${ibm(`실제 회원 명단으로 원하는 단계의 가상 경기를 만들어요. 만든 뒤 바로 그 단계 화면으로 이동해요. 실제 경기와 회원 정보는 건드리지 않아요.`)}
     <div class="simgrid">${[...Object.entries(SIM).map(([k, [n]]) => [k, n, { apply: '신청 중인 경기, 신청자 12명', captain: '신청 마감, 18명 확정', draft: '주장 3명 입장한 드래프트 방', trade: '팀 구성이 끝난 상태' }[k], 'mksim']), ['mm', '경기모드', '팀 구성 완료, 오늘 날짜', 'mkpractice']].map(([k, n, d, act]) => { const cnt = Object.values(S.sessions).filter(x => x.practice && x.simKind === k).length;
       return `<div class="simcell"><button class="btn" data-act="${act}" data-k="${k}"><b>${n}</b><small>${d}</small></button><button class="btn sm danger" data-act="clrsim" data-k="${k}" ${cnt ? '' : 'disabled'}>지우기${cnt ? ` (${cnt})` : ''}</button></div>` }).join('')}</div>
     <button class="btn danger block" style="margin-top:10px" data-act="clrpractice">연습 데이터 모두 지우기${Object.values(S.sessions).filter(x => x.practice).length ? ` (${Object.values(S.sessions).filter(x => x.practice).length}개)` : ''}</button></div>` : ''}
-  ${S.admin && isMaster() ? `<h2>샘플 데이터</h2><div class="panel pad">${ibm(`화면 확인용 가상 회원, 지난 경기 2개, 다음 경기 1개를 넣거나 지워요. 직접 입력한 데이터는 건드리지 않아요.`)}<div class="row"><button class="btn" data-act="addsample">샘플 데이터 넣기</button><button class="btn danger" data-act="clearsample">샘플 데이터 모두 지우기</button></div></div>` : ''}
-  <div class="verbox"><div><span>앱 버전</span><b>${APP_VERSION}</b></div><div class="verbtns">${S.admin ? '<button class="btn sm" data-act="changelog">업데이트 내용</button>' : ''}<button class="btn sm" data-act="appreload">최신 버전 확인</button></div></div>
-  ${ibm(`새 기능이 안 보이면 "최신 버전 확인"을 눌러 주세요.`)}</div>`;
+  </div><div class="setsec" ${sx('practice')}>${S.admin && isMaster() ? `<h2>샘플 데이터</h2><div class="panel pad">${ibm(`화면 확인용 가상 회원, 지난 경기 2개, 다음 경기 1개를 넣거나 지워요. 직접 입력한 데이터는 건드리지 않아요.`)}<div class="row stack2"><button class="btn" data-act="addsample">샘플 데이터 넣기</button><button class="btn danger" data-act="clearsample">샘플 데이터 모두 지우기</button></div></div>` : ''}
+  </div><div class="setsec" ${sx('me')}><div class="verbox"><div><span>앱 버전</span><b>${APP_VERSION}</b></div><div class="verbtns">${S.admin ? '<button class="btn sm" data-act="changelog">업데이트 내용</button>' : ''}<button class="btn sm" data-act="appreload">최신 버전 확인</button></div></div>
+  ${ibm(`새 기능이 안 보이면 "최신 버전 확인"을 눌러 주세요.`)}</div></div>`;
 }
 /* ───────── member views ───────── */
 function dt(str) { return str ? new Date(str) : null }
@@ -3749,6 +3751,7 @@ document.addEventListener('click', async e => {
     case 'pfont': { if (!needAdmin()) break; await setPosterFont(el.dataset.k || 'team', el.dataset.v); break }
     case 'apord': S.apord = el.dataset.v === 'time' ? 'time' : 'rank'; render(); break;
     case 'resv': S.resv = el.dataset.k; render(); break;
+    case 'setv': S.setv = el.dataset.k; render(); window.scrollTo(0, 0); break;
     case 'memv': S.memv = el.dataset.k; render(); window.scrollTo(0, 0); break;
     case 'outkind': S.outKind = el.dataset.v; render(); break;
     case 'outadd': { if (!needAdmin()) break; const nm = (document.getElementById('out-name')?.value || '').trim(); const pid = nm && findPlayer(nm); if (!pid) { toast('회원 이름을 확인해 주세요.'); break } const kd = S.outKind || 'left'; const dt = document.getElementById('out-date')?.value || today(); const why = (document.getElementById('out-why')?.value || '').trim().slice(0, 80);
