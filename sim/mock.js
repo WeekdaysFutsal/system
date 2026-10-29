@@ -1,6 +1,7 @@
 (function(){
 // 시뮬레이션 시간 이동: window.__simOff(ms)만큼 앱의 현재 시각을 옮겨요
 {const _D=Date;window.__simOff=0;class SD extends _D{constructor(...a){if(a.length)super(...a);else super(_D.now()+window.__simOff)}static now(){return _D.now()+window.__simOff}};window.Date=SD}
+const OPEN=/open/.test(location.search+location.pathname);if(OPEN){const r=new Date();const o=new Date(r);o.setHours(13,0,0,0);window.__simOff=o.getTime()-10000-r.getTime();window.__openAt=o.getTime()}
 const DB={};const L=[];const now=Date.now();const p2=n=>String(n).padStart(2,'0');
 const ds=d=>`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
 const names=['김민준','이서준','박도윤','최예준','정시우','강하준','조주원','윤지호','장지후','임준서','한건우','오현우','서우진','신선우','권연우','황유준','안정우','송승우','류지환','홍민재','문태윤','배성민','남기현','구도현','백승훈','엄재원'];
@@ -28,6 +29,18 @@ for(let w=1;w<=6;w++){const d=new Date(nx);d.setDate(nx.getDate()-7*w-7);const i
 {const s4='2026-10-31';const ap4=['p1','p6',...Object.keys(players).filter(k=>k!=='p1'&&k!=='p6').slice(0,22)];const c4=new Date(Date.now()-3600e3);
  put('sessions',s4,{date:s4,time:'19:00',end:'22:00',venue:'용산 아이파크몰 The Base 7구장',venue2:'용산 아이파크몰 The Base 8구장',no:141,capacity:24,stage:'captain',draftStatus:'ready',applyOpen:'2026-10-26T12:00',applyClose:ds(c4)+'T'+p2(c4.getHours())+':00',
   applicants:ap4,waitlist:[],apps:ap4.map((p,i)=>({k:'f'+i,pid:p,uid:'fu'+i,at:now-86400e3+i*60e3})),p0:['p0','p7'],ops:['p1','p6'],captains:{},captainTokens:{},order:['A','B','C','D'],picks:[],teams:{A:{players:[]},B:{players:[]},C:{players:[]},D:{players:[]}},duty:{ball:[],drink:[]},nTeams:4,timing:{h1:300,gk:60,h2:300,rest:120}})}
+if(OPEN){const ns=ds(nx);const cl2=new Date(nx);cl2.setDate(nx.getDate()-2);
+ delete DB.sessions[sid];Object.keys(DB.sessions).filter(id=>id>ds(t)&&id!==ns).forEach(id=>delete DB.sessions[id]);
+ const td=ds(t);const S0=DB.sessions[td];if(S0){const A=(S0.applicants||[]).slice();const h=Math.ceil(A.length/2);S0.stage='notice';S0.draftStatus='done';S0.room={open:true};S0.captains={A:A[0],B:A[h]};S0.order=['A','B'];S0.teams={A:{players:A.slice(0,h),colorName:'BLUE'},B:{players:A.slice(h),colorName:'BLACK'}};S0.duty={ball:[A[2]],drink:[A[3],A[h+2]]};S0.parkWin=[A[4],A[h+3]]}
+ put('sessions',ns,{date:ns,time:'21:00',end:'23:00',venue:'용산 아이파크몰 The Base 3구장',no:141,capacity:18,stage:'apply',applyOpen:td+'T13:00',applyClose:ds(cl2)+'T20:00',apps:[],applicants:[],p0:[],ops:[],duty:{ball:[],drink:[]},dutyReq:{},park:{}});
+ put('auth','p9',{h:'mockh'});
+ // 13:00 이후 다른 회원들이 차례로 신청하는 장면
+ const crowd=Object.keys(players).filter(k=>k!=='p9');for(let i=crowd.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[crowd[i],crowd[j]]=[crowd[j],crowd[i]]}
+ const at=crowd.slice(0,22).map((pid,i)=>({pid,ms:i<8?120+i*90+Math.random()*120:i<16?1200+(i-8)*500+Math.random()*400:6000+(i-16)*2500+Math.random()*1500}));
+ const tick=()=>{const nowT=Date.now()-window.__openAt;const s=DB.sessions[ns];let ch=false;for(const a of at){if(!a.done&&nowT>=a.ms){a.done=true;s.apps=[...(s.apps||[]),{k:'c'+a.pid,pid:a.pid,uid:'cu'+a.pid,at:window.__openAt+Math.round(a.ms)}];ch=true}}if(ch)notify('sessions');if(at.some(a=>!a.done))setTimeout(tick,60)};
+ setTimeout(tick,200);
+
+}
 put('meta','config',{});
 window.__docs=DB;window.__sid=sid;
 const notify=c=>L.filter(l=>l.c===c).forEach(l=>l.fire());
@@ -40,5 +53,5 @@ const doc=p=>{const i=p.lastIndexOf('/');const c=p.slice(0,i),id=p.slice(i+1);re
  async update(d){d=Object.fromEntries(Object.entries(d));for(const k of Object.keys(d)){if(k.includes('.')){const ks=k.split('.');let o=d;const v=d[k];delete d[k];for(let i=0;i<ks.length-1;i++){o=o[ks[i]]??={}}o[ks[ks.length-1]]=v}}const m=(DB[c]??={})[id]??={};const mg=(a,b)=>{for(const[k,v]of Object.entries(b)){if(v&&typeof v==='object'&&!Array.isArray(v)){a[k]=a[k]&&typeof a[k]==='object'?a[k]:{};mg(a[k],v)}else a[k]=v}};mg(m,JSON.parse(JSON.stringify(d)));setTimeout(()=>notify(c),1)},
  async delete(){delete (DB[c]||{})[id];setTimeout(()=>notify(c),1)},async acquire(){return{acquired:true}}}};
 window.claude={use:async k=>k==='db'?{collection:col,doc}:null};
-try{if(!/noauth/.test(location.search))localStorage.setItem('wfsim:auth',JSON.stringify({pid:'p1',h:'mockh'}));sessionStorage.setItem('wfsim:booted','1')}catch(e){}
+try{if(!/noauth/.test(location.search))localStorage.setItem('wfsim:auth',JSON.stringify({pid:OPEN?'p9':'p1',h:'mockh'}));sessionStorage.setItem('wfsim:booted','1')}catch(e){}
 })();

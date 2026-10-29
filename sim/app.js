@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.23';
+const APP_VERSION = '0.4.24';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -809,6 +809,7 @@ function fitPool() { const short = innerHeight < 760; const sr = document.queryS
 }
 function simBar() { let b = document.getElementById('simbar'); if (!b) { b = document.createElement('div'); b.id = 'simbar'; document.body.prepend(b);
     b.addEventListener('change', e => { if (e.target.id !== 'simtt') return; const v = e.target.value; const real = Date.now() - window.__simOff; if (!v) window.__simOff = 0; else { const x = S.sessions[v]; window.__simOff = new Date(`${x.date}T${x.time || '21:00'}`).getTime() - 40 * 60e3 - real } S.simSig = ''; render(); toast(v ? `${fmtDate(v)} 경기 시작 40분 전으로 시간을 옮겼어요.` : '실제 시간으로 돌아왔어요.') }) }
+  if (window.__openAt) { if (S.simSig !== 'open') { S.simSig = 'open'; b.innerHTML = '<span>🧪 13:00 신청 오픈 시뮬레이션 · 12:59:50부터 · 13시 이후 다른 회원 22명이 차례로 신청해요</span><button type="button" onclick="location.reload()" style="border:0;border-radius:8px;padding:4px 10px;background:#1A1400;color:#FFD21F;font:800 12px var(--body);cursor:pointer">↻ 처음부터 다시</button>' } return }
   const real = new Date(Date.now() - window.__simOff); const rd = `${real.getFullYear()}-${p2(real.getMonth() + 1)}-${p2(real.getDate())}`; const ids = Object.keys(S.sessions || {}).filter(id => id >= rd).sort();
   const n = new Date(); const sig = ids.join() + '|' + window.__simOff + '|' + n.getHours() + ':' + n.getMinutes(); if (S.simSig === sig) return; S.simSig = sig;
   const sel = ids.map(id => { const x = S.sessions[id]; const tt = new Date(`${x.date}T${x.time || '21:00'}`).getTime() - 40 * 60e3; return `<option value="${id}" ${window.__simOff && Math.abs(Date.now() - tt) < 3 * 3600e3 ? 'selected' : ''}>${fmtDate(id)} ${esc(x.time || '')} · ${nT(x)}팀${nC(x) === 2 ? '·2면' : ''} 시작 40분 전</option>` }).join('');
@@ -1369,6 +1370,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.24','2026.10.29',['경기 당일에도 다음 경기 신청을 홈에서 바로: 다음 경기 신청이 1시간 안에 열리거나 신청 중이면 홈 맨 위에 “NEXT APPLY” 카드(카운트다운 → 신청 버튼 → 내 순번)가 나와요','신청 오픈 카운트다운이 1초 일찍 00:00:00이 되던 것을 바로잡음','시뮬레이션: sim/open.html에서 12:59:50부터 13:00 신청 오픈 장면을 볼 수 있어요']],
   ['0.4.23','2026.10.28',['[운영진] 팀 확정 후 불참 교체: 밸런스 조정 화면과 경기진행 화면의 “🔁 불참 교체”에서 불참자를 고르고, 대신 들어올 사람을 회원 목록(드롭다운)에서 고르거나 게스트 이름으로 추가해요','불참자는 마감 후 취소로 기록돼 다음 경기 신청 때 3순위가 되고, 같은 팀 같은 자리(주장이면 주장 자리)에 새 사람이 들어가요. 공당·물당·주차 명단에서도 빠지고, 포스터는 새로 만들어져요']],
   ['0.4.22','2026.10.28',['한 번 바꾼 개인 설정(휘슬 켜기/끄기, 전체화면 점수판 방향)도 서버에 함께 저장해서, 앱 업데이트나 폰 저장공간 정리 뒤에도 그대로 유지돼요 (알림 설정·차량번호는 원래 서버에 저장)']],
   ['0.4.21','2026.10.28',['앱을 업데이트해도 알림이 꺼지지 않게: 알림을 켜 둔 폰은 앱을 열 때마다 알림 등록을 자동으로 다시 맞춰요 (토큰이 바뀌면 새 것으로 교체)']],
@@ -1699,6 +1701,8 @@ function sStatus(s) {
   if (now < c) return { k: 'open', label: '신청 중' };
   return { k: 'closed', label: '신청 마감' };
 }
+// 오늘 경기가 있는 날에도 다음 경기 신청(오픈 24시간 전부터·신청 중)을 홈에서 바로 할 수 있게 해요
+function nextApplySid(sid) { if (!sid) return null; const now = nowS(); return Object.keys(S.sessions).sort().find(id => { if (id <= sid || isComplete(id)) return false; const s = S.sessions[id]; const k = sStatus(s).k; if (k === 'open') return true; if (k !== 'soon' || !s.applyOpen) return false; return dt(s.applyOpen).getTime() - now < 24 * 3600e3 }) || null }
 function nextSid() { const t = today(); const ids = Object.keys(S.sessions).sort(); return ids.find(id => id >= t && !isComplete(id)) || null }
 function pastSids() { const t = today(); return Object.keys(S.sessions).filter(id => sessMatches(id).some(m => m.status === 'done') || (S.cut && id < S.cut && id < t && (S.sessions[id].stage === 'match' || S.sessions[id].imported))).sort().reverse() }
 async function loadOld(sid) { if (!S.cut || sid >= S.cut || (S.oldLoaded ??= {})[sid] || !S.store?.query) return; S.oldLoaded[sid] = 1;
@@ -1722,7 +1726,10 @@ function viewMHome() {
     return backbar('홈으로') + body } }
   const sid = nextSid(); let h = ''; const fit = S.dm; let dock = '';
   const rvDown0 = fit && !!sid && S.sessions[sid]?.draftStatus !== 'done' && (applyState(S.sessions[sid]).k !== 'none' || ['open', 'soon'].includes(sStatus(S.sessions[sid]).k)); const dd = myDrinkDue();
-  h += `${fit ? `<div class="homefit${rvDown0 || dd ? ' hf-scroll' : ''}">` : ''}<div class="dgrid homegrid"><section>`;
+  const na = nextApplySid(sid); let naCard = '', naTop = false;
+  if (na) { const s2 = S.sessions[na]; const [, m2, d2] = na.split('-'); const k2 = sStatus(s2).k; naCard = `<div class="nxapply"><div class="nxa-hd"><span class="st st-${k2}">${sStatus(s2).label}</span><b>${+m2}.${+d2} (${dow(na)}) ${esc(s2.time || '')} 경기 신청</b><small>${s2.no ? s2.no + '회 · ' : ''}${esc(venueTxt(s2) || '')}</small></div>${applyBox(s2, fit)}</div>`;
+    const oT = s2.applyOpen ? dt(s2.applyOpen).getTime() : 0; naTop = k2 === 'open' ? (applyState(s2).k === 'none' || nowS() - oT < 3600e3) : (oT - nowS() < 3600e3) } // 신청 1시간 전부터·신청 중에는 홈 맨 위에
+  h += `${fit ? `<div class="homefit${rvDown0 || dd || nextApplySid(sid) ? ' hf-scroll' : ''}">` : ''}${naTop ? `<div class="nxtop"><div class="sec-lab"><span>NEXT APPLY</span></div>${naCard}</div>` : ''}<div class="dgrid homegrid"><section>`;
   { if (dd) h += `<button class="dbnudge" data-act="dbopen" data-id="${dd}">🥤 <span><b>${fmtDate(dd)} 물당 구입 금액을 등록해 주세요</b></span><em>등록 ›</em></button>` }
 
   // ── MATCH REVIEW ──
@@ -1753,6 +1760,7 @@ function viewMHome() {
     h += homeAction(s, st, fit);
     if (fit) { const a = applyState(s); if (st.k === 'open' || st.k === 'soon' || (st.k === 'closed' && a.k !== 'none' && s.stage !== 'match')) { const ab = applyBox(s, true); if (ab) h += `<div class="inline-apply">${ab}</div>` } }
   }
+  if (naCard && !naTop) h += `</div>${naCard}<div class="nx-dummy">`;
   if (rvDown) h += `</div><div class="rv-down">${rv}`;
   return h + `</div></section></div>${fit ? '</div>' : ''}${dock}`;
 }
@@ -2392,7 +2400,7 @@ function appCounts(s) { if (!hasApps(s) || s.stage !== 'apply') return { sel: (s
 function myApp(s) { const uid = myUid(), me = myPid(); return appsOf(s).find(a => me ? (a.pid === me || (!a.pid && a.uid && a.uid === uid)) : (!a.pid && a.uid && a.uid === uid)) || (me && autoIds(s).includes(me) ? { k: 'auto-' + me, pid: me, auto: true } : null) }
 function applyState(s) { const me0 = myPid(); if (me0 && s.stage === 'apply' && isBase(s) && autoIds(s).includes(me0)) return { k: 'in', auto: true, tier: 0, role: roleOf(s, me0) }; const a = myApp(s); if (!a) return { k: 'none' }; if (s.stage !== 'apply') { if ((s.applicants || []).includes(a.pid)) return { k: 'in', tier: null }; return { k: 'wait', n: (s.waitlist || []).indexOf(a.pid) + 1 } }
   const r = classify(s).rows.find(x => x.k === a.k); if (!r) return { k: 'none' }; return r.sel ? { k: 'in', tier: r.tier, n: r.n, noname: !a.pid, key: a.k, auto: !!r.auto, role: roleOf(s, a.pid) } : { k: 'wait', n: r.wn, order: r.n, tier: r.tier, noname: !a.pid, key: a.k } }
-function cdTxt(ms) { if (!(ms > 0)) return '00:00:00'; const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return d ? `${d}일 ${p2(h)}:${p2(m)}:${p2(x)}` : `${p2(h)}:${p2(m)}:${p2(x)}` }
+function cdTxt(ms) { if (!(ms > 0)) return '00:00:00'; const s = Math.ceil(ms / 1000), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return d ? `${d}일 ${p2(h)}:${p2(m)}:${p2(x)}` : `${p2(h)}:${p2(m)}:${p2(x)}` }
 function applyBox(s, compact) {
   const st = sStatus(s); const a = applyState(s); const c = appCounts(s);
   const nameBtn = a.noname ? `<button class="btn sm primary" data-act="appname" data-id="${s.date}">이름 입력하기</button>` : '';
