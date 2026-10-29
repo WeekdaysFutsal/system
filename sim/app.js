@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.34';
+const APP_VERSION = '0.4.35';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1294,7 +1294,7 @@ function vMatchDay(s) {
 function viewMatch() {
   const m = M(S.openMatch); const s = S.sessions[m.session]; if (!s) return ''; const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); const run = !!m.timer?.running; const T = timing(s);
   const next = sessMatches(m.session).find(x => x.n > m.n && x.status !== 'done'); const can = S.admin;
-  let h = `<div class="overlay" role="dialog" aria-label="${m.n}경기"><div class="wrap"><div class="obar"><button class="btn sm" data-act="close">← 목록</button><span class="muted">${m.round}라운드 ${m.slot}경기</span></div>
+  let h = `<div class="overlay" role="dialog" aria-label="${m.n}경기"><div class="wrap"><div class="obar"><button class="btn sm" data-act="close">← 목록</button><span class="muted">${m.round}라운드 ${m.slot}경기</span>${(() => { const y = ytFor(s); return y?.v[m.id] ? ytBtn(y.v[m.id], '영상보기', false, 'ob') : '' })()}</div>
   <div class="dgrid ovgrid"><section><div class="board"><div class="teams"><div class="t"><div class="bar" style="background:${H.color}"></div><div class="num">${a}</div><div class="nm">${esc(H.name)}</div></div><div class="colon">:</div><div class="t"><div class="bar" style="background:${A.color}"></div><div class="num">${b}</div><div class="nm">${esc(A.name)}</div></div></div>
   <div class="phase" data-phase="${m.id}"></div><div class="clock" data-bigclock="${m.id}"></div>
   <div class="prog" style="grid-template-columns:${T.h1}fr ${Math.max(T.gk, T.h1 / 20)}fr ${T.h2}fr" aria-hidden="true"><span class="seg"><i data-seg="${m.id}:0"></i></span><span class="seg"><i data-seg="${m.id}:1"></i></span><span class="seg"><i data-seg="${m.id}:2"></i></span></div></div>`;
@@ -1372,6 +1372,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.35','2026.10.29',['경기 결과 순서를 팀 순위 → 경기별 결과 → 팀 구성으로, 경기별 결과는 왼쪽 게임 번호 · 가운데 점수 · 오른쪽 끝 ▶ 유튜브 버튼 한 줄로 정리','경기 결과에 유튜브 경기 영상 연결: 재생목록 날짜로 경기를, 영상 제목의 라운드·게임 번호와 두 팀 색으로 게임을 맞춰 ▶ 버튼 표시 (맞는 영상만)','휴대폰은 유튜브 앱, PC는 유튜브 사이트에서 열려요 · 경기 상세 화면에도 영상보기 버튼','[운영진] 설정 → 기록 시트 → 경기 영상: 채널·키워드 설정, 지금 찾기 (3시간마다 자동)']],
   ['0.4.34','2026.10.29',['물당 영수증을 Firebase 대신 운영진 구글 드라이브(WD_FUTSAL 영수증 폴더)에 저장 · 설정 → 기록 시트에서 연결','예전 영수증도 버튼 하나로 드라이브로 옮기고 Firebase에서는 삭제']],
   ['0.4.33','2026.10.29',['[운영진] 설정을 탭으로 정리: 내 정보 · 운영(서비스 상태·정산 규칙·운영모드 비밀번호) · 기록 시트 · 꾸미기(로딩 배경) · 연습·샘플','휴대폰에서 앱 버전 칸·비밀번호 입력칸·샘플 데이터 버튼이 꺾이거나 잘리던 것 정리']],
   ['0.4.32','2026.10.29',['주차: 지난 경기 당첨자도 주차 신청을 할 수 있어요. 추첨 때 신청자가 자리보다 많으면 지난 경기 당첨자는 빠지고, 자리가 남을 때만 지난 당첨자끼리 사다리로 정해요','신청 완료 카드 안 오른쪽에 “신청 현황 17/18 보기” 버튼']],
@@ -1673,11 +1674,24 @@ function doPost(e) {
       f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
       return out({ ok: true, id: f.getId(), url: f.getUrl() });
     }
-    if (b.action === 'ping') return out({ ok: true });
+    if (b.action === 'ping') return out({ ok: true, yt: typeof YouTube !== 'undefined' });
+    if (b.action === 'yt') return out(ytLists(String(b.ch || ''), String(b.kw || '').toLowerCase()));
     return out({ ok: false, error: '알 수 없는 요청' });
   } catch (err) { return out({ ok: false, error: String(err) }) }
 }
 function doGet() { return out({ ok: true, app: 'wd-receipts' }) }
+// 유튜브 채널의 재생목록과 영상 제목 읽기 (서비스에 YouTube Data API v3 추가 필요)
+function ytLists(ch, kw) {
+  if (typeof YouTube === 'undefined') return { ok: false, error: 'YT_SERVICE' };
+  let cid = ch.replace(/^@/, '');
+  if (!/^UC[0-9A-Za-z_-]{20,}$/.test(cid)) { const c = YouTube.Channels.list('id', { forHandle: cid }); if (!c.items || !c.items.length) return { ok: false, error: '채널을 찾지 못했어요' }; cid = c.items[0].id }
+  const lists = []; let pt;
+  do { const r = YouTube.Playlists.list('snippet', { channelId: cid, maxResults: 50, pageToken: pt });
+    (r.items || []).forEach(p => { if (!kw || p.snippet.title.toLowerCase().indexOf(kw) >= 0) lists.push({ id: p.id, t: p.snippet.title, v: [] }) }); pt = r.nextPageToken } while (pt);
+  lists.forEach(l => { let q; do { const r = YouTube.PlaylistItems.list('snippet,status', { playlistId: l.id, maxResults: 50, pageToken: q });
+    (r.items || []).forEach(i => { const s = i.snippet; if (s.resourceId && s.resourceId.videoId && (!i.status || i.status.privacyStatus !== 'private')) l.v.push([s.resourceId.videoId, s.title]) }); q = r.nextPageToken } while (q) });
+  return { ok: true, cid: cid, lists: lists };
+}
 function folder(n, parent) { const it = parent.getFoldersByName(n); return it.hasNext() ? it.next() : parent.createFolder(n) }
 function out(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON) }` }
 function rcptCard() { if (!S.admin) return ''; const c = rcptCfg(); const on = rcptOn(); const left = S.rcptLeft;
@@ -1689,11 +1703,60 @@ function rcptSetupSheet() { const tok = S.rcptTok || (S.rcptTok = Math.random().
   return `<h4>☁️ 영수증을 구글 드라이브에 저장하기</h4><ol class="rs-steps">
     <li><a href="https://script.google.com/home/projects/create" target="_blank" rel="noopener"><b>script.google.com</b></a>에서 <b>새 프로젝트</b>를 만들어요 (운영진 구글 계정).</li>
     <li>아래 <b>코드 복사</b>를 눌러 편집기 내용을 지우고 붙여 넣은 뒤 저장해요.</li>
+    <li>왼쪽 <b>서비스 ＋</b> → <b>YouTube Data API v3</b> → 추가 (경기 영상 연결용).</li>
     <li><b>배포 → 새 배포 → 웹 앱</b> · 실행: <b>나</b> · 액세스: <b>모든 사용자</b> → 배포 → 권한 허용.</li>
     <li>나온 <b>웹 앱 URL</b>(…/exec)을 아래에 붙여 넣고 저장해요.</li></ol>
     <button class="btn block" data-act="rcptcopy">📋 코드 복사</button>
     <div class="field" style="margin-top:12px"><label for="rc-url">웹 앱 URL</label><input id="rc-url" class="inp" type="url" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(rcptCfg().exec || '')}"></div>
     <button class="btn primary block" data-act="rcptsave">저장하고 연결 확인</button>` }
+/* ───────── 경기 영상 (유튜브 재생목록 ↔ 경기 결과) ───────── */
+const ytCfg = () => S.meta?.yt || {};
+const ytCh = () => ytCfg().ch || '@Express_Zilpung';
+const ytKw = () => ytCfg().kw ?? 'weekdays';
+const YT_COL = [['RED', /\bred\b|레드|빨강|🔴|🟥|❤️/i], ['BLUE', /\bblue\b|블루|파랑|🔵|🟦|💙/i], ['BLACK', /\bblack\b|블랙|검정|⚫|⬛|🖤/i], ['WHITE', /\bwhite\b|화이트|흰색|하양|⚪|⬜|🤍/i], ['YELLOW', /\byellow\b|옐로|노랑|🟡|🟨|💛/i], ['GREEN', /\bgreen\b|그린|초록|🟢|🟩|💚/i], ['ORANGE', /\borange\b|오렌지|주황|🟠|🟧|🧡/i], ['PURPLE', /\bpurple\b|퍼플|보라|🟣|🟪|💜/i], ['PINK', /\bpink\b|핑크|분홍|🩷/i], ['NAVY', /\bnavy\b|네이비|남색/i], ['GRAY', /\bgr[ae]y\b|그레이|회색/i]];
+function ytDate(t) { const m = String(t).match(/(20\d{2})\s*[년.\-/]\s*(\d{1,2})\s*[월.\-/]\s*(\d{1,2})/); return m ? `${m[1]}-${p2(+m[2])}-${p2(+m[3])}` : null }
+function ytParse(title) { let t = String(title).replace(/\[[^\]]*\]/g, ' ').replace(/(20\d{2})\s*[년.\-/]\s*\d{1,2}\s*[월.\-/]\s*\d{1,2}\s*일?(\s*\([^)]*\))?/g, ' ');
+  let r = null, g = null, n = null, x;
+  if ((x = t.match(/round\s*0*(\d+)\D{0,8}?game\s*0*(\d+)/i) || t.match(/(\d+)\s*라운드\D{0,8}?(\d+)\s*(?:경기|게임)/) || t.match(/(?:game|게임|경기)\s*0*(\d+)\s*[-–_.]\s*0*(\d+)/i) || t.match(/\bR\s*0*(\d+)\s*[-_ ]?\s*G\s*0*(\d+)\b/i))) { r = +x[1]; g = +x[2] }
+  else if ((x = t.match(/(?:game|게임|경기)\s*0*(\d+)/i) || t.match(/(\d+)\s*(?:경기|게임)/))) n = +x[1];
+  const cols = YT_COL.map(([k, re]) => { const m = t.match(re); return m ? [k, m.index] : null }).filter(Boolean).sort((p, q) => p[1] - q[1]).map(p => p[0]);
+  return { r, g, n, pair: cols.length === 2 ? cols : null } }
+// 경기일의 재생목록과 경기별 영상 { pl: 재생목록 id, v: { matchId: videoId } }
+function ytFor(s) { const sid = s?.date; if (!sid) return null; const L = (ytCfg().lists || []).filter(l => l.d === sid); if (!L.length) return null;
+  const ms = sessMatches(sid); const out = {}; const used = new Set(); const nm = k => String(team(s, k).name || '').toUpperCase();
+  const same = (m, pair) => { const a = [nm(m.home), nm(m.away)].sort().join('|'); return a === [...pair].sort().join('|') };
+  const per = Math.max(1, ...ms.map(m => +m.slot || 0)); const rd = m => +m.round || Math.ceil(m.n / per); const sl = m => +m.slot || ((m.n - 1) % per) + 1;
+  const vids = L.flatMap(l => l.v || []).map(([v, t]) => ({ v, ...ytParse(t) }));
+  const put = (m, x) => { if (!m || out[m.id] || used.has(x.v)) return false; out[m.id] = x.v; used.add(x.v); return true };
+  // 1) 번호와 두 팀이 모두 맞는 영상
+  vids.forEach(x => { const m = x.r ? ms.find(m => rd(m) === x.r && sl(m) === x.g) : x.n ? ms.find(m => m.n === x.n) : null; if (m && (!x.pair || same(m, x.pair))) put(m, x) });
+  // 2) 같은 라운드 안에서 두 팀이 맞는 영상 (라운드 안 순서가 다르게 올라온 경우)
+  vids.forEach(x => { if (used.has(x.v) || !x.pair) return; const c = ms.filter(m => !out[m.id] && same(m, x.pair) && (!x.r || rd(m) === x.r)); if (c.length === 1) put(c[0], x) });
+  return { pl: L[0].id, v: out } }
+const ytUrl = (id, list) => list ? `https://www.youtube.com/playlist?list=${id}` : `https://www.youtube.com/watch?v=${id}`;
+function ytBtn(id, label, list, cls = '') { return `<a class="ytbtn ${cls}" href="${ytUrl(id, list)}" target="_blank" rel="noopener" data-act="ytopen" aria-label="${esc(label)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>${label ? `<span>${esc(label)}</span>` : ''}</a>` }
+// 휴대폰은 유튜브 앱, PC는 유튜브 사이트(새 탭)
+function ytOpen(u) { const path = u.replace(/^https:\/\/(www\.|m\.)?youtube\.com\//, ''); const ua = navigator.userAgent;
+  if (isIOS()) { let gone = false; const h = () => { if (document.hidden) gone = true }; document.addEventListener('visibilitychange', h);
+    location.href = 'youtube://www.youtube.com/' + path; setTimeout(() => { document.removeEventListener('visibilitychange', h); if (!gone && !document.hidden) window.open(u, '_blank') }, 1600); return }
+  if (/Android/i.test(ua)) { location.href = 'intent://www.youtube.com/' + path + '#Intent;scheme=https;package=com.google.android.youtube;S.browser_fallback_url=' + encodeURIComponent(u) + ';end'; return }
+  window.open(u, '_blank', 'noopener') }
+async function ytSync(manual) { if (S.ytBusy || !rcptCfg().exec) return; S.ytBusy = true; if (manual) render();
+  try { const r = await fetch(rcptCfg().exec, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'yt', token: rcptCfg().token, ch: ytCh(), kw: ytKw() }) }); const j = await r.json();
+    if (!j.ok) throw new Error(j.error === 'YT_SERVICE' ? 'Apps Script에 YouTube Data API 서비스를 추가해 주세요' : /알 수 없는 요청/.test(j.error || '') ? 'Apps Script 코드를 새로 복사해 다시 배포해 주세요' : j.error || '읽기 실패');
+    const lists = j.lists.map(l => ({ id: l.id, t: l.t, d: ytDate(l.t), v: l.v })).filter(l => l.d);
+    const nx = { ...ytCfg(), cid: j.cid, lists, at: Date.now(), err: null }; S.meta = { ...(S.meta || {}), yt: nx }; await S.store.set('meta/yt', nx); S.ytErr = null;
+    if (manual) toast(`재생목록 ${lists.length}개를 읽었어요.`) }
+  catch (e) { S.ytErr = e.message; if (manual) toast('영상 찾기 오류: ' + e.message) }
+  S.ytBusy = false; renderSoon() }
+function ytAuto() { if (S.ytBusy || S.ytTried || !rcptCfg().exec) return; const at = ytCfg().at || 0; if (Date.now() - at < 3 * 3600e3) return; S.ytTried = true; setTimeout(() => ytSync(false), 800) }
+function ytCard() { if (!S.admin) return ''; const c = ytCfg(); const on = !!rcptCfg().exec; const L = c.lists || [];
+  const linked = L.filter(l => S.sessions[l.d]).map(l => { const y = ytFor(S.sessions[l.d]); return y ? Object.keys(y.v).length : 0 }); const nS = linked.length, nV = linked.reduce((p, q) => p + q, 0);
+  return `<h2>경기 영상 (유튜브)${ib('유튜브 채널의 재생목록 중 키워드가 들어간 것을 읽어, 재생목록 제목의 날짜로 경기를 찾고 영상 제목의 라운드·게임 번호와 두 팀 색으로 게임을 맞춰요. 맞는 영상만 경기 결과에 ▶ 버튼으로 붙어요. 3시간마다 자동으로 새 영상을 찾아요.')}</h2><div class="panel pad sheetcard">
+    <div class="sc-row"><span>채널</span><b class="url">${esc(ytCh())}</b><button class="btn sm" data-act="ytset" data-f="ch">변경</button></div>
+    <div class="sc-row"><span>키워드</span><b>${esc(ytKw() || '(전체)')}</b><button class="btn sm" data-act="ytset" data-f="kw">변경</button></div>
+    <div class="sc-row"><span>연결 현황</span><b>${!on ? '<em>위 영수증 저장을 먼저 연결해 주세요</em>' : c.at ? `재생목록 ${L.length}개 · 경기 ${nS}회 · 영상 ${nV}개` : '<em>아직 안 읽음</em>'}</b><button class="btn sm" data-act="ytsync" ${on && !S.ytBusy ? '' : 'disabled'}>${S.ytBusy ? '찾는 중…' : '지금 찾기'}</button></div>
+    ${S.ytErr ? `<p class="note bad">⚠️ ${esc(S.ytErr)}</p>` : c.at ? `<p class="note">마지막 확인 ${fmtDate(new Date(c.at).toISOString().slice(0, 10))} ${new Date(c.at).toTimeString().slice(0, 5)}</p>` : ''}</div>` }
 function sheetCard() { if (!S.admin) return ''; const k = sheetKey(); const st = S.sheetPing; const ex = sheetUrl(), vw = sheetView(); const short = u => u ? esc(u.replace(/^https:\/\//, '').replace(/(.{34}).+(.{10})$/, '$1…$2')) : '<em>없음</em>';
   return `<h2>기록 시트 연동${ib(`경기 기록은 구글 시트에, 실시간 데이터는 Firebase에`)}</h2><div class="panel pad sheetcard">
     <div class="sc-row"><span>시트 원본</span><b class="url">${vw ? short(vw) : '<em>주소 없음</em>'}</b><span class="sc-btns">${sheetLink()}<button class="btn sm" data-act="sheeturl" data-f="view">${vw ? '수정' : '입력'}</button></span></div>
@@ -1718,7 +1781,7 @@ function viewSettings() { const TABS = [['me', '내 정보'], ['ops', '운영'],
   const sx = k => S.admin && k !== cur ? 'hidden' : ''; // 운영모드: 설정을 탭으로 나눠 한 번에 하나씩 보여요
   return `${S.admin ? subnav(TABS, cur, 'setv') : ''}<div class="setwrap ${S.admin ? 'tabbed' : ''}"><div class="setsec" ${sx('me')}><h2>내 정보${ib(`이름 + 비밀번호 4자리로 로그인해요`)}</h2>${loginCard()}${S.auth ? `<h2>내 시즌 기록</h2>${mySeason()}` : ''}
   </div><div class="setsec" ${sx('me')}>${S.auth && !S.admin ? `<h2>알림</h2>${notiCard()}` : ''}
-  </div><div class="setsec" ${sx('sync')}>${sheetCard()}${rcptCard()}
+  </div><div class="setsec" ${sx('sync')}>${sheetCard()}${rcptCard()}${ytCard()}
   </div><div class="setsec" ${sx('me')}><h2>휘슬</h2><div class="panel pad"><button class="btn block" data-act="whistle">${S.whistle ? '🔊 이 폰에서 휘슬 켜짐' : '🔇 이 폰에서 휘슬 꺼짐'}</button>${ibm(`웹에서는 휘슬이 울리려면 경기 화면을 켜 두어야 해요.`)}</div>
     </div><div class="setsec" ${sx('ops')}>${S.admin ? `<h2>서비스 상태</h2><div class="panel pad"><div class="betarow"><div><b>${betaOn() ? '🧪 베타테스트 중' : '✅ 정식 서비스'}</b>${ib(betaOn() ? '운영진이 신청자 순번을 바꿀 수 있어요(카톡 투표 결과 반영용).' : '신청 순번은 서버 도착 시각으로만 정해지고, 바꿀 수 없어요.')}</div><button class="btn ${betaOn() ? 'primary' : ''}" data-act="betatoggle">${betaOn() ? '정식 오픈하기' : '베타로 되돌리기'}</button></div></div>` : ''}
     </div><div class="setsec" ${sx('ops')}>${S.admin ? `<h2>운영비 정산 규칙</h2><div class="panel pad stl-cfg">${(() => { const cf = stlCfg(); return STL_CFG.map(([k, l, d]) => `<label class="stl-f"><span><b>${l}</b>${ib(d)}</span><span class="stl-m"><input class="inp" inputmode="numeric" data-in="stlcfg" data-k="${k}" value="${(+cf[k] || 0).toLocaleString('ko-KR')}" aria-label="${l}"><em>원</em></span></label>`).join('') + [['bank', '입금 은행', '예: 카카오뱅크'], ['acct', '계좌번호', '예: 3333-01-1234567'], ['holder', '예금주', '예: 박종현']].map(([k, l, ph]) => `<label class="stl-f"><span><b>${l}</b>${k === 'bank' ? ib('정산 공지 이미지와 안내문에 나와요') : ''}</span><input class="inp stl-t" type="text" data-in="stlcfgt" data-k="${k}" value="${esc(cf[k] || '')}" placeholder="${ph}" aria-label="${l}"></label>`).join('') + `<div class="stl-f"><span><b>벌금 쓰임</b><small>보태면 구장 사용료에서 먼저 빼고 나눠요</small></span><span class="stl-seg" role="group">${[[true, '운영비에 보태기'], [false, '회비로 적립']].map(([v, t]) => `<button class="${!!cf.penUse === v ? 'on' : ''}" data-act="stlpen" data-v="${v ? 1 : 0}" aria-pressed="${!!cf.penUse === v}">${t}</button>`).join('')}</span></div><p class="note" style="margin-bottom:0">예) ${[13180, 13260].map(x => `${wn(x)} → ${wn(stlRound(x, +cf.unit || 0, +cf.cut || 0))}`).join(' · ')}</p>` })()}</div>` : ''}
@@ -1923,8 +1986,11 @@ function vResultDetail(s) {
   const mrowR = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); const win = m.status === 'done' ? (a > b ? 'win-h' : a < b ? 'win-a' : '') : '';
     return `<button class="mrow ${win}" data-act="open" data-id="${m.id}"><span class="side">${bib(H.color)}<span>${esc(H.name)}</span></span><span class="mid">${nC(s) === 2 ? `<span class="ctag c${mcourt(m)}">${mcourt(m)}구장</span>` : ''}<span class="sc">${m.status === 'pending' ? 'vs' : a + ' : ' + b}</span><span class="st">${m.n}경기${m.status === 'done' ? '' : m.status === 'live' ? ' · 진행 중' : ' · 예정'}</span></span><span class="side r"><span>${esc(A.name)}</span>${bib(A.color)}</span></button>${rdScorers(s, m)}` };
   const cell = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); return `<button class="rgc st-${m.status}" data-act="open" data-id="${m.id}" aria-label="${m.n}경기 ${esc(H.name)} ${m.status === 'pending' ? '대' : a + '대' + b} ${esc(A.name)}"><em class="gno">${gno(m.n)}</em>${bib(H.color)}<b>${m.status === 'pending' ? 'vs' : a + ':' + b}</b>${bib(A.color)}</button>` };
-  const gcard = m => gameCard(s, m);
-  const rounds = `<div class="gstrip">${[...ms].sort((x, y) => x.n - y.n).map(gcard).join('')}</div>`; void mrowR;
+  const yt = ytFor(s); ytAuto();
+  // 경기별 결과: 왼쪽 게임 번호 · 가운데 두 팀과 점수 · 오른쪽 끝 유튜브 버튼(영상 있을 때만)
+  const grow = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); const pend = m.status === 'pending'; const w = m.status === 'done' ? (a > b ? 'h' : a < b ? 'a' : 'd') : ''; const v = yt?.v[m.id];
+    return `<div class="grow st-${m.status} w-${w}"><button class="grow-b" data-act="open" data-id="${m.id}" aria-label="${m.n}경기 ${esc(H.name)} ${pend ? '대' : a + '대' + b} ${esc(A.name)}"><em class="gno">${gno(m.n)}</em><span class="gtm h"><b>${esc(H.name)}</b>${bib(H.color)}</span><span class="gs">${pend ? '<i>vs</i>' : `<b class="sh">${a}</b><i>:</i><b class="sa">${b}</b>`}${m.status === 'live' ? '<i class="glive">LIVE</i>' : ''}</span><span class="gtm a">${bib(A.color)}<b>${esc(A.name)}</b></span></button>${v ? ytBtn(v, '', false, 'row') : '<span class="yt-ph" aria-hidden="true"></span>'}</div>` };
+  const rounds = `<div class="grows">${[...ms].sort((x, y) => x.n - y.n).map(grow).join('')}</div>`; void mrowR;
   const rk = scorerRank(s); const myRank = rk.find(r => r.id === me);
   const rkHtml = rk.length ? `<div class="panel tblwrap rdrank2"><table><thead><tr><th>순위</th><th class="l">이름</th><th class="l">팀</th><th>골</th><th>도움</th></tr></thead><tbody>${rk.map(r => `<tr class="${r.id === me ? 'me' : ''}"><td class="rank"><em class="rkn ${r.rank <= 3 ? 'top' : ''}">${r.rank}</em></td><td class="l"><b>${esc(pname(r.id))}</b></td><td class="l">${r.tname ? `<span class="teamcell">${bib(r.color)}${esc(r.tname)}</span>` : '-'}</td><td><b>${r.g}</b></td><td>${r.a || '-'}</td></tr>`).join('')}</tbody></table></div>${rk.ogN ? `<p class="note">자책골 ${rk.ogN}골은 개인 득점에서 빠져요.</p>` : ''}` : '<div class="panel"><p class="empty">선수 이름으로 기록된 골이 없어요.</p></div>';
   const fin = done === ms.length && ms.length; const ch = fin ? rows.filter(r => r.rank === 1) : []; const top = rk[0];
@@ -1932,7 +1998,7 @@ function vResultDetail(s) {
   return `${champ}<div class="rdgrid"><section class="rd-st"><h2>팀 순위${done === ms.length && ms.length ? '<span class="final">최종</span>' : ''}</h2>${st}</section>
   <section class="rd-tm"><h2>팀 구성</h2>${tm}</section>
   <section class="rd-rk"><h2>득점 순위${myRank ? `<small>나 ${myRank.rank}위 · ${myRank.g}골</small>` : ''}</h2>${rkHtml}</section>
-  <section class="rd-ms"><h2>경기별 결과</h2>${ms.length ? rounds : '<div class="panel"><p class="empty">경기 기록이 없어요.</p></div>'}</section></div>`;
+  <section class="rd-ms"><h2>경기별 결과${yt ? ytBtn(yt.pl, '전체 영상', true, 'h2') : ''}</h2>${ms.length ? rounds : '<div class="panel"><p class="empty">경기 기록이 없어요.</p></div>'}</section></div>`;
 }
 /* ───────── 출석 현황 ───────── */
 function attPids(s) { const ps = new Set(); KEYS.forEach(k => (s.teams?.[k]?.players || []).forEach(p => p && ps.add(p))); if (!ps.size) (s.applicants || []).forEach(p => p && ps.add(p)); return [...ps] }
@@ -3578,6 +3644,10 @@ document.addEventListener('click', async e => {
     case 'rcptsave': { if (!needAdmin()) break; const u = (document.getElementById('rc-url')?.value || '').trim(); if (!/^https:\/\/script\.google\.com\/.+\/exec(\?.*)?$/.test(u)) { toast('웹 앱 주소는 https://script.google.com/…/exec 형식이어야 해요.'); break }
       const cfg = { exec: u, token: S.rcptTok, at: Date.now() }; try { const r = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'ping', token: cfg.token }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error || '응답 오류') } catch (e) { toast('연결을 확인하지 못했어요: ' + e.message + ' (코드·배포 설정을 확인해 주세요)'); break }
       if (await w(() => S.store.set('meta/receipt', cfg), '드라이브 연결 완료! 이제 영수증은 구글 드라이브에 저장돼요.')) { S.meta = { ...(S.meta || {}), receipt: cfg }; S.sheet = null; render() } break }
+    case 'ytopen': e.preventDefault(); ytOpen(el.getAttribute('href')); break;
+    case 'ytsync': if (!needAdmin()) break; S.ytErr = null; await ytSync(true); break;
+    case 'ytset': { if (!needAdmin()) break; const f = el.dataset.f; const cur0 = f === 'ch' ? ytCh() : ytKw(); const v = prompt(f === 'ch' ? '유튜브 채널 핸들(@이름) 또는 채널 ID (UC…)' : '재생목록 제목에 들어간 키워드 (대소문자 무관, 비우면 전체)', cur0); if (v == null) break;
+      const nx = { ...ytCfg(), [f]: v.trim(), at: 0 }; if (f === 'ch' && !nx.ch) break; if (await w(() => S.store.set('meta/yt', nx), '저장했어요. 지금 찾기를 눌러 주세요.')) { S.meta = { ...(S.meta || {}), yt: nx }; render() } break }
     case 'rcptping': try { const r = await fetch(rcptCfg().exec, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'ping', token: rcptCfg().token }) }); const j = await r.json(); toast(j.ok ? '✅ 드라이브와 잘 연결돼 있어요.' : '연결 오류: ' + j.error) } catch (e) { toast('연결 오류: ' + e.message) } break;
     case 'rcptmigrate': { if (!needAdmin() || !rcptOn()) break; let docs = []; try { docs = (await S.store.query('receipts', [])) || [] } catch (e) { toast('예전 영수증을 읽지 못했어요.'); break } S.rcptLeft = docs.length; if (!docs.length) { render(); break }
       if (S.rcptLeft != null && el.textContent.includes('확인')) { render(); break } if (!confirm(`Firebase에 있는 영수증 ${docs.length}장을 구글 드라이브로 옮기고 Firebase에서는 지울까요?`)) { render(); break }
