@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.24';
+const APP_VERSION = '0.4.25';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1370,6 +1370,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.25','2026.10.29',['다음 경기 신청을 오늘 경기보다 우선: 신청 오픈 24시간 전부터 홈 맨 위에 “NEXT APPLY” 카드가 고정돼요 (신청을 마치고 1시간이 지나면 오늘 경기 아래로)','경기 당일에는 오늘 경기 칸 제목이 TODAY MATCH로 보여요']],
   ['0.4.24','2026.10.29',['경기 당일에도 다음 경기 신청을 홈에서 바로: 다음 경기 신청이 1시간 안에 열리거나 신청 중이면 홈 맨 위에 “NEXT APPLY” 카드(카운트다운 → 신청 버튼 → 내 순번)가 나와요','신청 오픈 카운트다운이 1초 일찍 00:00:00이 되던 것을 바로잡음','시뮬레이션: sim/open.html에서 12:59:50부터 13:00 신청 오픈 장면을 볼 수 있어요']],
   ['0.4.23','2026.10.28',['[운영진] 팀 확정 후 불참 교체: 밸런스 조정 화면과 경기진행 화면의 “🔁 불참 교체”에서 불참자를 고르고, 대신 들어올 사람을 회원 목록(드롭다운)에서 고르거나 게스트 이름으로 추가해요','불참자는 마감 후 취소로 기록돼 다음 경기 신청 때 3순위가 되고, 같은 팀 같은 자리(주장이면 주장 자리)에 새 사람이 들어가요. 공당·물당·주차 명단에서도 빠지고, 포스터는 새로 만들어져요']],
   ['0.4.22','2026.10.28',['한 번 바꾼 개인 설정(휘슬 켜기/끄기, 전체화면 점수판 방향)도 서버에 함께 저장해서, 앱 업데이트나 폰 저장공간 정리 뒤에도 그대로 유지돼요 (알림 설정·차량번호는 원래 서버에 저장)']],
@@ -1728,7 +1729,7 @@ function viewMHome() {
   const rvDown0 = fit && !!sid && S.sessions[sid]?.draftStatus !== 'done' && (applyState(S.sessions[sid]).k !== 'none' || ['open', 'soon'].includes(sStatus(S.sessions[sid]).k)); const dd = myDrinkDue();
   const na = nextApplySid(sid); let naCard = '', naTop = false;
   if (na) { const s2 = S.sessions[na]; const [, m2, d2] = na.split('-'); const k2 = sStatus(s2).k; naCard = `<div class="nxapply"><div class="nxa-hd"><span class="st st-${k2}">${sStatus(s2).label}</span><b>${+m2}.${+d2} (${dow(na)}) ${esc(s2.time || '')} 경기 신청</b><small>${s2.no ? s2.no + '회 · ' : ''}${esc(venueTxt(s2) || '')}</small></div>${applyBox(s2, fit)}</div>`;
-    const oT = s2.applyOpen ? dt(s2.applyOpen).getTime() : 0; naTop = k2 === 'open' ? (applyState(s2).k === 'none' || nowS() - oT < 3600e3) : (oT - nowS() < 3600e3) } // 신청 1시간 전부터·신청 중에는 홈 맨 위에
+    const oT = s2.applyOpen ? dt(s2.applyOpen).getTime() : 0; naTop = k2 === 'open' ? (applyState(s2).k === 'none' || nowS() - oT < 3600e3) : true } // 다음 경기 신청이 오늘 경기보다 우선: 오픈 24시간 전부터 홈 맨 위 (신청을 마친 뒤 1시간이 지나면 아래로)
   h += `${fit ? `<div class="homefit${rvDown0 || dd || nextApplySid(sid) ? ' hf-scroll' : ''}">` : ''}${naTop ? `<div class="nxtop"><div class="sec-lab"><span>NEXT APPLY</span></div>${naCard}</div>` : ''}<div class="dgrid homegrid"><section>`;
   { if (dd) h += `<button class="dbnudge" data-act="dbopen" data-id="${dd}">🥤 <span><b>${fmtDate(dd)} 물당 구입 금액을 등록해 주세요</b></span><em>등록 ›</em></button>` }
 
@@ -1748,7 +1749,7 @@ function viewMHome() {
   if (!rvDown) h += rv;
   h += '</section><section>';
   // ── NEXT MATCH ──
-  h += `<div class="sec-lab"><span>NEXT MATCH</span></div>`;
+  h += `<div class="sec-lab"><span>${sid && sid === today() ? 'TODAY MATCH' : 'NEXT MATCH'}</span></div>`;
   h += '<div class="nextwrap">';
   if (!sid) h += `<div class="hero"><div class="hero-empty">예정된 경기가 없어요</div><p>새 경기일이 열리면 여기에 보여요.</p></div>`;
   else { S.sid = sid; const s = S.sessions[sid]; const st = sStatus(s); const n = appTotal(s); const cap = s.capacity || 0; const [, m, d] = sid.split('-');
