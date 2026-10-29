@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.27';
+const APP_VERSION = '0.4.28';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1370,6 +1370,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.28','2026.10.29',['신청이 열리는 순간 버튼 위치가 움직이지 않게: “13:00에 열려요” 자리에 그대로 “경기 신청하기” 버튼이 같은 크기로 나타나요']],
   ['0.4.27','2026.10.29',['경기 신청 카드의 카운트다운은 신청 오픈 당일(0시부터)에만 보여요. 그 전에는 오픈 날짜·시각을 크게 보여줘요']],
   ['0.4.26','2026.10.29',['경기 신청 카드를 항상 홈 맨 위에: 신청 예정(카운트다운)·신청 중인 경기가 있으면 언제나 첫 화면 맨 위에 나와요 (아래 경기 정보와 중복 표시 없음)','정각 열림 이중 안전장치: 서버 시계 기준 예약 + 매초 확인으로, 폰이 잠들었다 깨어나도 바로 신청 버튼으로 바뀌어요']],
   ['0.4.25','2026.10.29',['다음 경기 신청을 오늘 경기보다 우선: 신청 오픈 24시간 전부터 홈 맨 위에 “NEXT APPLY” 카드가 고정돼요 (신청을 마치고 1시간이 지나면 오늘 경기 아래로)','경기 당일에는 오늘 경기 칸 제목이 TODAY MATCH로 보여요']],
@@ -2408,7 +2409,7 @@ function cdTxt(ms) { if (!(ms > 0)) return '00:00:00'; const s = Math.ceil(ms / 
 function applyBox(s, compact) {
   const st = sStatus(s); const a = applyState(s); const c = appCounts(s);
   const nameBtn = a.noname ? `<button class="btn sm primary" data-act="appname" data-id="${s.date}">이름 입력하기</button>` : '';
-  if (st.k === 'soon') { const om = new Date(s.applyOpen).getTime(); const od = new Date(om); const sameDay = od.toDateString() === new Date(nowS()).toDateString(); return `<div class="apbig soon">${sameDay ? `<small>신청 오픈까지</small><b class="apcd" data-cd="${om}">${cdTxt(om - nowS())}</b>` : `<small>신청 오픈</small><b class="apcd apday">${od.getMonth() + 1}.${od.getDate()} (${DOW[od.getDay()]}) ${p2(od.getHours())}:${p2(od.getMinutes())}</b>`}<span>${sameDay ? fmtDT(s.applyOpen) + (s.capacity ? ` · 정원 ${s.capacity}명` : '') : `당일 0시부터 카운트다운이 시작돼요${s.capacity ? ` · 정원 ${s.capacity}명` : ''}`}</span><button class="applybtn soonbtn" disabled>${sameDay ? '' : `${od.getMonth() + 1}.${od.getDate()} `}${(s.applyOpen || '').slice(11, 16)}에 열려요</button></div>` }
+  if (st.k === 'soon') { const om = new Date(s.applyOpen).getTime(); const od = new Date(om); const sameDay = od.toDateString() === new Date(nowS()).toDateString(); return `<div class="apbig soon"><div class="aptop">${sameDay ? `<small>신청 오픈까지</small><b class="apcd" data-cd="${om}">${cdTxt(om - nowS())}</b>` : `<small>신청 오픈</small><b class="apcd apday">${od.getMonth() + 1}.${od.getDate()} (${DOW[od.getDay()]}) ${p2(od.getHours())}:${p2(od.getMinutes())}</b>`}</div><button class="applybtn soonbtn" disabled>${sameDay ? '' : `${od.getMonth() + 1}.${od.getDate()} `}${(s.applyOpen || '').slice(11, 16)}에 열려요</button><div class="apfoot soon"><span>${sameDay ? fmtDT(s.applyOpen) + (s.capacity ? ` · 정원 ${s.capacity}명` : '') : `당일 0시부터 카운트다운이 시작돼요${s.capacity ? ` · 정원 ${s.capacity}명` : ''}`}</span></div></div>` }
   if (a.k === 'in' && a.auto) return `<div class="applied"><span>✓ 자동 신청 · 0순위<small>${a.role}(으)로 자동 참가 신청돼 있어요. 빠지려면 운영진에게 ${a.role} 해제를 요청해 주세요.</small></span></div>${(() => { const x = parkBox(s) + dutyBox(s); return x ? `<div class="extras">${x}</div>` : '' })()}`;
   const canLate = !a.auto && st.k !== 'open' && (s.draftStatus || 'ready') === 'ready' && ['apply', 'captain'].includes(s.stage);
   if (a.k === 'in' && a.n && !a.noname) return `<div class="apbig done"><div class="apno"><b>${a.n}</b><small>번째</small></div><div class="apinfo2"><b>신청 완료${a.tier != null && isBase(s) ? ` · ${TIER[a.tier]}` : ''}</b><small>${st.k === 'open' ? '정원 안에 들어왔어요' : '이번 경기 참가자예요'}</small>${st.k === 'open' ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">신청 취소</button>` : canLate ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">참가 취소</button>` : ''}</div></div>${(() => { const x = parkBox(s) + dutyBox(s); return x ? `<div class="extras">${x}</div>` : '' })()}`;
@@ -2417,7 +2418,7 @@ function applyBox(s, compact) {
   if (st.k !== 'open') return '';
   const full = s.capacity && c.sel >= s.capacity; const cap = s.capacity || 0; const left = Math.max(0, cap - c.sel); const cm = s.applyClose ? new Date(s.applyClose).getTime() : 0;
   const seats = cap && cap <= 40 ? `<div class="apseats" role="img" aria-label="정원 ${cap}자리 중 ${Math.min(cap, c.sel)}자리 찼음" style="--n:${cap}">${Array.from({ length: cap }, (_, i) => `<i class="${i < c.sel ? 'on' : ''}"></i>`).join('')}</div>` : '';
-  return `<div class="apbig open"><div class="apnums"><div><small>지금 신청</small><b>${c.sel}${cap ? `<em> / ${cap}</em>` : ''}</b></div><div class="r"><small>${full ? '대기' : '남은 자리'}</small><b class="${full ? 'w' : 'g'}">${full ? c.wait : left}</b></div></div>${seats}<button class="btn primary block applybtn cta" data-act="apply" data-id="${s.date}" ${S.applyBusy === s.date ? 'disabled aria-busy="true"' : ''}>${S.applyBusy === s.date ? '신청 저장 중…' : `<span>${full ? '대기 신청하기' : '경기 신청하기'}</span><small>누르는 순간 순번이 정해져요</small>`}</button>${cm ? `<div class="apfoot"><span>마감 ${fmtDT(s.applyClose)}</span><span>남은 시간 <b data-cd="${cm}">${cdTxt(cm - nowS())}</b></span></div>` : ''}</div>`;
+  return `<div class="apbig open"><div class="aptop"><div class="apnums"><div><small>지금 신청</small><b>${c.sel}${cap ? `<em> / ${cap}</em>` : ''}</b></div><div class="r"><small>${full ? '대기' : '남은 자리'}</small><b class="${full ? 'w' : 'g'}">${full ? c.wait : left}</b></div></div>${seats}</div><button class="btn primary block applybtn cta" data-act="apply" data-id="${s.date}" ${S.applyBusy === s.date ? 'disabled aria-busy="true"' : ''}>${S.applyBusy === s.date ? '신청 저장 중…' : `<span>${full ? '대기 신청하기' : '경기 신청하기'}</span><small>누르는 순간 순번이 정해져요</small>`}</button><div class="apfoot">${cm ? `<span>마감 ${fmtDT(s.applyClose)}</span><span>남은 시간 <b data-cd="${cm}">${cdTxt(cm - nowS())}</b></span>` : ''}</div></div>`;
 }
 // 오픈 시각보다 먼저 서버에 도착한 신청(휴대폰 시계 보정 오차 등)은 무효라서, 바로 다시 보내 오픈 이후 시각으로 다시 찍어요.
 async function fixEarly(sid, qp, doc) { const open = S.sessions[sid]?.applyOpen ? new Date(S.sessions[sid].applyOpen).getTime() : 0; if (!open) return;
