@@ -1791,4 +1791,14 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 @media (max-width:420px){.grow-b{grid-template-columns:64px minmax(0,1fr) auto minmax(0,1fr) 64px!important;gap:5px}.grow .gno{font-size:12.5px;letter-spacing:0}.grow .gtm{gap:5px}}
 .rv-games .rg i,.gsc-s i{display:inline-block;transform:translateY(-1px)}
 :root{--cssv:"0.4.37"}
+/* 유튜브 버튼 작고 차분하게 */
+.ytbtn.row .ytic{width:30px;height:22px;border-radius:7px;background:linear-gradient(180deg,#F23A4E,#D0102F);box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}
+.ytbtn.row .ytic svg{width:13px;height:13px}
+.ytbtn.row:hover .ytic{box-shadow:0 3px 8px -3px rgba(227,0,43,.6),inset 0 1px 0 rgba(255,255,255,.25)}
+.yt-ph{width:30px;height:22px}
+.ytbtn.lb .ytic{width:26px;height:19px;box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}
+.ytbtn.lb .ytic svg{width:11px;height:11px}
+.ytbtn.lb{font-size:12.5px;padding:3px 11px 3px 3px!important}
+@media (max-width:420px){.ytbtn.row .ytic{width:28px;height:21px}.yt-ph{width:28px;height:21px}}
 :root{--cssv:"0.4.38"}
+:root{--cssv:"0.4.39"}
