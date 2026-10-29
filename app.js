@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.40';
+const APP_VERSION = '0.4.41';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1365,6 +1365,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.41','2026.10.29',['[운영진] 유튜브 권한 오류 해결: Apps Script 설정 파일(appsscript.json)에 드라이브·유튜브 권한을 직접 적도록 안내 + 설정 파일 복사 버튼']],
   ['0.4.40','2026.10.29',['[운영진] 유튜브 권한 오류 안내 개선 · Apps Script 코드에 authorize(권한 허용) 함수 추가']],
   ['0.4.39','2026.10.29',['유튜브 영상 버튼을 작고 차분하게 줄임']],
   ['0.4.38','2026.10.29',['경기별 결과의 점수 “:”가 줄 정가운데에 오고 숫자 높이 가운데에 맞도록 정렬 (게임 번호 칸과 영상 버튼 칸 폭을 같게)','홈 MATCH REVIEW·경기 카드의 “:” 높이도 함께 맞춤']],
@@ -1653,6 +1654,7 @@ const rcptCfg = () => S.meta?.receipt || {};
 const rcptOn = () => !!(rcptCfg().exec && rcptCfg().token);
 const rcptThumb = id => `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w1600`;
 async function rcptUpload(sid, pid, dataUrl) { const r = await fetch(rcptCfg().exec, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'upload', token: rcptCfg().token, sid, pid, name: pname(pid) || pid, data: dataUrl }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error || '드라이브 업로드 실패'); return j }
+const RCPT_MANIFEST = JSON.stringify({ timeZone: 'Asia/Seoul', dependencies: { enabledAdvancedServices: [{ userSymbol: 'YouTube', version: 'v3', serviceId: 'youtube' }] }, exceptionLogging: 'STACKDRIVER', runtimeVersion: 'V8', oauthScopes: ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/youtube.readonly'], webapp: { executeAs: 'USER_DEPLOYING', access: 'ANYONE_ANONYMOUS' } }, null, 2);
 function rcptScript(token) { return `// WD_FUTSAL 물당 영수증 → 구글 드라이브 저장용 (새 Apps Script 프로젝트에 그대로 붙여 넣으세요)
 const TOKEN = '${token}';
 const FOLDER = 'WD_FUTSAL 영수증';
@@ -1703,11 +1705,11 @@ function rcptSetupSheet() { const tok = S.rcptTok || (S.rcptTok = Math.random().
   return `<h4>☁️ 영수증을 구글 드라이브에 저장하기</h4><ol class="rs-steps">
     <li><a href="https://script.google.com/home/projects/create" target="_blank" rel="noopener"><b>script.google.com</b></a>에서 <b>새 프로젝트</b>를 만들어요 (운영진 구글 계정).</li>
     <li>아래 <b>코드 복사</b>를 눌러 편집기 내용을 지우고 붙여 넣은 뒤 저장해요.</li>
-    <li>왼쪽 <b>서비스 ＋</b> → <b>YouTube Data API v3</b> → 추가 (경기 영상 연결용).</li>
+    <li><b>프로젝트 설정(⚙)</b> → <b>“appsscript.json” 매니페스트 파일 표시</b> 체크 → 편집기의 <b>appsscript.json</b> 내용을 지우고 아래 <b>설정 파일 복사</b>로 붙여 넣고 저장 (드라이브·유튜브 권한).</li>
     <li>위쪽 함수 선택에서 <b>authorize</b>를 고르고 <b>실행</b> → 권한 검토 → 허용.</li>
     <li><b>배포 → 새 배포 → 웹 앱</b> · 실행: <b>나</b> · 액세스: <b>모든 사용자</b> → 배포 → 권한 허용.</li>
     <li>나온 <b>웹 앱 URL</b>(…/exec)을 아래에 붙여 넣고 저장해요.</li></ol>
-    <button class="btn block" data-act="rcptcopy">📋 코드 복사</button>
+    <div class="row stack2"><button class="btn" data-act="rcptcopy">📋 코드 복사</button><button class="btn" data-act="rcptcopy" data-f="m">⚙ 설정 파일 복사</button></div>
     <div class="field" style="margin-top:12px"><label for="rc-url">웹 앱 URL</label><input id="rc-url" class="inp" type="url" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(rcptCfg().exec || '')}"></div>
     <button class="btn primary block" data-act="rcptsave">저장하고 연결 확인</button>` }
 /* ───────── 경기 영상 (유튜브 재생목록 ↔ 경기 결과) ───────── */
@@ -3645,7 +3647,7 @@ document.addEventListener('click', async e => {
     case 'substmode': S.subst = { ...(S.subst || {}), mode: el.dataset.v }; render(); break;
     case 'substdo': if (!needAdmin()) break; await substDo(); break;
     case 'rcptsetup': if (!needAdmin()) break; S.rcptTok = rcptCfg().token || null; S.sheet = { type: 'rcptsetup' }; render(); break;
-    case 'rcptcopy': { const code = rcptScript(S.rcptTok); try { await navigator.clipboard.writeText(code); toast('코드를 복사했어요. Apps Script 편집기에 붙여 넣으세요.') } catch { prompt('아래 코드를 복사하세요', code) } break }
+    case 'rcptcopy': { const code = el.dataset.f === 'm' ? RCPT_MANIFEST : rcptScript(S.rcptTok); try { await navigator.clipboard.writeText(code); toast('코드를 복사했어요. Apps Script 편집기에 붙여 넣으세요.') } catch { prompt('아래 코드를 복사하세요', code) } break }
     case 'rcptsave': { if (!needAdmin()) break; const u = (document.getElementById('rc-url')?.value || '').trim(); if (!/^https:\/\/script\.google\.com\/.+\/exec(\?.*)?$/.test(u)) { toast('웹 앱 주소는 https://script.google.com/…/exec 형식이어야 해요.'); break }
       const cfg = { exec: u, token: S.rcptTok, at: Date.now() }; try { const r = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'ping', token: cfg.token }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error || '응답 오류') } catch (e) { toast('연결을 확인하지 못했어요: ' + e.message + ' (코드·배포 설정을 확인해 주세요)'); break }
       if (await w(() => S.store.set('meta/receipt', cfg), '드라이브 연결 완료! 이제 영수증은 구글 드라이브에 저장돼요.')) { S.meta = { ...(S.meta || {}), receipt: cfg }; S.sheet = null; render() } break }
