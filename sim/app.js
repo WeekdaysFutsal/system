@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.28';
+const APP_VERSION = '0.4.29';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1370,6 +1370,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.29','2026.10.29',['설치 가이드(install.html)에 “설치 후” 장 추가: 로그인 · 알림 켜기 · 경기 신청(카운트다운→정각 버튼) · 업데이트, 도움말에 알림·새 기능 안내 추가','내 정보의 “알림 켜기” 버튼이 두 줄로 꺾이던 것 수정']],
   ['0.4.28','2026.10.29',['신청이 열리는 순간 버튼 위치가 움직이지 않게: “13:00에 열려요” 자리에 그대로 “경기 신청하기” 버튼이 같은 크기로 나타나요']],
   ['0.4.27','2026.10.29',['경기 신청 카드의 카운트다운은 신청 오픈 당일(0시부터)에만 보여요. 그 전에는 오픈 날짜·시각을 크게 보여줘요']],
   ['0.4.26','2026.10.29',['경기 신청 카드를 항상 홈 맨 위에: 신청 예정(카운트다운)·신청 중인 경기가 있으면 언제나 첫 화면 맨 위에 나와요 (아래 경기 정보와 중복 표시 없음)','정각 열림 이중 안전장치: 서버 시계 기준 예약 + 매초 확인으로, 폰이 잠들었다 깨어나도 바로 신청 버튼으로 바뀌어요']],
