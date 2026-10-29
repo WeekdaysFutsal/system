@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.44';
+const APP_VERSION = '0.4.45';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -148,7 +148,9 @@ function allPicked(s) { return TK(s).every(k => team(s, k).picked) }
 const memberNames = () => Object.values(S.players).map(p => p.name).sort((a, b) => a.localeCompare(b, 'ko'));
 const DEV_NAMES = []; // (예전 개발자 계정은 일반 회원으로 바뀌었어요. 모든 권한은 마스터 계정이 가져요)
 const MASTER_PID = '__master', MASTER_P = { name: '마스터', status: 'staff', master: true }; const isMaster = () => S.auth?.pid === MASTER_PID; // 앱 Master: 모든 기능 + 비밀번호 없이 운영모드 + 드래프트 접속자 보기
-const canOp = () => S.admin || !S.auth || isMaster() || ['staff', 'special'].includes(mstatus(S.players[myPid()]));
+// 앱 마스터 회원: 마스터 계정과 같은 권한(비밀번호 없이 운영모드, 드래프트·접속자 보기, 경기 기록 강제 가져오기)을 가진 실제 회원 — 신청·채팅 등 회원 활동은 그대로
+const SUPER_NAMES = ['박종현']; const isSuper = () => isMaster() || (!!S.auth && !isTest() && SUPER_NAMES.includes(S.players[myPid()]?.name));
+const canOp = () => S.admin || !S.auth || isSuper() || ['staff', 'special'].includes(mstatus(S.players[myPid()]));
 const FIG_SVG = '<svg class="pfs" viewBox="0 0 80 72" aria-hidden="true"><path class="pf-body" d="M27 4Q40 11 53 4L66 7Q73 9 76 17L79 33L65 35L64 67Q40 71 16 67L15 35L1 33L4 17Q7 9 14 7Z"/><path class="pf-cuff" d="M1.9 28.6L15 30.6V35L1 33ZM78.1 28.6L65 30.6V35L79 33Z"/><path class="pf-seam" d="M15 31V21M65 31V21"/><path class="pf-colw" d="M27 4Q40 12.5 53 4"/><path class="pf-coll" d="M27 4Q40 11 53 4M25.5 5.4Q40 15.5 54.5 5.4"/></svg>';
 const figHTML = n => { const L = Math.max(2, [...String(n)].length); return `${FIG_SVG}<b class="pfn" style="--nl:${L}">${esc(n)}</b>` }; // 반팔 유니폼 아이콘 + 가슴에 전체 이름 (글자 수에 맞춰 크기 자동 조절)
 const PICO = '<i class="pico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="4.3"/><path d="M3.6 21.5c0-4.6 3.8-8 8.4-8s8.4 3.4 8.4 8z"/></svg></i>'; // 드래프트 이름표의 사람 아이콘
@@ -176,9 +178,9 @@ function isMe(id) { const me = myPid(); if (!me || !id) return false; if (id ===
 function myTeam(s) { if (!s) return null; const me = myPid(); if (me) { const k = KEYS.find(k => isMe(s.captains?.[k])); if (k) return k } const l = S.capLinks[s.date || S.sid]; if (!l) return null; return s.captainTokens?.[l.k] && s.captainTokens[l.k] === l.t ? l.k : null }
 function byName(ids) { return [...ids].sort((a, b) => pname(a).localeCompare(pname(b), 'ko')) }
 function quietView() { return isMaster() } // 마스터: 드래프트·접속자 목록·채팅에 흔적을 남기지 않고 모두 볼 수 있어요
-function viewSid() { const me = myPid(); if (!me) return null; const t = today(); const q = quietView() || isMaster(); return Object.keys(S.sessions).sort().find(id => { const s = S.sessions[id]; return id >= t && ((s.viewers || []).includes(me) || (q && (s.room?.open || s.draftStatus === 'live'))) && (s.draftStatus !== 'done' || s.stage === 'trade') }) || null }
+function viewSid() { const me = myPid(); if (!me) return null; const t = today(); const q = quietView() || isSuper(); return Object.keys(S.sessions).sort().find(id => { const s = S.sessions[id]; return id >= t && ((s.viewers || []).includes(me) || (q && (s.room?.open || s.draftStatus === 'live'))) && (s.draftStatus !== 'done' || s.stage === 'trade') }) || null }
 function teamsPublic(s) { return !!s && (S.admin || stageIdx(s.stage) >= stageIdx('notice')) } // 팀 확정·공개 전에는 주장·팀 구성을 일반 회원에게 보여주지 않아요
-function canDraftView(s) { if (!s) return false; if (S.admin) return true; const me = myPid(); if (!me) return false; return KEYS.some(k => isMe(s.captains?.[k])) || (s.viewers || []).includes(me) || quietView() || isMaster() }
+function canDraftView(s) { if (!s) return false; if (S.admin) return true; const me = myPid(); if (!me) return false; return KEYS.some(k => isMe(s.captains?.[k])) || (s.viewers || []).includes(me) || quietView() || isSuper() }
 function capSid() { const me = myPid(); if (!me) return null; const t = today(); return Object.keys(S.sessions).sort().find(id => { const s = S.sessions[id]; return id >= t && KEYS.some(k => isMe(s.captains?.[k])) && (s.draftStatus !== 'done' || s.stage === 'trade') }) || null }
 /* 운영모드 경기 메뉴의 기본 경기: 진행이 시작된(신청이 열렸거나 그 이후 단계) 가장 가까운 다음 경기 → 없으면 오늘 이후 첫 경기 → 없으면 가장 최근 경기 */
 function attPublic() { return S.meta?.flags?.attPublic !== false } // 출석 현황 공개(기본 공개). 끄면 회원은 자기 출석만 봐요
@@ -799,9 +801,9 @@ function presTick() { const on = !!document.querySelector('.board-table') && !!S
   // Master: 접속자 목록
   if (on && !S.unPres) S.unPres = S.store.watchCol('pres', docs => { S.presAll = docs; const a = presAdmins().join('|'); if (a !== S.presAdm) { S.presAdm = a; renderSoon() } drawPres() });
   if (!on && S.unPres) { try { S.unPres() } catch { } S.unPres = null }
-  const el = document.getElementById('presBox'); if (!(on && isMaster())) { if (el) el.remove(); return } drawPres() }
+  const el = document.getElementById('presBox'); if (!(on && isSuper())) { if (el) el.remove(); return } drawPres() }
 function presAdmins() { const now = Date.now(); return [...new Set((S.presAll || []).filter(d => d.sid === S.sid && d.role === '운영진' && now - (d.at || 0) < 45000).map(d => d.name || '운영진'))].sort() }
-function drawPres() { if (!isMaster() || !document.querySelector('.board-table')) return; const now = Date.now(); const list = (S.presAll || []).filter(d => d.sid === S.sid && now - (d.at || 0) < 45000).sort((a, b) => (a.role > b.role ? 1 : -1));
+function drawPres() { if (!isSuper() || !document.querySelector('.board-table')) return; const now = Date.now(); const list = (S.presAll || []).filter(d => d.sid === S.sid && now - (d.at || 0) < 45000).sort((a, b) => (a.role > b.role ? 1 : -1));
   let el = document.getElementById('presBox'); if (!el) { el = document.createElement('div'); el.id = 'presBox'; document.body.appendChild(el) }
   el.innerHTML = `<button class="pres-pill" data-act="presopen">👥 접속 ${list.length}</button>${S.presOpen ? `<div class="pres-list"><b>지금 드래프트 화면에 있는 사람 <small>Master 전용</small></b>${list.length ? list.map(d => `<div class="pres-row ${d.role === '숨김 참관' ? 'hid' : ''}"><span>${d.dev || ''} ${esc(d.name || '')}${d.uid === myUid() ? ' <i>(나)</i>' : ''}</span><em>${esc(d.role || '')}</em><small>${Math.max(0, Math.round((now - d.at) / 1000))}초 전</small></div>`).join('') : '<p>아무도 없어요</p>'}</div>` : ''}` }
 window.addEventListener('pagehide', () => { if (S.presId) try { S.store.del('pres/' + S.presId) } catch { } });
@@ -1365,6 +1367,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.45','2026.10.30',['박종현 회원을 앱 마스터로: 비밀번호 없이 운영모드, 모든 드래프트·접속자 보기, 샘플 데이터 관리','경기모드에서 언제든 기록 가져오기(강제) 가능 · 회원 모드에서도 가능']],
   ['0.4.44','2026.10.30',['경기 기록 권한을 넘겨받은 사람이 골 넣은 선수를 눌러도 기록되지 않던 문제 수정 (넘겨준 운영진 기기가 진행을 자동으로 다시 가져가던 문제)','넘겨받은 사람은 경기모드를 열면 바로 진행을 맡아요 (같은 사람에게 다시 넘겨도)','운영진·경기 운영자는 상대 수락 없이 “기록 가져오기”로 바로 권한을 가져올 수 있어요 · 가져가면 상대에게 알림']],
   ['0.4.43','2026.10.29',['경기 영상 자동 확인 주기를 3시간 → 30분으로 (경기 결과 화면을 열 때 확인)']],
   ['0.4.42','2026.10.29',['[운영진] 경기 영상 지금 찾기 저장 오류(Nested arrays) 수정']],
@@ -1805,7 +1808,7 @@ function viewSettings() { const TABS = [['me', '내 정보'], ['ops', '운영'],
     <div class="simgrid">${[...Object.entries(SIM).map(([k, [n]]) => [k, n, { apply: '신청 중인 경기, 신청자 12명', captain: '신청 마감, 18명 확정', draft: '주장 3명 입장한 드래프트 방', trade: '팀 구성이 끝난 상태' }[k], 'mksim']), ['mm', '경기모드', '팀 구성 완료, 오늘 날짜', 'mkpractice']].map(([k, n, d, act]) => { const cnt = Object.values(S.sessions).filter(x => x.practice && x.simKind === k).length;
       return `<div class="simcell"><button class="btn" data-act="${act}" data-k="${k}"><b>${n}</b><small>${d}</small></button><button class="btn sm danger" data-act="clrsim" data-k="${k}" ${cnt ? '' : 'disabled'}>지우기${cnt ? ` (${cnt})` : ''}</button></div>` }).join('')}</div>
     <button class="btn danger block" style="margin-top:10px" data-act="clrpractice">연습 데이터 모두 지우기${Object.values(S.sessions).filter(x => x.practice).length ? ` (${Object.values(S.sessions).filter(x => x.practice).length}개)` : ''}</button></div>` : ''}
-  </div><div class="setsec" ${sx('practice')}>${S.admin && isMaster() ? `<h2>샘플 데이터</h2><div class="panel pad">${ibm(`화면 확인용 가상 회원, 지난 경기 2개, 다음 경기 1개를 넣거나 지워요. 직접 입력한 데이터는 건드리지 않아요.`)}<div class="row stack2"><button class="btn" data-act="addsample">샘플 데이터 넣기</button><button class="btn danger" data-act="clearsample">샘플 데이터 모두 지우기</button></div></div>` : ''}
+  </div><div class="setsec" ${sx('practice')}>${S.admin && isSuper() ? `<h2>샘플 데이터</h2><div class="panel pad">${ibm(`화면 확인용 가상 회원, 지난 경기 2개, 다음 경기 1개를 넣거나 지워요. 직접 입력한 데이터는 건드리지 않아요.`)}<div class="row stack2"><button class="btn" data-act="addsample">샘플 데이터 넣기</button><button class="btn danger" data-act="clearsample">샘플 데이터 모두 지우기</button></div></div>` : ''}
   </div><div class="setsec" ${sx('me')}><div class="verbox"><div><span>앱 버전</span><b>${APP_VERSION}</b></div><div class="verbtns">${S.admin ? '<button class="btn sm" data-act="changelog">업데이트 내용</button>' : ''}<button class="btn sm" data-act="appreload">최신 버전 확인</button></div></div>
   ${ibm(`새 기능이 안 보이면 "최신 버전 확인"을 눌러 주세요.`)}</div></div>`;
 }
@@ -3177,10 +3180,10 @@ const CTL_STALE = 60000;
 function mmCtl(s, ct) { const c = s?.[CK('mmCtl', ct || mmC(s))]; const me = myUid(); if (!c || !c.uid) return { free: true }; return { mine: c.uid === me, stale: nowS() - (c.beat || 0) > CTL_STALE, name: c.name || '회원' } }
 // 경기 기록 권한: 일정 경기는 그 경기의 경기 운영자(또는 운영자가 넘겨준 사람)만 기록해요. 운영자를 정하지 않은 경기는 누구나 기록할 수 있어요.
 function mmAuthIds(s, ct) { if (!s) return []; const c = ct || mmC(s); const a = s[CK('mmAuth', c)]; if (a && S.players[a]) return [a]; return courtOps(s, c) }
-function mmCanRec(s, ct) { if (S.admin) return true; const ids = mmAuthIds(s, ct); if (!ids.length) return true; const me = myPid(); return !!me && ids.includes(me) }
+function mmCanRec(s, ct) { if (S.admin || isSuper()) return true; const ids = mmAuthIds(s, ct); if (!ids.length) return true; const me = myPid(); return !!me && ids.includes(me) }
 // 이 기기 사람이 이 구장의 지정 기록 담당인지 (운영진이라도 다른 사람에게 넘겼으면 아님) — 자동으로 진행을 맡는 건 지정 담당만
 function mmDesig(s, ct) { const ids = mmAuthIds(s, ct); if (!ids.length) return true; const me = myPid(); return !!me && ids.includes(me) }
-const mmCanGrab = (s, ct) => S.admin || mmIsOps(s, ct);
+const mmCanGrab = (s, ct) => S.admin || isSuper() || mmIsOps(s, ct);
 async function mmGrab(sid) { const s = S.sessions[sid]; if (!s || !mmCanGrab(s)) return; const c = mmC(s); const cur0 = s[CK('mmCtl', c)]; const prev = cur0 && cur0.uid !== myUid() ? cur0 : null;
   const holder = prev?.name || mmAuthIds(s, c).map(pname).join(', ') || '';
   if (!confirm(`${holder ? holder + ' 님의 ' : ''}기록 권한을 가져올까요?\n상대가 수락하지 않아도 바로 내 기기로 넘어와요.`)) return;
@@ -4033,7 +4036,7 @@ document.addEventListener('click', async e => {
       const ok = await w(async () => { for (const [eid] of evs) await S.store.del('events/' + eid); for (const m of ms) await S.store.del(mp(m.id)); await S.store.update(sp(S.sid), { stage: 'notice' }) }, '경기 대진을 삭제했어요.');
       if (ok) { S.openMatch = null; S.tab = 'run'; S.step = 'notice'; render(); window.scrollTo(0, 0) } break }
     case 'opmode': if (!S.admin && !canOp()) { toast('운영모드는 운영진·특별회원만 쓸 수 있어요.'); break } if (S.admin) { if (!confirm('운영모드를 끌까요?')) break; S.adminOn = false; stopAdminWatch(); save('admin', false); S.tab = 'mhome'; S.sid = null; S.step = null; S.openMatch = null; render(); window.scrollTo(0, 0); break }
-      if (isMaster()) { S.sheet = null; S.adminOn = true; save('admin', true); S.tab = 'manage'; S.sid = null; S.step = null; S.openMatch = null; toast('운영모드로 전환했어요.'); render(); window.scrollTo(0, 0); break }
+      if (isSuper()) { S.sheet = null; S.adminOn = true; save('admin', true); S.tab = 'manage'; S.sid = null; S.step = null; S.openMatch = null; toast('운영모드로 전환했어요.'); render(); window.scrollTo(0, 0); break }
       { S.sheet = { type: 'adminpin' }; render(); setTimeout(() => document.getElementById('ap-pin')?.focus(), 60) } break;
     case 'adminpinok': { const pin = (document.getElementById('ap-pin')?.value || '').trim(); if (!(await adminPinOk(pin))) { toast('비밀번호가 달라요.'); const x = document.getElementById('ap-pin'); if (x) { x.value = ''; x.focus() } break }
         document.activeElement?.blur(); S.sheet = null; S.adminOn = true; save('admin', true); S.tab = 'manage'; S.sid = null; S.step = null; S.openMatch = null; toast('운영모드로 전환했어요.'); render(); window.scrollTo(0, 0) } break;
