@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.37';
+const APP_VERSION = '0.4.38';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1365,6 +1365,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.38','2026.10.29',['경기별 결과의 점수 “:”가 줄 정가운데에 오고 숫자 높이 가운데에 맞도록 정렬 (게임 번호 칸과 영상 버튼 칸 폭을 같게)','홈 MATCH REVIEW·경기 카드의 “:” 높이도 함께 맞춤']],
   ['0.4.37','2026.10.29',['유튜브 영상 버튼 디자인 개선: 입체감 있는 빨간 재생 칩, 전체 영상·영상보기는 알약형 버튼']],
   ['0.4.36','2026.10.29',['10월 21일·9월 29일 경기 영상을 미리 넣어 둬서 유튜브 연결 전에도 ▶ 버튼이 보여요']],
   ['0.4.35','2026.10.29',['경기 결과 순서를 팀 순위 → 경기별 결과 → 팀 구성으로, 경기별 결과는 왼쪽 게임 번호 · 가운데 점수 · 오른쪽 끝 ▶ 유튜브 버튼 한 줄로 정리','경기 결과에 유튜브 경기 영상 연결: 재생목록 날짜로 경기를, 영상 제목의 라운드·게임 번호와 두 팀 색으로 게임을 맞춰 ▶ 버튼 표시 (맞는 영상만)','휴대폰은 유튜브 앱, PC는 유튜브 사이트에서 열려요 · 경기 상세 화면에도 영상보기 버튼','[운영진] 설정 → 기록 시트 → 경기 영상: 채널·키워드 설정, 지금 찾기 (3시간마다 자동)']],

@@ -1772,4 +1772,23 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .ytbtn.lb:hover{border-color:#E3002B}
 @media (max-width:420px){.ytbtn.row .ytic{width:36px;height:27px}.grow{grid-template-columns:minmax(0,1fr) 36px}.yt-ph{width:36px;height:27px}}
 :root{--cssv:"0.4.36"}
+/* 점수 콜론(:) 가운데 정렬: 숫자 칸 고정 폭, 콜론은 숫자 높이의 가운데 */
+.grow .gs{display:grid;grid-template-columns:1fr 12px 1fr;align-items:center;width:72px;min-width:0;gap:4px}
+.grow .gs b.sh{text-align:right}.grow .gs b.sa{text-align:left}
+.grow .gs i{text-align:center;line-height:1}
+.grow .gs>i:only-child{grid-column:1/-1}
+.grow .gs .glive{grid-column:1/-1;justify-self:center}
+.sc-colon{display:inline-block;transform:translateY(var(--cy,-.06em))}
+@media (max-width:420px){.grow .gs{width:62px}}
+/* 점수를 줄 전체의 정가운데에: 왼쪽 게임번호 칸 = 오른쪽 영상 버튼 칸 */
+.grow{position:relative;display:block!important;padding:0!important}
+.grow-b{width:100%;grid-template-columns:76px minmax(0,1fr) auto minmax(0,1fr) 76px!important;padding:8px 0!important;border-radius:12px}
+.grow-b .gno{padding-left:12px}
+.grow>.ytbtn,.grow>.yt-ph{position:absolute;right:10px;top:50%;transform:translateY(-50%)}
+.grow .gs i{transform:translateY(-1px)}
+@media (max-width:420px){.grow-b{grid-template-columns:62px minmax(0,1fr) auto minmax(0,1fr) 62px!important;gap:6px}.grow-b .gno{padding-left:10px}.grow>.ytbtn,.grow>.yt-ph{right:8px}}
+.grow-b{min-height:46px;box-sizing:border-box}
+@media (max-width:420px){.grow-b{grid-template-columns:64px minmax(0,1fr) auto minmax(0,1fr) 64px!important;gap:5px}.grow .gno{font-size:12.5px;letter-spacing:0}.grow .gtm{gap:5px}}
+.rv-games .rg i,.gsc-s i{display:inline-block;transform:translateY(-1px)}
 :root{--cssv:"0.4.37"}
+:root{--cssv:"0.4.38"}
