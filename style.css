@@ -1695,3 +1695,12 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 :root{--cssv:"0.4.28"}
 .betarow .btn{white-space:nowrap;flex:none}
 :root{--cssv:"0.4.29"}
+/* 출석 공개 설정 */
+.att-pub{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0;padding:12px 14px;border-radius:14px;background:var(--surface);border:1px solid var(--line)}
+.att-pub.on{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.att-pub b{display:block;font-size:15px}.att-pub small{font-size:12.5px;color:var(--muted)}
+.tgl{flex:none;position:relative;width:52px;height:30px;border-radius:99px;border:0;background:var(--line);cursor:pointer;transition:background .15s}
+.tgl i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .15s}
+.tgl.on{background:var(--accent)}.tgl.on i{transform:translateX(22px);background:#0B0D10}
+.att-priv{margin:12px 0 0;padding:12px 14px;border-radius:12px;background:var(--surface);border:1px dashed var(--line);font-size:13.5px;color:var(--muted);text-align:center}
+:root{--cssv:"0.4.30"}

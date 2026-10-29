@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.29';
+const APP_VERSION = '0.4.30';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -181,6 +181,7 @@ function teamsPublic(s) { return !!s && (S.admin || stageIdx(s.stage) >= stageId
 function canDraftView(s) { if (!s) return false; if (S.admin) return true; const me = myPid(); if (!me) return false; return KEYS.some(k => isMe(s.captains?.[k])) || (s.viewers || []).includes(me) || quietView() || isMaster() }
 function capSid() { const me = myPid(); if (!me) return null; const t = today(); return Object.keys(S.sessions).sort().find(id => { const s = S.sessions[id]; return id >= t && KEYS.some(k => isMe(s.captains?.[k])) && (s.draftStatus !== 'done' || s.stage === 'trade') }) || null }
 /* 운영모드 경기 메뉴의 기본 경기: 진행이 시작된(신청이 열렸거나 그 이후 단계) 가장 가까운 다음 경기 → 없으면 오늘 이후 첫 경기 → 없으면 가장 최근 경기 */
+function attPublic() { return S.meta?.flags?.attPublic !== false } // 출석 현황 공개(기본 공개). 끄면 회원은 자기 출석만 봐요
 function betaOn() { return S.meta?.flags?.beta !== false }
 /* ── 카톡 투표 명단 붙여넣기 (베타) ── */
 const normName = t => String(t || '').replace(/\(게\)|\(게스트\)/g, '').replace(/[^0-9A-Za-z가-힣]/g, '').trim();
@@ -1370,6 +1371,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.30','2026.10.29',['[운영진] 출석 현황 공개 설정: 회원 → 출석 관리 맨 위 스위치로 회원에게 출석 순위를 공개하거나 숨겨요','비공개로 하면 회원은 기록실 → 출석 현황에서 자기 출석 기록만 보고, 다른 회원의 기록은 보이지 않아요']],
   ['0.4.29','2026.10.29',['설치 가이드(install.html)에 “설치 후” 장 추가: 로그인 · 알림 켜기 · 경기 신청(카운트다운→정각 버튼) · 업데이트, 도움말에 알림·새 기능 안내 추가','내 정보의 “알림 켜기” 버튼이 두 줄로 꺾이던 것 수정']],
   ['0.4.28','2026.10.29',['신청이 열리는 순간 버튼 위치가 움직이지 않게: “13:00에 열려요” 자리에 그대로 “경기 신청하기” 버튼이 같은 크기로 나타나요']],
   ['0.4.27','2026.10.29',['경기 신청 카드의 카운트다운은 신청 오픈 당일(0시부터)에만 보여요. 그 전에는 오픈 날짜·시각을 크게 보여줘요']],
@@ -1956,11 +1958,13 @@ function attPersonSheet(id) { const { rows, total } = attRows('all'); const r = 
 function viewAttendance() { const per = S.attPer || 'all'; const { ids, rows, total } = attRows(per); const me = myPid(); const mine = rows.find(r => r.id === me);
   const pct = r => Math.round(r.rate * 100); const md = id => { const [, mm, dd] = id.split('-'); return `${+mm}.${+dd}` };
   let h = `<div class="att"><div class="att-hd"><div><b>출석 현황</b><small>끝난 경기 ${total}회 기준${total !== ids.length ? ` (올린 기록 포함)` : ''}</small></div><div class="seg att-seg">${[['all', '전체'], ['year', '올해'], ['3m', '최근 3개월']].map(([k, n]) => `<button role="tab" data-act="attper" data-k="${k}" aria-selected="${per === k}">${n}</button>`).join('')}</div></div>`;
-  if (S.admin) h += `<div class="row att-adm"><button class="btn sm" data-act="attimp">⬆ 지난 출석 기록 올리기</button>${sheetLink()}</div>${sheetUrl() && S.sheetRec && !(S.sheetRec.attendance || []).length ? '<p class="notice warn">기록 시트에 아직 출석 기록이 없어요. 설정 → 기록 시트 연동에서 ‘지금까지 기록 모두 시트로 옮기기’를 누르거나, 출석부 엑셀을 다시 올려 주세요.</p>' : ''}`;
+  if (S.admin) h += `<div class="att-pub ${attPublic() ? 'on' : ''}"><div><b>${attPublic() ? '👀 회원에게 출석 현황 공개 중' : '🔒 출석 현황 비공개'}</b><small>${attPublic() ? '회원도 모든 사람의 출석 순위를 볼 수 있어요.' : '회원은 자기 출석 기록만 볼 수 있어요.'}</small></div><button class="tgl ${attPublic() ? 'on' : ''}" data-act="attpub" role="switch" aria-checked="${attPublic()}" aria-label="회원에게 출석 현황 공개"><i></i></button></div><div class="row att-adm"><button class="btn sm" data-act="attimp">⬆ 지난 출석 기록 올리기</button>${sheetLink()}</div>${sheetUrl() && S.sheetRec && !(S.sheetRec.attendance || []).length ? '<p class="notice warn">기록 시트에 아직 출석 기록이 없어요. 설정 → 기록 시트 연동에서 ‘지금까지 기록 모두 시트로 옮기기’를 누르거나, 출석부 엑셀을 다시 올려 주세요.</p>' : ''}`;
   if (!total) return h + `<div class="panel"><p class="empty">이 기간에 끝난 경기가 없어요.</p></div></div>`;
-  if (mine && !S.admin) h += `<div class="att-me"><div class="am-top"><span>나의 출석</span><b>${mine.n}<small>/${total}경기</small></b><em>${pct(mine)}%</em></div><div class="att-bar big"><i style="width:${pct(mine)}%"></i></div>
+  const priv = !S.admin && !attPublic(); const mine2 = mine || (priv && me ? { n: 0, rate: 0, dates: [], last: null, streak: 0 } : null);
+  if (mine2 && !S.admin) { const mine = mine2; h += `<div class="att-me"><div class="am-top"><span>나의 출석</span><b>${mine.n}<small>/${total}경기</small></b><em>${pct(mine)}%</em></div><div class="att-bar big"><i style="width:${pct(mine)}%"></i></div>
     <div class="am-sub">${mine.last ? `최근 출석 ${fmtDate(mine.last)}` : '아직 출석 기록이 없어요'}${mine.streak > 1 ? ` · 🔥 ${mine.streak}경기 연속 출석 중` : ''}</div>
-    ${mine.dates.length ? `<div class="att-dates">${mine.dates.slice().reverse().map(id => `<span>${md(id)}</span>`).join('')}</div>` : ''}</div>`;
+    ${mine.dates.length ? `<div class="att-dates">${mine.dates.slice().reverse().map(id => `<span>${md(id)}</span>`).join('')}</div>` : ''}</div>` }
+  if (priv) return h + `<p class="att-priv">🔒 다른 회원의 출석 기록은 운영진만 볼 수 있어요.</p></div>`;
   h += `<div class="panel tblwrap"><table class="att-tbl"><thead><tr><th>순위</th><th class="l">이름</th><th>출석</th><th class="l">출석률</th><th>최근</th></tr></thead><tbody>${rows.map(r => { const op = S.attOpen === r.id;
     return `<tr class="${r.id === me ? 'me' : ''} ${r.n ? '' : 'zero'}" data-act="attopen" data-id="${r.id}"><td class="ark">${r.n ? r.rank : '-'}</td><td class="l nm"><b>${esc(pname(r.id))}</b>${r.id === me ? '<i class="metag">나</i>' : ''}${r.streak > 2 ? `<small class="stk3">🔥${r.streak}</small>` : ''}</td><td class="num"><b>${r.n}</b></td><td class="l"><div class="att-rate"><div class="att-bar"><i style="width:${pct(r)}%"></i></div><span>${pct(r)}%</span></div></td><td class="num muted">${r.last ? md(r.last) : '-'}</td></tr>
       ${op ? `<tr class="att-open"><td colspan="5">${r.dates.length ? `<div class="att-dates">${r.dates.slice().reverse().map(id => `<span>${md(id)}</span>`).join('')}</div>` : '<span class="muted">출석한 경기가 없어요.</span>'}</td></tr>` : ''}` }).join('')}</tbody></table></div>
@@ -3562,6 +3566,7 @@ document.addEventListener('click', async e => {
     case 'orderreset': if (!needAdmin() || !confirm('직접 바꾼 순서를 지우고, 실제로 신청이 들어온 순서(서버 도착 시각)로 되돌릴까요?')) break; await w(() => S.store.update(sp(S.sid), { appOrder: null }), '실제 신청 순서로 되돌렸어요.'); break;
     case 'appmove': { if (!needAdmin()) break; const rows = dispRows(S.sessions[S.sid]); const i = rows.findIndex(r => r.k === el.dataset.k); await moveApp(S.sid, el.dataset.k, i + (+el.dataset.d)); break }
     case 'appmoveto': { if (!needAdmin()) break; const rows = dispRows(S.sessions[S.sid]); const n = rows.length; const v = prompt(`표에서 몇 번째 자리로 옮길까요? (1 ~ ${n}, 자동 신청 줄은 빼고 셉니다)`); const t = parseInt(v, 10); if (!t) break; await moveApp(S.sid, el.dataset.k, t - 1); break }
+    case 'attpub': { if (!needAdmin()) break; const v = !attPublic(); S.meta = { ...(S.meta || {}), flags: { ...(S.meta?.flags || {}), attPublic: v } }; render(); if (await w(() => S.store.set('meta/flags', { ...(S.meta?.flags || {}), attPublic: v }), v ? '회원에게 출석 현황을 공개했어요.' : '출석 현황을 비공개로 바꿨어요. 회원은 자기 기록만 봐요.')) render(); break }
     case 'betatoggle': { if (!needAdmin()) break; const on = betaOn(); if (on && !confirm('정식 서비스를 오픈할까요?\n신청 순번 변경 기능이 잠기고, 순번은 서버 도착 시각으로만 정해져요.')) break; if (!on && !confirm('다시 베타테스트 모드로 바꿀까요? 신청 순번을 바꿀 수 있게 돼요.')) break;
       await w(() => S.store.set('meta/flags', { ...(S.meta?.flags || {}), beta: !on, at: Date.now() }), on ? '정식 서비스로 전환했어요. 순번 변경이 잠겼어요.' : '베타테스트 모드로 바꿨어요.'); break }
     case 'bootbgdel': if (!needAdmin() || !confirm('이 배경 사진을 지울까요?')) break; await w(() => S.store.set('meta/' + el.dataset.k, { img: '', at: Date.now() }), '배경 사진을 지웠어요.'); break;
