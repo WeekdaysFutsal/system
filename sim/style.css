@@ -1823,20 +1823,20 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 /* PC 경기 결과: 한 화면에 — 우승·득점왕 띠 숨김, 왼쪽 팀 순위+경기별 결과(2열), 오른쪽 득점 순위+팀 구성 */
 @media (min-width:1024px) and (hover:hover) and (pointer:fine){
 .rdswipe .rdchamp{display:none!important}
-.rdgrid{grid-template-columns:minmax(0,1.75fr) minmax(0,1fr)!important;grid-template-areas:"st rk" "ms rk" "ms tm"!important;grid-template-rows:auto 1fr auto!important;gap:0 24px!important;align-items:stretch!important}
+.rdgrid{grid-template-columns:minmax(0,2fr) minmax(0,1fr)!important;grid-template-areas:"st rk" "ms rk" "ms tm"!important;grid-template-rows:auto 1fr auto!important;gap:0 24px!important;align-items:stretch!important}
 .rd-ms{align-self:start}
 .rd-tm{align-self:end}
 .rdgrid h2{margin:10px 0 8px!important}
 .rd-st .rdst td,.rd-st .rdst th{padding-top:6px!important;padding-bottom:6px!important}
 .rd-ms .grows{display:grid;grid-auto-flow:column;grid-template-rows:repeat(var(--gr,5),1fr);grid-template-columns:1fr 1fr;gap:6px 8px}
-.rd-ms .grow-b{grid-template-columns:70px minmax(0,1fr) 54px minmax(0,1fr) 40px!important;gap:5px;min-height:40px;padding:5px 0!important}
-.rd-ms .grow-b .gno{padding-left:10px;font-size:12.5px;letter-spacing:0}
-.rd-ms .grow .gs{width:54px}
+.rd-ms .grow-b{grid-template-columns:64px minmax(0,1fr) 52px minmax(0,1fr) 64px!important;gap:4px;min-height:40px;padding:5px 0!important}
+.rd-ms .grow-b .gno{padding-left:9px;font-size:12px;letter-spacing:0}
+.rd-ms .grow .gs{width:52px}
 .rd-ms .grow .gs b{font-size:19px}
 .rd-ms .grow .gtm b{font-size:12.5px}
 .rd-ms .grow .gtm{gap:5px}
 .rd-ms .grow>.ytbtn,.rd-ms .grow>.yt-ph{top:20px!important;right:8px}
-.rd-ms .grow-sc{grid-template-columns:70px minmax(0,1fr) 54px minmax(0,1fr) 40px;gap:5px;padding-bottom:6px;margin-top:-3px}
+.rd-ms .grow-sc{grid-template-columns:6px minmax(0,1fr) 52px minmax(0,1fr) 6px;gap:4px;padding-bottom:6px;margin-top:-3px}
 .rd-ms .grow-sc .h,.rd-ms .grow-sc .a{font-size:12px;line-height:17px;gap:1px 6px}
 .rd-tm .rdteams{grid-template-columns:repeat(3,minmax(0,1fr))}
 .rd-tm .rdt ul{grid-template-columns:minmax(0,1fr)!important;gap:0!important;font-size:13.5px;line-height:1.55!important;padding:4px 10px 6px!important}
@@ -1851,5 +1851,6 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .grow-b{height:auto}
 :root{--cssv:"0.4.46"}
 :root{--cssv:"0.4.47"}
+:root{--cssv:"0.4.48"}
 
 #simbar{position:sticky;top:0;z-index:50;background:#FFD21F;color:#1A1400;font:800 12.5px/1.3 var(--body);padding:6px 10px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;justify-content:center}#simbar label{display:flex;gap:6px;align-items:center}#simbar select{font:700 12.5px var(--body);padding:3px 6px;border-radius:6px;border:1px solid #8a7300;background:#fff8d0;color:#1A1400;max-width:62vw}

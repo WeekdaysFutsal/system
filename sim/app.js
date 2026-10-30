@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.47';
+const APP_VERSION = '0.4.48';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1374,6 +1374,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.48','2026.10.30',['PC 경기별 결과 카드: “:”를 카드 정가운데로, 팀 이름이 잘리지 않게 폭 조정']],
   ['0.4.47','2026.10.30',['PC 경기 결과를 한 화면에: 위쪽 우승·득점왕 띠 삭제, 왼쪽 팀 순위 + 경기별 결과(2열), 오른쪽 득점 순위 + 그 아래 팀 구성','1280×900 이상 화면에서 세로 스크롤 없이 보여요']],
   ['0.4.46','2026.10.30',['경기별 결과를 눌러 들어가던 세부 화면을 없애고, 각 게임 줄 아래에 팀별 득점자(멀티골 ×2, 자책골 표시)를 바로 보여줘요']],
   ['0.4.45','2026.10.30',['박종현 회원을 앱 마스터로: 비밀번호 없이 운영모드, 모든 드래프트·접속자 보기, 샘플 데이터 관리','경기모드에서 언제든 기록 가져오기(강제) 가능 · 회원 모드에서도 가능']],
