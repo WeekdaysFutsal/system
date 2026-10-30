@@ -1807,6 +1807,19 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 :root{--cssv:"0.4.42"}
 :root{--cssv:"0.4.43"}
 :root{--cssv:"0.4.44"}
+/* 경기별 결과: 세부 화면 없이 득점자를 줄 안에 표시 */
+.grow-b{cursor:default}
+.grow>.ytbtn,.grow>.yt-ph{top:23px!important}
+.grow-sc{display:grid;grid-template-columns:76px minmax(0,1fr) 72px minmax(0,1fr) 76px;gap:8px;align-items:start;padding:0 0 9px;margin-top:-4px}.grow-sc>.h{grid-column:2}.grow-sc>i{grid-column:3}.grow-sc>.a{grid-column:4}
+.grow-sc>i{font-style:normal;font-size:11px;line-height:18px;opacity:.55;text-align:center}
+.grow-sc .h,.grow-sc .a{display:flex;flex-wrap:wrap;gap:2px 9px;font-size:13px;font-weight:600;line-height:19px;color:var(--muted);min-width:0}
+.grow-sc .h{justify-content:flex-end;text-align:right}
+.grow-sc span{white-space:nowrap}
+.grow-sc span b{margin-left:2px;color:var(--ink);font-weight:800}
+.grow-sc span small{margin-left:3px;font-size:10px;color:var(--danger)}
+.grow-sc span.og{opacity:.85}
+@media (max-width:420px){.grow-sc{grid-template-columns:64px minmax(0,1fr) 62px minmax(0,1fr) 64px;gap:5px;padding-bottom:8px}.grow-sc .h,.grow-sc .a{font-size:12px;gap:1px 6px}}
 :root{--cssv:"0.4.45"}
+:root{--cssv:"0.4.46"}
 
 #simbar{position:sticky;top:0;z-index:50;background:#FFD21F;color:#1A1400;font:800 12.5px/1.3 var(--body);padding:6px 10px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;justify-content:center}#simbar label{display:flex;gap:6px;align-items:center}#simbar select{font:700 12.5px var(--body);padding:3px 6px;border-radius:6px;border:1px solid #8a7300;background:#fff8d0;color:#1A1400;max-width:62vw}

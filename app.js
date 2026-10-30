@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.45';
+const APP_VERSION = '0.4.46';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1367,6 +1367,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.46','2026.10.30',['경기별 결과를 눌러 들어가던 세부 화면을 없애고, 각 게임 줄 아래에 팀별 득점자(멀티골 ×2, 자책골 표시)를 바로 보여줘요']],
   ['0.4.45','2026.10.30',['박종현 회원을 앱 마스터로: 비밀번호 없이 운영모드, 모든 드래프트·접속자 보기, 샘플 데이터 관리','경기모드에서 언제든 기록 가져오기(강제) 가능 · 회원 모드에서도 가능']],
   ['0.4.44','2026.10.30',['경기 기록 권한을 넘겨받은 사람이 골 넣은 선수를 눌러도 기록되지 않던 문제 수정 (넘겨준 운영진 기기가 진행을 자동으로 다시 가져가던 문제)','넘겨받은 사람은 경기모드를 열면 바로 진행을 맡아요 (같은 사람에게 다시 넘겨도)','운영진·경기 운영자는 상대 수락 없이 “기록 가져오기”로 바로 권한을 가져올 수 있어요 · 가져가면 상대에게 알림']],
   ['0.4.43','2026.10.29',['경기 영상 자동 확인 주기를 3시간 → 30분으로 (경기 결과 화면을 열 때 확인)']],
@@ -2003,7 +2004,11 @@ function vResultDetail(s) {
   const yt = ytFor(s); ytAuto();
   // 경기별 결과: 왼쪽 게임 번호 · 가운데 두 팀과 점수 · 오른쪽 끝 유튜브 버튼(영상 있을 때만)
   const grow = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); const pend = m.status === 'pending'; const w = m.status === 'done' ? (a > b ? 'h' : a < b ? 'a' : 'd') : ''; const v = yt?.v[m.id];
-    return `<div class="grow st-${m.status} w-${w}"><button class="grow-b" data-act="open" data-id="${m.id}" aria-label="${m.n}경기 ${esc(H.name)} ${pend ? '대' : a + '대' + b} ${esc(A.name)}"><em class="gno">${gno(m.n)}</em><span class="gtm h"><b>${esc(H.name)}</b>${bib(H.color)}</span><span class="gs">${pend ? '<i>vs</i>' : `<b class="sh">${a}</b><i>:</i><b class="sa">${b}</b>`}${m.status === 'live' ? '<i class="glive">LIVE</i>' : ''}</span><span class="gtm a">${bib(A.color)}<b>${esc(A.name)}</b></span></button>${v ? ytBtn(v, '', false, 'row') : '<span class="yt-ph" aria-hidden="true"></span>'}</div>` };
+    const evs = Object.values(S.events).filter(e => e.match === m.id).sort((x, y) => (x.sec ?? 0) - (y.sec ?? 0));
+    const side = k => { const mp = new Map(); evs.filter(e => e.team === k).forEach(e => { const key = (e.og ? 'og:' : '') + (e.scorer || '-'); const o = mp.get(key) || { n: 0, e }; o.n++; mp.set(key, o) });
+      return [...mp.values()].map(({ n, e }) => `<span class="${e.og ? 'og' : ''}">${e.scorer ? esc(pname(e.scorer)) : '미지정'}${n > 1 ? `<b>×${n}</b>` : ''}${e.og ? '<small>자책</small>' : ''}</span>`).join('') };
+    const hs = side(m.home), as = side(m.away);
+    return `<div class="grow st-${m.status} w-${w}${hs || as ? ' has-sc' : ''}"><div class="grow-b" aria-label="${m.n}경기 ${esc(H.name)} ${pend ? '대' : a + '대' + b} ${esc(A.name)}"><em class="gno">${gno(m.n)}</em><span class="gtm h"><b>${esc(H.name)}</b>${bib(H.color)}</span><span class="gs">${pend ? '<i>vs</i>' : `<b class="sh">${a}</b><i>:</i><b class="sa">${b}</b>`}${m.status === 'live' ? '<i class="glive">LIVE</i>' : ''}</span><span class="gtm a">${bib(A.color)}<b>${esc(A.name)}</b></span></div>${hs || as ? `<div class="grow-sc"><div class="h">${hs}</div><i aria-hidden="true">⚽</i><div class="a">${as}</div></div>` : ''}${v ? ytBtn(v, '', false, 'row') : '<span class="yt-ph" aria-hidden="true"></span>'}</div>` };
   const rounds = `<div class="grows">${[...ms].sort((x, y) => x.n - y.n).map(grow).join('')}</div>`; void mrowR;
   const rk = scorerRank(s); const myRank = rk.find(r => r.id === me);
   const rkHtml = rk.length ? `<div class="panel tblwrap rdrank2"><table><thead><tr><th>순위</th><th class="l">이름</th><th class="l">팀</th><th>골</th><th>도움</th></tr></thead><tbody>${rk.map(r => `<tr class="${r.id === me ? 'me' : ''}"><td class="rank"><em class="rkn ${r.rank <= 3 ? 'top' : ''}">${r.rank}</em></td><td class="l"><b>${esc(pname(r.id))}</b></td><td class="l">${r.tname ? `<span class="teamcell">${bib(r.color)}${esc(r.tname)}</span>` : '-'}</td><td><b>${r.g}</b></td><td>${r.a || '-'}</td></tr>`).join('')}</tbody></table></div>${rk.ogN ? `<p class="note">자책골 ${rk.ogN}골은 개인 득점에서 빠져요.</p>` : ''}` : '<div class="panel"><p class="empty">선수 이름으로 기록된 골이 없어요.</p></div>';
