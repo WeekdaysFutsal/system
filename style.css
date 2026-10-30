@@ -1901,4 +1901,11 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .rd-r .rd-tm .rdt-hd b{font-size:17px}
 }
 :root{--cssv:"0.4.51"}
+.fs-wh.off{background:#E5483B;border-color:#E5483B;color:#fff;animation:fsWhP 1.6s ease-in-out infinite}
+.fs-wh.on{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.45);color:#fff}
+@keyframes fsWhP{0%,100%{box-shadow:0 0 0 0 rgba(229,72,59,.6)}50%{box-shadow:0 0 0 6px rgba(229,72,59,0)}}
+.fs-top .fs-tt{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs-top>*:not(.fs-tt){flex:none}
+@media (max-width:600px){.fs-top .fs-lt{display:none}.fs-top .fs-flip{padding:0 12px;font-size:15px}.fs-wh.off{padding:0 12px}}
 :root{--cssv:"0.4.52"}
+:root{--cssv:"0.4.53"}

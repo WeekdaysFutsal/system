@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.52';
+const APP_VERSION = '0.4.53';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -353,7 +353,7 @@ function blow(t, d) { const ctx = AC; const o1 = ctx.createOscillator(), o2 = ct
   const am = ctx.createGain(); am.gain.value = .25; lfo.connect(am);
   const amp = ctx.createGain(); amp.gain.setValueAtTime(0, t); amp.gain.linearRampToValueAtTime(.95, t + .02); amp.gain.setValueAtTime(.95, t + d - .05); amp.gain.linearRampToValueAtTime(0, t + d);
   am.connect(amp.gain); o1.connect(amp); o2.connect(amp); amp.connect(MASTER); [o1, o2, lfo].forEach(o => { o.start(t); o.stop(t + d + .05) }) }
-function whistle(pattern) { if (!S.whistle) return; if (!(mmIsCtl() || S.admin)) return; const ctx = audio(); if (!ctx) return; if (ctx.state === 'suspended') ctx.resume(); let t = ctx.currentTime + .03; for (const d of pattern) { blow(t, d); t += d + .14 }
+function whistle(pattern) { if (!S.whistle) return; if (!(mmIsCtl() || S.admin || S.fs)) return; const ctx = audio(); if (!ctx) return; if (ctx.state === 'suspended') ctx.resume(); let t = ctx.currentTime + .03; for (const d of pattern) { blow(t, d); t += d + .14 }
   try { navigator.vibrate && navigator.vibrate(pattern.flatMap((d, i) => i ? [140, Math.round(d * 1000)] : [Math.round(d * 1000)])) } catch { } }
 document.addEventListener('pointerdown', () => { const c = audio(); if (c && c.state === 'suspended') c.resume() }, { capture: true });
 let wake = null, wakeBusy = false; async function keepAwake(on) { try { if (on && !wake && !wakeBusy && navigator.wakeLock && !document.hidden) { wakeBusy = true; try { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null }) } finally { wakeBusy = false } } else if (!on && wake) { const w0 = wake; wake = null; await w0.release() } } catch { } }
@@ -1374,6 +1374,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.53','2026.10.30',['경기모드 전체화면 위쪽에 이 기기 휘슬 상태 표시(🔊 켜짐 / 🔇 꺼짐·켜기) — 꺼져 있으면 빨갛게 깜빡이고 누르면 바로 켜져요','진행자가 아닌 보기 기기도 전체화면에서 휘슬이 켜져 있으면 휘슬이 울려요','휴대폰 세로 화면에서는 버튼을 아이콘으로 줄여 한 줄에 보여요']],
   ['0.4.52','2026.10.30',['PC 경기 결과 오른쪽: 득점 순위와 팀 구성의 높이를 같게, 팀 구성 이름을 더 크게(17px) 줄 간격 고르게']],
   ['0.4.51','2026.10.30',['득점 순위 표 아래에 겹쳐 보이던 “자책골은 개인 득점에서 빠져요” 안내 문구 삭제']],
   ['0.4.50','2026.10.30',['PC 경기별 결과: 득점자를 점수 아래 줄(각 팀 이름 아래)로, 게임 카드 높이를 같게 · 오른쪽 득점 순위는 그만큼 길게']],
@@ -3301,12 +3302,15 @@ function fsScale() { const el = document.querySelector('.mmfs'); if (!el) return
 function fsFit() { fsScale(); const box = document.querySelector('.fs-cl'), el = box?.querySelector('.fs-clock'); if (!box || !el) return; const bw = box.clientWidth, bh = box.clientHeight; if (!bw || !bh) return;
   el.style.fontSize = '100px'; const w = el.scrollWidth || 1, h = el.offsetHeight || 1; const k = Math.min(bw * 0.97 / w, bh * 0.98 / h); el.style.fontSize = Math.max(40, Math.floor(100 * k)) + 'px' }
 addEventListener('resize', () => requestAnimationFrame(fsFit)); addEventListener('orientationchange', () => setTimeout(fsFit, 250)); document.fonts?.ready?.then(() => fsFit());
-async function fsEnter() { S.fs = true; render(); try { const el = document.documentElement; if (!document.fullscreenElement && el.requestFullscreen) await el.requestFullscreen({ navigationUI: 'hide' }) } catch { } try { await screen.orientation?.lock?.('landscape') } catch { } }
+async function fsEnter() { S.fs = true; if (S.whistle) { try { const c = audio(); if (c && c.state !== 'running') c.resume().then(() => render()).catch(() => { }) } catch { } } render(); try { const el = document.documentElement; if (!document.fullscreenElement && el.requestFullscreen) await el.requestFullscreen({ navigationUI: 'hide' }) } catch { } try { await screen.orientation?.lock?.('landscape') } catch { } }
 async function fsExit() { S.fs = false; try { screen.orientation?.unlock?.() } catch { } try { if (document.fullscreenElement) await document.exitFullscreen() } catch { } render() }
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && S.fs) { S.fs = false; try { screen.orientation?.unlock?.() } catch { } render() } });
+// 전체화면: 이 기기 휘슬 상태 (휘슬 켜짐 + 소리 재생 가능 상태여야 실제로 울려요)
+function fsWhOn() { if (!S.whistle) return false; if (CAP()?.LocalNotifications) return true; return !!(AC && AC.state === 'running') }
+function fsWhBtn() { const on = fsWhOn(); return `<button class="fs-flip fs-wh ${on ? 'on' : 'off'}" data-act="fswh" aria-pressed="${on}" title="이 기기에서 휘슬 소리">${on ? '🔊<span class="fs-lt"> 휘슬 켜짐</span>' : '🔇<span class="fs-lt"> 휘슬 꺼짐 ·</span> 켜기'}</button>` }
 function fsBoard({ H, A, hs, as, clockAttr, phaseAttr, time, label, phase, ctl, goals, goal, ungoal, ctlBtns, title }) {
   const side = (T, sc, k) => `<div class="fs-team fs-${k}" style="--tc:${T.color};--ti:${inkOn(T.color)}"><div class="fs-tx"><b class="fs-nm">${esc(T.name)}</b><em class="fs-sc">${sc}</em></div>${goals ? `<div class="fs-gb"><button class="fs-g" ${goal(k)}>+ 골</button><button class="fs-ug" ${ungoal(k)} ${sc ? '' : 'disabled'} aria-label="${esc(T.name)} 골 취소">−</button></div>` : ''}</div>`;
-  return `<div class="mmfs" role="dialog" aria-label="전체화면 점수판"><div class="fs-top"><span>${title}</span><span class="fs-ph" ${phaseAttr}>${label}</span><button class="fs-flip ${S.fsFlip ? 'on' : ''}" data-act="fsflip" aria-pressed="${!!S.fsFlip}" title="이 기기 화면에서만 두 팀 자리를 바꿔요">⇄ ${S.fsFlip ? '좌우 바뀜' : '좌우 바꾸기'}</button><button class="fs-x" data-act="fsoff" aria-label="전체화면 닫기">✕</button></div>
+  return `<div class="mmfs" role="dialog" aria-label="전체화면 점수판"><div class="fs-top"><span class="fs-tt">${title}</span><span class="fs-ph" ${phaseAttr}>${label}</span>${fsWhBtn()}<button class="fs-flip ${S.fsFlip ? 'on' : ''}" data-act="fsflip" aria-pressed="${!!S.fsFlip}" title="이 기기 화면에서만 두 팀 자리를 바꿔요">⇄<span class="fs-lt"> ${S.fsFlip ? '좌우 바뀜' : '좌우 바꾸기'}</span></button><button class="fs-x" data-act="fsoff" aria-label="전체화면 닫기">✕</button></div>
     <div class="fs-main${S.fsFlip ? ' flip' : ''}"><div class="fs-cl"><div class="fs-clock mm-clock ${phase}" ${clockAttr}>${time}</div></div>${side(H, hs, 'h')}<div class="fs-mid">${ctl && ctlBtns ? `<div class="fs-ctl">${ctlBtns}</div>` : ''}</div>${side(A, as, 'a')}</div></div>` }
 function fsSched(s, ctl) { const ms = sessMatches(s.date); const curM = ms.find(x => x.status === 'live') || ms.find(x => x.status === 'pending') || ms[ms.length - 1]; if (!curM) return ''; const m = (ctl && S.mmSel && ms.find(x => x.id === S.mmSel)) || curM;
   const H = team(s, m.home), A = team(s, m.away); const [hs, as] = score(m); const ci = clockInfo(m); const run = !!m.timer?.running; const key = k => k === 'h' ? m.home : m.away;
@@ -3430,7 +3434,7 @@ function whSync(key, ctx, e, plan, sig) { const st = WH[key] ??= { on: false, an
 function scheduleWhistles() {
   const sid = S.mmSid || S.sid; if (!sid || !S.sessions[sid]) return; let anyRun = false;
   const canBlow = mmIsCtl() || (S.admin && !!S.openMatch); const T = timing(S.sessions[sid]); const tsig = T.h1 + '/' + T.gk + '/' + T.h2;
-  const s0w = S.sessions[sid]; for (const m of sessMatches(sid)) { const run = (S.admin && !!S.openMatch || (nC(s0w) === 2 ? mmCtl(s0w, mcourt(m)).mine : canBlow)) && m.status === 'live' && m.timer?.running; if (run) anyRun = true;
+  const s0w = S.sessions[sid]; for (const m of sessMatches(sid)) { const run = (S.admin && !!S.openMatch || (nC(s0w) === 2 ? mmCtl(s0w, mcourt(m)).mine : canBlow) || (S.fs && S.tab === 'mm' && (nC(s0w) !== 2 || mcourt(m) === mmC(s0w)))) && m.status === 'live' && m.timer?.running; if (run) anyRun = true;
     if (CAP()?.LocalNotifications) { const sig = run ? m.timer.startedAt + ':' + (m.timer.acc || 0) + ':' + (S.whistle ? 1 : 0) + ':' + (S.skew || 0) + ':' + tsig : ''; if ((S.schedSig[m.id] || '') !== sig) { S.schedSig[m.id] = sig; nativeSchedule(m, T, run) } continue }
     const ctx = run && S.whistle ? audio() : null; if (ctx && ctx.state !== 'running') { try { ctx.resume() } catch { } }
     S.schedSig[m.id] = whSync(m.id, ctx, run && S.whistle ? elapsed(m) : null, whPlan(T), tsig) ? tsig : '' }
@@ -3710,6 +3714,8 @@ document.addEventListener('click', async e => {
     case 'noop': break;
     case 'fson': await fsEnter(); break;
     case 'fsoff': await fsExit(); break;
+    case 'fswh': { if (fsWhOn()) { S.whistle = false; saveUI('whistle', false); toast('이 기기 휘슬을 껐어요.'); S.schedSig = {}; scheduleWhistles(); render(); break }
+      S.whistle = true; saveUI('whistle', true); const ctx = audio(); try { if (ctx && ctx.state !== 'running') await ctx.resume() } catch { } whistle([.25]); S.schedSig = {}; scheduleWhistles(); toast(fsWhOn() ? '🔊 이 기기에서 휘슬이 울려요.' : '소리를 켜지 못했어요. 무음 모드·볼륨을 확인하고 한 번 더 눌러 주세요.'); render(); break }
     case 'fsflip': S.fsFlip = !S.fsFlip; saveUI('fsflip', S.fsFlip); render(); break;
     case 'pushon': await pushEnable(); break;
     case 'inbox': S.sheet = { type: 'inbox' }; render(); markInboxRead(); break;
