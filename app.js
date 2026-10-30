@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.51';
+const APP_VERSION = '0.4.52';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1367,6 +1367,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.52','2026.10.30',['PC 경기 결과 오른쪽: 득점 순위와 팀 구성의 높이를 같게, 팀 구성 이름을 더 크게(17px) 줄 간격 고르게']],
   ['0.4.51','2026.10.30',['득점 순위 표 아래에 겹쳐 보이던 “자책골은 개인 득점에서 빠져요” 안내 문구 삭제']],
   ['0.4.50','2026.10.30',['PC 경기별 결과: 득점자를 점수 아래 줄(각 팀 이름 아래)로, 게임 카드 높이를 같게 · 오른쪽 득점 순위는 그만큼 길게']],
   ['0.4.49','2026.10.30',['도움은 기록하지 않아요: 골 기록 후 도움 묻기 삭제, 득점 순위·내 시즌 기록·명단 내보내기에서 도움 칸 삭제','PC 경기 결과: 왼쪽·오른쪽 폭을 같게, 경기별 결과는 GAME 01~09를 세로 한 줄씩(득점자는 각 팀 옆에) 표시']],
@@ -2019,10 +2020,10 @@ function vResultDetail(s) {
   const rkHtml = rk.length ? `<div class="panel tblwrap rdrank2"><table><thead><tr><th>순위</th><th class="l">이름</th><th class="l">팀</th><th>골</th></tr></thead><tbody>${rk.map(r => `<tr class="${r.id === me ? 'me' : ''}"><td class="rank"><em class="rkn ${r.rank <= 3 ? 'top' : ''}">${r.rank}</em></td><td class="l"><b>${esc(pname(r.id))}</b></td><td class="l">${r.tname ? `<span class="teamcell">${bib(r.color)}${esc(r.tname)}</span>` : '-'}</td><td><b>${r.g}</b></td></tr>`).join('')}</tbody></table></div>` : '<div class="panel"><p class="empty">선수 이름으로 기록된 골이 없어요.</p></div>';
   const fin = done === ms.length && ms.length; const ch = fin ? rows.filter(r => r.rank === 1) : []; const top = rk[0];
   const champ = ch.length ? `<div class="rdchamp"><span class="rcb">1</span><div><b>${ch.map(r => esc(team(s, r.k).name)).join(' · ')} 우승</b><small>${ch.length === 1 ? `${ch[0].w}승 ${ch[0].d}무 ${ch[0].l}패 · 승점 ${ch[0].pts} · 득실 ${ch[0].gf - ch[0].ga > 0 ? '+' : ''}${ch[0].gf - ch[0].ga}` : '공동 1위'}</small></div>${top ? `<div class="r"><small>득점왕</small><b>${esc(pname(top.id))} <em>${top.g}</em></b></div>` : ''}</div>` : '';
-  return `${champ}<div class="rdgrid"><section class="rd-st"><h2>팀 순위${done === ms.length && ms.length ? '<span class="final">최종</span>' : ''}</h2>${st}</section>
-  <section class="rd-tm"><h2>팀 구성</h2>${tm}</section>
-  <section class="rd-rk"><h2>득점 순위${myRank ? `<small>나 ${myRank.rank}위 · ${myRank.g}골</small>` : ''}</h2>${rkHtml}</section>
-  <section class="rd-ms"><h2>경기별 결과${yt ? ytBtn(yt.pl, '전체 영상', true, 'h2') : ''}</h2>${ms.length ? rounds : '<div class="panel"><p class="empty">경기 기록이 없어요.</p></div>'}</section></div>`;
+  return `${champ}<div class="rdgrid"><div class="rd-l"><section class="rd-st"><h2>팀 순위${done === ms.length && ms.length ? '<span class="final">최종</span>' : ''}</h2>${st}</section>
+  <section class="rd-ms"><h2>경기별 결과${yt ? ytBtn(yt.pl, '전체 영상', true, 'h2') : ''}</h2>${ms.length ? rounds : '<div class="panel"><p class="empty">경기 기록이 없어요.</p></div>'}</section></div>
+  <div class="rd-r"><section class="rd-rk"><h2>득점 순위${myRank ? `<small>나 ${myRank.rank}위 · ${myRank.g}골</small>` : ''}</h2>${rkHtml}</section>
+  <section class="rd-tm"><h2>팀 구성</h2>${tm}</section></div></div>`;
 }
 /* ───────── 출석 현황 ───────── */
 function attPids(s) { const ps = new Set(); KEYS.forEach(k => (s.teams?.[k]?.players || []).forEach(p => p && ps.add(p))); if (!ps.size) (s.applicants || []).forEach(p => p && ps.add(p)); return [...ps] }

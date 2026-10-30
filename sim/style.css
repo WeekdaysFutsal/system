@@ -1883,6 +1883,24 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 }
 :root{--cssv:"0.4.49"}
 :root{--cssv:"0.4.50"}
+/* 경기 결과 좌/우 묶음: 휴대폰은 묶음 없이(기존 순서), PC는 왼쪽(팀 순위·경기별 결과) / 오른쪽(득점 순위·팀 구성 같은 높이) */
+.rd-l,.rd-r{display:contents}
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){
+.rdgrid{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;grid-template-areas:none!important;grid-template-rows:auto!important;gap:0 24px!important;align-items:stretch!important}
+.rd-l,.rd-r{display:flex;flex-direction:column;min-width:0}
+.rd-l>section,.rd-r>section{grid-area:auto!important;align-self:stretch!important}
+.rd-r>section{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
+.rd-r .rd-rk{position:relative}
+.rd-r .rd-tm .rdteams{flex:1;align-items:stretch}
+.rd-r .rd-tm .rdt{display:flex;flex-direction:column}
+.rd-r .rd-tm .rdt ul{flex:1;display:flex!important;flex-direction:column;font-size:17px!important;line-height:1.3!important;padding:4px 14px!important;gap:0!important}
+.rd-r .rd-tm .rdt li{font-weight:700;flex:1 1 0;min-height:34px;border-bottom:1px solid var(--line)}
+.rd-r .rd-tm .rdt li:last-child{border-bottom:0}
+.rd-r .rd-tm .rdt li em{width:18px;height:18px;font-size:11px}
+.rd-r .rd-tm .rdt-hd{padding:9px 12px}
+.rd-r .rd-tm .rdt-hd b{font-size:17px}
+}
 :root{--cssv:"0.4.51"}
+:root{--cssv:"0.4.52"}
 
 #simbar{position:sticky;top:0;z-index:50;background:#FFD21F;color:#1A1400;font:800 12.5px/1.3 var(--body);padding:6px 10px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;justify-content:center}#simbar label{display:flex;gap:6px;align-items:center}#simbar select{font:700 12.5px var(--body);padding:3px 6px;border-radius:6px;border:1px solid #8a7300;background:#fff8d0;color:#1A1400;max-width:62vw}
