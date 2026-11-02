@@ -1908,4 +1908,27 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .fs-top>*:not(.fs-tt){flex:none}
 @media (max-width:600px){.fs-top .fs-lt{display:none}.fs-top .fs-flip{padding:0 12px;font-size:15px}.fs-wh.off{padding:0 12px}}
 :root{--cssv:"0.4.52"}
+/* 구장비 송금 기록 */
+.pay-card{margin-top:12px}
+.pay-card .stl-h{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pay-card .stl-h small{margin-left:auto;font-size:12px;font-weight:800;padding:3px 9px;border-radius:99px}
+.pay-card .stl-h small.warn{background:rgba(229,72,59,.15);color:#FF8A7E}
+.pay-card .stl-h small.ok{background:rgba(110,220,140,.15);color:#7EE29A}
+.pay-r{display:grid;grid-template-columns:34px minmax(0,1fr) 130px;gap:6px 10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.pay-r:first-of-type{border-top:0}
+.pay-ck{width:30px;height:30px;border-radius:9px;border:2px solid var(--line);background:var(--bg);color:var(--accent-ink);font-size:17px;font-weight:900;display:grid;place-items:center}
+.pay-r.done .pay-ck{background:var(--accent);border-color:var(--accent)}
+.pay-who{min-width:0}
+.pay-who b{display:block;font-size:15px}
+.pay-who small{display:block;font-size:12px;color:var(--muted);line-height:1.45}
+.pay-r.done .pay-who small{color:var(--ink)}
+.pay-amt{width:130px}
+.pay-amt .inp{text-align:right}
+.pay-at{grid-column:2/-1;display:flex;align-items:center;gap:8px;min-width:0}
+.pay-at small{white-space:nowrap;font-size:12px;color:var(--muted)}
+.pay-at .inp{flex:1;min-width:0;height:36px;padding:4px 10px;font-size:14px}
+@media (max-width:420px){.pay-r{grid-template-columns:30px minmax(0,1fr) 110px}.pay-amt{width:110px}.pay-at{flex-wrap:wrap}}
+.pay-amt .inp{width:auto;flex:1;min-width:0;font-size:16px}
+.stl.locked .pay-card input{pointer-events:auto;opacity:1}
 :root{--cssv:"0.4.53"}
+:root{--cssv:"0.4.54"}
