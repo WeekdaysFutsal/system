@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.57';
+const APP_VERSION = '0.4.58';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1374,6 +1374,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.58','2026.11.03',['신청 당일: 맨 위 신청 카드와 겹치던 다음 경기 카드의 신청 인원 줄 숨김']],
   ['0.4.57','2026.11.03',['홈: 신청 완료 카드와 주차·공당·물당 신청을 한 묶음으로 다음 경기 카드 안에(PC는 바로 옆 “내 신청” 칸)','다음 경기 신청 카드: 신청 당일 전에는 “신청 오픈 일시” 안내만, 당일에는 맨 위에 카운트다운 + 신청 버튼 대기','신청 중(여러 날 열려 있는 경우)에도 다음 경기 카드에서 바로 신청·취소 · 신청했으면 상태가 “신청 완료”로 바뀌어요','중복 버튼 정리: 신청 현황 버튼은 한 곳에만']],
   ['0.4.56','2026.11.03',['홈 중복 정리: 신청 마감 후 따로 있던 “신청이 마감됐어요 · 신청자 보기” 카드를 없애고, 신청 현황은 다음 경기 카드의 “신청 현황 ›” 하나로','다음 경기 카드 상태 표시: 신청했으면 “신청 완료”(대기는 “대기 신청”), 안 했으면 “신청 마감”','내 신청 카드(순번·참가 취소)는 휴대폰은 다음 경기 카드 안에, PC는 바로 옆 “내 신청” 칸에 — 중복된 신청 현황 버튼 제거']],
   ['0.4.55','2026.11.03',['홈: 다음 경기 신청 카드는 신청이 열리는 당일에만 맨 위에, 평소에는 다음 경기 안내가 먼저 나오고 신청 카드는 그 아래에']],
@@ -1917,7 +1918,7 @@ function viewMHome() {
       <div class="hero-date">${m}.${d}<small>${dow(sid)}요일</small></div><div class="hero-info"><div class="hi-row hi-time"><span class="hi-ico">${XICO.clock}</span><b>${esc(s.time || '시간 미정')}</b><small>킥오프</small></div>
       <div class="hi-row hi-venue"><span class="hi-ico">${XICO.pin}</span><b>${esc(venueTxt(s) || '장소 미정')}</b></div></div>
       ${memFlow(s, st)}
-      ${st.k === 'open' ? '' : `<div class="cap capbtn" role="button" tabindex="0" data-act="applist" data-id="${sid}" aria-label="신청 현황 보기"><div class="cap-row"><span>신청 인원${appCounts(s).wait ? ` · 대기 ${appCounts(s).wait}` : ''}<em class="caplink">신청 현황 ›</em></span><b>${n}<small> / ${cap || '-'}명</small></b></div>${cap ? `<div class="bar"><i style="width:${Math.min(100, n / cap * 100)}%"></i></div>` : ''}</div>`}${heroAp ? `<div class="hero-ap">${heroAp}</div>` : ''}</div>`;
+      ${st.k === 'open' || S.naTopSid === sid ? '' : `<div class="cap capbtn" role="button" tabindex="0" data-act="applist" data-id="${sid}" aria-label="신청 현황 보기"><div class="cap-row"><span>신청 인원${appCounts(s).wait ? ` · 대기 ${appCounts(s).wait}` : ''}<em class="caplink">신청 현황 ›</em></span><b>${n}<small> / ${cap || '-'}명</small></b></div>${cap ? `<div class="bar"><i style="width:${Math.min(100, n / cap * 100)}%"></i></div>` : ''}</div>`}${heroAp ? `<div class="hero-ap">${heroAp}</div>` : ''}</div>`;
     h += homeAction(s, st, fit);
     void na;
   }

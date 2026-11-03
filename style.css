@@ -1951,3 +1951,4 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .hero-ap .extras{margin-top:10px}
 :root{--cssv:"0.4.56"}
 :root{--cssv:"0.4.57"}
+:root{--cssv:"0.4.58"}
