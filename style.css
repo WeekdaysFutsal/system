@@ -1993,8 +1993,9 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
  .rflow button{height:40px;font-size:13.5px;padding:0 11px 0 5px;gap:6px}
  .rflow i{width:27px;height:27px}
  .rflow{gap:5px!important}
- .abar .actx{flex:0 0 360px!important}
- .abar .rflow{flex:1 1 auto;min-width:0;justify-content:flex-start;margin:0}
+ .abar .actx{flex:0 1 560px!important;margin:0 auto!important}
+ .abar{flex-wrap:wrap!important;row-gap:8px!important}
+ .abar .rflow{flex:1 1 100%;min-width:0;justify-content:center;margin:0;overflow:visible}
  .rflow button:hover{border-color:var(--accent);color:var(--ink)}
  .rflow li.now button:hover{color:var(--accent-ink)}
  .rflow li:not(:last-child)::after{width:6px}
@@ -2003,6 +2004,7 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .dmroot .abar .rflow button{height:34px;font-size:12.5px}
 .dmroot .abar .rflow i{width:24px;height:24px;font-size:12px}
 :root{--cssv:"0.4.64"}
-@media (min-width:1560px) and (hover:hover) and (pointer:fine){.rflow .rf-l{display:inline}.rflow .rf-s{display:none}}
+@media (min-width:1180px) and (hover:hover) and (pointer:fine){.rflow .rf-l{display:inline}.rflow .rf-s{display:none}}
 @media not all and (min-width:1024px) and (hover:hover) and (pointer:fine){.rflow{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 28px),transparent);padding-right:26px}}
 :root{--cssv:"0.4.65"}
+:root{--cssv:"0.4.66"}
