@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.54';
+const APP_VERSION = '0.4.55';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1367,6 +1367,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.55','2026.11.03',['홈: 다음 경기 신청 카드는 신청이 열리는 당일에만 맨 위에, 평소에는 다음 경기 안내가 먼저 나오고 신청 카드는 그 아래에']],
   ['0.4.54','2026.11.02',['[운영진] 경기 운영비 정산에 “구장비 송금” 기록: 구장을 예약하고 구장비를 먼저 낸 예약자에게 구장비를 보냈으면 체크 (체크 시각·운영진 이름 자동 기록, 실제 입금 일시는 선택)','송금액은 구장 사용료로 자동 입력(구장 2곳이면 구장별), 필요하면 수정 · 정산 확정(잠금) 뒤에도 기록 가능','송금 대기 인원·금액이 정산 화면과 정산 완료 칸, 운영 단계 안내에 표시']],
   ['0.4.53','2026.10.30',['경기모드 전체화면 위쪽에 이 기기 휘슬 상태 표시(🔊 켜짐 / 🔇 꺼짐·켜기) — 꺼져 있으면 빨갛게 깜빡이고 누르면 바로 켜져요','진행자가 아닌 보기 기기도 전체화면에서 휘슬이 켜져 있으면 휘슬이 울려요','휴대폰 세로 화면에서는 버튼을 아이콘으로 줄여 한 줄에 보여요']],
   ['0.4.52','2026.10.30',['PC 경기 결과 오른쪽: 득점 순위와 팀 구성의 높이를 같게, 팀 구성 이름을 더 크게(17px) 줄 간격 고르게']],
@@ -1872,7 +1873,7 @@ function viewMHome() {
   const rvDown0 = fit && !!sid && S.sessions[sid]?.draftStatus !== 'done' && (applyState(S.sessions[sid]).k !== 'none' || ['open', 'soon'].includes(sStatus(S.sessions[sid]).k)); const dd = myDrinkDue();
   const na = nextApplySid(sid); let naCard = '', naTop = false;
   if (na) { const s2 = S.sessions[na]; const [, m2, d2] = na.split('-'); const k2 = sStatus(s2).k; naCard = `<div class="nxapply"><div class="nxa-hd"><span class="st st-${k2}">${sStatus(s2).label}</span><b>${+m2}.${+d2} (${dow(na)}) ${esc(s2.time || '')} 경기 신청</b><small>${s2.no ? s2.no + '회 · ' : ''}${esc(venueTxt(s2) || '')}</small></div>${applyBox(s2, fit)}${k2 === 'open' && !['in', 'wait'].includes(applyState(s2).k) ? `<button class="nxa-list" data-act="applist" data-id="${na}"><span>📋 신청 현황 보기</span><em>${appTotal(s2)}${s2.capacity ? ' / ' + s2.capacity : ''}명 ›</em></button>` : ''}</div>`;
-    naTop = true } // 경기 신청 카드는 항상 홈 맨 위 (신청 예정·신청 중인 경기)
+    naTop = (s2.applyOpen || '').slice(0, 10) === today() } // 경기 신청 카드: 신청이 열리는 당일에만 홈 맨 위, 평소에는 다음 경기 안내 아래
   h += `${fit ? `<div class="homefit${rvDown0 || dd || nextApplySid(sid) ? ' hf-scroll' : ''}">` : ''}${naTop ? `<div class="nxtop"><div class="sec-lab"><span>NEXT APPLY</span></div>${naCard}</div>` : ''}<div class="dgrid homegrid"><section>`;
   { if (dd) h += `<button class="dbnudge" data-act="dbopen" data-id="${dd}">🥤 <span><b>${fmtDate(dd)} 물당 구입 금액을 등록해 주세요</b></span><em>등록 ›</em></button>` }
 
@@ -1904,7 +1905,7 @@ function viewMHome() {
     h += homeAction(s, st, fit);
     if (fit && na !== sid) { const a = applyState(s); if (st.k === 'open' || st.k === 'soon' || (st.k === 'closed' && a.k !== 'none' && s.stage !== 'match')) { const ab = applyBox(s, true); if (ab) h += `<div class="inline-apply">${ab}</div>` } }
   }
-  if (naCard && !naTop) h += `</div>${naCard}<div class="nx-dummy">`;
+  if (naCard && !naTop && na !== sid) h += `</div><div class="sec-lab nxa-lab"><span>NEXT APPLY</span></div>${naCard}<div class="nx-dummy">`;
   if (rvDown) h += `</div><div class="rv-down">${rv}`;
   return h + `</div></section></div>${fit ? '</div>' : ''}${dock}`;
 }

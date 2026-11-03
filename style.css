@@ -1932,3 +1932,5 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .stl.locked .pay-card input{pointer-events:auto;opacity:1}
 :root{--cssv:"0.4.53"}
 :root{--cssv:"0.4.54"}
+.nxa-lab{margin-top:18px}
+:root{--cssv:"0.4.55"}
