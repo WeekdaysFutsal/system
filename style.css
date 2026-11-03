@@ -1962,3 +1962,4 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .hp-pill.fixed{outline:2px solid var(--accent);outline-offset:-2px}
 :root{--cssv:"0.4.60"}
 :root{--cssv:"0.4.61"}
+:root{--cssv:"0.4.62"}

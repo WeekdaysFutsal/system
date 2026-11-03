@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.61';
+const APP_VERSION = '0.4.62';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -474,7 +474,8 @@ function wrapText(g, text, maxW, maxLines) { const out = []; for (const para of 
 async function drawPoster(s, theme, font) {
   const th = theme || posterTheme(s); const fk = font || posterFontOf(s, th);
   const W = 1086, H = 1448; const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
-  const PF = await posterFonts([s.venue || '', s.notice || '', s.evpw || '', ...KEYS.flatMap(k => teamPlayers(s, k).map(pname)), ...KEYS.map(k => team(s, k).name)], fk);
+  const PF = await posterFonts([s.venue || '', s.notice || '', s.evpw || '', '공당 물당 주차 -·', ...KEYS.flatMap(k => teamPlayers(s, k).map(pname)), ...KEYS.map(k => team(s, k).name), ...[...(s.duty?.ball || []), ...(s.duty?.drink || []), ...(s.parkWin || [])].map(pname)], fk);
+  const dl = [['공당', s.duty?.ball || []], ['물당', s.duty?.drink || []], ...(parkN(s) ? [['주차', s.parkWin || []]] : [])]; const hasD = dl.some(([, ids]) => ids.length);
   const img = await emblem(); const LAT = PF.LAT, KR = PF.KR;
   const light = th === 'clean';
   const T = { stadium: { head: '#fff', stroke: '#0A0F1E', acc: '#FFD600', card: 'solid', bar: 'rgba(8,10,16,.93)', barInk: '#fff', barLine: 'rgba(255,255,255,.9)' },
@@ -522,7 +523,7 @@ async function drawPoster(s, theme, font) {
   for (const [t, col] of parts) { g.fillStyle = col; outline(t, x, 362, 12); x += g.measureText(t).width }
   g.textAlign = 'center'; fitFont(g, s.venue || '', `{s}px ${KR}`, 72, W - 120); g.fillStyle = T.head; outline(s.venue || '', W / 2, 448, 11);
   // team cards
-  const top = th === 'clean' ? 492 : 472, bot = 1186, gap = 14, nT = TK(s).length, cwid = (W - 48 - gap * (nT - 1)) / nT; const lists = TK(s).map(k => teamPlayers(s, k)); const rows = Math.max(6, ...lists.map(l => l.length));
+  const top = th === 'clean' ? 492 : 472, bot = hasD ? 1126 : 1186, gap = 14, nT = TK(s).length, cwid = (W - 48 - gap * (nT - 1)) / nT; const lists = TK(s).map(k => teamPlayers(s, k)); const rows = Math.max(6, ...lists.map(l => l.length));
   TK(s).forEach((k, i) => { const t = team(s, k); const x0 = 24 + i * (cwid + gap); const ink = inkOn(t.color);
     if (T.card === 'solid') {
       g.save(); rr(g, x0, top, cwid, bot - top, 16); g.fillStyle = t.color; g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 16; g.fill(); g.restore();
@@ -543,9 +544,11 @@ async function drawPoster(s, theme, font) {
       if (T.card !== 'solid' && j < lists[i].length - 1) { g.fillStyle = light ? '#EEF1F6' : 'rgba(127,140,170,.18)'; g.fillRect(x0 + 30, top + 190 + step * (j + 1), cwid - 60, 2); g.fillStyle = nameCol } });
   });
   // info bar
-  const by = 1212, bh = 176; g.save(); rr(g, 24, by, W - 48, bh, 16); g.fillStyle = T.bar; g.fill(); g.lineWidth = 3; g.strokeStyle = T.barLine; g.stroke(); g.restore();
+  const by = hasD ? 1150 : 1212, bh = hasD ? 238 : 176; g.save(); rr(g, 24, by, W - 48, bh, 16); g.fillStyle = T.bar; g.fill(); g.lineWidth = 3; g.strokeStyle = T.barLine; g.stroke(); g.restore();
   g.fillStyle = th === 'night' ? 'rgba(255,210,31,.5)' : 'rgba(255,255,255,.85)'; g.fillRect(24, by + 70 - 1.5, W - 48, 3);
-  const r1 = by + 35, r2 = by + 70 + 53; g.textBaseline = 'middle';
+  const r1 = by + 35, r2 = by + 70 + (hasD ? 62 : 0) + 53; g.textBaseline = 'middle';
+  if (hasD) { g.fillRect(24, by + 132 - 1.5, W - 48, 3); const ry = by + 101; const seg2 = dl.map(([lb, ids]) => [lb, ids.length ? ids.map(pname).join('·') : '-']); let fs = 34; const tot = f => { g.font = `${f}px ${KR}`; return seg2.reduce((q, [lb, nm]) => q + g.measureText(lb + '  ' + nm).width, 0) + (seg2.length - 1) * f * 1.6 }; while (fs > 20 && tot(fs) > W - 140) fs -= 2;
+    let xx = 70; g.font = `${fs}px ${KR}`; g.textAlign = 'left'; seg2.forEach(([lb, nm], k) => { g.fillStyle = T.barInk; g.fillText(lb, xx, ry); xx += g.measureText(lb + '  ').width; g.fillStyle = T.acc; g.fillText(nm, xx, ry); xx += g.measureText(nm).width; if (k < seg2.length - 1) { g.fillStyle = th === 'night' ? 'rgba(255,210,31,.5)' : 'rgba(255,255,255,.5)'; g.fillRect(xx + fs * .75, ry - fs * .45, 2, fs * .9); xx += fs * 1.6 } }) }
   g.fillStyle = T.barInk; rr(g, 70, r1 - 12, 44, 36, 6); g.fill(); g.lineWidth = 7; g.strokeStyle = T.barInk; g.beginPath(); g.arc(92, r1 - 14, 14, Math.PI, 0); g.stroke(); g.fillStyle = T.bar.startsWith('#') ? T.bar : '#111'; g.fillRect(89, r1 - 2, 6, 14);
   g.textAlign = 'left'; g.fillStyle = T.barInk; g.font = `36px ${LAT}`; g.fillText('E/V Password', 144, r1 + 2); const d1 = 144 + g.measureText('E/V Password').width + 26; g.fillRect(d1, r1 - 22, 3, 44);
   g.fillStyle = T.acc; fitFont(g, s.evpw || '-', `{s}px ${LAT}`, 60, W - 48 - d1 - 40); g.fillText(s.evpw || '-', d1 + 34, r1 + 4);
@@ -596,8 +599,15 @@ function namesGrid(g, list, cap, x, y, w, h, cols, font, ink, maxFs, top) { cons
   g.textBaseline = 'alphabetic' }
 function infoBlock(g, s, PF, x, y, w, h, o) { // E/V 비밀번호 + 공지(최대 3줄, { } 강조)
   g.save(); if (o.fill) { rr(g, x, y, w, h, o.r ?? 16); g.fillStyle = o.fill; g.fill() } if (o.line) { rr(g, x, y, w, h, o.r ?? 16); g.lineWidth = 3; g.strokeStyle = o.line; if (o.dash) g.setLineDash([12, 9]); g.stroke(); g.setLineDash([]) } g.restore();
-  const half = Math.round(h * .4); g.fillStyle = o.sep || alpha(o.ink.startsWith('#') ? o.ink : '#FFFFFF', .35); g.fillRect(x + 20, y + half - 1, w - 40, 2);
-  g.textBaseline = 'middle'; g.textAlign = 'left'; const r1 = y + half / 2, r2 = y + half + (h - half) / 2;
+  const sepC = o.sep || alpha(o.ink.startsWith('#') ? o.ink : '#FFFFFF', .35);
+  // 도우미 줄: 공당 · 물당 · 주차(자리가 있을 때) — 정해진 사람이 있으면 이미지에 같이 들어가요
+  const dl = [['공당', s.duty?.ball || []], ['물당', s.duty?.drink || []], ...(parkN(s) ? [['주차', s.parkWin || []]] : [])]; const hasD = dl.some(([, ids]) => ids.length);
+  const rowH = hasD ? Math.round(h * .27) : 0; const half = hasD ? rowH * 2 : Math.round(h * .4);
+  g.fillStyle = sepC; g.fillRect(x + 20, y + half - 1, w - 40, 2); if (hasD) g.fillRect(x + 20, y + rowH - 1, w - 40, 2);
+  g.textBaseline = 'middle'; g.textAlign = 'left'; const r1 = y + (hasD ? rowH : half) / 2, r2 = y + half + (h - half) / 2;
+  if (hasD) { const ry = y + rowH + rowH / 2; let fs = 30; const seg = dl.map(([lb, ids]) => [lb, ids.length ? ids.map(pname).join('·') : '-']); const total = f => { g.font = `${f}px ${PF.KR}`; return seg.reduce((acc, [lb, nm]) => acc + g.measureText(lb + '  ' + nm).width, 0) + (seg.length - 1) * f * 1.6 };
+    while (fs > 18 && total(fs) > w - 68) fs -= 2; let xx = x + 34; g.font = `${fs}px ${PF.KR}`;
+    seg.forEach(([lb, nm], i) => { g.fillStyle = o.ink; g.fillText(lb, xx, ry + 2); xx += g.measureText(lb + '  ').width; g.fillStyle = o.acc; g.fillText(nm, xx, ry + 2); xx += g.measureText(nm).width; if (i < seg.length - 1) { g.fillStyle = sepC; g.fillRect(xx + fs * .75, ry - fs * .45, 2, fs * .9); xx += fs * 1.6 } }) }
   g.fillStyle = o.ink; g.font = `30px ${PF.LAT}`; const l1 = o.labels?.[0] || 'E/V PASSWORD'; g.fillText(l1, x + 34, r1 + 2); const d1 = x + 34 + g.measureText(l1).width + 26;
   g.fillStyle = o.acc; fitFont(g, s.evpw || '-', `{s}px ${PF.LAT}`, 58, x + w - d1 - 30); g.fillText(s.evpw || '-', d1, r1 + 4);
   g.fillStyle = o.ink; g.font = `30px ${PF.LAT}`; const l2 = o.labels?.[1] || 'NOTICE'; g.fillText(l2, x + 34, r2 + 2); const d2 = x + 34 + Math.max(g.measureText(l2).width, g.measureText(l1).width * 0) + 26;
@@ -612,7 +622,7 @@ async function drawTeam(s, d) {
   d = d || teamDesign(s); const fk = fontOf(d);
   if (d.lay === 'stadium') return drawPoster(s, 'stadium', fk);
   const W = 1086, H = 1448, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); const P = PAL[d.pal] || PAL.navy; const rnd = seeded(d.seed);
-  const PF = await posterFonts([s.venue || '', s.notice || '', s.evpw || '', ...KEYS.flatMap(k => teamPlayers(s, k).map(pname))], fk); const img = await emblem(); const LAT = PF.LAT, KR = PF.KR;
+  const PF = await posterFonts([s.venue || '', s.notice || '', s.evpw || '', '공당 물당 주차 -·', ...KEYS.flatMap(k => teamPlayers(s, k).map(pname)), ...[...(s.duty?.ball || []), ...(s.duty?.drink || []), ...(s.parkWin || [])].map(pname)], fk); const img = await emblem(); const LAT = PF.LAT, KR = PF.KR;
   const T = teamData(s); const [, mm, dd] = s.date.split('-'); const club = (CFG.club?.name || 'WEEKDAYS FUTSAL CLUB').toUpperCase(); const wd = dow(s.date) + '요일', tm = s.time || '';
   if (d.lay === 'magazine') {
     bgFill(g, P, W, H, rnd, 'flat'); const ang = rnd() * .5 - .25;
@@ -986,9 +996,10 @@ function vCaptain(s) {
     `<div class="capgrid${' n' + nT(s)}">${TK(s).map(k => { const c = s.captains?.[k]; return `<button class="capcard ${c ? 'on' : ''}" data-act="capslot" data-k="${k}" ${ad ? '' : 'disabled'}><span class="cc-tag" style="background:${NEUTRAL[k]};color:${inkOn(NEUTRAL[k])}">${k}팀</span><b class="cc-name">${c ? esc(pname(c)) : '＋ 주장 선택'}</b></button>` }).join('')}</div>`);
   let h = `<div class="hgrid">${teamCard}${opsCard}${capCard}`;
   if (S.admin) {
-    const pa = parkApps(s), win = s.parkWin || []; const need = Math.min(pa.length, PARK_SLOTS);
-    h += card(4, 'hc-park', '주차', `신청자 중 ${PARK_SLOTS}명을 사다리로 뽑아요. 신청자가 자리보다 많으면 지난 경기 당첨자는 빠져요.`, !pa.length || win.length >= need, pa.length ? `${win.length}/${need} · 신청 ${pa.length}` : '신청 없음',
-      `<div class="hp-list">${win.length ? win.map(id => { const a = (s.park || {})[id] || {}; return `<span class="hp-pill win"><b>${esc(pname(id))}</b>${a.car ? `<small>${esc(a.car)}</small>` : ''}</span>` }).join('') : `<span class="hp-empty">${pa.length ? (closed ? '사다리를 타서 정해요' : '신청이 마감되면 사다리를 타요') : '주차 신청자가 없어요'}</span>`}</div>
+    const pa = parkApps(s), win = s.parkWin || []; const pN = parkN(s); const need = Math.min(pa.length, pN);
+    const pStep = `<div class="hc-row"><span class="hc-lab">자리</span><div class="stepper sm"><button class="btn sm" data-act="parkn" data-d="-1" data-id="${sid}" ${pN <= 0 ? 'disabled' : ''} aria-label="줄이기">−</button><b>${pN ? pN + '대' : '없음'}</b><button class="btn sm" data-act="parkn" data-d="1" data-id="${sid}" aria-label="늘리기">＋</button></div></div>`;
+    h += card(4, 'hc-park', '주차', pN ? `신청자 중 ${pN}명을 사다리로 뽑아요. 신청자가 자리보다 많으면 지난 경기 당첨자는 빠져요. 0으로 줄이면 이번 경기는 주차 신청을 받지 않아요.` : '이번 경기는 주차 자리가 없어요. 회원 화면에서 주차 신청이 숨겨져요.', !pN || !pa.length || win.length >= need, !pN ? '주차 없음' : pa.length ? `${win.length}/${need} · 신청 ${pa.length}` : '신청 없음', pStep +
+      `<div class="hp-list">${win.length ? win.map(id => { const a = (s.park || {})[id] || {}; return `<span class="hp-pill win"><b>${esc(pname(id))}</b>${a.car ? `<small>${esc(a.car)}</small>` : ''}</span>` }).join('') : `<span class="hp-empty">${!pN ? '이번 경기는 주차 없음' : pa.length ? (closed ? '사다리를 타서 정해요' : '신청이 마감되면 사다리를 타요') : '주차 신청자가 없어요'}</span>`}</div>
       <div class="hc-acts">${closed && pa.length ? `<button class="btn sm hc-go" data-act="parkdraw" data-id="${sid}">${win.length ? '사다리 다시 타기' : '사다리 타기'}</button>` : ''}${s.parkLadder ? `<button class="btn sm" data-act="parkview" data-id="${sid}">결과 · 이미지</button>` : ''}<button class="btn sm" data-act="parkedit" data-id="${sid}">명단 · 직접 지정</button></div>`);
     const d = s.duty || {}; const ps0 = participants(s); const spin = S.dspin && S.dspin.sid === sid ? S.dspin : null;
     const duty = (n0, kind, nm) => { const sel = d[kind] || [], other = kind === 'drink' ? (d.ball || []) : (d.drink || []); const n = dutyN(s, kind); const req = dutyReqs(s, kind).filter(id => ps0.includes(id) && !other.includes(id));
@@ -1318,7 +1329,7 @@ function viewSheet() {
   else if (sh.type === 'drinkbuy') { h += drinkBuySheet(sh.sid) }
   else if (sh.type === 'rcpt') { const v = S.sessions[sh.sid]?.drinkBuy?.[sh.pid] || {}; h += `<h4>🧾 ${esc(pname(sh.pid))} 님 영수증</h4><p>${fmtDate(sh.sid)} 경기 · 구입 금액 ${wn(+v.amt || 0)}원</p>${sh.img === null ? '<p class="empty">불러오는 중…</p>' : sh.img ? `<img class="rcpt-big" src="${sh.img}" alt="영수증" referrerpolicy="no-referrer">${sh.drive ? `<a class="btn block" style="margin-top:8px" href="https://drive.google.com/file/d/${esc(sh.drive)}/view" target="_blank" rel="noopener">구글 드라이브에서 보기</a>` : ''}` : '<p class="empty">영수증 사진이 없어요.</p>'}` }
   else if (sh.type === 'rcptsetup') { h += rcptSetupSheet() }
-  else if (sh.type === 'parkapply') { h += `<h4>🚗 주차 신청${ib(`${fmtDate(sh.sid)} 경기 주차를 신청해요. 신청자 중 ${PARK_SLOTS}명을 추첨해요.`)}</h4><div class="panel"><div class="field"><label for="pk-car2">차량번호</label><input id="pk-car2" class="inp" type="text" maxlength="12" placeholder="예: 12가3456" value="${esc(myCar())}"></div>${ibm(`내 정보에 차량번호를 저장해 두면 자동으로 채워져요.`)}</div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="parksave">신청</button></div>` }
+  else if (sh.type === 'parkapply') { h += `<h4>🚗 주차 신청${ib(`${fmtDate(sh.sid)} 경기 주차를 신청해요. 신청자 중 ${parkN(S.sessions[sh.sid])}명을 추첨해요.`)}</h4><div class="panel"><div class="field"><label for="pk-car2">차량번호</label><input id="pk-car2" class="inp" type="text" maxlength="12" placeholder="예: 12가3456" value="${esc(myCar())}"></div>${ibm(`내 정보에 차량번호를 저장해 두면 자동으로 채워져요.`)}</div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="parksave">신청</button></div>` }
   else if (sh.type === 'tier') h += tierSheet(sh);
   else if (sh.type === 'calpick') h += `<h4>📅 캘린더에 추가${ib(`${fmtDate(sh.id)} ${esc(S.sessions[sh.id]?.time || '')} 경기를 내 캘린더에 넣어요. 경기 2시간 전에 알림이 와요.`)}</h4><div class="pick" style="grid-template-columns:1fr"><button data-act="calics" data-id="${sh.id}">🍎 아이폰·기본 캘린더 (일정 파일)</button><button data-act="calgoo" data-id="${sh.id}">📆 구글 캘린더</button></div>`;
   else if (sh.type === 'inbox') h += inboxSheet();
@@ -1367,6 +1378,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.62','2026.11.03',['팀 공지 이미지에 공당 · 물당 · 주차 당첨자 줄 추가 (E/V 비밀번호와 공지 사이)','[운영진] 주차 자리 수를 경기마다 공당·물당처럼 ± 로 설정 (0 = 이번 경기 주차 없음 → 회원 화면의 주차 신청이 숨겨지고 운영 체크도 통과)']],
   ['0.4.61','2026.11.03',['[운영진] 드래프트 방 열기 버튼이 안 보이던 문제 수정: 주장이 방이 열리기 전에 먼저 입장해 두면 “팀·도우미” 단계가 바로 “드래프트로”로 넘어가고, 드래프트 화면에도 방 열기 버튼이 없었어요','드래프트 화면에서도 방이 안 열려 있으면 “▶ 드래프트 방 열기” 버튼이 보여요 · 먼저 입장한 주장은 입장 상태 그대로 유지']],
   ['0.4.60','2026.11.03',['[운영진] 공당·물당 추첨: 신청자를 포함해 정한 인원만큼 — 신청자가 인원보다 적으면 신청자는 확정하고 나머지만 추첨, 인원 이상이면 신청자 중에서 인원만큼 추첨','추첨 화면에서도 확정된 신청자는 고정 표시, 나머지 자리만 돌아가요']],
   ['0.4.59','2026.11.03',['다음 경기 카드 맨 위 표시를 경기 단계로: 신청 전 → 신청 중 → 경기 전 → 경기 중 (내 신청 상태는 카드 안 신청 카드에서)']],
@@ -2264,7 +2276,7 @@ function nextBar(s, step) { if (!S.admin) return ''; const ms = sessMatches(s.da
       if (sStatus(s).k === 'open') sec = '<button class="btn" data-act="closenow">지금 마감</button>' }
     else { btn = go('captain'); label = '팀·도우미로' } }
   else if (step === 'captain') { const nOp = (s.ops || []).filter(p => p && S.players[p]).length, nCap = TK(s).filter(k => s.captains?.[k]).length; const pk = parkApps(s).length, pw = (s.parkWin || []).length;
-    chk(nOp >= nC(s), `운영자 ${Math.min(nOp, nC(s))}/${nC(s)}`); chk(nCap === nT(s), `주장 ${nCap}/${nT(s)}`); chk((s.duty?.ball || []).length, '공당'); chk((s.duty?.drink || []).length, '물당'); chk(!pk || pw >= Math.min(pk, PARK_SLOTS), pk ? `주차 ${pw}/${Math.min(pk, PARK_SLOTS)}` : '주차 신청 없음');
+    chk(nOp >= nC(s), `운영자 ${Math.min(nOp, nC(s))}/${nC(s)}`); chk(nCap === nT(s), `주장 ${nCap}/${nT(s)}`); chk((s.duty?.ball || []).length, '공당'); chk((s.duty?.drink || []).length, '물당'); chk(!parkN(s) || !pk || pw >= Math.min(pk, parkN(s)), !parkN(s) ? '주차 없음' : pk ? `주차 ${pw}/${Math.min(pk, parkN(s))}` : '주차 신청 없음');
     if ((s.draftStatus || 'ready') !== 'ready' || s.room?.open) { btn = go('draft'); label = '드래프트로'; items = [] } // 주장이 먼저 '입장'만 눌러 둔 경우(room은 있지만 열리지 않음)에는 아직 방 열기
     else { on = items.every(x => x[0]); btn = 'data-act="openroom"'; label = '드래프트 방 열기' } }
   else if (step === 'draft') { const tot = (s.applicants || []).length, picked = TK(s).reduce((a, k) => a + teamPlayers(s, k).length, 0);
@@ -2664,14 +2676,15 @@ async function freezeApps(s) {
 
 /* ───────── duties & parking ───────── */
 const PARK_SLOTS = +(CFG.parkingSlots || 2);
+const parkN = s => { const v = s?.parkN; return v == null || v === '' ? PARK_SLOTS : Math.max(0, +v || 0) }; // 경기마다 주차 자리 수 (0 = 이번 경기 주차 없음)
 function participants(s) { if (s.stage === 'apply') return classify(s).sel.map(r => r.pid).filter(Boolean); return [...(s.applicants || [])] }
 function applyClosed(s) { const st = sStatus(s); return st.k !== 'soon' && st.k !== 'open' }
 function prevAnyId(s) { return Object.keys(S.sessions).filter(id => id < s.date).sort().pop() || null }
 // 주차 추첨: 지난 경기 당첨자도 신청은 할 수 있어요. 신청자가 자리보다 많으면 지난 당첨자는 추첨에서 빠지고, 남는 자리가 있을 때만 들어가요
 function parkPlan(s) { const ps = new Set(participants(s)); const base = parkApps(s).filter(a => ps.has(a.pid)).map(a => a.pid); const prev = base.filter(id => parkBanned(s, id)), fresh = base.filter(id => !parkBanned(s, id));
-  if (base.length <= PARK_SLOTS) return { base, cands: base, seats: base.length, auto: [], excluded: [] };
-  if (fresh.length >= PARK_SLOTS) return { base, cands: fresh, seats: PARK_SLOTS, auto: [], excluded: prev };
-  return { base, cands: prev, seats: PARK_SLOTS - fresh.length, auto: fresh, excluded: [] } }
+  const SL = parkN(s); if (base.length <= SL) return { base, cands: base, seats: base.length, auto: [], excluded: [] };
+  if (fresh.length >= SL) return { base, cands: fresh, seats: SL, auto: [], excluded: prev };
+  return { base, cands: prev, seats: SL - fresh.length, auto: fresh, excluded: [] } }
 function parkBanned(s, pid) { const p = prevAnyId(s); return !!(p && (S.sessions[p].parkWin || []).includes(pid)) }
 function parkApps(s) { return Object.entries(s.park || {}).filter(([, v]) => v && v.car).map(([pid, v]) => ({ pid, ...v })).sort((a, b) => (a.at || 0) - (b.at || 0)) }
 function dutyTiles(s) { const d = s.duty || {}; const me = myPid(); const tile = (ico, nm, ids) => `<div class="mdr-t ${ids.includes(me) ? 'mine' : ''}"><span class="mdr-h">${XICO[ico] || ''}<b>${nm}</b></span><span class="mdr-n">${ids.length ? ids.map(id => `<i class="${id === me ? 'me' : ''}">${esc(pname(id))}</i>`).join('') : '<em>미정</em>'}</span></div>`;
@@ -2695,15 +2708,15 @@ function dutyBox(s) {
   return one('ball', '⚽', '공당') + one('drink', '🥤', '물당');
 }
 function parkBox(s) {
-  const me = myPid(); if (!me) return ''; const mine = s.park?.[me]; const won = (s.parkWin || []).includes(me); const drawn = !!s.parkDrawAt; const open = sStatus(s).k === 'open';
+  const me = myPid(); if (!me) return ''; if (!parkN(s) && !s.park?.[me]?.car) return ''; /* 주차 자리 0 = 주차 없음 */ const mine = s.park?.[me]; const won = (s.parkWin || []).includes(me); const drawn = !!s.parkDrawAt; const open = sStatus(s).k === 'open';
   const pill = (cls, sub, attrs) => `<${attrs ? 'button' : 'span'} class="xpill ${cls}" ${attrs || ''}><b>${XICO.park} 주차</b><small>${sub}</small></${attrs ? 'button' : 'span'}>`;
   if (drawn) return mine?.car ? pill(won ? 'fixed' : 'off', won ? `당첨! ${esc(mine.car)}` : participants(s).includes(me) ? '추첨 미당첨' : '대기라 추첨 제외') : '';
   if (mine?.car) return open ? pill('on', `신청함 ✓ ${esc(mine.car)}`, `data-act="parkcancel" data-id="${s.date}" aria-pressed="true"`) : pill('on', `신청함 ✓ ${esc(mine.car)}`);
   if (!open) return '';
   return pill('', '신청하기', `data-act="parkapply" data-id="${s.date}"`);
 }
-function parkFields(s, pid) { const banned = false;
-  return `<div class="field parkf"><label class="ck"><input type="checkbox" id="pk-on" ${banned ? 'disabled' : ''}> 🚗 주차 신청 (선택사항)</label>${banned ? '<span class="note" style="margin:0">지난 경기 주차 당첨자는 이번 경기 주차를 신청할 수 없어요.</span>' : `<input id="pk-car" class="inp" type="text" maxlength="12" placeholder="차량번호 (예: 12가3456)" value="${esc(myCar())}">${ibm(`신청자 중 ${PARK_SLOTS}명을 추첨해요. 차량번호는 운영진만 볼 수 있어요.`)}`}</div>` }
+function parkFields(s, pid) { const banned = false; if (!parkN(s)) return '';
+  return `<div class="field parkf"><label class="ck"><input type="checkbox" id="pk-on" ${banned ? 'disabled' : ''}> 🚗 주차 신청 (선택사항)</label>${banned ? '<span class="note" style="margin:0">지난 경기 주차 당첨자는 이번 경기 주차를 신청할 수 없어요.</span>' : `<input id="pk-car" class="inp" type="text" maxlength="12" placeholder="차량번호 (예: 12가3456)" value="${esc(myCar())}">${ibm(`신청자 중 ${parkN(s)}명을 추첨해요. 차량번호는 운영진만 볼 수 있어요.`)}`}</div>` }
 async function saveParking(sid, pid, car) {
   if (car) save('car', (car || '').replace(/\s+/g, '').slice(0, 12));
   const s = S.sessions[sid]; car = (car || '').replace(/\s+/g, '').slice(0, 12); if (!car) { toast('차량번호를 입력해 주세요.'); return false }
@@ -2727,7 +2740,7 @@ function parkSheet(sid) {
   const spin = S.parkSpin && S.parkSpin.sid === sid;
   let h = `<h4>${fmtDate(sid)} 주차 추첨</h4><p>${P.auto.length ? `${P.auto.length}명 확정 + ` : ''}대상 ${elig.length}명 중 ${P.seats}명 추첨${ib('선발된 신청자만 추첨해요. 신청자가 자리보다 많으면 지난 경기 당첨자는 추첨에서 빠지고, 자리가 남을 때만 지난 당첨자끼리 추첨해요.')}</p>`;
   h += `<div class="panel plist ${spin ? 'spin' : ''}">${list.length ? list.map(a => { const ok = ps.has(a.pid) && !exc.has(a.pid); const w0 = win.includes(a.pid);
-    return `<div class="prow ${ok ? '' : 'x'} ${w0 ? 'won' : ''} ${spin && S.parkSpin.hl === a.pid ? 'hl' : ''}"><b>${esc(pname(a.pid))}</b><span class="car">${esc(a.car)}</span><small>${w0 ? '🎉 당첨' : !ps.has(a.pid) ? '대기 · 선발되면 대상' : exc.has(a.pid) ? '지난 경기 당첨 · 이번엔 제외' : auto.has(a.pid) ? '자리 확정' : parkBanned(s, a.pid) && P.base.length > PARK_SLOTS ? '지난 당첨 · 남는 자리 추첨' : '추첨 대상'}</small><button class="btn sm" data-act="parkwin" data-id="${a.pid}">${w0 ? '당첨 취소' : '당첨'}</button><button class="btn sm danger" data-act="parkdel" data-id="${a.pid}" aria-label="삭제">×</button></div>` }).join('') : '<p class="empty">아직 주차 신청자가 없어요.</p>'}</div>`;
+    return `<div class="prow ${ok ? '' : 'x'} ${w0 ? 'won' : ''} ${spin && S.parkSpin.hl === a.pid ? 'hl' : ''}"><b>${esc(pname(a.pid))}</b><span class="car">${esc(a.car)}</span><small>${w0 ? '🎉 당첨' : !ps.has(a.pid) ? '대기 · 선발되면 대상' : exc.has(a.pid) ? '지난 경기 당첨 · 이번엔 제외' : auto.has(a.pid) ? '자리 확정' : parkBanned(s, a.pid) && P.base.length > parkN(s) ? '지난 당첨 · 남는 자리 추첨' : '추첨 대상'}</small><button class="btn sm" data-act="parkwin" data-id="${a.pid}">${w0 ? '당첨 취소' : '당첨'}</button><button class="btn sm danger" data-act="parkdel" data-id="${a.pid}" aria-label="삭제">×</button></div>` }).join('') : '<p class="empty">아직 주차 신청자가 없어요.</p>'}</div>`;
   h += `<div class="panel pad" style="margin-top:10px"><b class="dk">직접 추가</b><div style="display:flex;gap:6px;flex-wrap:wrap"><input id="pk-nm" class="inp" style="flex:1;min-width:110px" type="text" list="pk-list" placeholder="이름"><datalist id="pk-list">${byName(participants(s)).map(id => `<option value="${esc(pname(id))}">`).join('')}</datalist><input id="pk-cr" class="inp" style="flex:1;min-width:110px" type="text" placeholder="차량번호"><button class="btn" data-act="parkadd" data-id="${sid}">추가</button></div></div>`;
   if (!applyClosed(s)) h += `<p class="note">마감 후 추첨할 수 있어요.${ibm(`당첨자는 목록의 "당첨" 버튼으로 직접 정할 수도 있어요.`)}</p>`;
   else h += `<div class="row" style="margin-top:12px"><button class="btn primary" data-act="parkdraw" data-id="${sid}" ${P.base.length && !spin ? '' : 'disabled'}>${win.length ? '🎲 다시 추첨' : `🎲 ${Math.min(PARK_SLOTS, P.base.length)}명 추첨하기`}</button></div>`;
@@ -3974,6 +3987,7 @@ document.addEventListener('click', async e => {
     case 'attper': S.attPer = el.dataset.k; S.attOpen = null; render(); break;
     case 'attopen': S.attOpen = S.attOpen === id ? null : id; render(); break;
     case 'dutyn': { if (!needAdmin()) break; const ss = S.sessions[id]; const k = el.dataset.kind; const f = k === 'drink' ? 'drinkN' : 'ballN'; const v = Math.min(Math.max(1, participants(ss).length), Math.max(1, dutyN(ss, k) + (+el.dataset.d))); await w(() => S.store.update(sp(id), { [f]: v })); break }
+    case 'parkn': { if (!needAdmin()) break; const ss = S.sessions[id]; const v = Math.max(0, Math.min(10, parkN(ss) + (+el.dataset.d))); await w(() => S.store.update(sp(id), { parkN: v }), v ? `주차 자리 ${v}대` : '이번 경기는 주차 없음으로 바꿨어요.'); break }
     case 'dutydraw': { if (!needAdmin()) break; const k = el.dataset.kind; const sid0 = id; dutySpin(sid0, k, pick => w(() => S.store.update(sp(sid0), { [`duty.${k}`]: pick }), `${k === 'drink' ? '물당' : '공당'}: ${pick.map(pname).join(', ')}`)); break }
     case 'dutyboth': { if (!needAdmin()) break; const sid0 = id; dutySpin(sid0, 'ball', async b => { await w(() => S.store.update(sp(sid0), { 'duty.ball': b })); const ss = S.sessions[sid0]; ss.duty = { ...(ss.duty || {}), ball: b };
       dutySpin(sid0, 'drink', dk => w(() => S.store.update(sp(sid0), { 'duty.drink': dk }), `공당: ${b.map(pname).join(', ')} · 물당: ${dk.map(pname).join(', ')}`)) }); break }
