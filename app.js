@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.59';
+const APP_VERSION = '0.4.60';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -992,10 +992,10 @@ function vCaptain(s) {
       <div class="hc-acts">${closed && pa.length ? `<button class="btn sm hc-go" data-act="parkdraw" data-id="${sid}">${win.length ? '사다리 다시 타기' : '사다리 타기'}</button>` : ''}${s.parkLadder ? `<button class="btn sm" data-act="parkview" data-id="${sid}">결과 · 이미지</button>` : ''}<button class="btn sm" data-act="parkedit" data-id="${sid}">명단 · 직접 지정</button></div>`);
     const d = s.duty || {}; const ps0 = participants(s); const spin = S.dspin && S.dspin.sid === sid ? S.dspin : null;
     const duty = (n0, kind, nm) => { const sel = d[kind] || [], other = kind === 'drink' ? (d.ball || []) : (d.drink || []); const n = dutyN(s, kind); const req = dutyReqs(s, kind).filter(id => ps0.includes(id) && !other.includes(id));
-      const sp0 = spin && spin.kind === kind; const show = sp0 ? dutyPool(s, kind) : [...new Set([...sel, ...req])];
+      const sp0 = spin && spin.kind === kind; const show = sp0 ? (spin.show || dutyPool(s, kind)) : [...new Set([...sel, ...req])];
       return card(n0, 'hc-duty', nm, `${req.length === n ? `신청자 ${n}명을 그대로 확정해요.` : req.length > n ? `신청자 ${req.length}명 중 ${n}명을 추첨해요.` : req.length ? `신청자 ${req.length}명은 자동 포함, 부족한 ${n - req.length}명은 추첨해요.` : `참가자 중에서 ${n}명을 추첨해요.`}${kind === 'drink' ? ' 공당은 제외돼요.' : ''}`, sel.length >= n, sel.length ? `${sel.length}/${n}` : `미정 · 신청 ${req.length}`,
         `<div class="hc-row"><span class="hc-lab">인원</span><div class="stepper sm"><button class="btn sm" data-act="dutyn" data-kind="${kind}" data-d="-1" data-id="${sid}" ${n <= 1 ? 'disabled' : ''} aria-label="줄이기">−</button><b>${n}명</b><button class="btn sm" data-act="dutyn" data-kind="${kind}" data-d="1" data-id="${sid}" aria-label="늘리기">＋</button></div></div>
-        <div class="hp-list">${show.length ? show.map(id => sp0 ? `<span class="hp-pill ${spin.hl.includes(id) ? 'win spin' : ''}"><b>${esc(pname(id))}</b></span>`
+        <div class="hp-list">${show.length ? show.map(id => sp0 ? `<span class="hp-pill ${spin.hl.includes(id) ? 'win' : ''} ${(spin.fixed || []).includes(id) ? 'fixed' : spin.hl.includes(id) ? 'spin' : ''}"><b>${esc(pname(id))}</b>${req.includes(id) ? '<small>신청</small>' : ''}</span>`
           : closed ? `<button class="hp-pill tog ${sel.includes(id) ? 'win' : ''}" data-act="dutytog" data-kind="${kind}" data-id="${id}" data-sid="${sid}">${sel.includes(id) ? '✓ ' : ''}<b>${esc(pname(id))}</b>${req.includes(id) ? '<small>신청</small>' : ''}</button>` : `<span class="hp-pill"><b>${esc(pname(id))}</b><small>신청</small></span>`).join('') : '<span class="hp-empty">아직 신청자가 없어요</span>'}</div>
         <div class="hc-acts"><button class="btn sm hc-go" data-act="dutydraw" data-kind="${kind}" data-id="${sid}" ${closed && !spin && dutyPool(s, kind).length ? '' : 'disabled'}>${sel.length ? '다시 뽑기' : `${n}명 뽑기`}</button><button class="btn sm" data-act="dutyedit" data-id="${sid}">직접 고르기</button></div>`) };
     h += duty(5, 'ball', '공당') + duty(6, 'drink', '물당');
@@ -1367,6 +1367,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.60','2026.11.03',['[운영진] 공당·물당 추첨: 신청자를 포함해 정한 인원만큼 — 신청자가 인원보다 적으면 신청자는 확정하고 나머지만 추첨, 인원 이상이면 신청자 중에서 인원만큼 추첨','추첨 화면에서도 확정된 신청자는 고정 표시, 나머지 자리만 돌아가요']],
   ['0.4.59','2026.11.03',['다음 경기 카드 맨 위 표시를 경기 단계로: 신청 전 → 신청 중 → 경기 전 → 경기 중 (내 신청 상태는 카드 안 신청 카드에서)']],
   ['0.4.58','2026.11.03',['신청 당일: 맨 위 신청 카드와 겹치던 다음 경기 카드의 신청 인원 줄 숨김']],
   ['0.4.57','2026.11.03',['홈: 신청 완료 카드와 주차·공당·물당 신청을 한 묶음으로 다음 경기 카드 안에(PC는 바로 옆 “내 신청” 칸)','다음 경기 신청 카드: 신청 당일 전에는 “신청 오픈 일시” 안내만, 당일에는 맨 위에 카운트다운 + 신청 버튼 대기','신청 중(여러 날 열려 있는 경우)에도 다음 경기 카드에서 바로 신청·취소 · 신청했으면 상태가 “신청 완료”로 바뀌어요','중복 버튼 정리: 신청 현황 버튼은 한 곳에만']],
@@ -2680,8 +2681,11 @@ function dutyN(s, kind) { return Math.max(1, +(kind === 'drink' ? s.drinkN : s.b
 function dutyPool(s, kind) { const d = s.duty || {}; const other = kind === 'drink' ? (d.ball || []) : (d.drink || []); return participants(s).filter(id => !other.includes(id)) }
 function dutyPick(s, kind) { const n = dutyN(s, kind); const pool = dutyPool(s, kind); const req = dutyReqs(s, kind).filter(id => pool.includes(id)); const sh = a => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]] } return b };
   if (req.length >= n) return sh(req).slice(0, n); return [...req, ...sh(pool.filter(id => !req.includes(id))).slice(0, n - req.length)] }
-function dutySpin(sid, kind, done) { const ss = S.sessions[sid]; const pool = dutyPool(ss, kind); const pick = dutyPick(ss, kind); const n = pick.length; const t0 = Date.now(); S.dspin = { sid, kind, hl: [] };
-  clearInterval(S.dspinT); S.dspinT = setInterval(() => { if (Date.now() - t0 > 1300) { clearInterval(S.dspinT); S.dspin = null; done(pick); return } S.dspin.hl = pool.slice().sort(() => Math.random() - .5).slice(0, n); render() }, 110) }
+// 추첨 연출: 신청자가 인원보다 적으면 신청자는 고정(확정)으로 켜 두고 나머지 자리만 돌려요. 신청자가 인원 이상이면 신청자끼리만 돌려요.
+function dutySpin(sid, kind, done) { const ss = S.sessions[sid]; const pool = dutyPool(ss, kind); const n0 = dutyN(ss, kind); const req = dutyReqs(ss, kind).filter(id => pool.includes(id)); const pick = dutyPick(ss, kind); const n = pick.length; const t0 = Date.now();
+  const fixed = req.length < n0 ? req : []; const rollFrom = req.length >= n0 ? req : pool.filter(id => !req.includes(id)); const rollN = Math.max(0, n - fixed.length);
+  S.dspin = { sid, kind, hl: [...fixed], fixed, show: [...new Set([...req, ...rollFrom])] };
+  clearInterval(S.dspinT); S.dspinT = setInterval(() => { if (Date.now() - t0 > 1300) { clearInterval(S.dspinT); S.dspin = null; done(pick); return } S.dspin.hl = [...fixed, ...rollFrom.slice().sort(() => Math.random() - .5).slice(0, rollN)]; render() }, 110) }
 function dutyReqLabel(s) { const b = dutyReqs(s, 'ball').length, d = dutyReqs(s, 'drink').length; return b || d ? `신청 공 ${b} · 물 ${d}` : '' }
 function dutyBox(s) {
   const me = myPid(); if (!me || s.stage === 'match') return ''; const d = s.duty || {}; const rq = s.dutyReq || {};
