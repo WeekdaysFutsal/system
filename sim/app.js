@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.63';
+const APP_VERSION = '0.4.64';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -474,8 +474,8 @@ function wrapText(g, text, maxW, maxLines) { const out = []; for (const para of 
 async function drawPoster(s, theme, font) {
   const th = theme || posterTheme(s); const fk = font || posterFontOf(s, th);
   const W = 1086, H = 1448; const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
-  const PF = await posterFonts([s.venue || '', s.notice || '', s.evpw || '', '공당 물당 주차 -·()+', ...drinkItems(s), ...KEYS.flatMap(k => teamPlayers(s, k).map(pname)), ...KEYS.map(k => team(s, k).name), ...[...(s.duty?.ball || []), ...(s.duty?.drink || []), ...(s.parkWin || [])].map(pname)], fk);
-  const dl = [['공당', s.duty?.ball || []], ['물당', s.duty?.drink || []], ...(parkN(s) ? [['주차', s.parkWin || []]] : [])]; const hasD = dl.some(([, ids]) => ids.length);
+  const PF = await posterFonts([s.venue || '', s.notice || '', s.evpw || '', '예약 공당 물당 주차 -·()+', ...drinkItems(s), ...KEYS.flatMap(k => teamPlayers(s, k).map(pname)), ...KEYS.map(k => team(s, k).name), ...[...(s.p0 || []), ...(s.duty?.ball || []), ...(s.duty?.drink || []), ...(s.parkWin || [])].filter(p => S.players[p]).map(pname)], fk);
+  const dl = dutyList(s); const hasD = dl.some(([, ids]) => ids.length);
   const img = await emblem(); const LAT = PF.LAT, KR = PF.KR;
   const light = th === 'clean';
   const T = { stadium: { head: '#fff', stroke: '#0A0F1E', acc: '#FFD600', card: 'solid', bar: 'rgba(8,10,16,.93)', barInk: '#fff', barLine: 'rgba(255,255,255,.9)' },
@@ -523,7 +523,7 @@ async function drawPoster(s, theme, font) {
   for (const [t, col] of parts) { g.fillStyle = col; outline(t, x, 362, 12); x += g.measureText(t).width }
   g.textAlign = 'center'; fitFont(g, s.venue || '', `{s}px ${KR}`, 72, W - 120); g.fillStyle = T.head; outline(s.venue || '', W / 2, 448, 11);
   // team cards
-  const top = th === 'clean' ? 492 : 472, bot = hasD ? 1126 : 1186, gap = 14, nT = TK(s).length, cwid = (W - 48 - gap * (nT - 1)) / nT; const lists = TK(s).map(k => teamPlayers(s, k)); const rows = Math.max(6, ...lists.map(l => l.length));
+  const top = th === 'clean' ? 492 : 472, bot = hasD ? 1098 : 1186, gap = 14, nT = TK(s).length, cwid = (W - 48 - gap * (nT - 1)) / nT; const lists = TK(s).map(k => teamPlayers(s, k)); const rows = Math.max(6, ...lists.map(l => l.length));
   TK(s).forEach((k, i) => { const t = team(s, k); const x0 = 24 + i * (cwid + gap); const ink = inkOn(t.color);
     if (T.card === 'solid') {
       g.save(); rr(g, x0, top, cwid, bot - top, 16); g.fillStyle = t.color; g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 16; g.fill(); g.restore();
@@ -544,11 +544,10 @@ async function drawPoster(s, theme, font) {
       if (T.card !== 'solid' && j < lists[i].length - 1) { g.fillStyle = light ? '#EEF1F6' : 'rgba(127,140,170,.18)'; g.fillRect(x0 + 30, top + 190 + step * (j + 1), cwid - 60, 2); g.fillStyle = nameCol } });
   });
   // info bar
-  const by = hasD ? 1150 : 1212, bh = hasD ? 238 : 176; g.save(); rr(g, 24, by, W - 48, bh, 16); g.fillStyle = T.bar; g.fill(); g.lineWidth = 3; g.strokeStyle = T.barLine; g.stroke(); g.restore();
+  const by = hasD ? 1120 : 1212, bh = hasD ? 282 : 176; g.save(); rr(g, 24, by, W - 48, bh, 16); g.fillStyle = T.bar; g.fill(); g.lineWidth = 3; g.strokeStyle = T.barLine; g.stroke(); g.restore();
   g.fillStyle = th === 'night' ? 'rgba(255,210,31,.5)' : 'rgba(255,255,255,.85)'; g.fillRect(24, by + 70 - 1.5, W - 48, 3);
-  const r1 = by + 35, r2 = by + 70 + (hasD ? 62 : 0) + 53; g.textBaseline = 'middle';
-  if (hasD) { g.fillRect(24, by + 132 - 1.5, W - 48, 3); const ry = by + 101; const seg2 = dl.map(([lb, ids]) => [lb, ids.length ? ids.map(p => pname(p) + (lb === '물당' && drinkTaskOf(s, p) ? `(${drinkTaskOf(s, p)})` : '')).join('·') : '-']); let fs = 34; const tot = f => { g.font = `${f}px ${KR}`; return seg2.reduce((q, [lb, nm]) => q + g.measureText(lb + '  ' + nm).width, 0) + (seg2.length - 1) * f * 1.6 }; while (fs > 20 && tot(fs) > W - 140) fs -= 2;
-    let xx = 70; g.font = `${fs}px ${KR}`; g.textAlign = 'left'; seg2.forEach(([lb, nm], k) => { g.fillStyle = T.barInk; g.fillText(lb, xx, ry); xx += g.measureText(lb + '  ').width; g.fillStyle = T.acc; g.fillText(nm, xx, ry); xx += g.measureText(nm).width; if (k < seg2.length - 1) { g.fillStyle = th === 'night' ? 'rgba(255,210,31,.5)' : 'rgba(255,255,255,.5)'; g.fillRect(xx + fs * .75, ry - fs * .45, 2, fs * .9); xx += fs * 1.6 } }) }
+  const r1 = by + 35, r2 = by + 70 + (hasD ? 96 : 0) + 53; g.textBaseline = 'middle';
+  if (hasD) { g.fillRect(24, by + 166 - 1.5, W - 48, 3); drawDutyRow(g, dutySegs(s), 70, by + 118, W - 140, 88, KR, T.barInk, T.acc, th === 'night' ? 'rgba(255,210,31,.5)' : 'rgba(255,255,255,.5)', 34) }
   g.fillStyle = T.barInk; rr(g, 70, r1 - 12, 44, 36, 6); g.fill(); g.lineWidth = 7; g.strokeStyle = T.barInk; g.beginPath(); g.arc(92, r1 - 14, 14, Math.PI, 0); g.stroke(); g.fillStyle = T.bar.startsWith('#') ? T.bar : '#111'; g.fillRect(89, r1 - 2, 6, 14);
   g.textAlign = 'left'; g.fillStyle = T.barInk; g.font = `36px ${LAT}`; g.fillText('E/V Password', 144, r1 + 2); const d1 = 144 + g.measureText('E/V Password').width + 26; g.fillRect(d1, r1 - 22, 3, 44);
   g.fillStyle = T.acc; fitFont(g, s.evpw || '-', `{s}px ${LAT}`, 60, W - 48 - d1 - 40); g.fillText(s.evpw || '-', d1 + 34, r1 + 4);
@@ -597,17 +596,25 @@ function namesGrid(g, list, cap, x, y, w, h, cols, font, ink, maxFs, top) { cons
   list.forEach((pid, i) => { const r = Math.floor(i / cols), c = i % cols; const cx = x + cw * c + cw / 2, cy = y + rh * r + rh / 2 + (top ? 0 : (h - rh * rows) / 2); const nm = pname(pid); const f = fitFont(g, nm, font, fs0, cw - (pid === cap ? 46 : 14)); g.fillText(nm, cx - (pid === cap ? 16 : 0), cy);
     if (pid === cap) { const nw = g.measureText(nm).width; crown(g, cx - 16 + nw / 2 + 8, cy - f * .55, f * .74) } });
   g.textBaseline = 'alphabetic' }
+// 공지 이미지의 도우미 줄: 구장 예약 · 공당 · 물당(물품) · 주차(자리가 있을 때)
+function dutyList(s) { const ok = ids => (ids || []).filter(p => p && S.players[p]); return [['예약', ok(s.p0)], ['공당', ok(s.duty?.ball)], ['물당', ok(s.duty?.drink)], ...(parkN(s) ? [['주차', ok(s.parkWin)]] : [])] }
+function dutySegs(s) { return dutyList(s).map(([lb, ids]) => [lb, ids.length ? ids.map(p => pname(p) + (lb === '물당' && drinkTaskOf(s, p) ? `(${drinkTaskOf(s, p)})` : '')).join('·') : '-']) }
+function drawDutyRow(g, segs, x0, cy, w, h, KR, ink, acc, sep, maxFs) { // 한 줄에 안 들어가면 두 줄로
+  const wid = (arr, f) => { g.font = `${f}px ${KR}`; return arr.reduce((q, [lb, nm]) => q + g.measureText(lb + '  ' + nm).width, 0) + (arr.length - 1) * f * 1.6 };
+  let lines = [segs], fs = maxFs; while (fs > 24 && wid(segs, fs) > w) fs -= 2;
+  if (wid(segs, fs) > w) { const mid = Math.ceil(segs.length / 2); lines = [segs.slice(0, mid), segs.slice(mid)]; fs = Math.min(maxFs, Math.floor(h / 2 / 1.15)); while (fs > 14 && Math.max(wid(lines[0], fs), wid(lines[1], fs)) > w) fs -= 1 }
+  const lh = fs * 1.15; g.textBaseline = 'middle'; g.textAlign = 'left';
+  lines.forEach((ln, li) => { const yy = cy + (li - (lines.length - 1) / 2) * lh; let xx = x0; g.font = `${fs}px ${KR}`;
+    ln.forEach(([lb, nm], i) => { g.fillStyle = ink; g.fillText(lb, xx, yy); xx += g.measureText(lb + '  ').width; g.fillStyle = acc; g.fillText(nm, xx, yy); xx += g.measureText(nm).width; if (i < ln.length - 1) { g.fillStyle = sep; g.fillRect(xx + fs * .75, yy - fs * .45, 2, fs * .9); xx += fs * 1.6 } }) }) }
 function infoBlock(g, s, PF, x, y, w, h, o) { // E/V 비밀번호 + 공지(최대 3줄, { } 강조)
   g.save(); if (o.fill) { rr(g, x, y, w, h, o.r ?? 16); g.fillStyle = o.fill; g.fill() } if (o.line) { rr(g, x, y, w, h, o.r ?? 16); g.lineWidth = 3; g.strokeStyle = o.line; if (o.dash) g.setLineDash([12, 9]); g.stroke(); g.setLineDash([]) } g.restore();
   const sepC = o.sep || alpha(o.ink.startsWith('#') ? o.ink : '#FFFFFF', .35);
   // 도우미 줄: 공당 · 물당 · 주차(자리가 있을 때) — 정해진 사람이 있으면 이미지에 같이 들어가요
-  const dl = [['공당', s.duty?.ball || []], ['물당', s.duty?.drink || []], ...(parkN(s) ? [['주차', s.parkWin || []]] : [])]; const hasD = dl.some(([, ids]) => ids.length);
-  const rowH = hasD ? Math.round(h * .27) : 0; const half = hasD ? rowH * 2 : Math.round(h * .4);
+  const dl = dutyList(s); const hasD = dl.some(([, ids]) => ids.length);
+  const rowH = hasD ? Math.round(h * .25) : 0; const dH = hasD ? Math.round(h * .38) : 0; const half = hasD ? rowH + dH : Math.round(h * .4);
   g.fillStyle = sepC; g.fillRect(x + 20, y + half - 1, w - 40, 2); if (hasD) g.fillRect(x + 20, y + rowH - 1, w - 40, 2);
   g.textBaseline = 'middle'; g.textAlign = 'left'; const r1 = y + (hasD ? rowH : half) / 2, r2 = y + half + (h - half) / 2;
-  if (hasD) { const ry = y + rowH + rowH / 2; let fs = 30; const seg = dl.map(([lb, ids]) => [lb, ids.length ? ids.map(p => pname(p) + (lb === '물당' && drinkTaskOf(s, p) ? `(${drinkTaskOf(s, p)})` : '')).join('·') : '-']); const total = f => { g.font = `${f}px ${PF.KR}`; return seg.reduce((acc, [lb, nm]) => acc + g.measureText(lb + '  ' + nm).width, 0) + (seg.length - 1) * f * 1.6 };
-    while (fs > 18 && total(fs) > w - 68) fs -= 2; let xx = x + 34; g.font = `${fs}px ${PF.KR}`;
-    seg.forEach(([lb, nm], i) => { g.fillStyle = o.ink; g.fillText(lb, xx, ry + 2); xx += g.measureText(lb + '  ').width; g.fillStyle = o.acc; g.fillText(nm, xx, ry + 2); xx += g.measureText(nm).width; if (i < seg.length - 1) { g.fillStyle = sepC; g.fillRect(xx + fs * .75, ry - fs * .45, 2, fs * .9); xx += fs * 1.6 } }) }
+  if (hasD) drawDutyRow(g, dutySegs(s), x + 34, y + rowH + dH / 2 + 2, w - 68, dH - 8, PF.KR, o.ink, o.acc, sepC, 30);
   g.fillStyle = o.ink; g.font = `30px ${PF.LAT}`; const l1 = o.labels?.[0] || 'E/V PASSWORD'; g.fillText(l1, x + 34, r1 + 2); const d1 = x + 34 + g.measureText(l1).width + 26;
   g.fillStyle = o.acc; fitFont(g, s.evpw || '-', `{s}px ${PF.LAT}`, 58, x + w - d1 - 30); g.fillText(s.evpw || '-', d1, r1 + 4);
   g.fillStyle = o.ink; g.font = `30px ${PF.LAT}`; const l2 = o.labels?.[1] || 'NOTICE'; g.fillText(l2, x + 34, r2 + 2); const d2 = x + 34 + Math.max(g.measureText(l2).width, g.measureText(l1).width * 0) + 26;
@@ -622,7 +629,7 @@ async function drawTeam(s, d) {
   d = d || teamDesign(s); const fk = fontOf(d);
   if (d.lay === 'stadium') return drawPoster(s, 'stadium', fk);
   const W = 1086, H = 1448, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); const P = PAL[d.pal] || PAL.navy; const rnd = seeded(d.seed);
-  const PF = await posterFonts([s.venue || '', s.notice || '', s.evpw || '', '공당 물당 주차 -·()+', ...drinkItems(s), ...KEYS.flatMap(k => teamPlayers(s, k).map(pname)), ...[...(s.duty?.ball || []), ...(s.duty?.drink || []), ...(s.parkWin || [])].map(pname)], fk); const img = await emblem(); const LAT = PF.LAT, KR = PF.KR;
+  const PF = await posterFonts([s.venue || '', s.notice || '', s.evpw || '', '예약 공당 물당 주차 -·()+', ...drinkItems(s), ...KEYS.flatMap(k => teamPlayers(s, k).map(pname)), ...[...(s.p0 || []), ...(s.duty?.ball || []), ...(s.duty?.drink || []), ...(s.parkWin || [])].filter(p => S.players[p]).map(pname)], fk); const img = await emblem(); const LAT = PF.LAT, KR = PF.KR;
   const T = teamData(s); const [, mm, dd] = s.date.split('-'); const club = (CFG.club?.name || 'WEEKDAYS FUTSAL CLUB').toUpperCase(); const wd = dow(s.date) + '요일', tm = s.time || '';
   if (d.lay === 'magazine') {
     bgFill(g, P, W, H, rnd, 'flat'); const ang = rnd() * .5 - .25;
@@ -751,7 +758,7 @@ async function sharePoster(download) {
 function noticeText(s) {
   const lines = [`[${CFG.club?.short || 'WF'}] ${fmtDate(s.date)} ${s.time || ''} ${s.venue || ''}`.trim(), ''];
   for (const k of TK(s)) { const t = team(s, k); lines.push(`■ ${t.name}`); lines.push(teamPlayers(s, k).map((id, i) => i === 0 && captainOf(s, k) === id ? pname(id) + '(C)' : pname(id)).join(' ')); lines.push('') }
-  { const d = s.duty || {}; if ((d.ball || []).length) lines.push(`공당: ${d.ball.map(pname).join(', ')}`); if ((d.drink || []).length) lines.push(`물당: ${d.drink.map(p => pname(p) + (drinkTaskOf(s, p) ? `(${drinkTaskOf(s, p)})` : '')).join(', ')}`); if (parkN(s) && (s.parkWin || []).length) lines.push(`주차: ${s.parkWin.map(pname).join(', ')}`); if ((d.ball || []).length || (d.drink || []).length) lines.push('') }
+  { const d = s.duty || {}; const rv = (s.p0 || []).filter(p => S.players[p]); if (rv.length) lines.push(`구장 예약: ${rv.map(pname).join(', ')}`); if ((d.ball || []).length) lines.push(`공당: ${d.ball.map(pname).join(', ')}`); if ((d.drink || []).length) lines.push(`물당: ${d.drink.map(p => pname(p) + (drinkTaskOf(s, p) ? `(${drinkTaskOf(s, p)})` : '')).join(', ')}`); if (parkN(s) && (s.parkWin || []).length) lines.push(`주차: ${s.parkWin.map(pname).join(', ')}`); if ((d.ball || []).length || (d.drink || []).length) lines.push('') }
   if (s.evpw) lines.push(`E/V 비밀번호: ${s.evpw}`); if (s.notice) lines.push(`공지: ${s.notice.replace(/[{}]/g, '')}`); return lines.join('\n');
 }
 
@@ -1386,6 +1393,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.64','2026.11.03',['공지 이미지·공지 텍스트에 구장 예약자 추가: 예약 · 공당 · 물당(물품) · 주차 한 줄 (길면 자동으로 두 줄)']],
   ['0.4.63','2026.11.03',['[운영진] 물당 구입 목록: “물 3개 · 음료 2개 · 물 4개”처럼 먼저 적어 두면 물당 인원이 목록 수로 맞춰지고, 추첨된 물당에게 하나씩 임의로 배정 (🎲 물품 다시 배정 가능, 직접 고르기에도 자동 배정)','회원 화면·경기 당일 카드·공지 이미지·공지 텍스트에 “조주원(물 3개)”처럼 각자 사 올 물품 표시']],
   ['0.4.62','2026.11.03',['팀 공지 이미지에 공당 · 물당 · 주차 당첨자 줄 추가 (E/V 비밀번호와 공지 사이)','[운영진] 주차 자리 수를 경기마다 공당·물당처럼 ± 로 설정 (0 = 이번 경기 주차 없음 → 회원 화면의 주차 신청이 숨겨지고 운영 체크도 통과)']],
   ['0.4.61','2026.11.03',['[운영진] 드래프트 방 열기 버튼이 안 보이던 문제 수정: 주장이 방이 열리기 전에 먼저 입장해 두면 “팀·도우미” 단계가 바로 “드래프트로”로 넘어가고, 드래프트 화면에도 방 열기 버튼이 없었어요','드래프트 화면에서도 방이 안 열려 있으면 “▶ 드래프트 방 열기” 버튼이 보여요 · 먼저 입장한 주장은 입장 상태 그대로 유지']],
