@@ -1962,4 +1962,15 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .hp-pill.fixed{outline:2px solid var(--accent);outline-offset:-2px}
 :root{--cssv:"0.4.60"}
 :root{--cssv:"0.4.61"}
+/* 물당 구입 목록 */
+.di-ed{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 10px;align-items:start;margin:4px 0 8px}
+.di-list{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+.di-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 6px 4px 10px;border-radius:99px;background:var(--bg);border:1px solid var(--line);font-size:13px;font-weight:700;white-space:nowrap}
+.di-chip button{width:20px;height:20px;border-radius:50%;font-size:14px;line-height:1;color:var(--muted)}
+.di-add{grid-column:2;display:flex;gap:6px;min-width:0}
+.di-add .inp{flex:1;min-width:0;height:34px;padding:4px 10px;font-size:14px}
+.di-n small{font-size:12px;color:var(--muted);font-weight:600;margin-left:4px}
+.hp-pill small.di-task{color:var(--accent);font-weight:800}
 :root{--cssv:"0.4.62"}
+.mdt-ns .mdt-task{display:block;font-size:11px;font-weight:800;color:var(--accent);line-height:1.2}
+:root{--cssv:"0.4.63"}

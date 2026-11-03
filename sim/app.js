@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.62';
+const APP_VERSION = '0.4.63';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -474,7 +474,7 @@ function wrapText(g, text, maxW, maxLines) { const out = []; for (const para of 
 async function drawPoster(s, theme, font) {
   const th = theme || posterTheme(s); const fk = font || posterFontOf(s, th);
   const W = 1086, H = 1448; const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
-  const PF = await posterFonts([s.venue || '', s.notice || '', s.evpw || '', '공당 물당 주차 -·', ...KEYS.flatMap(k => teamPlayers(s, k).map(pname)), ...KEYS.map(k => team(s, k).name), ...[...(s.duty?.ball || []), ...(s.duty?.drink || []), ...(s.parkWin || [])].map(pname)], fk);
+  const PF = await posterFonts([s.venue || '', s.notice || '', s.evpw || '', '공당 물당 주차 -·()+', ...drinkItems(s), ...KEYS.flatMap(k => teamPlayers(s, k).map(pname)), ...KEYS.map(k => team(s, k).name), ...[...(s.duty?.ball || []), ...(s.duty?.drink || []), ...(s.parkWin || [])].map(pname)], fk);
   const dl = [['공당', s.duty?.ball || []], ['물당', s.duty?.drink || []], ...(parkN(s) ? [['주차', s.parkWin || []]] : [])]; const hasD = dl.some(([, ids]) => ids.length);
   const img = await emblem(); const LAT = PF.LAT, KR = PF.KR;
   const light = th === 'clean';
@@ -547,7 +547,7 @@ async function drawPoster(s, theme, font) {
   const by = hasD ? 1150 : 1212, bh = hasD ? 238 : 176; g.save(); rr(g, 24, by, W - 48, bh, 16); g.fillStyle = T.bar; g.fill(); g.lineWidth = 3; g.strokeStyle = T.barLine; g.stroke(); g.restore();
   g.fillStyle = th === 'night' ? 'rgba(255,210,31,.5)' : 'rgba(255,255,255,.85)'; g.fillRect(24, by + 70 - 1.5, W - 48, 3);
   const r1 = by + 35, r2 = by + 70 + (hasD ? 62 : 0) + 53; g.textBaseline = 'middle';
-  if (hasD) { g.fillRect(24, by + 132 - 1.5, W - 48, 3); const ry = by + 101; const seg2 = dl.map(([lb, ids]) => [lb, ids.length ? ids.map(pname).join('·') : '-']); let fs = 34; const tot = f => { g.font = `${f}px ${KR}`; return seg2.reduce((q, [lb, nm]) => q + g.measureText(lb + '  ' + nm).width, 0) + (seg2.length - 1) * f * 1.6 }; while (fs > 20 && tot(fs) > W - 140) fs -= 2;
+  if (hasD) { g.fillRect(24, by + 132 - 1.5, W - 48, 3); const ry = by + 101; const seg2 = dl.map(([lb, ids]) => [lb, ids.length ? ids.map(p => pname(p) + (lb === '물당' && drinkTaskOf(s, p) ? `(${drinkTaskOf(s, p)})` : '')).join('·') : '-']); let fs = 34; const tot = f => { g.font = `${f}px ${KR}`; return seg2.reduce((q, [lb, nm]) => q + g.measureText(lb + '  ' + nm).width, 0) + (seg2.length - 1) * f * 1.6 }; while (fs > 20 && tot(fs) > W - 140) fs -= 2;
     let xx = 70; g.font = `${fs}px ${KR}`; g.textAlign = 'left'; seg2.forEach(([lb, nm], k) => { g.fillStyle = T.barInk; g.fillText(lb, xx, ry); xx += g.measureText(lb + '  ').width; g.fillStyle = T.acc; g.fillText(nm, xx, ry); xx += g.measureText(nm).width; if (k < seg2.length - 1) { g.fillStyle = th === 'night' ? 'rgba(255,210,31,.5)' : 'rgba(255,255,255,.5)'; g.fillRect(xx + fs * .75, ry - fs * .45, 2, fs * .9); xx += fs * 1.6 } }) }
   g.fillStyle = T.barInk; rr(g, 70, r1 - 12, 44, 36, 6); g.fill(); g.lineWidth = 7; g.strokeStyle = T.barInk; g.beginPath(); g.arc(92, r1 - 14, 14, Math.PI, 0); g.stroke(); g.fillStyle = T.bar.startsWith('#') ? T.bar : '#111'; g.fillRect(89, r1 - 2, 6, 14);
   g.textAlign = 'left'; g.fillStyle = T.barInk; g.font = `36px ${LAT}`; g.fillText('E/V Password', 144, r1 + 2); const d1 = 144 + g.measureText('E/V Password').width + 26; g.fillRect(d1, r1 - 22, 3, 44);
@@ -605,7 +605,7 @@ function infoBlock(g, s, PF, x, y, w, h, o) { // E/V 비밀번호 + 공지(최�
   const rowH = hasD ? Math.round(h * .27) : 0; const half = hasD ? rowH * 2 : Math.round(h * .4);
   g.fillStyle = sepC; g.fillRect(x + 20, y + half - 1, w - 40, 2); if (hasD) g.fillRect(x + 20, y + rowH - 1, w - 40, 2);
   g.textBaseline = 'middle'; g.textAlign = 'left'; const r1 = y + (hasD ? rowH : half) / 2, r2 = y + half + (h - half) / 2;
-  if (hasD) { const ry = y + rowH + rowH / 2; let fs = 30; const seg = dl.map(([lb, ids]) => [lb, ids.length ? ids.map(pname).join('·') : '-']); const total = f => { g.font = `${f}px ${PF.KR}`; return seg.reduce((acc, [lb, nm]) => acc + g.measureText(lb + '  ' + nm).width, 0) + (seg.length - 1) * f * 1.6 };
+  if (hasD) { const ry = y + rowH + rowH / 2; let fs = 30; const seg = dl.map(([lb, ids]) => [lb, ids.length ? ids.map(p => pname(p) + (lb === '물당' && drinkTaskOf(s, p) ? `(${drinkTaskOf(s, p)})` : '')).join('·') : '-']); const total = f => { g.font = `${f}px ${PF.KR}`; return seg.reduce((acc, [lb, nm]) => acc + g.measureText(lb + '  ' + nm).width, 0) + (seg.length - 1) * f * 1.6 };
     while (fs > 18 && total(fs) > w - 68) fs -= 2; let xx = x + 34; g.font = `${fs}px ${PF.KR}`;
     seg.forEach(([lb, nm], i) => { g.fillStyle = o.ink; g.fillText(lb, xx, ry + 2); xx += g.measureText(lb + '  ').width; g.fillStyle = o.acc; g.fillText(nm, xx, ry + 2); xx += g.measureText(nm).width; if (i < seg.length - 1) { g.fillStyle = sepC; g.fillRect(xx + fs * .75, ry - fs * .45, 2, fs * .9); xx += fs * 1.6 } }) }
   g.fillStyle = o.ink; g.font = `30px ${PF.LAT}`; const l1 = o.labels?.[0] || 'E/V PASSWORD'; g.fillText(l1, x + 34, r1 + 2); const d1 = x + 34 + g.measureText(l1).width + 26;
@@ -622,7 +622,7 @@ async function drawTeam(s, d) {
   d = d || teamDesign(s); const fk = fontOf(d);
   if (d.lay === 'stadium') return drawPoster(s, 'stadium', fk);
   const W = 1086, H = 1448, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); const P = PAL[d.pal] || PAL.navy; const rnd = seeded(d.seed);
-  const PF = await posterFonts([s.venue || '', s.notice || '', s.evpw || '', '공당 물당 주차 -·', ...KEYS.flatMap(k => teamPlayers(s, k).map(pname)), ...[...(s.duty?.ball || []), ...(s.duty?.drink || []), ...(s.parkWin || [])].map(pname)], fk); const img = await emblem(); const LAT = PF.LAT, KR = PF.KR;
+  const PF = await posterFonts([s.venue || '', s.notice || '', s.evpw || '', '공당 물당 주차 -·()+', ...drinkItems(s), ...KEYS.flatMap(k => teamPlayers(s, k).map(pname)), ...[...(s.duty?.ball || []), ...(s.duty?.drink || []), ...(s.parkWin || [])].map(pname)], fk); const img = await emblem(); const LAT = PF.LAT, KR = PF.KR;
   const T = teamData(s); const [, mm, dd] = s.date.split('-'); const club = (CFG.club?.name || 'WEEKDAYS FUTSAL CLUB').toUpperCase(); const wd = dow(s.date) + '요일', tm = s.time || '';
   if (d.lay === 'magazine') {
     bgFill(g, P, W, H, rnd, 'flat'); const ang = rnd() * .5 - .25;
@@ -751,6 +751,7 @@ async function sharePoster(download) {
 function noticeText(s) {
   const lines = [`[${CFG.club?.short || 'WF'}] ${fmtDate(s.date)} ${s.time || ''} ${s.venue || ''}`.trim(), ''];
   for (const k of TK(s)) { const t = team(s, k); lines.push(`■ ${t.name}`); lines.push(teamPlayers(s, k).map((id, i) => i === 0 && captainOf(s, k) === id ? pname(id) + '(C)' : pname(id)).join(' ')); lines.push('') }
+  { const d = s.duty || {}; if ((d.ball || []).length) lines.push(`공당: ${d.ball.map(pname).join(', ')}`); if ((d.drink || []).length) lines.push(`물당: ${d.drink.map(p => pname(p) + (drinkTaskOf(s, p) ? `(${drinkTaskOf(s, p)})` : '')).join(', ')}`); if (parkN(s) && (s.parkWin || []).length) lines.push(`주차: ${s.parkWin.map(pname).join(', ')}`); if ((d.ball || []).length || (d.drink || []).length) lines.push('') }
   if (s.evpw) lines.push(`E/V 비밀번호: ${s.evpw}`); if (s.notice) lines.push(`공지: ${s.notice.replace(/[{}]/g, '')}`); return lines.join('\n');
 }
 
@@ -1012,10 +1013,10 @@ function vCaptain(s) {
     const duty = (n0, kind, nm) => { const sel = d[kind] || [], other = kind === 'drink' ? (d.ball || []) : (d.drink || []); const n = dutyN(s, kind); const req = dutyReqs(s, kind).filter(id => ps0.includes(id) && !other.includes(id));
       const sp0 = spin && spin.kind === kind; const show = sp0 ? (spin.show || dutyPool(s, kind)) : [...new Set([...sel, ...req])];
       return card(n0, 'hc-duty', nm, `${req.length === n ? `신청자 ${n}명을 그대로 확정해요.` : req.length > n ? `신청자 ${req.length}명 중 ${n}명을 추첨해요.` : req.length ? `신청자 ${req.length}명은 자동 포함, 부족한 ${n - req.length}명은 추첨해요.` : `참가자 중에서 ${n}명을 추첨해요.`}${kind === 'drink' ? ' 공당은 제외돼요.' : ''}`, sel.length >= n, sel.length ? `${sel.length}/${n}` : `미정 · 신청 ${req.length}`,
-        `<div class="hc-row"><span class="hc-lab">인원</span><div class="stepper sm"><button class="btn sm" data-act="dutyn" data-kind="${kind}" data-d="-1" data-id="${sid}" ${n <= 1 ? 'disabled' : ''} aria-label="줄이기">−</button><b>${n}명</b><button class="btn sm" data-act="dutyn" data-kind="${kind}" data-d="1" data-id="${sid}" aria-label="늘리기">＋</button></div></div>
+        `${kind === 'drink' ? drinkEditor(s, sid) : ''}${kind === 'drink' && drinkItems(s).length ? `<div class="hc-row"><span class="hc-lab">인원</span><b class="di-n">${n}명 <small>구입 목록 수만큼</small></b></div>` : `<div class="hc-row"><span class="hc-lab">인원</span><div class="stepper sm"><button class="btn sm" data-act="dutyn" data-kind="${kind}" data-d="-1" data-id="${sid}" ${n <= 1 ? 'disabled' : ''} aria-label="줄이기">−</button><b>${n}명</b><button class="btn sm" data-act="dutyn" data-kind="${kind}" data-d="1" data-id="${sid}" aria-label="늘리기">＋</button></div></div>`}
         <div class="hp-list">${show.length ? show.map(id => sp0 ? `<span class="hp-pill ${spin.hl.includes(id) ? 'win' : ''} ${(spin.fixed || []).includes(id) ? 'fixed' : spin.hl.includes(id) ? 'spin' : ''}"><b>${esc(pname(id))}</b>${req.includes(id) ? '<small>신청</small>' : ''}</span>`
-          : closed ? `<button class="hp-pill tog ${sel.includes(id) ? 'win' : ''}" data-act="dutytog" data-kind="${kind}" data-id="${id}" data-sid="${sid}">${sel.includes(id) ? '✓ ' : ''}<b>${esc(pname(id))}</b>${req.includes(id) ? '<small>신청</small>' : ''}</button>` : `<span class="hp-pill"><b>${esc(pname(id))}</b><small>신청</small></span>`).join('') : '<span class="hp-empty">아직 신청자가 없어요</span>'}</div>
-        <div class="hc-acts"><button class="btn sm hc-go" data-act="dutydraw" data-kind="${kind}" data-id="${sid}" ${closed && !spin && dutyPool(s, kind).length ? '' : 'disabled'}>${sel.length ? '다시 뽑기' : `${n}명 뽑기`}</button><button class="btn sm" data-act="dutyedit" data-id="${sid}">직접 고르기</button></div>`) };
+          : closed ? `<button class="hp-pill tog ${sel.includes(id) ? 'win' : ''}" data-act="dutytog" data-kind="${kind}" data-id="${id}" data-sid="${sid}">${sel.includes(id) ? '✓ ' : ''}<b>${esc(pname(id))}</b>${kind === 'drink' && sel.includes(id) && drinkTaskOf(s, id) ? `<small class="di-task">${esc(drinkTaskOf(s, id))}</small>` : req.includes(id) ? '<small>신청</small>' : ''}</button>` : `<span class="hp-pill"><b>${esc(pname(id))}</b><small>신청</small></span>`).join('') : '<span class="hp-empty">아직 신청자가 없어요</span>'}</div>
+        <div class="hc-acts"><button class="btn sm hc-go" data-act="dutydraw" data-kind="${kind}" data-id="${sid}" ${closed && !spin && dutyPool(s, kind).length ? '' : 'disabled'}>${sel.length ? '다시 뽑기' : `${n}명 뽑기`}</button><button class="btn sm" data-act="dutyedit" data-id="${sid}">직접 고르기</button>${kind === 'drink' && sel.length && drinkItems(s).length ? `<button class="btn sm" data-act="drinkshuffle" data-id="${sid}">🎲 물품 다시 배정</button>` : ''}</div>`) };
     h += duty(5, 'ball', '공당') + duty(6, 'drink', '물당');
   }
   h += `</div>`;
@@ -1385,6 +1386,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.63','2026.11.03',['[운영진] 물당 구입 목록: “물 3개 · 음료 2개 · 물 4개”처럼 먼저 적어 두면 물당 인원이 목록 수로 맞춰지고, 추첨된 물당에게 하나씩 임의로 배정 (🎲 물품 다시 배정 가능, 직접 고르기에도 자동 배정)','회원 화면·경기 당일 카드·공지 이미지·공지 텍스트에 “조주원(물 3개)”처럼 각자 사 올 물품 표시']],
   ['0.4.62','2026.11.03',['팀 공지 이미지에 공당 · 물당 · 주차 당첨자 줄 추가 (E/V 비밀번호와 공지 사이)','[운영진] 주차 자리 수를 경기마다 공당·물당처럼 ± 로 설정 (0 = 이번 경기 주차 없음 → 회원 화면의 주차 신청이 숨겨지고 운영 체크도 통과)']],
   ['0.4.61','2026.11.03',['[운영진] 드래프트 방 열기 버튼이 안 보이던 문제 수정: 주장이 방이 열리기 전에 먼저 입장해 두면 “팀·도우미” 단계가 바로 “드래프트로”로 넘어가고, 드래프트 화면에도 방 열기 버튼이 없었어요','드래프트 화면에서도 방이 안 열려 있으면 “▶ 드래프트 방 열기” 버튼이 보여요 · 먼저 입장한 주장은 입장 상태 그대로 유지']],
   ['0.4.60','2026.11.03',['[운영진] 공당·물당 추첨: 신청자를 포함해 정한 인원만큼 — 신청자가 인원보다 적으면 신청자는 확정하고 나머지만 추첨, 인원 이상이면 신청자 중에서 인원만큼 추첨','추첨 화면에서도 확정된 신청자는 고정 표시, 나머지 자리만 돌아가요']],
@@ -1962,8 +1964,8 @@ function homeAction(s, st, fit) {
 }
 /* 팀 확정 후 ~ 경기 끝: 홈에서 공당·물당·주차와 팀 명단을 바로 보여줘요 */
 function mdHelpers(s) { const d = s.duty || {}; const me = myPid(); const car = me ? (s.park || {})[me]?.car : '';
-  const tile = (k, nm, ids, sub) => { const mine = ids.includes(me); return `<div class="mdt ${mine ? 'mine' : ''} ${ids.length ? '' : 'none'}"><div class="mdt-hd">${XICO[k]}<b>${nm}</b>${mine ? '<i class="mdt-me">나</i>' : ''}</div><div class="mdt-ns">${ids.length ? ids.map(id => `<span class="${id === me ? 'me' : ''}">${esc(pname(id))}</span>`).join('') : '<em>미정</em>'}</div>${mine && sub ? `<small>${sub}</small>` : ''}</div>` };
-  return `<div class="mdh">${tile('ball', '공당', d.ball || [], '공을 챙겨 와 주세요')}${tile('drink', '물당', d.drink || [], '물을 챙겨 와 주세요')}${tile('park', '주차', s.parkWin || [], car ? `내 차 ${esc(car)}` : '주차 등록돼요')}</div>${me && (d.drink || []).includes(me) ? `<button class="btn sm block dbbtn" data-act="dbopen" data-id="${s.date}">🥤 물·음료 구입 금액 ${s.drinkBuy?.[me]?.amt ? `${wn(+s.drinkBuy[me].amt)}원 등록됨 · 수정` : '· 영수증 등록하기'}</button>` : ''}` }
+  const tile = (k, nm, ids, sub) => { const mine = ids.includes(me); return `<div class="mdt ${mine ? 'mine' : ''} ${ids.length ? '' : 'none'}"><div class="mdt-hd">${XICO[k]}<b>${nm}</b>${mine ? '<i class="mdt-me">나</i>' : ''}</div><div class="mdt-ns">${ids.length ? ids.map(id => `<span class="${id === me ? 'me' : ''}">${esc(pname(id))}${k === 'drink' && drinkTaskOf(s, id) ? `<small class="mdt-task">${esc(drinkTaskOf(s, id))}</small>` : ''}</span>`).join('') : '<em>미정</em>'}</div>${mine && sub ? `<small>${sub}</small>` : ''}</div>` };
+  return `<div class="mdh">${tile('ball', '공당', d.ball || [], '공을 챙겨 와 주세요')}${tile('drink', '물당', d.drink || [], drinkTaskOf(s, me) ? `${esc(drinkTaskOf(s, me))} 사 와 주세요` : '물을 챙겨 와 주세요')}${tile('park', '주차', s.parkWin || [], car ? `내 차 ${esc(car)}` : '주차 등록돼요')}</div>${me && (d.drink || []).includes(me) ? `<button class="btn sm block dbbtn" data-act="dbopen" data-id="${s.date}">🥤 물·음료 구입 금액 ${s.drinkBuy?.[me]?.amt ? `${wn(+s.drinkBuy[me].amt)}원 등록됨 · 수정` : '· 영수증 등록하기'}</button>` : ''}` }
 function rosterGrid(s) { const me = myPid(); const mt = myTeamIn(s); const ks = mt ? [mt, ...TK(s).filter(k => k !== mt)] : TK(s);
   return `<div class="rgrid">${ks.map(k => { const t = team(s, k); const ps = teamPlayers(s, k); const cap = captainOf(s, k);
     return `<div class="rcard ${k === mt ? 'mine' : ''}" style="--tc:${t.color};--ti:${inkOn(t.color)}"><div class="rcard-hd"><b>${esc(t.name)}</b><span>${ps.length}명</span></div><ol>${ps.map(id => `<li class="${id === me ? 'me' : ''}">${id === cap ? '<i class="cb">C</i>' : ''}<span>${esc(pname(id))}</span>${id === me ? '<i class="mdt-me">나</i>' : ''}</li>`).join('')}</ol></div>` }).join('')}</div>` }
@@ -2698,7 +2700,16 @@ function dutyTiles(s) { const d = s.duty || {}; const me = myPid(); const tile =
   return `<div class="mdr-duty">${tile('ball', '공당', d.ball || [])}${tile('drink', '물당', d.drink || [])}${tile('park', '주차', s.parkWin || [])}</div>` }
 function dutyLine(s) { const d = s.duty || {}; if (!(d.ball || []).length && !(d.drink || []).length && !(s.parkWin || []).length) return ''; return dutyTiles(s) }
 function dutyReqs(s, k) { return Object.entries(s.dutyReq?.[k] || {}).filter(([, v]) => v).sort((a, b) => a[1] - b[1]).map(([pid]) => pid) }
-function dutyN(s, kind) { return Math.max(1, +(kind === 'drink' ? s.drinkN : s.ballN) || 1) }
+function drinkEditor(s, sid) { const items = drinkItems(s); const can = (s.draftStatus || 'ready') === 'ready' || true;
+  return `<div class="di-ed"><span class="hc-lab">구입 목록</span><div class="di-list">${items.map((t, i) => `<span class="di-chip">${esc(t)}<button data-act="drinkitemdel" data-i="${i}" data-id="${sid}" aria-label="${esc(t)} 빼기">×</button></span>`).join('') || '<span class="hp-empty">없으면 인원만큼 그냥 뽑아요</span>'}</div>${can ? `<div class="di-add"><input id="di-in" class="inp" placeholder="예: 물 3개, 음료 2개" maxlength="20" enterkeyhint="done"><button class="btn sm" data-act="drinkitemadd" data-id="${sid}">추가</button></div>` : ''}</div>` }
+function dutyN(s, kind) { if (kind === 'drink' && drinkItems(s).length) return drinkItems(s).length; return Math.max(1, +(kind === 'drink' ? s.drinkN : s.ballN) || 1) }
+/* 물당 구입 목록: 운영진이 "물 3개 · 음료 2개 · 물 4개"처럼 먼저 정하면, 뽑힌 물당에게 하나씩 임의로 배정해요 (물당 인원 = 목록 수) */
+const drinkItems = s => (s?.drinkItems || []).map(x => String(x || '').trim()).filter(Boolean);
+const drinkTaskOf = (s, pid) => (s?.drinkTask || {})[pid] || '';
+function drinkAssign(s, people, keep) { const items = drinkItems(s); if (!items.length || !people.length) return {}; const out = {}; const left = items.slice();
+  if (keep) people.forEach(p => { const t = (s.drinkTask || {})[p]; const i = t ? left.indexOf(t) : -1; if (i >= 0) { out[p] = t; left.splice(i, 1) } });
+  const sh = left.sort(() => Math.random() - .5); const free = people.filter(p => !out[p]).sort(() => Math.random() - .5);
+  free.forEach((p, i) => { if (sh[i]) out[p] = sh[i] }); sh.slice(free.length).forEach((t, i) => { const p = people[i % people.length]; out[p] = out[p] ? out[p] + ' + ' + t : t }); return out }
 function dutyPool(s, kind) { const d = s.duty || {}; const other = kind === 'drink' ? (d.ball || []) : (d.drink || []); return participants(s).filter(id => !other.includes(id)) }
 function dutyPick(s, kind) { const n = dutyN(s, kind); const pool = dutyPool(s, kind); const req = dutyReqs(s, kind).filter(id => pool.includes(id)); const sh = a => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]] } return b };
   if (req.length >= n) return sh(req).slice(0, n); return [...req, ...sh(pool.filter(id => !req.includes(id))).slice(0, n - req.length)] }
@@ -2710,7 +2721,7 @@ function dutySpin(sid, kind, done) { const ss = S.sessions[sid]; const pool = du
 function dutyReqLabel(s) { const b = dutyReqs(s, 'ball').length, d = dutyReqs(s, 'drink').length; return b || d ? `신청 공 ${b} · 물 ${d}` : '' }
 function dutyBox(s) {
   const me = myPid(); if (!me || s.stage === 'match') return ''; const d = s.duty || {}; const rq = s.dutyReq || {};
-  const one = (k, ico, nm) => { const set = d[k] || []; if (set.length) return set.includes(me) ? `<span class="xpill fixed"><b>${XICO[k] || ico} ${nm}</b><small>지정됐어요</small></span>` : '';
+  const one = (k, ico, nm) => { const set = d[k] || []; if (set.length) return set.includes(me) ? `<span class="xpill fixed"><b>${XICO[k] || ico} ${nm}</b><small>${k === 'drink' && drinkTaskOf(s, me) ? esc(drinkTaskOf(s, me)) + ' 사 오기' : '지정됐어요'}</small></span>` : '';
     const on = !!rq[k]?.[me]; return `<button class="xpill ${on ? 'on' : ''}" data-act="dutyreq" data-k="${k}" data-id="${s.date}" aria-pressed="${on}"><b>${XICO[k] || ico} ${nm}</b><small>${on ? '신청함 ✓' : '신청하기'}</small></button>` };
   return one('ball', '⚽', '공당') + one('drink', '🥤', '물당');
 }
@@ -3712,7 +3723,7 @@ document.addEventListener('change', e => { const el = e.target;
     if (f === 'status') { const out = GONE.has(v); w(() => S.store.update('players/' + id, { status: v, guest: v === 'guest', staff: v === 'staff', outAt: out ? (GONE.has(mstatus(S.players[id])) && S.players[id].outAt || today()) : null }), `${S.players[id]?.name || ''} 님을 ${MSTAT[v] || v}(으)로 바꿨어요.${out ? ' 로그인이 막히고 회원 정보는 남아요.' : ''}`); return }
     const c = S.contacts?.[id] || {}; if ((c[f] || '') !== v) w(() => S.store.set('contacts/' + id, { ...c, [f]: v }), '저장했어요.'); return }
   if (el.dataset.in === 'cell' && S.admin) { const f = el.dataset.f, sid = el.dataset.sid; const v = f === 'capacity' || f === 'no' ? (+el.value || 0) : el.value; if (S.sessions[sid]?.[f] !== v) w(() => S.store.update(sp(sid), { [f]: v }), '저장했어요.'); return } if (el.dataset.in === 'sidpick') { S.sid = el.value; S.openMatch = null; render(); return } if (el.dataset.in === 'sfield' && el.type === 'time' && S.admin) w(() => S.store.update(sp(S.sid), { time: el.value })) });
-document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'addone') { e.preventDefault(); document.querySelector('[data-act="addone"]').click() } if (e.key === 'Escape') { if (S.sheet) { S.sheet = null; render() } else if (S.openMatch) { S.openMatch = null; render() } } });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'di-in') { e.preventDefault(); document.querySelector('[data-act="drinkitemadd"]')?.click(); return } if (e.key === 'Enter' && e.target.id === 'addone') { e.preventDefault(); document.querySelector('[data-act="addone"]').click() } if (e.key === 'Escape') { if (S.sheet) { S.sheet = null; render() } else if (S.openMatch) { S.openMatch = null; render() } } });
 document.addEventListener('submit', async e => { e.preventDefault(); const f = e.target;
   if (f.dataset.form === 'chat') await sendChat(); });
 
@@ -3936,8 +3947,12 @@ document.addEventListener('click', async e => {
     case 'impgo': { if (!needAdmin()) break; el.disabled = true; const ok = await importRecord(S.imp); el.disabled = false; if (ok) { S.sheet = null; S.imp = null; render() } break }
     case 'latecancel': if (!needAdmin()) break; await cancelApp(S.sid, id, null, true); break;
     case 'schedshare': case 'scheddl': { const ym = S.schedYm || defaultMonth(); const c = await drawSched(ym); const b = await new Promise(r => c.toBlob(r, 'image/png')); await shareBlob(b, `WF_일정_${ym.slice(0, 4)}년${+ym.slice(5)}월.png`, act === 'scheddl'); break }
+    case 'drinkitemadd': { if (!needAdmin()) break; const ss = S.sessions[id]; const inp = document.getElementById('di-in'); const v = (inp?.value || '').trim().slice(0, 20); if (!v) { toast('예: 물 3개, 음료 2개'); inp?.focus(); break }
+      const items = [...drinkItems(ss), v]; const nx = { ...ss, drinkItems: items }; if (inp) inp.value = ''; document.activeElement?.blur(); await w(() => S.store.update(sp(id), { drinkItems: items, ...((ss.duty?.drink || []).length ? { drinkTask: drinkAssign(nx, ss.duty.drink, true) } : {}) })); render(); setTimeout(() => document.getElementById('di-in')?.focus(), 60); break }
+    case 'drinkitemdel': { if (!needAdmin()) break; const ss = S.sessions[id]; const items = drinkItems(ss).filter((_, i) => i !== +el.dataset.i); const nx = { ...ss, drinkItems: items, drinkTask: {} }; await w(() => S.store.update(sp(id), { drinkItems: items, drinkTask: (ss.duty?.drink || []).length ? drinkAssign(nx, ss.duty.drink) : {} })); break }
+    case 'drinkshuffle': { if (!needAdmin()) break; const ss = S.sessions[id]; const ppl = ss.duty?.drink || []; if (!ppl.length || !drinkItems(ss).length) break; const tk = drinkAssign(ss, ppl); await w(() => S.store.update(sp(id), { drinkTask: tk }), '물품을 다시 배정했어요: ' + ppl.map(p => `${pname(p)} ${tk[p] || '-'}`).join(', ')); break }
     case 'dutyedit': if (!needAdmin()) break; S.sheet = { type: 'duty', sid: id }; render(); break;
-    case 'dutytog': { if (!needAdmin()) break; const sid = el.dataset.sid || S.sheet?.sid; const ss = S.sessions[sid]; const kind = el.dataset.kind; const cur1 = new Set(ss.duty?.[kind] || []); cur1.has(id) ? cur1.delete(id) : cur1.add(id); await w(() => S.store.update(sp(sid), { [`duty.${kind}`]: [...cur1] })); break }
+    case 'dutytog': { if (!needAdmin()) break; const sid = el.dataset.sid || S.sheet?.sid; const ss = S.sessions[sid]; const kind = el.dataset.kind; const cur1 = new Set(ss.duty?.[kind] || []); cur1.has(id) ? cur1.delete(id) : cur1.add(id); await w(() => S.store.update(sp(sid), { [`duty.${kind}`]: [...cur1], ...(kind === 'drink' && drinkItems(ss).length ? { drinkTask: drinkAssign(ss, [...cur1], true) } : {}) })); break }
     case 'parkedit': if (!needAdmin()) break; S.sheet = { type: 'park', sid: id }; render(); break;
     case 'parkdraw': if (!needAdmin()) break; await drawParking(id); break;
     case 'parkview': S.sheet = { type: 'parkladder', sid: id }; render(); break;
@@ -3995,9 +4010,9 @@ document.addEventListener('click', async e => {
     case 'attopen': S.attOpen = S.attOpen === id ? null : id; render(); break;
     case 'dutyn': { if (!needAdmin()) break; const ss = S.sessions[id]; const k = el.dataset.kind; const f = k === 'drink' ? 'drinkN' : 'ballN'; const v = Math.min(Math.max(1, participants(ss).length), Math.max(1, dutyN(ss, k) + (+el.dataset.d))); await w(() => S.store.update(sp(id), { [f]: v })); break }
     case 'parkn': { if (!needAdmin()) break; const ss = S.sessions[id]; const v = Math.max(0, Math.min(10, parkN(ss) + (+el.dataset.d))); await w(() => S.store.update(sp(id), { parkN: v }), v ? `주차 자리 ${v}대` : '이번 경기는 주차 없음으로 바꿨어요.'); break }
-    case 'dutydraw': { if (!needAdmin()) break; const k = el.dataset.kind; const sid0 = id; dutySpin(sid0, k, pick => w(() => S.store.update(sp(sid0), { [`duty.${k}`]: pick }), `${k === 'drink' ? '물당' : '공당'}: ${pick.map(pname).join(', ')}`)); break }
+    case 'dutydraw': { if (!needAdmin()) break; const k = el.dataset.kind; const sid0 = id; dutySpin(sid0, k, pick => { const ss = S.sessions[sid0]; const tk = k === 'drink' ? drinkAssign(ss, pick) : null; return w(() => S.store.update(sp(sid0), { [`duty.${k}`]: pick, ...(tk ? { drinkTask: tk } : {}) }), `${k === 'drink' ? '물당' : '공당'}: ${pick.map(p => pname(p) + (tk?.[p] ? `(${tk[p]})` : '')).join(', ')}`) }); break }
     case 'dutyboth': { if (!needAdmin()) break; const sid0 = id; dutySpin(sid0, 'ball', async b => { await w(() => S.store.update(sp(sid0), { 'duty.ball': b })); const ss = S.sessions[sid0]; ss.duty = { ...(ss.duty || {}), ball: b };
-      dutySpin(sid0, 'drink', dk => w(() => S.store.update(sp(sid0), { 'duty.drink': dk }), `공당: ${b.map(pname).join(', ')} · 물당: ${dk.map(pname).join(', ')}`)) }); break }
+      dutySpin(sid0, 'drink', dk => w(() => S.store.update(sp(sid0), { 'duty.drink': dk, drinkTask: drinkAssign(S.sessions[sid0], dk) }), `공당: ${b.map(pname).join(', ')} · 물당: ${dk.map(pname).join(', ')}`)) }); break }
     case 'presopen': S.presOpen = !S.presOpen; drawPres(); break;
     case 'attp': S.sheet = { type: 'attp', id }; render(); break;
     case 'attimp': if (!needAdmin()) break; S.attImp = {}; S.sheet = { type: 'attimp' }; render(); break;
