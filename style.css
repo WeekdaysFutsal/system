@@ -1933,4 +1933,14 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 :root{--cssv:"0.4.53"}
 :root{--cssv:"0.4.54"}
 .nxa-lab{margin-top:18px}
+/* 마감 후 내 신청 상태를 경기 카드 안에 */
+.hero .st.st-mine{background:var(--accent);color:var(--accent-ink)}
+.hero-ap{margin-top:12px;position:relative;z-index:1}
+.hero-ap .apbig.done{margin:0;box-shadow:none}
+.act-closed{justify-content:flex-start!important;gap:12px}
+.act-closed .act-h{font-size:15px}
+.act-closed .apbig.done{margin:0}
+.hero .hero-top .st.st-mine{background:var(--accent)!important;border-color:var(--accent)!important;color:var(--accent-ink)!important}
+.homegrid .nextwrap .act.act-closed,.nextwrap .act.act-closed{justify-content:flex-start!important;align-content:flex-start!important;padding-top:20px!important}
 :root{--cssv:"0.4.55"}
+:root{--cssv:"0.4.56"}
