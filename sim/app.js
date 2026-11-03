@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.67';
+const APP_VERSION = '0.4.68';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -582,6 +582,9 @@ const DESIGN_PRESETS = {
 };
 const dKey = d => `${d.lay}.${d.pal}.${d.font}.${d.seed}`;
 function dName(kind, d) { return `${(kind === 'team' ? TEAM_LAYS : SCHED_LAYS)[d.lay] || d.lay} · ${PAL[d.pal]?.n || ''}` }
+// 🎲 새 시안 보기: 레이아웃 × 팔레트 × 글꼴을 무작위로 섞어 새 시안 n개를 만들어요
+function newDesigns(kind, n) { const lays = Object.keys(kind === 'team' ? TEAM_LAYS : SCHED_LAYS).filter(l => l !== 'stadium' && l !== 'classic'), pals = Object.keys(PAL), fonts = POSTER_FONTS.map(x => x[0]).filter(k => k !== 'auto'); const out = [], seen = new Set();
+  while (out.length < n) { const seed = 1 + Math.floor(Math.random() * 99999); const lay = lays[Math.floor(Math.random() * lays.length)]; const d = { lay, pal: pals[Math.floor(Math.random() * pals.length)], font: fonts[Math.floor(Math.random() * fonts.length)], seed }; const k = d.lay + d.pal; if (seen.has(k) && seen.size < lays.length * pals.length) continue; seen.add(k); out.push(d) } return out }
 function legacyTeam(t) { return t === 'night' ? { lay: 'board', pal: 'ink', font: 'auto', seed: 5 } : t === 'clean' ? { lay: 'swiss', pal: 'snow', font: 'auto', seed: 6 } : t === 'stripe' ? { lay: 'split', pal: 'ink', font: 'auto', seed: 4 } : null }
 function teamDesign(s) { const d = s?.posterDesign || legacyTeam(s?.posterTheme) || S.meta?.poster?.design; return d && TEAM_LAYS[d.lay] && PAL[d.pal] ? d : DESIGN_PRESETS.team[0] }
 function schedDesign() { const d = S.meta?.sched?.design; return d && SCHED_LAYS[d.lay] && PAL[d.pal] ? d : DESIGN_PRESETS.sched[0] }
@@ -1395,6 +1398,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.68','2026.11.03',['[운영진] 포스터 “🎲 새 시안 보기”를 누르면 “newDesigns” 오류가 나던 문제 수정 (0.3.0 정리 때 빠진 함수 복구)']],
   ['0.4.67','2026.11.03',['대기자는 신청 마감 후에도(드래프트·팀 발표 뒤에도) 언제든 “대기 취소” 가능 · 대기 취소는 마감 후 취소(3순위) 기록이 남지 않아요']],
   ['0.4.66','2026.11.03',['[운영진] PC에서 운영 단계 칩 첫 단계가 잘리던 문제: PC는 경기 선택 줄 아래 한 줄을 통째로 써서 7단계가 전체 이름으로 가운데 정렬, 화면 폭이 좁으면 짧은 이름으로']],
   ['0.4.65','2026.11.03',['[운영진] 운영 화면 위 단계 표시를 크게: 번호 + 이름이 있는 칩(높이 40px)으로 바꾸고 지금 단계는 형광색으로 채워 강조, 끝난 단계는 ✓','휴대폰은 가로로 밀어서 보고 지금 단계가 자동으로 가운데에 와요 · PC는 7단계가 한 줄에 다 보여요']],
