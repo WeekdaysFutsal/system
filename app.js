@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.56';
+const APP_VERSION = '0.4.57';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1367,6 +1367,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.57','2026.11.03',['홈: 신청 완료 카드와 주차·공당·물당 신청을 한 묶음으로 다음 경기 카드 안에(PC는 바로 옆 “내 신청” 칸)','다음 경기 신청 카드: 신청 당일 전에는 “신청 오픈 일시” 안내만, 당일에는 맨 위에 카운트다운 + 신청 버튼 대기','신청 중(여러 날 열려 있는 경우)에도 다음 경기 카드에서 바로 신청·취소 · 신청했으면 상태가 “신청 완료”로 바뀌어요','중복 버튼 정리: 신청 현황 버튼은 한 곳에만']],
   ['0.4.56','2026.11.03',['홈 중복 정리: 신청 마감 후 따로 있던 “신청이 마감됐어요 · 신청자 보기” 카드를 없애고, 신청 현황은 다음 경기 카드의 “신청 현황 ›” 하나로','다음 경기 카드 상태 표시: 신청했으면 “신청 완료”(대기는 “대기 신청”), 안 했으면 “신청 마감”','내 신청 카드(순번·참가 취소)는 휴대폰은 다음 경기 카드 안에, PC는 바로 옆 “내 신청” 칸에 — 중복된 신청 현황 버튼 제거']],
   ['0.4.55','2026.11.03',['홈: 다음 경기 신청 카드는 신청이 열리는 당일에만 맨 위에, 평소에는 다음 경기 안내가 먼저 나오고 신청 카드는 그 아래에']],
   ['0.4.54','2026.11.02',['[운영진] 경기 운영비 정산에 “구장비 송금” 기록: 구장을 예약하고 구장비를 먼저 낸 예약자에게 구장비를 보냈으면 체크 (체크 시각·운영진 이름 자동 기록, 실제 입금 일시는 선택)','송금액은 구장 사용료로 자동 입력(구장 2곳이면 구장별), 필요하면 수정 · 정산 확정(잠금) 뒤에도 기록 가능','송금 대기 인원·금액이 정산 화면과 정산 완료 칸, 운영 단계 안내에 표시']],
@@ -1873,8 +1874,11 @@ function viewMHome() {
   const sid = nextSid(); let h = ''; const fit = S.dm; let dock = '';
   const rvDown0 = fit && !!sid && S.sessions[sid]?.draftStatus !== 'done' && (applyState(S.sessions[sid]).k !== 'none' || ['open', 'soon'].includes(sStatus(S.sessions[sid]).k)); const dd = myDrinkDue();
   const na = nextApplySid(sid); let naCard = '', naTop = false;
-  if (na) { const s2 = S.sessions[na]; const [, m2, d2] = na.split('-'); const k2 = sStatus(s2).k; naCard = `<div class="nxapply"><div class="nxa-hd"><span class="st st-${k2}">${sStatus(s2).label}</span><b>${+m2}.${+d2} (${dow(na)}) ${esc(s2.time || '')} 경기 신청</b><small>${s2.no ? s2.no + '회 · ' : ''}${esc(venueTxt(s2) || '')}</small></div>${applyBox(s2, fit)}${k2 === 'open' && !['in', 'wait'].includes(applyState(s2).k) ? `<button class="nxa-list" data-act="applist" data-id="${na}"><span>📋 신청 현황 보기</span><em>${appTotal(s2)}${s2.capacity ? ' / ' + s2.capacity : ''}명 ›</em></button>` : ''}</div>`;
-    naTop = (s2.applyOpen || '').slice(0, 10) === today() } // 경기 신청 카드: 신청이 열리는 당일에만 홈 맨 위, 평소에는 다음 경기 안내 아래
+  if (na) { const s2 = S.sessions[na]; const [, m2, d2] = na.split('-'); const k2 = sStatus(s2).k; const openDay = (s2.applyOpen || '').slice(0, 10) === today(); const infoOnly = k2 === 'soon' && !openDay; const od = s2.applyOpen ? new Date(s2.applyOpen) : null;
+    // 신청 당일 전: 안내 한 줄만 (오픈 일시) · 당일: 맨 위에 카운트다운 + 신청 버튼 대기
+    naCard = `<div class="nxapply${infoOnly ? ' info' : ''}"><div class="nxa-hd"><span class="st st-${k2}">${sStatus(s2).label}</span><b>${+m2}.${+d2} (${dow(na)}) ${esc(s2.time || '')} 경기 신청</b><small>${s2.no ? s2.no + '회 · ' : ''}${esc(venueTxt(s2) || '')}</small></div>${infoOnly && od ? `<div class="nxa-open"><span>신청 오픈</span><b>${od.getMonth() + 1}.${od.getDate()} (${DOW[od.getDay()]}) ${p2(od.getHours())}:${p2(od.getMinutes())}</b>${s2.capacity ? `<small>정원 ${s2.capacity}명</small>` : ''}</div>` : ''}${infoOnly ? '' : applyBox(s2, fit)}${k2 === 'open' && !['in', 'wait'].includes(applyState(s2).k) ? `<button class="nxa-list" data-act="applist" data-id="${na}"><span>📋 신청 현황 보기</span><em>${appTotal(s2)}${s2.capacity ? ' / ' + s2.capacity : ''}명 ›</em></button>` : ''}</div>`;
+    naTop = openDay } // 경기 신청 카드: 신청이 열리는 당일에만 홈 맨 위, 평소에는 다음 경기 안내 아래
+  S.naTopSid = naTop ? na : null;
   h += `${fit ? `<div class="homefit${rvDown0 || dd || nextApplySid(sid) ? ' hf-scroll' : ''}">` : ''}${naTop ? `<div class="nxtop"><div class="sec-lab"><span>NEXT APPLY</span></div>${naCard}</div>` : ''}<div class="dgrid homegrid"><section>`;
   { if (dd) h += `<button class="dbnudge" data-act="dbopen" data-id="${dd}">🥤 <span><b>${fmtDate(dd)} 물당 구입 금액을 등록해 주세요</b></span><em>등록 ›</em></button>` }
 
@@ -1899,8 +1903,8 @@ function viewMHome() {
   if (!sid) h += `<div class="hero"><div class="hero-empty">예정된 경기가 없어요</div><p>새 경기일이 열리면 여기에 보여요.</p></div>`;
   else { S.sid = sid; const s = S.sessions[sid]; const st = sStatus(s); const n = appTotal(s); const cap = s.capacity || 0; const [, m, d] = sid.split('-');
     // 신청 마감 후: 내 신청 상태를 경기 카드 안에 (신청했으면 '신청 완료', 아니면 '신청 마감') — 따로 있던 마감 안내·신청자 보기 카드는 없앴어요
-    const myA = st.k === 'closed' ? applyState(s) : null; const mine = myA && (myA.k === 'in' || myA.k === 'wait');
-    const inH = mine ? applyBox(s, true, true) : ''; const cutX = inH.indexOf('<div class="extras">'); const heroAp = fit ? (cutX < 0 ? inH : inH.slice(0, cutX)) : ''; S.heroEx = fit ? (cutX < 0 ? '' : inH.slice(cutX)) : inH; // PC는 오른쪽 칸에 내 신청 카드
+    const myA = (st.k === 'closed' || st.k === 'open') ? applyState(s) : null; const mine = myA && (myA.k === 'in' || myA.k === 'wait');
+    const inH = S.naTopSid === sid ? '' : st.k === 'open' ? (fit ? applyBox(s, true) : '') : mine ? applyBox(s, true, true) : ''; const cutX = inH.indexOf('<div class="extras">'); const heroAp = fit ? inH : ''; S.heroEx = fit ? '' : inH; void cutX; // PC는 오른쪽 칸에 내 신청 카드
     const pill = mine ? `<span class="st st-mine">${myA.k === 'wait' ? '대기 신청' : '신청 완료'}</span>` : `<span class="st st-${st.k}">${st.label}</span>`;
     h += `<div class="hero ${s.draftStatus === 'done' ? 'md' : ''}"><div class="hero-top">${pill}<span class="dday">${dday(sid)}</span></div>
       <div class="hero-date">${m}.${d}<small>${dow(sid)}요일</small></div><div class="hero-info"><div class="hi-row hi-time"><span class="hi-ico">${XICO.clock}</span><b>${esc(s.time || '시간 미정')}</b><small>킥오프</small></div>
@@ -1908,7 +1912,7 @@ function viewMHome() {
       ${memFlow(s, st)}
       ${st.k === 'open' ? '' : `<div class="cap capbtn" role="button" tabindex="0" data-act="applist" data-id="${sid}" aria-label="신청 현황 보기"><div class="cap-row"><span>신청 인원${appCounts(s).wait ? ` · 대기 ${appCounts(s).wait}` : ''}<em class="caplink">신청 현황 ›</em></span><b>${n}<small> / ${cap || '-'}명</small></b></div>${cap ? `<div class="bar"><i style="width:${Math.min(100, n / cap * 100)}%"></i></div>` : ''}</div>`}${heroAp ? `<div class="hero-ap">${heroAp}</div>` : ''}</div>`;
     h += homeAction(s, st, fit);
-    if (fit && na !== sid) { if (st.k === 'open' || st.k === 'soon') { const ab = applyBox(s, true); if (ab) h += `<div class="inline-apply">${ab}</div>` } else if (st.k === 'closed' && S.heroEx) h += `<div class="inline-apply">${S.heroEx}</div>` }
+    void na;
   }
   if (naCard && !naTop && na !== sid) h += `</div><div class="sec-lab nxa-lab"><span>NEXT APPLY</span></div>${naCard}<div class="nx-dummy">`;
   if (rvDown) h += `</div><div class="rv-down">${rv}`;
@@ -1921,9 +1925,9 @@ function memFlow(s, st) { const k = st.k; const cur = k === 'soon' ? -1 : k === 
 function homeAction(s, st, fit) {
   const mt = myTeamIn(s); const AB = fit ? () => '' : applyBox;
   if (fit && (st.k === 'open' || st.k === 'soon')) return '';
-  if ((st.k === 'open' || st.k === 'soon') && nextApplySid(nextSid()) === s.date) return ''; // 맨 위 신청 카드에서 처리
+  if ((st.k === 'open' || st.k === 'soon') && S.naTopSid === s.date) return ''; // 신청 당일: 맨 위 신청 카드에서 처리
   if (st.k === 'soon') return `<div class="act">${AB(s)}</div>`;
-  if (st.k === 'open') return `<div class="act">${AB(s)}${appTotal(s) ? `<button class="btn sm" data-act="applist">신청자 보기</button>` : ''}</div>`;
+  if (st.k === 'open') { const ap = ['in', 'wait'].includes(applyState(s).k); return `<div class="act${ap ? ' act-closed' : ''}">${ap && !fit ? '<b class="act-h">내 신청</b>' : ''}${AB(s)}${appTotal(s) && !ap ? `<button class="btn sm" data-act="applist">신청자 보기</button>` : ''}</div>` }
   const capHint = '';
   const dl = dutyLine(s);
   if (st.k === 'closed') { const cl = fit ? '' : capsLine(s); const ex = fit ? '' : (S.heroEx || ''); void dl; void capHint; return ex || cl ? `<div class="act act-closed">${ex ? '<b class="act-h">내 신청</b>' + ex : ''}${cl}</div>` : '' }
