@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.60';
+const APP_VERSION = '0.4.61';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1082,7 +1082,7 @@ function recolorBtns(s, my) {
 }
 function feltHTML(s, ph) {
   const my = myTeam(s);
-  if (ph === 'closed') return `<div class="fx"><b>드래프트 방이 아직 열리지 않았어요</b><p>운영진이 방을 열면 입장할 수 있어요.</p></div>`;
+  if (ph === 'closed') return `<div class="fx"><b>드래프트 방이 아직 열리지 않았어요</b><p>${S.admin ? '주장이 모두 정해졌으면 방을 열어 드래프트를 시작해요.' : '운영진이 방을 열면 입장할 수 있어요.'}</p>${S.admin ? `<button class="btn primary" data-act="openroom">▶ 드래프트 방 열기</button>` : ''}</div>`;
   if (ph === 'lobby') { const n = joinedCount(s);
     return `<div class="fx"><div class="rnd">READY</div><div class="big">${n}<small>/${TK(s).length}</small></div><b>${n < TK(s).length ? '주장 입장을 기다리는 중' : `주장 ${TK(s).length}명이 모두 입장했어요`}</b><p>${S.admin ? '준비되면 색 선택을 시작해 주세요.' : '운영진이 색 선택을 시작하면 팀 색을 고를 수 있어요.'}</p>
       ${S.admin ? `<button class="btn primary" data-act="coloropen">색 선택 시작</button>` : ''}</div>` }
@@ -1151,7 +1151,7 @@ async function openRoom() {
   const s = cur(); if (TK(s).some(k => !s.captains?.[k])) { toast(`주장 ${TK(s).length}명을 먼저 정하세요.`); return }
   const tokens = { ...(s.captainTokens || {}) }; TK(s).forEach(k => { if (!tokens[k]) tokens[k] = rand() });
   const ok = await w(() => S.store.update(sp(S.sid), { stage: 'draft', draftStatus: 'ready', picks: [], pending: null, ladder: null, cardgame: null, order: [...TK(s)], captainTokens: tokens,
-    room: { open: true, A: { in: false }, B: { in: false }, C: { in: false }, admin: { in: true, name: S.me || '운영진', at: Date.now() } }, teams: Object.fromEntries(KEYS.map(k => [k, { players: [], colorName: null }])) }));
+    room: { open: true, ...Object.fromEntries(KEYS.map(k => [k, { in: !!s.room?.[k]?.in }])), admin: { in: true, name: S.me || '운영진', at: Date.now() } }, teams: Object.fromEntries(KEYS.map(k => [k, { players: [], colorName: null }])) }));
   if (ok) { sysChat('드래프트 대기 중… 주장님들 입장해 주세요!'); S.step = 'draft'; render() }
 }
 async function joinRoom(k) { const s = cur(); if (myTeam(s) !== k) return; if (await w(() => S.store.update(sp(S.sid), { [`room.${k}`]: { in: true, at: Date.now() } }))) sysChat(`👑 ${pname(s.captains[k])} 주장 입장`) }
@@ -1374,6 +1374,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.61','2026.11.03',['[운영진] 드래프트 방 열기 버튼이 안 보이던 문제 수정: 주장이 방이 열리기 전에 먼저 입장해 두면 “팀·도우미” 단계가 바로 “드래프트로”로 넘어가고, 드래프트 화면에도 방 열기 버튼이 없었어요','드래프트 화면에서도 방이 안 열려 있으면 “▶ 드래프트 방 열기” 버튼이 보여요 · 먼저 입장한 주장은 입장 상태 그대로 유지']],
   ['0.4.60','2026.11.03',['[운영진] 공당·물당 추첨: 신청자를 포함해 정한 인원만큼 — 신청자가 인원보다 적으면 신청자는 확정하고 나머지만 추첨, 인원 이상이면 신청자 중에서 인원만큼 추첨','추첨 화면에서도 확정된 신청자는 고정 표시, 나머지 자리만 돌아가요']],
   ['0.4.59','2026.11.03',['다음 경기 카드 맨 위 표시를 경기 단계로: 신청 전 → 신청 중 → 경기 전 → 경기 중 (내 신청 상태는 카드 안 신청 카드에서)']],
   ['0.4.58','2026.11.03',['신청 당일: 맨 위 신청 카드와 겹치던 다음 경기 카드의 신청 인원 줄 숨김']],
@@ -2271,7 +2272,7 @@ function nextBar(s, step) { if (!S.admin) return ''; const ms = sessMatches(s.da
     else { btn = go('captain'); label = '팀·도우미로' } }
   else if (step === 'captain') { const nOp = (s.ops || []).filter(p => p && S.players[p]).length, nCap = TK(s).filter(k => s.captains?.[k]).length; const pk = parkApps(s).length, pw = (s.parkWin || []).length;
     chk(nOp >= nC(s), `운영자 ${Math.min(nOp, nC(s))}/${nC(s)}`); chk(nCap === nT(s), `주장 ${nCap}/${nT(s)}`); chk((s.duty?.ball || []).length, '공당'); chk((s.duty?.drink || []).length, '물당'); chk(!pk || pw >= Math.min(pk, PARK_SLOTS), pk ? `주차 ${pw}/${Math.min(pk, PARK_SLOTS)}` : '주차 신청 없음');
-    if ((s.draftStatus || 'ready') !== 'ready' || s.room) { btn = go('draft'); label = '드래프트로'; items = [] }
+    if ((s.draftStatus || 'ready') !== 'ready' || s.room?.open) { btn = go('draft'); label = '드래프트로'; items = [] } // 주장이 먼저 '입장'만 눌러 둔 경우(room은 있지만 열리지 않음)에는 아직 방 열기
     else { on = items.every(x => x[0]); btn = 'data-act="openroom"'; label = '드래프트 방 열기' } }
   else if (step === 'draft') { const tot = (s.applicants || []).length, picked = TK(s).reduce((a, k) => a + teamPlayers(s, k).length, 0);
     if (s.draftStatus === 'done') { btn = go('trade'); label = '팀 확정·공지로' } else { chk(false, s.draftStatus === 'live' ? `지명 ${picked}/${tot}` : '드래프트 시작 전'); on = false; btn = go('trade'); label = '팀 확정·공지로' } }
