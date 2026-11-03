@@ -2008,3 +2008,4 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 @media not all and (min-width:1024px) and (hover:hover) and (pointer:fine){.rflow{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 28px),transparent);padding-right:26px}}
 :root{--cssv:"0.4.65"}
 :root{--cssv:"0.4.66"}
+:root{--cssv:"0.4.67"}

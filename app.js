@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.66';
+const APP_VERSION = '0.4.67';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1388,6 +1388,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.67','2026.11.03',['대기자는 신청 마감 후에도(드래프트·팀 발표 뒤에도) 언제든 “대기 취소” 가능 · 대기 취소는 마감 후 취소(3순위) 기록이 남지 않아요']],
   ['0.4.66','2026.11.03',['[운영진] PC에서 운영 단계 칩 첫 단계가 잘리던 문제: PC는 경기 선택 줄 아래 한 줄을 통째로 써서 7단계가 전체 이름으로 가운데 정렬, 화면 폭이 좁으면 짧은 이름으로']],
   ['0.4.65','2026.11.03',['[운영진] 운영 화면 위 단계 표시를 크게: 번호 + 이름이 있는 칩(높이 40px)으로 바꾸고 지금 단계는 형광색으로 채워 강조, 끝난 단계는 ✓','휴대폰은 가로로 밀어서 보고 지금 단계가 자동으로 가운데에 와요 · PC는 7단계가 한 줄에 다 보여요']],
   ['0.4.64','2026.11.03',['공지 이미지·공지 텍스트에 구장 예약자 추가: 예약 · 공당 · 물당(물품) · 주차 한 줄 (길면 자동으로 두 줄)']],
@@ -1934,7 +1935,8 @@ function viewMHome() {
   else { S.sid = sid; const s = S.sessions[sid]; const st = sStatus(s); const n = appTotal(s); const cap = s.capacity || 0; const [, m, d] = sid.split('-');
     // 신청 마감 후: 내 신청 상태를 경기 카드 안에 (신청했으면 '신청 완료', 아니면 '신청 마감') — 따로 있던 마감 안내·신청자 보기 카드는 없앴어요
     const myA = (st.k === 'closed' || st.k === 'open') ? applyState(s) : null; const mine = myA && (myA.k === 'in' || myA.k === 'wait');
-    const inH = S.naTopSid === sid ? '' : st.k === 'open' ? (fit ? applyBox(s, true) : '') : mine ? applyBox(s, true, true) : ''; const cutX = inH.indexOf('<div class="extras">'); const heroAp = fit ? inH : ''; S.heroEx = fit ? '' : inH; void cutX; // PC는 오른쪽 칸에 내 신청 카드
+    const myW = ['draft', 'teams'].includes(st.k) && applyState(s).k === 'wait'; /* 드래프트·팀 발표 뒤에도 대기자는 대기 카드(대기 취소)가 보여요 */
+    const inH = S.naTopSid === sid ? '' : st.k === 'open' ? (fit ? applyBox(s, true) : '') : (mine || myW) ? applyBox(s, true, true) : ''; const cutX = inH.indexOf('<div class="extras">'); const heroAp = fit ? inH : ''; S.heroEx = fit ? '' : inH; void cutX; // PC는 오른쪽 칸에 내 신청 카드
     const PH = { soon: ['pre', '신청 전'], none: ['pre', '신청 전'], open: ['open', '신청 중'], closed: ['before', '경기 전'], draft: ['before', '경기 전'], teams: ['before', '경기 전'], live: ['live', '경기 중'], done: ['done', '경기 종료'] }; const ph = PH[st.k] || ['before', '경기 전'];
     const pill = `<span class="st st-ph st-ph-${ph[0]}">${ph[0] === 'live' ? '<i class="dot"></i>' : ''}${ph[1]}</span>`; void mine; // 다음 경기 카드: 경기 단계(신청 전 → 신청 중 → 경기 전 → 경기 중)
     h += `<div class="hero ${s.draftStatus === 'done' ? 'md' : ''}"><div class="hero-top">${pill}<span class="dday">${dday(sid)}</span></div>
@@ -2616,7 +2618,7 @@ function applyBox(s, compact, inHero) {
   const canLate = !a.auto && st.k !== 'open' && (s.draftStatus || 'ready') === 'ready' && ['apply', 'captain'].includes(s.stage);
   if (a.k === 'in' && a.n && !a.noname) return `<div class="apbig done"><div class="apno"><b>${a.n}</b><small>번째</small></div><div class="apinfo2"><b>신청 완료${a.tier != null && isBase(s) ? ` · ${TIER[a.tier]}` : ''}</b><small>${st.k === 'open' ? '정원 안에 들어왔어요' : '이번 경기 참가자예요'}</small>${st.k === 'open' ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">신청 취소</button>` : canLate ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">참가 취소</button>` : ''}</div>${inHero ? '' : apListBtn(s)}</div>${(() => { const x = parkBox(s) + dutyBox(s); return x ? `<div class="extras">${x}</div>` : '' })()}`;
   if (a.k === 'in') return `<div class="applied"><span>✓ 신청 완료${a.tier != null && isBase(s) ? ` · ${TIER[a.tier]}` : ''}<small>${a.noname ? `${a.n}번째 신청 순번을 확보했어요. 이름을 입력해 주세요!` : a.n ? `${a.n}번째로 신청했어요` : '이번 경기 참가자예요'}</small></span>${nameBtn}${st.k === 'open' ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">취소</button>` : canLate ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">참가 취소</button>` : ''}</div>${a.noname ? '' : (() => { const x = parkBox(s) + dutyBox(s); return x ? `<div class="extras">${x}</div>` : '' })()}`;
-  if (a.k === 'wait') { const canW = st.k === 'open' || ((s.draftStatus || 'ready') === 'ready' && ['apply', 'captain'].includes(s.stage)); if (!a.noname) return `<div class="apbig done wait"><div class="apno"><small>대기</small><b>${a.n}</b><small>번</small></div><div class="apinfo2"><b>대기 신청${a.tier != null && isBase(s) && s.stage === 'apply' ? ` · ${TIER[a.tier]}` : ''}</b><small>${st.k === 'open' ? '자리가 나면 자동으로 선발돼요' : '자리가 나면 운영진이 알려 드려요'}</small>${canW ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">${st.k === 'open' ? '취소' : '대기 취소'}</button>` : ''}</div>${inHero ? '' : apListBtn(s)}</div>${(() => { const x = parkBox(s) + dutyBox(s); return x ? `<div class="extras">${x}</div>` : '' })()}`; return `<div class="applied wait"><span>대기 ${a.n}번${a.tier != null && isBase(s) && s.stage === 'apply' ? ` · ${TIER[a.tier]}` : ''}<small>${a.noname ? '이름을 입력해 주세요!' : st.k === 'open' ? '자리가 나면 자동으로 선발돼요' : '신청이 마감됐어요. 자리가 나면 운영진이 알려 드려요'}</small></span>${nameBtn}${canW ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">${st.k === 'open' ? '취소' : '대기 취소'}</button>` : ''}</div>${a.noname ? '' : (() => { const x = parkBox(s) + dutyBox(s); return x ? `<div class="extras">${x}</div>${ibm(`대기 중에도 미리 신청해 둘 수 있어요. 선발되면 주차 추첨·당번 후보에 자동으로 들어가요.`)}` : '' })()}` }
+  if (a.k === 'wait') { const canW = st.k !== 'done'; /* 대기 취소는 언제든 */ if (!a.noname) return `<div class="apbig done wait"><div class="apno"><small>대기</small><b>${a.n}</b><small>번</small></div><div class="apinfo2"><b>대기 신청${a.tier != null && isBase(s) && s.stage === 'apply' ? ` · ${TIER[a.tier]}` : ''}</b><small>${st.k === 'open' ? '자리가 나면 자동으로 선발돼요' : '자리가 나면 운영진이 알려 드려요'}</small>${canW ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">${st.k === 'open' ? '취소' : '대기 취소'}</button>` : ''}</div>${inHero ? '' : apListBtn(s)}</div>${(() => { const x = parkBox(s) + dutyBox(s); return x ? `<div class="extras">${x}</div>` : '' })()}`; return `<div class="applied wait"><span>대기 ${a.n}번${a.tier != null && isBase(s) && s.stage === 'apply' ? ` · ${TIER[a.tier]}` : ''}<small>${a.noname ? '이름을 입력해 주세요!' : st.k === 'open' ? '자리가 나면 자동으로 선발돼요' : '신청이 마감됐어요. 자리가 나면 운영진이 알려 드려요'}</small></span>${nameBtn}${canW ? `<button class="btn sm" data-act="applycancel" data-id="${s.date}">${st.k === 'open' ? '취소' : '대기 취소'}</button>` : ''}</div>${a.noname ? '' : (() => { const x = parkBox(s) + dutyBox(s); return x ? `<div class="extras">${x}</div>${ibm(`대기 중에도 미리 신청해 둘 수 있어요. 선발되면 주차 추첨·당번 후보에 자동으로 들어가요.`)}` : '' })()}` }
   if (st.k !== 'open') return '';
   const full = s.capacity && c.sel >= s.capacity; const cap = s.capacity || 0; const left = Math.max(0, cap - c.sel); const cm = s.applyClose ? new Date(s.applyClose).getTime() : 0;
   const seats = cap && cap <= 40 ? `<div class="apseats" role="img" aria-label="정원 ${cap}자리 중 ${Math.min(cap, c.sel)}자리 찼음" style="--n:${cap}">${Array.from({ length: cap }, (_, i) => `<i class="${i < c.sel ? 'on' : ''}"></i>`).join('')}</div>` : '';
@@ -2832,10 +2834,11 @@ async function substDo() { const s = cur(); const f = S.subst || {}; const out =
   if (ok) { sysChat(`교체: ${pname(out)}(${tn}) 불참 → ${pname(inId)}`); delete S.poster[S.sid]; S.subst = null; S.sheet = null; render() } }
 async function cancelApp(sid, pid, key, byAdmin, force) {
   const s = S.sessions[sid]; if (!s) return; const selBefore = selSet(s); const closed = applyClosed(s);
-  if ((s.draftStatus || 'ready') !== 'ready' || !['apply', 'captain'].includes(s.stage)) { toast(byAdmin ? '드래프트가 시작된 뒤에는 여기서 취소할 수 없어요.' : '드래프트가 시작돼서 앱에서 취소할 수 없어요. 운영진에게 알려 주세요.'); return }
   const wasSel = s.stage === 'apply' ? classify(s).sel.some(r => (key && r.k === key) || (pid && r.pid === pid)) : (s.applicants || []).includes(pid);
+  // 대기자는 팀 구성과 상관없어서 마감·드래프트 뒤에도 언제든 대기를 취소할 수 있어요. 선발된 사람만 드래프트 뒤 앱 취소를 막아요.
+  if (wasSel && ((s.draftStatus || 'ready') !== 'ready' || !['apply', 'captain'].includes(s.stage))) { toast(byAdmin ? '드래프트가 시작된 뒤에는 여기서 취소할 수 없어요.' : '드래프트가 시작돼서 앱에서 취소할 수 없어요. 운영진에게 알려 주세요.'); return }
   const penal = !force && closed && wasSel && pid;
-  const markCancel = () => { if (!force && !penal && pid) S.store.update(sp(sid), { [`cancels.${pid}`]: nowS() }).catch(() => { }) }; // 일반 취소 기록(신청 현황 표에 보여요)
+  const markCancel = () => { if (!force && !penal && pid && wasSel) S.store.update(sp(sid), { [`cancels.${pid}`]: nowS() }).catch(() => { }) }; // 일반 취소 기록(신청 현황 표에 보여요)
   if (force ? !confirm(`${pid ? pname(pid) + ' 님의 ' : '이름 입력 전 '}신청을 삭제할까요?\n주차·공당·물당 신청도 함께 취소되고, 마감 후 취소(3순위) 기록은 남지 않아요.`) : !confirm(penal ? `${byAdmin ? pname(pid) + ' 님의 ' : ''}신청 마감 후 취소예요. 취소하면 다음 경기 신청 때 3순위가 돼요. 그래도 취소할까요?` : '신청을 취소할까요?')) return;
   const qdel = Object.entries(S.q?.[sid] || {}).filter(([qi, d]) => (pid && d.pid === pid) || (key && 'q' + qi === key)).map(([qi]) => qi);
   if (qdel.length && !Array.isArray(s.apps)) { if (!(await w(() => Promise.all(qdel.map(qi => withTimeout(S.store.del(sp(sid) + '/q/' + qi), 10000)))))) return; if (!(s.applicants || []).includes(pid) && !appsOf0(s).some(a => a.pid === pid)) { if (penal) await w(() => S.store.update(sp(sid), { [`late.${pid}`]: Date.now() })); if (key && s.tierOv?.[key] != null) S.store.update(sp(sid), { [`tierOv.${key}`]: null }).catch(() => { }); if (pid) await clearExtras(sid, pid); markCancel(); toast(force ? '삭제했어요.' : penal ? '취소했어요. 마감 후 취소로 기록됐어요.' : '취소했어요.'); watchPromote(sid, selBefore, [pid]); render(); return } }
@@ -2848,7 +2851,7 @@ async function cancelApp(sid, pid, key, byAdmin, force) {
     const qids = Object.entries(S.q?.[sid] || {}).filter(([qi, d]) => (pid && d.pid === pid) || (key && 'q' + qi === key)).map(([qi]) => qi);
     const ok2 = await w(async () => { await Promise.all(qids.map(qi => withTimeout(S.store.del(sp(sid) + '/q/' + qi), 10000))); if (vals.length || Object.keys(set).length || remove['duty.ball'] || remove['duty.drink']) await withTimeout(S.store.patch(sp(sid), { set, remove }), 10000) });
     if (ok2) { markCancel(); toast(force ? '삭제했어요.' : penal ? '취소했어요. 마감 후 취소로 기록됐어요.' : '취소했어요.'); watchPromote(sid, selBefore, [pid]) } render(); return }
-  const ok = await w(() => S.store.txn(sp(sid), d => { if (!d || (d.draftStatus || 'ready') !== 'ready' || !['apply', 'captain'].includes(d.stage)) return null;
+  const ok = await w(() => S.store.txn(sp(sid), d => { if (!d || (((d.draftStatus || 'ready') !== 'ready' || !['apply', 'captain'].includes(d.stage)) && (d.applicants || []).includes(pid))) return null;
     d.apps = appsOf(d).filter(a => !((key && a.k === key) || (pid && a.pid === pid)));
     if (d.stage !== 'apply') { const was = (d.applicants || []).includes(pid); d.applicants = (d.applicants || []).filter(x => x !== pid); d.waitlist = (d.waitlist || []).filter(x => x !== pid); if (was && d.waitlist.length) d.applicants.push(d.waitlist.shift()); KEYS.forEach(k => { if (d.captains?.[k] === pid) d.captains[k] = null }) }
     if (pid && d.park?.[pid]) d.park[pid] = null;
