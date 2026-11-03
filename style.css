@@ -1974,4 +1974,35 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 :root{--cssv:"0.4.62"}
 .mdt-ns .mdt-task{display:block;font-size:11px;font-weight:800;color:var(--accent);line-height:1.2}
 :root{--cssv:"0.4.63"}
+/* 운영 단계 표시 (새 디자인): 칩 형태 · 지금 단계 강조 · 손가락으로 누르기 쉬운 높이 */
+.rflow{list-style:none;display:flex;gap:6px;margin:10px 0 2px;padding:2px 2px 6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
+.rflow::-webkit-scrollbar{display:none}
+.rflow li{flex:none;scroll-snap-align:center;position:relative}
+.rflow li:not(:last-child)::after{content:"";position:absolute;right:-6px;top:50%;width:6px;height:2px;background:var(--line);transform:translateY(-50%)}
+.rflow li.done:not(:last-child)::after{background:var(--accent)}
+.rflow button{display:flex;align-items:center;gap:7px;height:40px;padding:0 13px 0 6px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);color:var(--muted);font:700 13.5px/1 var(--body);white-space:nowrap;cursor:pointer;transition:background .15s,border-color .15s}
+.rflow button:active{transform:scale(.97)}
+.rflow i{font-style:normal;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:900;background:var(--bg);border:1.5px solid var(--line);color:var(--muted);flex:none}
+.rflow li.done button{color:var(--ink);border-color:rgba(198,255,61,.35)}
+.rflow li.done i{background:rgba(198,255,61,.18);border-color:transparent;color:var(--accent)}
+.rflow li.now button{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);box-shadow:0 4px 14px -4px rgba(198,255,61,.55)}
+.rflow li.now i{background:var(--accent-ink);border-color:var(--accent-ink);color:var(--accent)}
+.rflow .rf-l{display:none}
+@media (min-width:1024px) and (hover:hover) and (pointer:fine){
+ .rflow{flex-wrap:nowrap;justify-content:center;overflow-x:auto;margin:10px auto 2px;padding:2px}
+ .rflow button{height:40px;font-size:13.5px;padding:0 11px 0 5px;gap:6px}
+ .rflow i{width:27px;height:27px}
+ .rflow{gap:5px!important}
+ .abar .actx{flex:0 0 360px!important}
+ .abar .rflow{flex:1 1 auto;min-width:0;justify-content:flex-start;margin:0}
+ .rflow button:hover{border-color:var(--accent);color:var(--ink)}
+ .rflow li.now button:hover{color:var(--accent-ink)}
+ .rflow li:not(:last-child)::after{width:6px}
+}
+.dmroot .abar .rflow{margin-top:4px}
+.dmroot .abar .rflow button{height:34px;font-size:12.5px}
+.dmroot .abar .rflow i{width:24px;height:24px;font-size:12px}
 :root{--cssv:"0.4.64"}
+@media (min-width:1560px) and (hover:hover) and (pointer:fine){.rflow .rf-l{display:inline}.rflow .rf-s{display:none}}
+@media not all and (min-width:1024px) and (hover:hover) and (pointer:fine){.rflow{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 28px),transparent);padding-right:26px}}
+:root{--cssv:"0.4.65"}

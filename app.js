@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.64';
+const APP_VERSION = '0.4.65';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -925,12 +925,14 @@ function adminBar() {
   if (!S.sid || !S.sessions[S.sid]) S.sid = defaultSid(); const sid = S.sid, s = S.sessions[sid]; const i = ids.indexOf(sid); const st = sStatus(s); const c = appCounts(s);
   const ms = sessMatches(sid); const cur0 = S.tab === 'run' ? (S.step || (s.stage === 'match' && ms.length && ms.every(m => m.status === 'done') ? 'result' : s.stage)) : null;
   const flow = RUN_STEPS.map(([k, n], j) => { const done = stepDone(s, k); const now = cur0 ? cur0 === k : (!done && RUN_STEPS.slice(0, j).every(([kk]) => stepDone(s, kk)));
-    return `<li class="${done ? 'done' : ''} ${now ? 'now' : ''}"><button data-act="flowgo" data-v="${k}"><i>${done ? '✓' : j + 1}</i><span><b class="sn">${j + 1}</b><span class="fn"> ${n}</span></span></button></li>` }).join('');
+    const SH = { apply: '신청', captain: '팀·도우미', draft: '드래프트', trade: '팀 확정', match: '경기', result: '결과', settle: '정산' };
+    return `<li class="${done ? 'done' : ''} ${now ? 'now' : ''}"><button data-act="flowgo" data-v="${k}" title="${n}" ${now ? 'aria-current="step"' : ''} aria-label="${j + 1}단계 ${n}${done ? ' (완료)' : now ? ' (지금)' : ''}"><i>${done && !now ? '✓' : j + 1}</i><span class="rf-l">${n}</span><span class="rf-s">${SH[k] || n}</span></button></li>` }).join('');
+  setTimeout(() => { const n = document.querySelector('.rflow li.now'); if (n) { const p = n.parentElement; if (p.scrollWidth > p.clientWidth) p.scrollLeft = n.offsetLeft - p.clientWidth / 2 + n.offsetWidth / 2 } }, 0); // 지금 단계가 화면 가운데 보이게
   return `<div class="abar"><div class="actx"><button class="navb sm" data-act="ctxgo" data-id="${ids[i - 1] || ''}" ${ids[i - 1] ? '' : 'disabled'} aria-label="이전 경기">‹</button>
     <label class="actx-t"><b>${fmtDate(sid)} ${esc(s.time || '')}${s.no ? ` · ${s.no}회` : ''}</b><small>📍 ${esc(venueTxt(s) || '-')} · <span class="st st-${st.k}">${st.label}</span> 신청 ${c.sel + c.wait}${s.capacity ? '/' + s.capacity : ''}${c.wait ? ` · 대기 ${c.wait}` : ''}</small>
       <select data-in="ctxpick" aria-label="경기 선택">${ids.slice().reverse().map(id => `<option value="${id}" ${id === sid ? 'selected' : ''}>${fmtDate(id)} ${esc(S.sessions[id].time || '')}${S.sessions[id].no ? ` · ${S.sessions[id].no}회` : ''} · ${esc(S.sessions[id].venue || '')}</option>`).join('')}</select><em class="actx-dd">▾</em></label>
     <button class="navb sm" data-act="ctxgo" data-id="${ids[i + 1] || ''}" ${ids[i + 1] ? '' : 'disabled'} aria-label="다음 경기">›</button></div>
-    <ol class="aflow">${flow}</ol></div>`;
+    <ol class="rflow" role="list">${flow}</ol></div>`;
 }
 function capStrip() { if (S.admin || S.tab === 'draft') return ''; const cs = capSid(); if (!cs) return ''; const s = S.sessions[cs]; const k = myTeam(s);
   return `<button class="capstrip" data-act="gocap" data-id="${cs}">👑 ${fmtDate(cs)} 경기 <b>${esc(team(s, k).name)} 주장</b>이에요 · ${s.room?.open && s.draftStatus !== 'done' ? (s.draftStatus === 'live' ? '드래프트 진행 중…' : '드래프트 대기 중…') : s.draftStatus === 'done' ? '밸런스 조정 중' : '팀 선정 준비 중'} <span>팀 선정 화면 ›</span></button>` }
@@ -1386,6 +1388,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.65','2026.11.03',['[운영진] 운영 화면 위 단계 표시를 크게: 번호 + 이름이 있는 칩(높이 40px)으로 바꾸고 지금 단계는 형광색으로 채워 강조, 끝난 단계는 ✓','휴대폰은 가로로 밀어서 보고 지금 단계가 자동으로 가운데에 와요 · PC는 7단계가 한 줄에 다 보여요']],
   ['0.4.64','2026.11.03',['공지 이미지·공지 텍스트에 구장 예약자 추가: 예약 · 공당 · 물당(물품) · 주차 한 줄 (길면 자동으로 두 줄)']],
   ['0.4.63','2026.11.03',['[운영진] 물당 구입 목록: “물 3개 · 음료 2개 · 물 4개”처럼 먼저 적어 두면 물당 인원이 목록 수로 맞춰지고, 추첨된 물당에게 하나씩 임의로 배정 (🎲 물품 다시 배정 가능, 직접 고르기에도 자동 배정)','회원 화면·경기 당일 카드·공지 이미지·공지 텍스트에 “조주원(물 3개)”처럼 각자 사 올 물품 표시']],
   ['0.4.62','2026.11.03',['팀 공지 이미지에 공당 · 물당 · 주차 당첨자 줄 추가 (E/V 비밀번호와 공지 사이)','[운영진] 주차 자리 수를 경기마다 공당·물당처럼 ± 로 설정 (0 = 이번 경기 주차 없음 → 회원 화면의 주차 신청이 숨겨지고 운영 체크도 통과)']],
@@ -4176,7 +4179,7 @@ document.addEventListener('touchend', () => { if (!ptr) return; const go = ptr.d
   if (go) { el.classList.add('loading'); el.querySelector('span').textContent = '새로고침 중…'; el.style.transform = 'translate(-50%, 70px)'; setTimeout(() => location.reload(), 250) }
   else { el.style.transform = 'translate(-50%, 0)'; el.style.opacity = 0; el.classList.remove('ready') } }, { passive: true });
 let swX = null, swY = null, swT = 0, swMode = null;
-const NOSWIPE = '.sheetwrap,.tblwrap,.pool,.namegrid,.mm-list,.cd-log,.msgs,.scrim,input,textarea,select,.cswatch,.ocards,.board-table,.aflow,.planwrap .scgrid';
+const NOSWIPE = '.sheetwrap,.tblwrap,.pool,.namegrid,.mm-list,.cd-log,.msgs,.scrim,input,textarea,select,.cswatch,.ocards,.board-table,.aflow,.rflow,.planwrap .scgrid';
 document.addEventListener('touchstart', e => { swX = null; if (e.touches.length !== 1) return; const t = e.target;
   if (t.closest('.rdswipe')) swMode = 'result'; else if (!S.sheet && S.tab !== 'mm' && !t.closest(NOSWIPE) && !t.closest('.tabs')) swMode = 'tab'; else return;
   swX = e.touches[0].clientX; swY = e.touches[0].clientY; swT = Date.now() }, { passive: true });
