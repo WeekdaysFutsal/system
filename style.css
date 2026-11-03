@@ -1952,3 +1952,10 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 :root{--cssv:"0.4.56"}
 :root{--cssv:"0.4.57"}
 :root{--cssv:"0.4.58"}
+.hero .hero-top .st.st-ph-pre{background:var(--surface2)!important;border-color:var(--line)!important;color:var(--ink)!important}
+.hero .hero-top .st.st-ph-open{background:var(--accent)!important;border-color:var(--accent)!important;color:var(--accent-ink)!important}
+.hero .hero-top .st.st-ph-before{background:#2B6CFF!important;border-color:#2B6CFF!important;color:#fff!important}
+.hero .hero-top .st.st-ph-live{background:#E5483B!important;border-color:#E5483B!important;color:#fff!important;display:inline-flex;align-items:center;gap:6px}
+.hero .hero-top .st.st-ph-live .dot{width:7px;height:7px;border-radius:50%;background:#fff;animation:fsWhP 1.4s ease-in-out infinite}
+.hero .hero-top .st.st-ph-done{background:var(--surface2)!important;border-color:var(--line)!important;color:var(--muted)!important}
+:root{--cssv:"0.4.59"}
