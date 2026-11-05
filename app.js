@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.69';
+const APP_VERSION = '0.4.70';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1340,6 +1340,7 @@ function viewSheet() {
   else if (sh.type === 'duty') h += dutySheet(sh.sid);
   else if (sh.type === 'park') h += parkSheet(sh.sid);
   else if (sh.type === 'drinkbuy') { h += drinkBuySheet(sh.sid) }
+  else if (sh.type === 'mmpair') { const m = M(sh.mid), s = S.sessions[S.mmSid] || cur(); h += m && s && (m.status === 'pending' || m.status === 'live') ? mmPairPick(s, m) : '<p class="empty">대진을 바꿀 수 있는 경기가 없어요.</p>' }
   else if (sh.type === 'rcpt') { const v = S.sessions[sh.sid]?.drinkBuy?.[sh.pid] || {}; const L = sh.imgs; h += `<h4>🧾 ${esc(pname(sh.pid))} 님 영수증${L?.length > 1 ? ` <small class="muted">${L.length}장</small>` : ''}</h4><p>${fmtDate(sh.sid)} 경기 · 구입 금액 ${wn(+v.amt || 0)}원</p>${v.memo ? `<p class="rc-memo">📝 ${esc(v.memo)}</p>` : ''}${L === null ? '<p class="empty">불러오는 중…</p>' : L.length ? L.map((u, i) => `<img class="rcpt-big" src="${u}" alt="영수증 ${i + 1}" referrerpolicy="no-referrer">${sh.drives?.[i] ? `<a class="btn sm" style="margin:6px 0 14px" href="https://drive.google.com/file/d/${esc(sh.drives[i])}/view" target="_blank" rel="noopener">구글 드라이브에서 보기${L.length > 1 ? ` (${i + 1})` : ''}</a>` : ''}`).join('') : '<p class="empty">영수증 사진이 없어요.</p>'}` }
   else if (sh.type === 'rcptsetup') { h += rcptSetupSheet() }
   else if (sh.type === 'parkapply') { h += `<h4>🚗 주차 신청${ib(`${fmtDate(sh.sid)} 경기 주차를 신청해요. 신청자 중 ${parkN(S.sessions[sh.sid])}명을 추첨해요.`)}</h4><div class="panel"><div class="field"><label for="pk-car2">차량번호</label><input id="pk-car2" class="inp" type="text" maxlength="12" placeholder="예: 12가3456" value="${esc(myCar())}"></div>${ibm(`내 정보에 차량번호를 저장해 두면 자동으로 채워져요.`)}</div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="parksave">신청</button></div>` }
@@ -1391,6 +1392,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.70','2026.11.05',['경기 대진: 따로 있던 대진 선택 칸을 없애고, 경기 화면의 점수판을 누르면 대진을 고르거나 바꿀 수 있어요 · 다음 경기 대진을 고를 차례면 점수판에 노란 안내 표시']],
   ['0.4.69','2026.11.05',['경기 대진: 1경기만 먼저 고르고, 앞 경기가 끝나면 경기 화면에서 다음 경기 대진을 골라요 (쉬는 팀 표시) · 진행 중인 경기도 대진을 바꿀 수 있어요(빠진 팀의 골은 새 팀으로)','물당 구입 등록: 메모(선택)를 남길 수 있고, 영수증 사진을 여러 장 한 번에 고를 수 있어요 · 정산 화면과 영수증 보기에 메모·장수 표시']],
   ['0.4.68','2026.11.03',['[운영진] 포스터 “🎲 새 시안 보기”를 누르면 “newDesigns” 오류가 나던 문제 수정 (0.3.0 정리 때 빠진 함수 복구)']],
   ['0.4.67','2026.11.03',['대기자는 신청 마감 후에도(드래프트·팀 발표 뒤에도) 언제든 “대기 취소” 가능 · 대기 취소는 마감 후 취소(3순위) 기록이 남지 않아요']],
@@ -3414,7 +3416,7 @@ async function mmSetTeams(m, nh, na) { const s = S.sessions[m.session]; const ms
 function mmPairPick(s, m) { const ks = TK(s); const combos = []; for (let i = 0; i < ks.length; i++) for (let j = i + 1; j < ks.length; j++) combos.push([ks[i], ks[j]]);
   const cur0 = [m.home, m.away].sort().join(''); const prev = sessMatches(s.date).filter(x => x.n < m.n && x.status === 'done').sort((x, y) => y.n - x.n)[0];
   const rest = nT(s) === 3 ? ks.find(k => k !== m.home && k !== m.away) : null;
-  return `<div class="mm-pp ${m.status === 'live' ? 'live' : ''}"><div class="mm-pp-h"><b>${m.status === 'pending' ? `${m.n}경기 대진 선택` : `${m.n}경기 대진 변경`}</b><small>${m.status === 'pending' ? (prev ? `${prev.n}경기 끝 · 이번 경기에 뛸 두 팀을 골라요` : '이번 경기에 뛸 두 팀을 골라요') : '진행 중 · 바꾸면 빠진 팀의 골이 새 팀으로 옮겨져요'}${rest ? ` · 쉬는 팀 ${esc(team(s, rest).name)}` : ''}</small></div>
+  return `<div class="mm-pp ${m.status === 'live' ? 'live' : ''}"><div class="mm-pp-h"><b>⇅ ${m.status === 'pending' ? `${m.n}경기 대진 선택` : `${m.n}경기 대진 변경`}</b><small>${m.status === 'pending' ? (prev ? `${prev.n}경기 끝 · 이번 경기에 뛸 두 팀을 골라요` : '이번 경기에 뛸 두 팀을 골라요') : '진행 중 · 바꾸면 빠진 팀의 골이 새 팀으로 옮겨져요'}${rest ? ` · 쉬는 팀 ${esc(team(s, rest).name)}` : ''}</small></div>
     <div class="mm-pp-l">${combos.map(([x, y]) => { const on = [x, y].sort().join('') === cur0; const X = team(s, x), Y = team(s, y); return `<button class="mm-pc ${on ? 'on' : ''}" data-act="mmsetpair" data-id="${m.id}" data-v="${x}${y}" ${on ? 'aria-pressed="true"' : ''}>${bib(X.color)}<b>${esc(X.name)}</b><i>vs</i><b>${esc(Y.name)}</b>${bib(Y.color)}</button>` }).join('')}</div></div>` }
 async function mmSetPair(mid, v) { const m = M(mid); if (!m) return; const [x, y] = v.split(''); if ([m.home, m.away].sort().join('') === [x, y].sort().join('')) return;
   const keepH = [x, y].includes(m.home) ? m.home : null; const nh = keepH || x, na = nh === x ? y : x; const od = [m.home, m.away], nw = [nh, na]; const add = nw.find(t => !od.includes(t)); const map = Object.fromEntries(od.map(t => [t, nw.includes(t) ? t : add]));
@@ -3423,13 +3425,12 @@ async function mmSetPair(mid, v) { const m = M(mid); if (!m) return; const [x, y
 function mmPlayView(s, ctl) {
   const ms = courtMs(s, mmC(s)); const curM = ms.find(x => x.status === 'live') || ms.find(x => x.status === 'pending') || ms[ms.length - 1]; const m = (ctl && S.mmSel && ms.find(x => x.id === S.mmSel)) || curM; const editing = m.status === 'done' && m.id !== curM.id || (m.status === 'done' && S.mmSel === m.id);
   const H = team(s, m.home), A = team(s, m.away); const [hs, as] = score(m); const ci = clockInfo(m); const run = !!m.timer?.running; const T = timing(s);
-  const allDone = ms.every(x => x.status === 'done');
+  const allDone = ms.every(x => x.status === 'done'); const canPair = ctl && !editing && nT(s) > 2 && (m.status === 'pending' || m.status === 'live');
   let h = `<div class="mm-play">${editing ? `<div class="mm-edit">✏️ <b>${m.n}경기(종료) 점수 수정 중</b><button class="btn sm" data-act="mmsel" data-id="">현재 경기로 ›</button></div>` : ''}<div class="mm-meta"><span>${nT(s) === 2 ? '' : nC(s) === 2 ? mcourt(m) + '구장 · ' : m.round + '라운드 · '}${m.n}경기 <small>/ ${NG(s)}</small> <button class="fsbtn" data-act="fson">⛶ 크게 보기</button></span>${ctl ? `<button class="linkbtn" data-act="mmstage" data-v="time">⏱ 시간 ${T.h1 / 60}+${T.gk}″+${T.h2 / 60}</button>` : `<span class="muted">⏱ ${T.h1 / 60}+${T.gk}″+${T.h2 / 60}</span>`}</div>
-    <div class="mm-board"><div class="mm-team" style="--tc:${H.color};--ti:${inkOn(H.color)}"><b>${esc(H.name)}</b><em>${hs}</em></div>
+    <div class="mm-board ${canPair ? 'pp' : ''}" ${canPair ? `data-act="mmpp" data-id="${m.id}" role="button" tabindex="0" aria-label="${m.n}경기 대진 ${m.status === 'pending' ? '선택' : '변경'}"` : ''}>${canPair ? `<span class="mm-pptag ${m.status}">⇅ ${m.status === 'pending' ? '눌러서 대진 선택' : '눌러서 대진 변경'}</span>` : ''}<div class="mm-team" style="--tc:${H.color};--ti:${inkOn(H.color)}"><b>${esc(H.name)}</b><em>${hs}</em></div>
       <div class="mm-mid"><div class="mm-clock ${ci.phase}" data-bigclock="${m.id}">${ci.time}</div><div class="mm-ph" data-phase="${m.id}">${ci.label}</div>
         <div class="mm-bar">${[0, 1, 2].map(i => `<i class="${i === 1 ? 'gk' : ''}"><b data-seg="${m.id}:${i}"></b></i>`).join('')}</div>${ctl && m.status === 'pending' ? `<button class="mm-side" data-act="mmsidesw" data-id="${m.id}" aria-label="양 팀 좌우 위치 바꾸기">⇄ 진영 변경</button>` : ''}</div>
       <div class="mm-team" style="--tc:${A.color};--ti:${inkOn(A.color)}"><b>${esc(A.name)}</b><em>${as}</em></div></div>
-    ${ctl && !editing && nT(s) > 2 && (m.status === 'pending' || m.status === 'live') ? mmPairPick(s, m) : ''}
     <div class="mm-ctl">${!ctl ? (allDone ? `<div class="mm-done">🎉 ${nC(s) === 2 ? mmC(s) + '구장 ' + ms.length : '오늘 ' + NG(s)}경기가 모두 끝났어요!</div>` : '') : editing ? '' : m.status === 'pending' ? `<button class="btn primary mm-big cta" data-act="mmstart" data-id="${m.id}">▶ 경기 시작</button>`
       : m.status === 'live' ? `${run ? `<button class="btn mm-big" data-act="mmpause" data-id="${m.id}">⏸ 일시정지</button>` : `<button class="btn primary mm-big" data-act="mmresume" data-id="${m.id}">▶ 재개</button>`}<button class="btn ${ci.phase === 'full' ? 'primary' : ''} mm-big" data-act="mmend" data-id="${m.id}">경기 종료</button>`
       : allDone ? `<div class="mm-done">🎉 ${nC(s) === 2 ? mmC(s) + '구장 ' + ms.length : '오늘 ' + NG(s)}경기가 모두 끝났어요!</div>` : ''}</div>
@@ -3871,7 +3872,8 @@ document.addEventListener('click', async e => {
     case 'mkpractice': if (!needAdmin()) break; await makePractice(); break;
     case 'clrpractice': if (!needAdmin()) break; await clearPractice(); break;
     case 'mmtoggle': audio(); S.tab = S.tab === 'mm' ? 'mhome' : 'mm'; keepAwake(S.tab === 'mm'); S.sub = null; render(); window.scrollTo(0, 0); break;
-    case 'mmsetpair': if (!mmIsCtl() && !S.admin) break; await mmSetPair(id, el.dataset.v); break;
+    case 'mmpp': if (!mmIsCtl() && !S.admin) break; S.sheet = { type: 'mmpair', mid: id }; render(); break;
+    case 'mmsetpair': if (!mmIsCtl() && !S.admin) break; if (S.sheet?.type === 'mmpair') S.sheet = null; await mmSetPair(id, el.dataset.v); render(); break;
     case 'mmpk': { const d = S.mmDraft; const key = el.dataset.w === '1' ? 'p1' : 'p2'; const arr = d[key]; const k = el.dataset.k; if (arr.includes(k)) d[key] = arr.filter(x => x !== k); else if (arr.length < 2) arr.push(k); else d[key] = [arr[1], k]; if (key === 'p1') d.p2 = []; render(); break }
     case 'mmgn': { const d = S.mmDraft; if (!d) break; if (nT(S.sessions[S.mmSid]) === 4) d.r = Math.max(1, Math.min(3, (d.r || 1) + (+el.dataset.d))); else d.n = Math.max(1, Math.min(15, (d.n || 6) + (+el.dataset.d))); render(); break }
     case 'mmsw': { const n = +el.dataset.n; const d = S.mmDraft; d.swap[n] = !d.swap[n]; render(); break }
