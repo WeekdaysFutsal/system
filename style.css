@@ -2009,4 +2009,27 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 :root{--cssv:"0.4.65"}
 :root{--cssv:"0.4.66"}
 :root{--cssv:"0.4.67"}
+/* 경기 화면 대진 고르기 */
+.mm-pp{margin:12px 0 4px;padding:12px;border-radius:14px;background:var(--surface);border:1.5px solid var(--accent)}
+.mm-pp.live{border-color:var(--line)}
+.mm-pp-h{display:flex;flex-direction:column;gap:2px;margin-bottom:10px}
+.mm-pp-h b{font-size:16px}
+.mm-pp-h small{font-size:12.5px;color:var(--muted)}
+.mm-pp-l{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.mm-pc{display:flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:6px 10px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:800 14px/1 var(--body);white-space:nowrap}
+.mm-pc i{font-style:normal;font-weight:600;font-size:12px;color:var(--muted)}
+.mm-pc.on{border-color:var(--accent);background:rgba(198,255,61,.14);box-shadow:0 0 0 2px rgba(198,255,61,.25) inset}
+.mm-pp.live .mm-pc{min-height:40px;font-size:13px}
 :root{--cssv:"0.4.68"}
+.rc-had{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px;font-size:13.5px;font-weight:700}
+.rc-had .tgl-l{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--muted)}
+.rc-thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px;margin-bottom:10px}
+.rc-th{position:relative;display:block;aspect-ratio:3/4;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--bg)}
+.rc-th img{width:100%;height:100%;object-fit:cover;display:block}
+.rc-th button{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.65);color:#fff;font-size:15px;line-height:1}
+#db-memo{min-height:64px;resize:vertical;font-size:15px}
+.rc-memo{margin:4px 0 12px;padding:10px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--line);font-size:14px;white-space:pre-wrap}
+.stl-memo{display:block;color:var(--ink)!important;opacity:.85}
+/* 시트(바텀시트·모달)가 상단/하단 탭 위로 오도록 */
+.scrim{z-index:62}.toast{z-index:70}
+:root{--cssv:"0.4.69"}

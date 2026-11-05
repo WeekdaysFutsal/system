@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.68';
+const APP_VERSION = '0.4.69';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -314,7 +314,7 @@ function clockInfo(m) {
 }
 function table(sid, filter) {
   const rows = {}; TK(S.sessions[sid]).forEach(k => rows[k] = { k, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 });
-  for (const m of sessMatches(sid)) { if (m.status !== 'done' || (filter && !filter(m))) continue; const [h, a] = score(m); const H = rows[m.home], A = rows[m.away];
+  for (const m of sessMatches(sid)) { if (m.status !== 'done' || (filter && !filter(m))) continue; const [h, a] = score(m); const H = rows[m.home], A = rows[m.away]; if (!H || !A) continue;
     H.p++; A.p++; H.gf += h; H.ga += a; A.gf += a; A.ga += h;
     if (h > a) { H.w++; A.l++; H.pts += 3 } else if (h < a) { A.w++; H.l++; A.pts += 3 } else { H.d++; A.d++; H.pts++; A.pts++ } }
   return rows;
@@ -1347,7 +1347,7 @@ function viewSheet() {
   else if (sh.type === 'duty') h += dutySheet(sh.sid);
   else if (sh.type === 'park') h += parkSheet(sh.sid);
   else if (sh.type === 'drinkbuy') { h += drinkBuySheet(sh.sid) }
-  else if (sh.type === 'rcpt') { const v = S.sessions[sh.sid]?.drinkBuy?.[sh.pid] || {}; h += `<h4>🧾 ${esc(pname(sh.pid))} 님 영수증</h4><p>${fmtDate(sh.sid)} 경기 · 구입 금액 ${wn(+v.amt || 0)}원</p>${sh.img === null ? '<p class="empty">불러오는 중…</p>' : sh.img ? `<img class="rcpt-big" src="${sh.img}" alt="영수증" referrerpolicy="no-referrer">${sh.drive ? `<a class="btn block" style="margin-top:8px" href="https://drive.google.com/file/d/${esc(sh.drive)}/view" target="_blank" rel="noopener">구글 드라이브에서 보기</a>` : ''}` : '<p class="empty">영수증 사진이 없어요.</p>'}` }
+  else if (sh.type === 'rcpt') { const v = S.sessions[sh.sid]?.drinkBuy?.[sh.pid] || {}; const L = sh.imgs; h += `<h4>🧾 ${esc(pname(sh.pid))} 님 영수증${L?.length > 1 ? ` <small class="muted">${L.length}장</small>` : ''}</h4><p>${fmtDate(sh.sid)} 경기 · 구입 금액 ${wn(+v.amt || 0)}원</p>${v.memo ? `<p class="rc-memo">📝 ${esc(v.memo)}</p>` : ''}${L === null ? '<p class="empty">불러오는 중…</p>' : L.length ? L.map((u, i) => `<img class="rcpt-big" src="${u}" alt="영수증 ${i + 1}" referrerpolicy="no-referrer">${sh.drives?.[i] ? `<a class="btn sm" style="margin:6px 0 14px" href="https://drive.google.com/file/d/${esc(sh.drives[i])}/view" target="_blank" rel="noopener">구글 드라이브에서 보기${L.length > 1 ? ` (${i + 1})` : ''}</a>` : ''}`).join('') : '<p class="empty">영수증 사진이 없어요.</p>'}` }
   else if (sh.type === 'rcptsetup') { h += rcptSetupSheet() }
   else if (sh.type === 'parkapply') { h += `<h4>🚗 주차 신청${ib(`${fmtDate(sh.sid)} 경기 주차를 신청해요. 신청자 중 ${parkN(S.sessions[sh.sid])}명을 추첨해요.`)}</h4><div class="panel"><div class="field"><label for="pk-car2">차량번호</label><input id="pk-car2" class="inp" type="text" maxlength="12" placeholder="예: 12가3456" value="${esc(myCar())}"></div>${ibm(`내 정보에 차량번호를 저장해 두면 자동으로 채워져요.`)}</div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="parksave">신청</button></div>` }
   else if (sh.type === 'tier') h += tierSheet(sh);
@@ -1398,6 +1398,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.69','2026.11.05',['경기 대진: 1경기만 먼저 고르고, 앞 경기가 끝나면 경기 화면에서 다음 경기 대진을 골라요 (쉬는 팀 표시) · 진행 중인 경기도 대진을 바꿀 수 있어요(빠진 팀의 골은 새 팀으로)','물당 구입 등록: 메모(선택)를 남길 수 있고, 영수증 사진을 여러 장 한 번에 고를 수 있어요 · 정산 화면과 영수증 보기에 메모·장수 표시']],
   ['0.4.68','2026.11.03',['[운영진] 포스터 “🎲 새 시안 보기”를 누르면 “newDesigns” 오류가 나던 문제 수정 (0.3.0 정리 때 빠진 함수 복구)']],
   ['0.4.67','2026.11.03',['대기자는 신청 마감 후에도(드래프트·팀 발표 뒤에도) 언제든 “대기 취소” 가능 · 대기 취소는 마감 후 취소(3순위) 기록이 남지 않아요']],
   ['0.4.66','2026.11.03',['[운영진] PC에서 운영 단계 칩 첫 단계가 잘리던 문제: PC는 경기 선택 줄 아래 한 줄을 통째로 써서 7단계가 전체 이름으로 가운데 정렬, 화면 폭이 좁으면 짧은 이름으로']],
@@ -1713,7 +1714,7 @@ function sheetAutoSync() { if (!S.admin || !sheetUrl() || !sheetKey() || S.ready
 const rcptCfg = () => S.meta?.receipt || {};
 const rcptOn = () => !!(rcptCfg().exec && rcptCfg().token);
 const rcptThumb = id => `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w1600`;
-async function rcptUpload(sid, pid, dataUrl) { const r = await fetch(rcptCfg().exec, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'upload', token: rcptCfg().token, sid, pid, name: pname(pid) || pid, data: dataUrl }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error || '드라이브 업로드 실패'); return j }
+async function rcptUpload(sid, pid, dataUrl, no) { const r = await fetch(rcptCfg().exec, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'upload', token: rcptCfg().token, sid, pid, name: (pname(pid) || pid) + (no ? '_' + no : ''), data: dataUrl }) }); const j = await r.json(); if (!j.ok) throw new Error(j.error || '드라이브 업로드 실패'); return j }
 const RCPT_MANIFEST = JSON.stringify({ timeZone: 'Asia/Seoul', dependencies: { enabledAdvancedServices: [{ userSymbol: 'YouTube', version: 'v3', serviceId: 'youtube' }] }, exceptionLogging: 'STACKDRIVER', runtimeVersion: 'V8', oauthScopes: ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/youtube.readonly'], webapp: { executeAs: 'USER_DEPLOYING', access: 'ANYONE_ANONYMOUS' } }, null, 2);
 function rcptScript(token) { return `// WD_FUTSAL 물당 영수증 → 구글 드라이브 저장용 (새 Apps Script 프로젝트에 그대로 붙여 넣으세요)
 const TOKEN = '${token}';
@@ -2384,7 +2385,7 @@ function stlMore(s, C) { return `<h3 class="stl-h">누가 얼마를 내고 받�
 function stlRefresh(s) { const C = stlCalc(s); const a = document.getElementById('stl-res'), b = document.getElementById('stl-tb'), m = document.getElementById('stl-more'); if (a) a.innerHTML = stlSummary(s, C); if (b) b.innerHTML = stlTable(s, C); if (m) m.innerHTML = stlMore(s, C); const bk = document.getElementById('stl-bank'); if (bk && !bk.contains(document.activeElement)) bk.innerHTML = stlBank(s, C); const py = document.getElementById('stl-pay'); if (py && !py.contains(document.activeElement)) py.innerHTML = stlPayPanel(s) }
 function stlDrinkPanel(s) { const ids = (s.duty?.drink || []).filter(p => S.players[p]); const db = s.drinkBuy || {};
   if (!ids.length) return `<p class="note" style="margin:0">물당이 지정되지 않았어요. 도우미 지정 단계에서 물당을 정해 주세요.</p>`;
-  return `<div class="stl-dk">${ids.map(pid => { const v = db[pid] || {}; return `<div class="stl-dr"><b>🥤 ${esc(pname(pid))}</b><span class="stl-m"><input class="inp" inputmode="numeric" data-in="stldb" data-id="${pid}" value="${v.amt ? (+v.amt).toLocaleString('ko-KR') : ''}" placeholder="금액" aria-label="${esc(pname(pid))} 구입 금액"><em>원</em></span>${v.img ? `<button class="btn sm" data-act="rcptview" data-id="${s.date}" data-p="${pid}">🧾 영수증</button>` : `<span class="muted stl-nor">${v.amt ? '영수증 없음' : '미등록'}</span>`}<small>${v.at ? `${v.by && v.by !== pid ? '운영진 입력 · ' : '본인 등록 · '}${fmtTS(v.at).replace(/:\d\d\.\d{3}$/, '')}` : '물당 본인이 경기 후 앱에서 등록해요'}</small></div>` }).join('')}</div>` }
+  return `<div class="stl-dk">${ids.map(pid => { const v = db[pid] || {}; return `<div class="stl-dr"><b>🥤 ${esc(pname(pid))}</b><span class="stl-m"><input class="inp" inputmode="numeric" data-in="stldb" data-id="${pid}" value="${v.amt ? (+v.amt).toLocaleString('ko-KR') : ''}" placeholder="금액" aria-label="${esc(pname(pid))} 구입 금액"><em>원</em></span>${v.img ? `<button class="btn sm" data-act="rcptview" data-id="${s.date}" data-p="${pid}">🧾 영수증${rcptCount(v) > 1 ? ' ' + rcptCount(v) + '장' : ''}</button>` : `<span class="muted stl-nor">${v.amt ? '영수증 없음' : '미등록'}</span>`}${v.memo ? `<small class="stl-memo">📝 ${esc(v.memo)}</small>` : ''}<small>${v.at ? `${v.by && v.by !== pid ? '운영진 입력 · ' : '본인 등록 · '}${fmtTS(v.at).replace(/:\d\d\.\d{3}$/, '')}` : '물당 본인이 경기 후 앱에서 등록해요'}</small></div>` }).join('')}</div>` }
 /* 통장 잔액: 한 번 넣은 잔액(meta/bank.base)에 그 뒤 정산 완료한 경기의 입출금(낼 금액 합 − 받을 금액 합)과 기타 입출금(adj)을 더해 자동 계산 */
 const tsDay = t => { const d = new Date(t || Date.now()); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) };
 function bankCfg() { return { base: null, at: 0, skip: [], adj: [], ...(S.meta?.bank || {}) } }
@@ -2463,10 +2464,17 @@ async function drawSettle(s) { const C = stlCalc(s); const acct = stlAcct(); con
 /* 물당: 경기 후 구입 금액·영수증 등록 */
 function myDrinkDue() { const me = myPid(); if (!me) return null; const t = today(); const ids = Object.keys(S.sessions).filter(id => id <= t && id >= shiftDate(t, 14).slice(0, 10)).sort().reverse();
   for (const id of ids) { const s = S.sessions[id]; if (!s.closed && (s.duty?.drink || []).includes(me) && !(s.drinkBuy?.[me]?.amt)) return id } return null }
-function drinkBuySheet(sid) { const s = S.sessions[sid]; const me = myPid(); const v = s?.drinkBuy?.[me] || {}; const d = S.dbDraft || {};
-  return `<h4>🥤 물·음료 구입 등록${ib(`${fmtDate(sid)} 경기 물당으로 산 금액과 영수증을 올려 주세요. 등록한 금액은 운영비 정산 때 내 낼 금액에서 빼 줘요.`)}</h4>
+// 영수증 여러 장: 드라이브 파일 id 목록(drives) — 예전 한 장짜리(drive)도 함께 읽어요
+const rcptIds = v => [...(Array.isArray(v?.drives) ? v.drives : []), ...(v?.drive && !(v.drives || []).includes(v.drive) ? [v.drive] : [])];
+const rcptCount = v => rcptIds(v).length || (v?.n || (v?.img ? 1 : 0));
+function drinkBuySheet(sid) { const s = S.sessions[sid]; const me = myPid(); const v = s?.drinkBuy?.[me] || {}; const d = S.dbDraft || {}; const imgs = d.imgs || []; const had = rcptCount(v); const keep = d.keep !== false;
+  return `<h4>🥤 물·음료 구입 등록${ib(`${fmtDate(sid)} 경기 물당으로 산 금액과 영수증을 올려 주세요. 등록한 금액은 운영비 정산 때 내 낼 금액에서 빼 줘요. 영수증은 여러 장 올릴 수 있어요.`)}</h4>
   <div class="panel pad"><div class="field"><label for="db-amt">구입 금액</label><div class="stl-m"><input id="db-amt" class="inp" inputmode="numeric" value="${d.amt ?? (v.amt ? (+v.amt).toLocaleString('ko-KR') : '')}" placeholder="예: 18,400"><em>원</em></div></div>
-  <div class="field"><label>영수증 사진</label><label class="btn block" style="cursor:pointer">📷 ${d.img || v.img ? '사진 바꾸기' : '사진 찍기 · 고르기'}<input type="file" accept="image/*" data-in="dbimg" hidden></label>${d.img ? `<img class="rcpt-prev" src="${d.img}" alt="영수증 미리보기">` : v.img ? '<p class="note" style="margin:6px 0 0">✓ 영수증이 등록돼 있어요.</p>' : ''}</div></div>
+  <div class="field"><label>영수증 사진 <small class="muted">(여러 장 가능)</small></label>
+    ${had ? `<div class="rc-had"><span>✓ 등록된 영수증 ${had}장</span><label class="tgl-l"><input type="checkbox" data-in="dbkeep" ${keep ? 'checked' : ''}> 그대로 두고 추가</label></div>` : ''}
+    ${imgs.length ? `<div class="rc-thumbs">${imgs.map((u, i) => `<span class="rc-th"><img src="${u}" alt="새 영수증 ${i + 1}"><button data-act="dbimgdel" data-i="${i}" aria-label="${i + 1}번째 사진 빼기">×</button></span>`).join('')}</div>` : ''}
+    <label class="btn block" style="cursor:pointer">📷 ${imgs.length || had ? '사진 더 고르기' : '사진 찍기 · 고르기'}<input type="file" accept="image/*" multiple data-in="dbimg" hidden></label></div>
+  <div class="field"><label for="db-memo">메모 <small class="muted">(선택)</small></label><textarea id="db-memo" class="inp" rows="2" maxlength="200" placeholder="예: 생수 2박스 + 이온음료 6병, 편의점 2곳에서 나눠 삼">${esc(d.memo ?? (v.memo || ''))}</textarea></div></div>
   <div class="row" style="margin-top:12px"><button class="btn primary block" data-act="dbsave" data-id="${sid}">${v.amt ? '수정해서 저장' : '등록하기'}</button></div>` }
 async function receiptImg(file) { const url = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file) });
   const im = await new Promise((res, rej) => { const g = new Image(); g.onload = () => res(g); g.onerror = rej; g.src = url }); const k = Math.min(1, 1100 / Math.max(im.width, im.height)); const cv = document.createElement('canvas'); cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
@@ -3345,19 +3353,13 @@ function mmNPairView(s) { const four = nT(s) === 4; const d = S.mmDraft || (S.mm
   <div class="mm-card"><h3>전체 대진${ib(`⇄ 로 좌우 위치를 바꿀 수 있어요`)}</h3><div class="mm-games">${games.map(g => { const A = team(s, g.home), B = team(s, g.away); return `<div class="mm-g"><em>${g.n}경기</em><span>${bib(A.color)}${esc(A.name)}</span><button class="btn sm" data-act="mmsw" data-n="${g.n}" aria-label="좌우 바꾸기">⇄</button><span>${esc(B.name)}${bib(B.color)}</span></div>` }).join('')}</div>
     <button class="btn primary block cta" data-act="mmpairsave" style="margin-top:10px">이 대진으로 정하기</button></div>` }
 function mmPairView(s) { if (nT(s) !== 3) { S.mmPairs = [['A', 'B']]; return mmNPairView(s) }
-  const pp = pairsOf(s); const d = S.mmDraft || (S.mmDraft = { p1: [...(pp[0] || [])], p2: [...(pp[1] || [])], swap: { ...(s.mm?.swap || {}) } });
-  const p1 = d.p1, p2 = d.p2; const ok1 = p1.length === 2, ok2 = p2.length === 2 && (p2[0] + p2[1]) !== (p1[0] + p1[1]) && (p2[1] + p2[0]) !== (p1[0] + p1[1]);
-  let p3 = null; if (ok1 && ok2) { const all = [[p1[0], p1[1]], [p2[0], p2[1]]]; const cnt = {}; all.flat().forEach(k => cnt[k] = (cnt[k] || 0) + 1); const lone = K3.filter(k => cnt[k] === 1); const miss = K3.find(k => !cnt[k]);
-    p3 = miss ? null : lone.length === 2 ? [p2.find(k => lone.includes(k)), p1.find(k => lone.includes(k))] : null }
-  const pairs = ok1 && ok2 && p3 ? [p1, p2, p3] : null;
-  const pickRow = (lab, arr, which, other) => `<div class="mm-row"><span class="mm-lab">${lab}</span><div class="mm-tbs">${K3.map(k => teamBtn(s, k, 'mmpk', arr.includes(k), which === 2 && !ok1)).join('').replace(/data-act="mmpk"/g, `data-act="mmpk" data-w="${which}"`)}</div><small>${arr.length === 2 ? `${esc(team(s, arr[0]).name)} vs ${esc(team(s, arr[1]).name)}` : '두 팀을 고르세요'}</small></div>`;
-  let h = `<div class="mm-card"><h3>① 대진 정하기${ib(`1라운드 1경기와 2경기에 뛸 두 팀을 고르면 3경기와 2·3라운드는 자동으로 정해져요.`)}</h3>${pickRow('1경기', p1, 1)}${pickRow('2경기', p2, 2)}
-    ${ok1 && p2.length === 2 && !ok2 ? '<p class="mm-warn">2경기는 1경기와 다른 조합이어야 해요.</p>' : ''}${ok1 && ok2 && !p3 ? '<p class="mm-warn">2경기에는 1경기 팀 중 한 팀과 남은 팀이 들어가야 해요.</p>' : ''}</div>`;
-  if (pairs) { const games = []; for (let r = 0; r < 3; r++) for (let j = 0; j < 3; j++) { const n = r * 3 + j + 1; const [a, b] = d.swap[n] ? [pairs[j][1], pairs[j][0]] : pairs[j]; games.push({ n, r: r + 1, a, b }) }
-    h += `<div class="mm-card"><h3>전체 대진${ib(`⇄ 로 좌우 위치를 바꿀 수 있어요`)}</h3><div class="mm-games">${games.map(g => { const A = team(s, g.a), B = team(s, g.b);
-      return `<div class="mm-g"><em>${g.r}R · ${g.n}경기</em><span class="gt" style="--tc:${A.color};--ti:${inkOn(A.color)}">${esc(A.name)}</span><button class="mm-sw" data-act="mmsw" data-n="${g.n}" aria-label="${g.n}경기 좌우 바꾸기">⇄</button><span class="gt" style="--tc:${B.color};--ti:${inkOn(B.color)}">${esc(B.name)}</span></div>` }).join('')}</div>
-      <button class="btn primary block mm-go cta" data-act="mmpairsave">대진 확정</button></div>`; S.mmPairs = pairs }
-  return h;
+  // 1경기 대진만 먼저 골라요. 2경기부터는 앞 경기가 끝난 뒤 경기 화면에서 하나씩 골라요(진행 중에도 바꿀 수 있어요).
+  const pp = pairsOf(s); const d = S.mmDraft || (S.mmDraft = { p1: [...(pp[0] || [])], p2: [], swap: { ...(s.mm?.swap || {}) } });
+  const p1 = d.p1; const ok1 = p1.length === 2; const third = ok1 ? K3.find(k => !p1.includes(k)) : null;
+  const pairs = ok1 ? [p1, [p1[1], third], [third, p1[0]]] : null; if (pairs) S.mmPairs = pairs;
+  return `<div class="mm-card"><h3>① 1경기 대진 정하기${ib('1경기에 뛸 두 팀만 고르면 돼요. 2경기부터는 앞 경기가 끝나면 경기 화면에서 그때그때 골라요. 경기 중에도 대진을 바꿀 수 있어요.')}</h3>
+    <div class="mm-row"><span class="mm-lab">1경기</span><div class="mm-tbs">${K3.map(k => teamBtn(s, k, 'mmpk', p1.includes(k), false)).join('').replace(/data-act="mmpk"/g, 'data-act="mmpk" data-w="1"')}</div><small>${ok1 ? `${esc(team(s, p1[0]).name)} vs ${esc(team(s, p1[1]).name)}` : '두 팀을 고르세요'}</small></div>
+    ${ok1 ? `<p class="mm-sum">쉬는 팀: <b>${esc(team(s, third).name)}</b> · 2경기 대진은 1경기가 끝나면 골라요</p><button class="btn primary block mm-go cta" data-act="mmpairsave">1경기 대진 확정</button>` : ''}</div>`;
 }
 function mmTimeView(s) {
   const T = timing(s); const f = S.mmT || (S.mmT = { h1: Math.round(T.h1 / 60 * 10) / 10, gk: T.gk, h2: Math.round(T.h2 / 60 * 10) / 10 });
@@ -3415,6 +3417,16 @@ async function mmSetTeams(m, nh, na) { const s = S.sessions[m.session]; const ms
   const ok = await w(async () => { for (const [id, v] of Object.entries(upd)) await S.store.update(mp(id), v);
     const r1 = ms.filter(x => x.round === 1).sort((a, b) => a.slot - b.slot).map(x => upd[x.id] || { home: x.home, away: x.away }); if (r1.length === 3) await S.store.update(sp(s.date), { 'mm.pairs': r1.map(p => p.home + p.away) }) });
   if (ok) toast(m.round === 1 && nT(s) === 3 ? '팀을 바꿨어요. 2·3라운드 같은 순서 경기도 함께 바뀌어요.' : '팀을 바꿨어요.') }
+// 경기 화면의 대진 고르기: 시작 전 경기는 바로 바꾸고, 진행 중인 경기는 확인 후 바꿔요(빠진 팀의 골은 새 팀으로 옮겨져요)
+function mmPairPick(s, m) { const ks = TK(s); const combos = []; for (let i = 0; i < ks.length; i++) for (let j = i + 1; j < ks.length; j++) combos.push([ks[i], ks[j]]);
+  const cur0 = [m.home, m.away].sort().join(''); const prev = sessMatches(s.date).filter(x => x.n < m.n && x.status === 'done').sort((x, y) => y.n - x.n)[0];
+  const rest = nT(s) === 3 ? ks.find(k => k !== m.home && k !== m.away) : null;
+  return `<div class="mm-pp ${m.status === 'live' ? 'live' : ''}"><div class="mm-pp-h"><b>${m.status === 'pending' ? `${m.n}경기 대진 선택` : `${m.n}경기 대진 변경`}</b><small>${m.status === 'pending' ? (prev ? `${prev.n}경기 끝 · 이번 경기에 뛸 두 팀을 골라요` : '이번 경기에 뛸 두 팀을 골라요') : '진행 중 · 바꾸면 빠진 팀의 골이 새 팀으로 옮겨져요'}${rest ? ` · 쉬는 팀 ${esc(team(s, rest).name)}` : ''}</small></div>
+    <div class="mm-pp-l">${combos.map(([x, y]) => { const on = [x, y].sort().join('') === cur0; const X = team(s, x), Y = team(s, y); return `<button class="mm-pc ${on ? 'on' : ''}" data-act="mmsetpair" data-id="${m.id}" data-v="${x}${y}" ${on ? 'aria-pressed="true"' : ''}>${bib(X.color)}<b>${esc(X.name)}</b><i>vs</i><b>${esc(Y.name)}</b>${bib(Y.color)}</button>` }).join('')}</div></div>` }
+async function mmSetPair(mid, v) { const m = M(mid); if (!m) return; const [x, y] = v.split(''); if ([m.home, m.away].sort().join('') === [x, y].sort().join('')) return;
+  const keepH = [x, y].includes(m.home) ? m.home : null; const nh = keepH || x, na = nh === x ? y : x; const od = [m.home, m.away], nw = [nh, na]; const add = nw.find(t => !od.includes(t)); const map = Object.fromEntries(od.map(t => [t, nw.includes(t) ? t : add]));
+  if (m.status !== 'pending' && !confirm(`진행 중인 ${m.n}경기 대진을 ${team(cur(), nh).name} vs ${team(cur(), na).name}(으)로 바꿀까요?\n빠진 팀의 골 기록은 새로 들어온 팀으로 옮겨져요.`)) return;
+  await w(async () => { await withTimeout(S.store.update(mp(mid), { home: nh, away: na }), 10000); if (m.status !== 'pending') for (const e of evsOf(mid)) if (map[e.team] && map[e.team] !== e.team) await withTimeout(S.store.update('events/' + e.id, { team: map[e.team] }), 10000) }, `${m.n}경기: ${team(cur(), nh).name} vs ${team(cur(), na).name}`) }
 function mmPlayView(s, ctl) {
   const ms = courtMs(s, mmC(s)); const curM = ms.find(x => x.status === 'live') || ms.find(x => x.status === 'pending') || ms[ms.length - 1]; const m = (ctl && S.mmSel && ms.find(x => x.id === S.mmSel)) || curM; const editing = m.status === 'done' && m.id !== curM.id || (m.status === 'done' && S.mmSel === m.id);
   const H = team(s, m.home), A = team(s, m.away); const [hs, as] = score(m); const ci = clockInfo(m); const run = !!m.timer?.running; const T = timing(s);
@@ -3424,6 +3436,7 @@ function mmPlayView(s, ctl) {
       <div class="mm-mid"><div class="mm-clock ${ci.phase}" data-bigclock="${m.id}">${ci.time}</div><div class="mm-ph" data-phase="${m.id}">${ci.label}</div>
         <div class="mm-bar">${[0, 1, 2].map(i => `<i class="${i === 1 ? 'gk' : ''}"><b data-seg="${m.id}:${i}"></b></i>`).join('')}</div>${ctl && m.status === 'pending' ? `<button class="mm-side" data-act="mmsidesw" data-id="${m.id}" aria-label="양 팀 좌우 위치 바꾸기">⇄ 진영 변경</button>` : ''}</div>
       <div class="mm-team" style="--tc:${A.color};--ti:${inkOn(A.color)}"><b>${esc(A.name)}</b><em>${as}</em></div></div>
+    ${ctl && !editing && nT(s) > 2 && (m.status === 'pending' || m.status === 'live') ? mmPairPick(s, m) : ''}
     <div class="mm-ctl">${!ctl ? (allDone ? `<div class="mm-done">🎉 ${nC(s) === 2 ? mmC(s) + '구장 ' + ms.length : '오늘 ' + NG(s)}경기가 모두 끝났어요!</div>` : '') : editing ? '' : m.status === 'pending' ? `<button class="btn primary mm-big cta" data-act="mmstart" data-id="${m.id}">▶ 경기 시작</button>`
       : m.status === 'live' ? `${run ? `<button class="btn mm-big" data-act="mmpause" data-id="${m.id}">⏸ 일시정지</button>` : `<button class="btn primary mm-big" data-act="mmresume" data-id="${m.id}">▶ 재개</button>`}<button class="btn ${ci.phase === 'full' ? 'primary' : ''} mm-big" data-act="mmend" data-id="${m.id}">경기 종료</button>`
       : allDone ? `<div class="mm-done">🎉 ${nC(s) === 2 ? mmC(s) + '구장 ' + ms.length : '오늘 ' + NG(s)}경기가 모두 끝났어요!</div>` : ''}</div>
@@ -3690,7 +3703,8 @@ document.addEventListener('input', e => { const el = e.target; const k = el.data
   if (k === 'stldb' && S.admin) { const sid = S.sid, pid = el.dataset.id; const v = Math.max(0, parseInt(el.value.replace(/[^\d]/g, ''), 10) || 0); const ss = S.sessions[sid]; const old = ss.drinkBuy?.[pid] || {}; const nv = { ...old, amt: v, at: Date.now(), by: myPid() || 'admin' }; ss.drinkBuy = { ...(ss.drinkBuy || {}), [pid]: nv }; stlRefresh(ss); clearTimeout((S.dbT ??= {})[pid]); S.dbT[pid] = setTimeout(() => w(() => S.store.update(sp(sid), { [`drinkBuy.${pid}`]: nv })), 800); return }
   if (k === 'stlcfgt' && S.admin) { const f = el.dataset.k; S.meta = S.meta || {}; S.meta.settle = { ...stlCfg(), [f]: el.value.trim().slice(0, 40) }; clearTimeout(S.cfgT); S.cfgT = setTimeout(() => w(() => S.store.set('meta/settle', S.meta.settle), '정산 규칙을 저장했어요.'), 900); return }
   if (k === 'stlcfg' && S.admin) { const f = el.dataset.k; const v = Math.max(0, parseInt(el.value.replace(/[^\d]/g, ''), 10) || 0); S.meta = S.meta || {}; S.meta.settle = { ...stlCfg(), [f]: v }; clearTimeout(S.cfgT); S.cfgT = setTimeout(() => w(() => S.store.set('meta/settle', S.meta.settle), '정산 규칙을 저장했어요.'), 800); return }
-  if (k === 'dbimg') { const f = el.files?.[0]; el.value = ''; if (!f) return; toast('사진을 줄이는 중이에요…'); receiptImg(f).then(img => { S.dbDraft = { ...(S.dbDraft || {}), amt: document.getElementById('db-amt')?.value, img }; render() }).catch(() => toast('사진을 불러오지 못했어요. 다른 사진으로 해 주세요.')); return }
+  if (k === 'dbimg') { const fs = [...(el.files || [])].slice(0, 10); el.value = ''; if (!fs.length) return; const keepDraft = () => ({ ...(S.dbDraft || {}), amt: document.getElementById('db-amt')?.value, memo: document.getElementById('db-memo')?.value }); toast(`사진 ${fs.length}장을 줄이는 중이에요…`); Promise.all(fs.map(f => receiptImg(f).catch(() => null))).then(list => { const ok2 = list.filter(Boolean); const D = keepDraft(); D.imgs = [...(D.imgs || []), ...ok2].slice(0, 10); S.dbDraft = D; if (ok2.length < fs.length) toast(`${fs.length - ok2.length}장은 불러오지 못했어요.`); document.activeElement?.blur?.(); render() }); return }
+  if (k === 'dbkeep') { S.dbDraft = { ...(S.dbDraft || {}), amt: document.getElementById('db-amt')?.value, memo: document.getElementById('db-memo')?.value, keep: !!el.checked }; return }
   if (k === 'calf' && S.cal) { S.cal.f[el.dataset.f] = el.value; if (el.dataset.f === 'no') S.cal.f.noAuto = false; return }
   if (k === 'calfvenue' && S.cal) { if (el.value === '__custom') { S.cal.f.venueCustom = true; S.cal.f.venue = ''; render(); setTimeout(() => document.getElementById('calf-venue')?.focus(), 50) } else { S.cal.f.venueCustom = false; S.cal.f.venue = el.value } return }
   if (k === 'impf' && S.imp) { S.imp[el.dataset.f] = el.value; return }
@@ -3752,7 +3766,7 @@ document.addEventListener('click', async e => {
   if (el.disabled) return; const act = el.dataset.act, id = el.dataset.id;
   if (isMaster() && ['dutyreq', 'parkapply', 'parkcancel', 'mmrecask'].includes(act)) { toast('마스터 계정은 신청 기록을 남기지 않아요.'); return }
   if (LOCK_ACTS.has(act)) { const lsid = act === 'dbsave' ? id : S.sid; if (S.sessions[lsid]?.closed) { toast('정산이 끝나 기록이 잠긴 경기예요. 고치려면 운영비 정산에서 잠금을 풀어 주세요.'); return } } const s = cur(); const m = S.openMatch ? M(S.openMatch) : null;
-  if (act && act.startsWith('mm') && !['mmtoggle', 'mmtake', 'mmgrab', 'mmrelease', 'mmmode', 'mmrecask', 'mmrecok', 'mmrecno', 'mmreclaim', 'mmpick'].includes(act) && S.tab === 'mm' && !mmIsCtl()) { toast('보기 전용이에요. 진행자만 조작할 수 있어요.'); return }
+  if (act && act.startsWith('mm') && !['mmtoggle', 'mmtake', 'mmgrab', 'mmsetpair', 'mmrelease', 'mmmode', 'mmrecask', 'mmrecok', 'mmrecno', 'mmreclaim', 'mmpick'].includes(act) && S.tab === 'mm' && !mmIsCtl()) { toast('보기 전용이에요. 진행자만 조작할 수 있어요.'); return }
   switch (act) {
     case 'tab': if (S.fs) fsExit(); S.tab = el.dataset.v; if (S.admin && S.tab === 'run') { const r = runSid(); if (r) { S.sid = r; S.step = null; watchChat() } } S.openMatch = null; S.sheet = null; S.sel = null; S.sub = null; S.detail = null; render(); window.scrollTo(0, 0); break;
     case 'home': S.sid = null; S.step = null; watchChat(); render(); break;
@@ -3773,7 +3787,7 @@ document.addEventListener('click', async e => {
     case 'rcptping': try { const r = await fetch(rcptCfg().exec, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'ping', token: rcptCfg().token }) }); const j = await r.json(); toast(j.ok ? '✅ 드라이브와 잘 연결돼 있어요.' : '연결 오류: ' + j.error) } catch (e) { toast('연결 오류: ' + e.message) } break;
     case 'rcptmigrate': { if (!needAdmin() || !rcptOn()) break; let docs = []; try { docs = (await S.store.query('receipts', [])) || [] } catch (e) { toast('예전 영수증을 읽지 못했어요.'); break } S.rcptLeft = docs.length; if (!docs.length) { render(); break }
       if (S.rcptLeft != null && el.textContent.includes('확인')) { render(); break } if (!confirm(`Firebase에 있는 영수증 ${docs.length}장을 구글 드라이브로 옮기고 Firebase에서는 지울까요?`)) { render(); break }
-      let n = 0; for (const d of docs) { S.rcptBusy = `옮기는 중 ${n}/${docs.length}`; render(); try { const sid = d.session, pid = d.pid; if (!sid || !pid || !d.img) continue; const up = await rcptUpload(sid, pid, d.img); await S.store.update(sp(sid), { [`drinkBuy.${pid}.drive`]: up.id, [`drinkBuy.${pid}.img`]: true }); await S.store.del(`receipts/${d.id}`); n++ } catch (e) { console.warn('rcpt move', e) } }
+      let n = 0; for (const d of docs) { S.rcptBusy = `옮기는 중 ${n}/${docs.length}`; render(); try { const sid = d.session, pid = d.pid; const L = d.imgs || (d.img ? [d.img] : []); if (!sid || !pid || !L.length) continue; const ids = []; for (let i = 0; i < L.length; i++) ids.push((await rcptUpload(sid, pid, L[i], L.length > 1 ? i + 1 : 0)).id); const cur = S.sessions[sid]?.drinkBuy?.[pid] || {}; const all = [...rcptIds(cur), ...ids]; await S.store.update(sp(sid), { [`drinkBuy.${pid}.drives`]: all, [`drinkBuy.${pid}.drive`]: null, [`drinkBuy.${pid}.n`]: all.length, [`drinkBuy.${pid}.img`]: true }); await S.store.del(`receipts/${d.id}`); n++ } catch (e) { console.warn('rcpt move', e) } }
       S.rcptBusy = null; S.rcptLeft = docs.length - n; toast(`영수증 ${n}장을 드라이브로 옮겼어요.`); render(); break }
     case 'addone': { const inp = document.getElementById('addone'); const v = inp.value.trim(); if (!v) break; inp.value = ''; inp.blur(); document.activeElement?.blur?.(); await addApplicants(v.split(/[,，\n]+/).map(x => x.trim()).filter(Boolean)); break }
     case 'capslot': S.sheet = { type: 'capslot', k: el.dataset.k }; render(); break;
@@ -3864,6 +3878,7 @@ document.addEventListener('click', async e => {
     case 'mkpractice': if (!needAdmin()) break; await makePractice(); break;
     case 'clrpractice': if (!needAdmin()) break; await clearPractice(); break;
     case 'mmtoggle': audio(); S.tab = S.tab === 'mm' ? 'mhome' : 'mm'; keepAwake(S.tab === 'mm'); S.sub = null; render(); window.scrollTo(0, 0); break;
+    case 'mmsetpair': if (!mmIsCtl() && !S.admin) break; await mmSetPair(id, el.dataset.v); break;
     case 'mmpk': { const d = S.mmDraft; const key = el.dataset.w === '1' ? 'p1' : 'p2'; const arr = d[key]; const k = el.dataset.k; if (arr.includes(k)) d[key] = arr.filter(x => x !== k); else if (arr.length < 2) arr.push(k); else d[key] = [arr[1], k]; if (key === 'p1') d.p2 = []; render(); break }
     case 'mmgn': { const d = S.mmDraft; if (!d) break; if (nT(S.sessions[S.mmSid]) === 4) d.r = Math.max(1, Math.min(3, (d.r || 1) + (+el.dataset.d))); else d.n = Math.max(1, Math.min(15, (d.n || 6) + (+el.dataset.d))); render(); break }
     case 'mmsw': { const n = +el.dataset.n; const d = S.mmDraft; d.swap[n] = !d.swap[n]; render(); break }
@@ -3927,10 +3942,15 @@ document.addEventListener('click', async e => {
       if (await w(() => S.store.set('meta/bank', { ...b, adj }), '지웠어요.')) { S.meta.bank = { ...b, adj }; render() } break }
     case 'stlpen': { if (!needAdmin()) break; S.meta = S.meta || {}; S.meta.settle = { ...stlCfg(), penUse: el.dataset.v === '1' }; await w(() => S.store.set('meta/settle', S.meta.settle), '정산 규칙을 저장했어요.'); break }
     case 'dbopen': S.dbDraft = null; S.sheet = { type: 'drinkbuy', sid: id }; render(); break;
+    case 'dbimgdel': { const D = S.dbDraft || {}; D.amt = document.getElementById('db-amt')?.value; D.memo = document.getElementById('db-memo')?.value; D.imgs = (D.imgs || []).filter((_, i) => i !== +el.dataset.i); S.dbDraft = D; document.activeElement?.blur?.(); render(); break }
     case 'dbsave': { const me = myPid(); if (!me) { toast('로그인 후 등록할 수 있어요.'); break } const amt = Math.max(0, parseInt(String(document.getElementById('db-amt')?.value || '').replace(/[^\d]/g, ''), 10) || 0); if (!amt) { toast('구입 금액을 넣어 주세요.'); break }
-      const ss = S.sessions[id]; const old = ss?.drinkBuy?.[me] || {}; const img = S.dbDraft?.img; const ok = await w(async () => { let drive = old.drive || ''; if (img) { if (rcptOn()) { toast('영수증을 드라이브에 올리는 중이에요…'); drive = (await rcptUpload(id, me, img)).id } else await S.store.set(`receipts/${id}_${me}`, { session: id, pid: me, img, at: Date.now() }) } await S.store.update(sp(id), { [`drinkBuy.${me}`]: { amt, at: Date.now(), by: me, img: !!(img || old.img), ...(drive ? { drive } : {}) } }) }, '구입 금액을 등록했어요. 정산 때 낼 금액에서 빼 줘요.');
+      const memo = (document.getElementById('db-memo')?.value || '').trim().slice(0, 200); const ss = S.sessions[id]; const old = ss?.drinkBuy?.[me] || {}; const imgs = S.dbDraft?.imgs || []; const keep = S.dbDraft?.keep !== false || !imgs.length;
+      const ok = await w(async () => { let drives = keep ? rcptIds(old) : []; let n = keep ? rcptCount(old) : 0;
+        if (imgs.length) { if (rcptOn()) { for (let i = 0; i < imgs.length; i++) { toast(`영수증을 드라이브에 올리는 중이에요… ${i + 1}/${imgs.length}`); drives.push((await rcptUpload(id, me, imgs[i], drives.length + 1)).id) } n = drives.length }
+          else { const prev = keep ? await S.store.get(`receipts/${id}_${me}`).catch(() => null) : null; const all = [...(prev?.imgs || (prev?.img ? [prev.img] : [])), ...imgs].slice(-3); await S.store.set(`receipts/${id}_${me}`, { session: id, pid: me, imgs: all, img: all[0], at: Date.now() }); n = all.length } }
+        await S.store.update(sp(id), { [`drinkBuy.${me}`]: { amt, memo: memo || null, at: Date.now(), by: me, img: n > 0, n, drives: drives.length ? drives : null, drive: null } }) }, '구입 금액을 등록했어요. 정산 때 낼 금액에서 빼 줘요.');
       if (ok) { S.dbDraft = null; S.sheet = null; render() } break }
-    case 'rcptview': { const pid = el.dataset.p; const dv = S.sessions[id]?.drinkBuy?.[pid]?.drive; if (dv) { S.sheet = { type: 'rcpt', sid: id, pid, img: rcptThumb(dv), drive: dv }; render(); break } S.sheet = { type: 'rcpt', sid: id, pid, img: null }; render(); try { const d = await S.store.get(`receipts/${id}_${pid}`); if (S.sheet?.type === 'rcpt') { S.sheet.img = d?.img || ''; render() } } catch { toast('영수증을 불러오지 못했어요.') } break }
+    case 'rcptview': { const pid = el.dataset.p; const v = S.sessions[id]?.drinkBuy?.[pid] || {}; const ids = rcptIds(v); if (ids.length) { S.sheet = { type: 'rcpt', sid: id, pid, imgs: ids.map(rcptThumb), drives: ids }; render(); break } S.sheet = { type: 'rcpt', sid: id, pid, imgs: null }; render(); try { const d = await S.store.get(`receipts/${id}_${pid}`); if (S.sheet?.type === 'rcpt') { S.sheet.imgs = d?.imgs || (d?.img ? [d.img] : []); render() } } catch { toast('영수증을 불러오지 못했어요.') } break }
     case 'flowgo': S.tab = 'run'; S.step = el.dataset.v; S.sel = null; render(); window.scrollTo(0, 0); break;
     case 'vwtog': S.vwOpen = !S.vwOpen; setTimeout(render, 0); break;
     case 'flowsheet': S.sheet = { type: 'flow' }; render(); break;
