@@ -2060,3 +2060,11 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .mr-hd b{font-size:16px}
 :root{--cssv:"0.4.71"}
 :root{--cssv:"0.4.72"}
+/* 신청 시각: 시:분:초 + 아래 줄에 소수점 이하(밀리초·마이크로초) */
+.ts{display:inline-flex;flex-direction:column;align-items:center;line-height:1.15;font-variant-numeric:tabular-nums}
+.ts b{font-weight:700;color:var(--ink);font-size:13px}
+.ts small{font-size:11px;color:var(--muted);letter-spacing:.2px}
+.ts .tsd{display:none}
+@media (min-width:700px){.ts{flex-direction:row;align-items:baseline;gap:0}.ts .tsd{display:inline;margin-right:4px}.ts b{font-size:inherit}.ts small{font-size:inherit}}
+.aptbl td.num{overflow:visible;text-overflow:clip}
+:root{--cssv:"0.4.73"}
