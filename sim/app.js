@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.88';
+const APP_VERSION = '0.4.89';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1402,6 +1402,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.89','2026.11.06',['알림이 기본으로 켜져요: 로그인한 회원이 아직 알림 허용을 정하지 않았으면 처음 화면을 누를 때 한 번 허용을 물어봐요 (직접 끈 사람은 그대로 꺼 둬요)','앱이 업데이트돼도 알림이 계속 오도록 업데이트 직후 알림 등록을 다시 맞춰요 · 휘슬·알림 설정은 이 폰과 서버에 함께 저장돼 업데이트 뒤에도 그대로예요']],
   ['0.4.88','2026.11.06',['날씨 배경을 경기 당일뿐 아니라 다음 경기 카드에도 보여 줘요: 그 경기 날 킥오프 시각의 예보로 표현 (예보는 15일 뒤 경기까지 나와요)']],
   ['0.4.87','2026.11.06',['경기 당일에는 다음 경기 카드 배경에 그 구장의 킥오프 시각 날씨가 움직이는 그림으로 나와요 (맑음·구름·비·눈·뇌우·안개, 밤에는 별·달) · 카드 위에 날씨·기온·강수확률 표시 · 30분마다 새로 받아요']],
   ['0.4.86','2026.11.06',['내 신청 카드의 대기 번호 배지를 “대기 / 1 / 번” 세 줄에서 큰 번호 + “대기” 두 줄로 정리 (신청 완료 배지와 같은 모양)']],
@@ -1665,24 +1666,29 @@ async function pushEnable() { const sup = pushSupport(); if (sup !== 'ok') { toa
   const pid = myPid(); if (!pid) { toast('로그인한 뒤에 켤 수 있어요.'); return }
   const perm = await Notification.requestPermission(); if (perm !== 'granted') { toast('알림이 허용되지 않았어요. 폰 설정에서 이 앱의 알림을 허용해 주세요.'); render(); return }
   try { const M = await fcm(); const reg = await navigator.serviceWorker.ready; const token = await M.getToken(M.getMessaging(S.fbApp), { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
-    if (!token) throw new Error('no token'); save('pushToken', token);
+    if (!token) throw new Error('no token'); save('pushToken', token); save('pushOff', false);
     await S.store.set('pushTokens/' + token, { pid, at: Date.now(), ua: navigator.userAgent.slice(0, 120), ios: isIOS() });
     S.np = { ...Object.fromEntries(NOTI_TYPES.map(([k]) => [k, true])), ...(S.np || {}), on: true }; await S.store.set('notifPrefs/' + pid, { ...S.np, at: Date.now() }); pushListen(); toast('알림을 켰어요! 🔔'); render() }
   catch (e) { console.error(e); toast('알림을 켜지 못했어요: ' + (e.code || e.message || '알 수 없음')) } }
-async function pushDisable() { const pid = myPid(); const t = load('pushToken', null); try { if (t) await S.store.del('pushTokens/' + t) } catch { } save('pushToken', null); if (pid) { try { await S.store.set('notifPrefs/' + pid, { ...(S.np || {}), on: false, at: Date.now() }) } catch { } S.np = { ...(S.np || {}), on: false } } toast('이 폰의 알림을 껐어요.'); render() }
+async function pushDisable() { save('pushOff', true); const pid = myPid(); const t = load('pushToken', null); try { if (t) await S.store.del('pushTokens/' + t) } catch { } save('pushToken', null); if (pid) { try { await S.store.set('notifPrefs/' + pid, { ...(S.np || {}), on: false, at: Date.now() }) } catch { } S.np = { ...(S.np || {}), on: false } } toast('이 폰의 알림을 껐어요.'); render() }
 // 개인 설정(휘슬·전체화면 방향 등)은 이 폰과 서버(notifPrefs/회원.ui)에 같이 저장해서, 업데이트·저장공간 정리 뒤에도 그대로 복원돼요.
 const UI_KEYS = { whistle: 'whistle', fsflip: 'fsFlip' };
 function saveUI(k, v) { save(k, v); const pid = myPid(); if (!pid || isTest() || isMaster()) return; S.np = { ...(S.np || {}), ui: { ...(S.np?.ui || {}), [k]: v } }; S.store.set('notifPrefs/' + pid, { ...S.np, at: Date.now() }).catch(() => { }) }
 function restoreUI() { const u = S.np?.ui; if (!u) return; let ch = false; for (const [k, sk] of Object.entries(UI_KEYS)) { if (!(k in u)) continue; let loc; try { loc = localStorage.getItem('wfsim:' + k) } catch { } if (loc === null || loc === undefined) { save(k, u[k]); S[sk] = u[k]; ch = true } } if (ch) render() }
 // 앱이 업데이트되면(서비스워커 교체) 휴대폰의 알림 토큰이 바뀌거나 사라질 수 있어요. 앱을 열 때마다 조용히 다시 등록해서 알림이 계속 오게 해요.
 let PUSH_SYNCED = ''; async function pushResync() { const pid = myPid(); if (!pid || isTest() || isMaster() || PUSH_SYNCED === pid || pushSupport() !== 'ok' || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
-  const old = load('pushToken', null); if (S.np?.on === false || (!old && !S.np?.on)) return; PUSH_SYNCED = pid;
+  const old = load('pushToken', null); if (S.np?.on === false || load('pushOff', false)) return; PUSH_SYNCED = pid; /* 알림은 기본으로 켜져 있어요 — 끈 사람(on:false)만 빼고 다시 등록 */
   try { const M = await fcm(); const reg = await navigator.serviceWorker.ready; const token = await M.getToken(M.getMessaging(S.fbApp), { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg }); if (!token) return;
     if (token !== old) { save('pushToken', token); if (old) { try { await S.store.del('pushTokens/' + old) } catch { } } }
     await S.store.set('pushTokens/' + token, { pid, at: Date.now(), ua: navigator.userAgent.slice(0, 120), ios: isIOS() });
     if (!S.np?.on) { S.np = { ...Object.fromEntries(NOTI_TYPES.map(([k]) => [k, true])), ...(S.np || {}), on: true }; await S.store.set('notifPrefs/' + pid, { ...S.np, at: Date.now() }) }
     pushListen(); render() } catch (e) { PUSH_SYNCED = ''; console.warn('push resync', e) } }
 let PUSH_LISTEN = false; async function pushListen() { if (PUSH_LISTEN || pushSupport() !== 'ok' || Notification.permission !== 'granted') return; PUSH_LISTEN = true; try { const M = await fcm(); M.onMessage(M.getMessaging(S.fbApp), m => { const n = m.notification || {}; toast(`${n.title || '알림'} · ${n.body || ''}`) }) } catch (e) { console.warn(e) } }
+// 알림 기본 켜짐: 로그인한 회원이 아직 알림 허용을 안 정했으면(permission=default), 첫 터치 때 한 번 허용을 물어봐요(아이폰은 터치가 있어야 물어볼 수 있어요).
+function pushAutoAsk() { if (S.pushAsking || !myPid() || isTest() || isMaster() || pushSupport() !== 'ok' || typeof Notification === 'undefined' || Notification.permission !== 'default' || S.np?.on === false || load('pushOff', false) || load('pushAsked', 0) > Date.now() - 3 * 86400e3) return;
+  S.pushAsking = true; save('pushAsked', Date.now()); pushEnable().finally(() => { S.pushAsking = false }) }
+document.addEventListener('pointerup', () => { if (S.npLoaded) pushAutoAsk() }, { passive: true });
+if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener?.('controllerchange', () => { PUSH_SYNCED = ''; setTimeout(() => pushResync(), 1500) }); // 앱 업데이트(서비스워커 교체) 뒤에도 알림 토큰을 다시 맞춰요
 async function loadPrefs() { const pid = myPid(); if (!pid || S.npLoaded === pid) return; S.npLoaded = pid; try { S.np = (await S.store.get('notifPrefs/' + pid)) || null } catch { S.np = null } restoreUI(); render(); pushResync() }
 function notiCard() { const sup = pushSupport(); const on = typeof Notification !== 'undefined' && Notification.permission === 'granted' && !!load('pushToken', null) && S.np?.on !== false;
   if (sup === 'preview') return `<div class="panel pad"><p class="note" style="margin:0">알림은 실제 앱 주소(GitHub)에서 켤 수 있어요.</p></div>`;
