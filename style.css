@@ -2085,3 +2085,34 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 :root{--cssv:"0.4.74"}
 .fk-rwd{background:rgba(198,255,61,.12);color:var(--accent);border-color:transparent}
 @media (min-width:900px){.subnav + .subact.up{z-index:12}}
+/* 이 경기 입출금 */
+.lg-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:560px){.lg-cols{grid-template-columns:1fr}}
+.lg-col{border-radius:14px;border:1px solid var(--line);background:var(--surface2);padding:10px 12px}
+.lg-hd{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:6px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.lg-hd b{font-size:13.5px}.lg-hd em{font-style:normal;font-family:var(--latin);font-weight:800;font-size:18px}
+.lg-col.in .lg-hd em{color:#4ADE80}.lg-col.out .lg-hd em{color:#FF9C9C}
+.lg-col ul{list-style:none;margin:0;padding:0}
+.lg-col li{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;border-bottom:1px dashed color-mix(in srgb,var(--line) 70%,transparent)}
+.lg-col li:last-child{border-bottom:0}
+.lg-col li>span{flex:1;min-width:0;color:var(--ink)}
+.lg-col li>span small{color:var(--muted);font-size:11px}
+.lg-col li>b{font-family:var(--latin);font-weight:800;font-variant-numeric:tabular-nums}
+.lg-col li .x{width:24px;height:24px;border-radius:50%;font-size:14px;color:var(--muted);background:transparent;border:1px solid var(--line);flex:none}
+.lg-add{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}
+.lg-add .stl-seg{flex:none}
+.lg-add #lg-memo{flex:1 1 180px;min-width:0}
+.lg-add .stl-m{flex:0 0 auto;min-width:0}
+.lg .stl-h small.ok{color:#4ADE80}
+.fee-tbl .lg-mini{white-space:normal;min-width:260px}
+.fee-tbl .lg-mini span{display:inline-block;margin:1px 8px 1px 0;font-size:12px}
+.fee-tbl td small{display:block;color:var(--muted);font-size:11px}
+:root{--cssv:"0.4.75"}
+.fee-kpi{grid-template-columns:repeat(3,minmax(0,1fr))!important}@media (max-width:560px){.fee-kpi{grid-template-columns:1fr 1fr!important}.fee-kpi .kpi.hl{grid-column:1/-1}}
+.fee-games{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+@media (max-width:900px){.fee-games{grid-template-columns:1fr}}
+.fg-hd{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin-bottom:10px}
+.fg-hd .linkbtn{font-size:16px;font-weight:800}
+.fg-hd small{color:var(--muted);font-size:12px;flex:1;min-width:0}
+.fg-hd b{font-family:var(--latin);font-weight:800}
+.fg-hd b.pos{color:#4ADE80}.fg-hd b.neg{color:#FF9C9C}
