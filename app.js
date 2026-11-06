@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.71';
+const APP_VERSION = '0.4.72';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1392,6 +1392,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.72','2026.11.06',['용산(The Base) 경기 신청 순위: 1순위(직전 경기 미참여)와 3순위(직전 경기 마감 후 취소)를 바로 앞 경기가 아니라 직전 용산 경기 기준으로 따져요 · 다른 구장 경기 참석·취소는 용산 순위에 영향 없음']],
   ['0.4.71','2026.11.05',['경기 기록: 선수 목록을 내려도 화면 위쪽에 점수·시간 바가 고정돼서 계속 보여요','선수 이름 버튼을 조금 촘촘하게 줄이고, 점수판으로 대진을 고르게 되면서 팀 색 고르기 줄은 뺐어요(3팀 이상)']],
   ['0.4.70','2026.11.05',['경기 대진: 따로 있던 대진 선택 칸을 없애고, 경기 화면의 점수판을 누르면 대진을 고르거나 바꿀 수 있어요 · 다음 경기 대진을 고를 차례면 점수판에 노란 안내 표시']],
   ['0.4.69','2026.11.05',['경기 대진: 1경기만 먼저 고르고, 앞 경기가 끝나면 경기 화면에서 다음 경기 대진을 골라요 (쉬는 팀 표시) · 진행 중인 경기도 대진을 바꿀 수 있어요(빠진 팀의 골은 새 팀으로)','물당 구입 등록: 메모(선택)를 남길 수 있고, 영수증 사진을 여러 장 한 번에 고를 수 있어요 · 정산 화면과 영수증 보기에 메모·장수 표시']],
@@ -2196,7 +2197,7 @@ function viewApplicants() { const s = cur(); const me = myPid(); const base = is
     return `<tr class="aphd in"><td colspan="${cols}">✅ 선발 ${sel.length}명</td></tr>${sel.map(tr).join('')}${wt.length ? `<tr class="apcut"><td colspan="${cols}"><span>✂ 여기까지 선발 · 아래는 대기</span></td></tr><tr class="aphd wt"><td colspan="${cols}">⏳ 대기 ${wt.length}명 <small>선발자가 취소하면 순서대로 올라가요</small></td></tr>${wt.map(tr).join('')}` : ''}` })()) : `<tr><td colspan="${cols}" class="empty">아직 신청자가 없어요.</td></tr>`}
   ${off.length ? `<tr class="offhd"><td colspan="${cols}">취소 ${off.length}명</td></tr>${off.map(x => `<tr class="offrow"><td class="num">-</td><td class="nm">${esc(pname(x.pid))}${x.pid === me ? '<i class="metag">나</i>' : ''}</td><td class="num muted">${fmtTS(x.t).replace(/\.\d{3}$/, '')}</td>${base ? '<td></td>' : ''}<td>${x.k === 'late' ? '<b class="t3">마감 후 취소</b>' : '<b class="muted">취소</b>'}</td></tr>`).join('')}` : ''}
   </tbody></table></div>
-  ${ibm(`${base ? '순위: 0순위 구장 예약자·경기 운영자 → 1순위 직전 경기 미참여 → 2순위 그 외 선착순 → 3순위 직전 경기 마감 후 취소자. 같은 순위 안에서는 신청 순서대로 선발돼요. ' : '이 구장은 순위 없이 신청한 순서대로 선발해요. '}신청 시각은 서버에 도착한 시각이에요. 취소한 시각은 이 버전부터 기록돼요.`)}</div>` }
+  ${ibm(`${base ? '순위: 0순위 구장 예약자·경기 운영자 → 1순위 직전 용산 경기 미참여 → 2순위 그 외 선착순 → 3순위 직전 용산 경기 마감 후 취소자 (다른 구장 경기는 따지지 않아요). 같은 순위 안에서는 신청 순서대로 선발돼요. ' : '이 구장은 순위 없이 신청한 순서대로 선발해요. '}신청 시각은 서버에 도착한 시각이에요. 취소한 시각은 이 버전부터 기록돼요.`)}</div>` }
 /* ───────── admin views ───────── */
 async function deleteSessionBy(sid) { if (!confirm(fmtDate(sid) + ' 경기를 통째로 지울까요? 신청자, 경기 기록도 함께 지워지고 되돌릴 수 없어요.')) return;
   const ok = await w(async () => { const evs = new Set(Object.entries(S.events).filter(([, ev]) => ev.session === sid).map(([eid]) => eid)), mts = new Set(sessMatches(sid).map(m => m.id));
@@ -2598,7 +2599,8 @@ function ensureQueues() { if (!S.store) return; S.qUn ??= {}; S.q ??= {}; const 
   for (const id of want) if (!S.qUn[id]) S.qUn[id] = S.store.watchCol(sp(id) + '/q', docs => { const o = {}; docs.forEach(d => { const { id: di, ...r } = d; o[di] = r }); S.q[id] = o; renderSoon() }, { est: true }, () => { }) }
 function appsOf(s) { const qa = queueApps(s); if (qa.length) { const base = Array.isArray(s.apps) ? s.apps : appsOf0(s); return appsOf0({ ...s, apps: [...base, ...qa] }) } return appsOf0(s) }
 function appsOf0(s) { if (Array.isArray(s.apps)) { const seen = new Set(); return s.apps.filter(a => a && typeof a === 'object').map((a, i) => ({ a, i })).sort((x, y) => ((x.a.at || 0) - (y.a.at || 0)) || (x.i - y.i)).map(x => x.a).filter(a => { if (!a.pid) return true; if (seen.has(a.pid)) return false; seen.add(a.pid); return true }).map((a, i) => ({ a, i })).sort((x, y) => { const O = s.appOrder; if (!Array.isArray(O) || !O.length) return x.i - y.i; const rx = O.indexOf(x.a.k), ry = O.indexOf(y.a.k); return (rx < 0 ? O.length + x.i : rx) - (ry < 0 ? O.length + y.i : ry) }).map(x => x.a) } return [...(s.applicants || []), ...(s.waitlist || [])].map((pid, i) => ({ k: 'L' + i, pid, at: 0 })) }
-function prevSessionId(s) { const ids = Object.keys(S.sessions).filter(id => id < s.date).sort().reverse(); return ids.find(id => KEYS.some(k => teamPlayers(S.sessions[id], k).length)) || null }
+// The Base(용산) 경기는 순위를 따로 매겨요: 1순위(미참여)·3순위(마감 후 취소)는 '직전 용산 경기' 기준
+function prevSessionId(s) { const ids = Object.keys(S.sessions).filter(id => id < s.date && (!isBase(s) || isBase(S.sessions[id]))).sort().reverse(); return ids.find(id => KEYS.some(k => teamPlayers(S.sessions[id], k).length)) || null }
 function staffSet(s) { return new Set([...(s.p0 || []), ...(s.ops || [])]) } // 0순위: 그 경기의 구장 예약자·경기 운영자만 (팀 운영진은 해당 없음)
 function autoIds(s) { return [...new Set([...(s.ops || [])])].filter(id => S.players[id]) } // 구장 예약자는 직접 신청해야 0순위(0.21.17)
 function roleOf(s, id) { return (s.p0 || []).includes(id) ? '구장 예약자' : (s.ops || []).includes(id) ? '경기 운영자' : '' }
@@ -2826,7 +2828,7 @@ async function drawParking(sid) {
 
 /* ───────── late cancel (3순위) ───────── */
 function fmtTS(ms) { const d = new Date(ms); return `${d.getMonth() + 1}.${d.getDate()} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}.${String(d.getMilliseconds()).padStart(3, '0')}` }
-function lateSet(s) { const p = prevAnyId(s); return new Set(Object.entries((p && S.sessions[p].late) || {}).filter(([, v]) => v).map(([k]) => k)) }
+function lateSet(s) { const p = isBase(s) ? Object.keys(S.sessions).filter(id => id < s.date && isBase(S.sessions[id])).sort().pop() || null : prevAnyId(s); return new Set(Object.entries((p && S.sessions[p].late) || {}).filter(([, v]) => v).map(([k]) => k)) }
 // 팀 확정 후 불참 교체: 불참자는 마감 후 취소(다음 경기 3순위)로 기록하고, 같은 팀 같은 자리에 회원 또는 게스트를 넣어요.
 function substSheet() { const s = cur(); const f = S.subst ||= { mode: 'member' }; const inTeams = new Set(TK(s).flatMap(k => teamPlayers(s, k)));
   const pool = byName(Object.keys(S.players).filter(id => !inTeams.has(id) && !isGone(S.players[id]) && !S.players[id]?.guest));
@@ -2878,7 +2880,7 @@ async function cancelApp(sid, pid, key, byAdmin, force) {
   if (ok) markCancel();
   if (ok) { const s2 = S.sessions[sid]; if (!byAdmin && pid && isBase(s) && autoIds(s2 || s).includes(pid)) toast(`신청은 취소했지만 ${roleOf(s2 || s, pid)}(이)라 자동 참가로 남아 있어요. 운영진에게 해제를 요청해 주세요.`); else toast(force ? '삭제했어요.' : penal ? '취소했어요. 마감 후 취소로 기록됐어요.' : '취소했어요.') }
 }
-const TIER_DESC = ['구장 예약자·경기 운영자급, 정원과 상관없이 선발', '직전 경기 미참여자', '그 외 선착순', '직전 경기 마감 후 취소자'];
+const TIER_DESC = ['구장 예약자·경기 운영자급, 정원과 상관없이 선발', '직전 용산 경기 미참여자', '그 외 선착순', '직전 용산 경기 마감 후 취소자'];
 function tierSheet(sh) { const ss = S.sessions[sh.sid]; const r = ss && classify(ss).rows.find(x => x.k === sh.k); if (!r) return '<h4>순위 변경</h4><p>신청자를 찾지 못했어요. 이미 삭제됐을 수 있어요.</p>';
   return `<h4>순위 변경 · ${r.pid ? esc(pname(r.pid)) : '이름 입력 대기'}</h4><p>지금 ${TIER[r.tier]}${r.tierOv ? ' (직접 지정)' : ''} · 자동 계산이면 ${TIER[r.tier0]}예요. 바꾸면 선발·대기가 바로 다시 계산돼요.</p><div class="tierpick">${[0, 1, 2, 3].map(t => `<button class="btn${r.tier === t ? ' primary' : ''}" data-act="tierpick" data-v="${t}"><b class="t${t}">${TIER[t]}</b><small>${TIER_DESC[t]}</small></button>`).join('')}</div>${r.tierOv ? '<div class="row" style="margin-top:12px"><button class="btn block" data-act="tierpick" data-v="auto">↺ 자동 계산으로 되돌리기</button></div>' : ''}` }
 // 신청접수 표: 아래 버튼 줄까지 한 화면에 보이도록 표 높이를 맞춰요(제목 줄은 고정)
@@ -2924,7 +2926,7 @@ function vApplyTable(s) {
       ${ad ? `<td class="acts">${r.pid && !r.auto ? `<button class="btn sm" data-act="p0toggle" data-id="${r.pid}">${(s.p0 || []).includes(r.pid) ? '예약자 해제' : '예약자'}</button>` : ''}${r.auto ? `<button class="btn sm" data-act="staffedit" data-id="${s.date}">변경</button>` : ''}${!r.pid ? `<button class="btn sm" data-act="appnameadmin" data-id="${r.k}">이름</button>` : ''}${closed && r.pid && !r.auto ? `<button class="btn sm danger" data-act="latecancel" data-id="${r.pid}">${r.sel ? '마감 후 취소' : '대기 취소'}</button>` : ''}${canRm && !r.auto ? `<button class="btn sm danger" data-act="apprm" data-id="${r.k}" data-pid="${r.pid || ''}" aria-label="삭제" title="신청 삭제 (3순위 기록 없음)">삭제</button>` : ''}</td>` : ''}</tr>` }).join('') : `<tr><td colspan="${11 + (mvOn ? 1 : 0) + (ad ? 1 : 0)}" class="empty">아직 신청자가 없어요.</td></tr>`}${Object.entries(s.late || {}).filter(([, v]) => v).map(([pid, t]) => `<tr class="lrow"><td class="num seq"></td><td class="num">-</td><td class="stick"><b>${esc(pname(pid))}</b></td><td></td><td class="muted">신청 마감 후 취소</td><td class="num muted">${fmtTS(t)}</td>${mvOn ? '<td></td>' : ''}<td></td><td></td><td></td><td><b class="t3">취소</b></td><td class="num"><input type="checkbox" class="staffck" checked ${ad ? `data-in="lateuntoggle" data-id="${pid}"` : 'disabled'} aria-label="마감 후 취소 해제"></td>${ad ? '<td></td>' : ''}</tr>`).join('')}${(() => { const inL = new Set(rows.map(r => r.pid).filter(Boolean)); const cc = Object.entries(s.cancels || {}).filter(([p0, v]) => v && S.players[p0] && !inL.has(p0) && !s.late?.[p0]).sort((x, y) => x[1] - y[1]); const cols = 11 + (mvOn ? 1 : 0) + (ad ? 1 : 0);
     return cc.length ? `<tr class="offhd"><td colspan="${cols}">취소 ${cc.length}명 <small>신청했다가 마감 전에 취소한 사람이에요</small></td></tr>` + cc.map(([pid, t]) => `<tr class="offrow"><td class="num seq"></td><td class="num">-</td><td class="stick">${esc(pname(pid))}</td><td></td><td class="muted">취소</td><td class="num muted">${fmtTS(t)}</td>${mvOn ? '<td></td>' : ''}<td></td><td></td><td></td><td><b class="muted">취소</b></td><td></td>${ad ? '<td></td>' : ''}</tr>`).join('') : '' })()}</tbody></table></div>`;
   const tip = ad && (canTier || canRm) ? `<p>🛠 운영진 도움말${ibm(`${canTier ? '순위 칸을 누르면 0~3순위를 직접 바꿀 수 있어요(✎ 표시는 직접 바꾼 순위). ' : ''}${canRm ? '“삭제”는 마감 후 취소(3순위) 기록 없이 명단에서 지워요. 다음 경기 3순위로 남기려면 “마감 후 취소”를 쓰세요.' : ''}`)}</p>` : '';
-  return h + `<div class="apnotes"><details class="rules-d"><summary>신청 ${c.sel.length + c.wait.length}${s.capacity ? ' / ' + s.capacity : ''}명 (선발 ${c.sel.length}명, 대기 ${c.wait.length}명)${c.base ? '' : ' · <b>선착순 구장</b>'} · 순위 규칙·운영 도움말 보기</summary>${c.base ? '' : '<p><b>The Base 구장이 아니라서 순위 없이 신청 순서대로(선착순) 선발해요.</b></p>'}<p>0순위 구장 예약자·경기 운영자(정원 무관) → 1순위 직전 경기 미참여 → 2순위 선착순 → 3순위 직전 경기(${prevAny ? fmtDate(prevAny) : '없음'}) 신청 마감 후 취소자. 같은 순위 안에서는 신청 순서대로예요. (The Base 구장에만 적용)</p>${tip}</details></div>`;
+  const prevB = c.base ? prevSessionId(s) : null; return h + `<div class="apnotes"><details class="rules-d"><summary>신청 ${c.sel.length + c.wait.length}${s.capacity ? ' / ' + s.capacity : ''}명 (선발 ${c.sel.length}명, 대기 ${c.wait.length}명)${c.base ? '' : ' · <b>선착순 구장</b>'} · 순위 규칙·운영 도움말 보기</summary>${c.base ? '' : '<p><b>The Base 구장이 아니라서 순위 없이 신청 순서대로(선착순) 선발해요.</b></p>'}<p>0순위 구장 예약자·경기 운영자(정원 무관) → 1순위 직전 용산 경기${prevB ? `(${fmtDate(prevB)})` : ''} 미참여 → 2순위 선착순 → 3순위 직전 용산 경기 신청 마감 후 취소자. 같은 순위 안에서는 신청 순서대로예요. 다른 구장 경기는 따지지 않아요. (The Base 구장에만 적용)</p>${tip}</details></div>`;
 }
 
 /* ───────── monthly schedule poster ───────── */

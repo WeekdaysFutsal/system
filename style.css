@@ -2059,3 +2059,4 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .mr-hd{padding:6px 12px}
 .mr-hd b{font-size:16px}
 :root{--cssv:"0.4.71"}
+:root{--cssv:"0.4.72"}
