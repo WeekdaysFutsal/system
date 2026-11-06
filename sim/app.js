@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.86';
+const APP_VERSION = '0.4.87';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1402,6 +1402,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.87','2026.11.06',['경기 당일에는 다음 경기 카드 배경에 그 구장의 킥오프 시각 날씨가 움직이는 그림으로 나와요 (맑음·구름·비·눈·뇌우·안개, 밤에는 별·달) · 카드 위에 날씨·기온·강수확률 표시 · 30분마다 새로 받아요']],
   ['0.4.86','2026.11.06',['내 신청 카드의 대기 번호 배지를 “대기 / 1 / 번” 세 줄에서 큰 번호 + “대기” 두 줄로 정리 (신청 완료 배지와 같은 모양)']],
   ['0.4.85','2026.11.06',['신청 현황과 내 신청 카드에서 순위(0~3순위·후순위)를 누르면 왜 그 순위인지 사유가 나와요 (예: 직전 용산 경기에 참가하지 않아 1순위, 직전 경기에서 마감 후 취소해서 3순위)','[운영진] 순위 변경 창에도 자동 계산 사유가 함께 나와요']],
   ['0.4.84','2026.11.06',['신청 마감 후 취소한 사람은 구장과 상관없이 바로 다음 경기에서 맨 뒤 순위로 밀려요 (용산은 3순위, 다른 구장은 신청 순서와 상관없이 맨 뒤 · 신청 현황에 “후순위” 표시)']],
@@ -1891,6 +1892,26 @@ function viewSettings() { const TABS = [['me', '내 정보'], ['ops', '운영'],
 /* ───────── member views ───────── */
 function dt(str) { return str ? new Date(str) : null }
 function fmtDT(str) { const d = dt(str); if (!d || isNaN(d)) return '-'; return `${d.getMonth() + 1}.${d.getDate()} (${DOW[d.getDay()]}) ${p2(d.getHours())}:${p2(d.getMinutes())}` }
+/* ───────── 경기 당일 날씨 (Open-Meteo, 키 없음) → 다음 경기 카드 배경 애니메이션 ─────────
+   구장 이름으로 좌표를 찾고, 킥오프 시각의 날씨 코드·기온·강수확률을 30분마다 새로 받아요. */
+const WX_SPOTS = [[/the base|아이파크|용산/i, 37.5294, 126.9648], [/월드컵/, 37.5682, 126.8972], [/토모|답십리/, 37.5669, 127.0567]];
+function wxSpot(s) { const v = String(s?.venue || ''); const m = WX_SPOTS.find(x => x[0].test(v)); return m ? [m[1], m[2]] : [37.5665, 126.978] }
+function wxKind(c) { return c == null ? null : c >= 95 ? 'storm' : (c >= 71 && c <= 77) || c === 85 || c === 86 ? 'snow' : (c >= 51 && c <= 67) || (c >= 80 && c <= 82) ? (c <= 57 ? 'drizzle' : 'rain') : c === 45 || c === 48 ? 'fog' : c === 3 ? 'cloud' : c === 1 || c === 2 ? 'partly' : 'clear' }
+const WX_LAB = { clear: ['☀️', '맑음', '🌙'], partly: ['⛅', '구름 조금', '☁️'], cloud: ['☁️', '흐림'], fog: ['🌫', '안개'], drizzle: ['🌦', '이슬비'], rain: ['🌧', '비'], snow: ['🌨', '눈'], storm: ['⛈', '뇌우'] };
+function wxGet(s) { if (!s?.date || s.date !== today()) return null; const [la, lo] = wxSpot(s); const key = `wx:${s.date}:${la},${lo}`; S.wx ??= {};
+  let c = S.wx[key]; if (!c) { try { c = JSON.parse(localStorage.getItem(key) || 'null') } catch { c = null } if (c) S.wx[key] = c }
+  if ((!c || Date.now() - c.at > 30 * 60e3) && !S.wxBusy?.[key] && typeof fetch === 'function') { (S.wxBusy ??= {})[key] = 1;
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&hourly=temperature_2m,precipitation_probability,weathercode,is_day&timezone=Asia%2FSeoul&start_date=${s.date}&end_date=${s.date}`).then(r => r.json()).then(j => { const H = j.hourly || {}; const hh = Math.min(23, Math.max(0, parseInt(String(s.time || '20').slice(0, 2), 10) || 20)); const i = (H.time || []).findIndex(t => +t.slice(11, 13) === hh);
+      if (i < 0) return; const v = { at: Date.now(), code: H.weathercode?.[i], temp: H.temperature_2m?.[i], pop: H.precipitation_probability?.[i], day: H.is_day?.[i] === 1 }; S.wx[key] = v; try { localStorage.setItem(key, JSON.stringify(v)) } catch { } if (S.tab === 'mhome' || S.tab === 'home') render() }).catch(() => { }).finally(() => { delete S.wxBusy[key] }) }
+  if (!c || c.code == null) return null; const k = wxKind(c.code); const L = WX_LAB[k]; return { k, night: !c.day, ico: !c.day && L[2] ? L[2] : L[0], lab: L[1], temp: c.temp, pop: c.pop } }
+function wxLayer(w) { if (!w) return ''; const n = (k, f) => Array.from({ length: k }, (_, i) => f(i)).join(''); const r = i => ((i * 37) % 100);
+  const fx = w.k === 'rain' || w.k === 'storm' ? n(w.k === 'storm' ? 46 : 38, i => `<i class="wx-d" style="left:${r(i)}%;animation-delay:${-(i * 0.13 % 1.1).toFixed(2)}s;animation-duration:${(0.55 + (i % 5) * 0.07).toFixed(2)}s"></i>`)
+    : w.k === 'drizzle' ? n(22, i => `<i class="wx-d sm" style="left:${r(i)}%;animation-delay:${-(i * 0.17 % 1.4).toFixed(2)}s"></i>`)
+    : w.k === 'snow' ? n(30, i => `<i class="wx-s" style="left:${r(i)}%;animation-delay:${-(i * 0.47 % 7).toFixed(2)}s;animation-duration:${(5 + (i % 4)).toFixed(1)}s;--sz:${3 + (i % 3) * 2}px"></i>`)
+    : w.k === 'clear' || w.k === 'partly' ? (w.night ? n(26, i => `<i class="wx-st" style="left:${(i * 53) % 100}%;top:${(i * 29) % 70}%;animation-delay:${-(i * 0.37 % 3).toFixed(2)}s"></i>`) + '<i class="wx-moon"></i>' : '<i class="wx-sun"></i>') : '';
+  const clouds = ['partly', 'cloud', 'drizzle', 'rain', 'storm', 'snow', 'fog'].includes(w.k) ? n(w.k === 'partly' ? 2 : 4, i => `<i class="wx-c c${i}"></i>`) : '';
+  return `<div class="wx wx-${w.k} ${w.night ? 'night' : 'day'}" aria-hidden="true">${clouds}${fx}${w.k === 'storm' ? '<i class="wx-fl"></i>' : ''}${w.k === 'fog' ? '<i class="wx-fog"></i><i class="wx-fog f2"></i>' : ''}</div>` }
+function wxChip(w) { return w ? `<span class="wx-chip" title="킥오프 시각 예보 (Open-Meteo)">${w.ico} ${w.lab}${w.temp != null ? ` ${Math.round(w.temp)}°` : ''}${w.pop >= 20 ? ` · ☔${w.pop}%` : ''}</span>` : '' }
 function dday(id) { const [y, m, d] = id.split('-'); const t = new Date(); const a = new Date(+y, +m - 1, +d), b = new Date(t.getFullYear(), t.getMonth(), t.getDate()); const n = Math.round((a - b) / 864e5); return n === 0 ? 'D-DAY' : n > 0 ? `D-${n}` : `D+${-n}` }
 // 신청 오픈·마감 시각에 맞춰 정확히 화면을 바꿔요(서버 시계 기준, 0.01초 단위로 다음 경계에 맞춰 예약)
 function scheduleFlip() { const now = nowS(); let nx = Infinity; for (const x of Object.values(S.sessions)) { if (!x || x.stage !== 'apply') continue; for (const v of [x.applyOpen, x.applyClose]) { if (!v) continue; const t = new Date(v).getTime(); if (t > now && t < nx) nx = t } }
@@ -1972,7 +1993,7 @@ function viewMHome() {
     const inH = S.naTopSid === sid ? '' : st.k === 'open' ? (fit ? applyBox(s, true) : '') : (mine || myW) ? applyBox(s, true, true) : ''; const cutX = inH.indexOf('<div class="extras">'); const heroAp = fit ? inH : ''; S.heroEx = fit ? '' : inH; void cutX; // PC는 오른쪽 칸에 내 신청 카드
     const PH = { soon: ['pre', '신청 전'], none: ['pre', '신청 전'], open: ['open', '신청 중'], closed: ['before', '경기 전'], draft: ['before', '경기 전'], teams: ['before', '경기 전'], live: ['live', '경기 중'], done: ['done', '경기 종료'] }; const ph = PH[st.k] || ['before', '경기 전'];
     const pill = `<span class="st st-ph st-ph-${ph[0]}">${ph[0] === 'live' ? '<i class="dot"></i>' : ''}${ph[1]}</span>`; void mine; // 다음 경기 카드: 경기 단계(신청 전 → 신청 중 → 경기 전 → 경기 중)
-    h += `<div class="hero ${s.draftStatus === 'done' ? 'md' : ''}"><div class="hero-top">${pill}<span class="dday">${dday(sid)}</span></div>
+    const wx = wxGet(s); h += `<div class="hero ${s.draftStatus === 'done' ? 'md' : ''} ${wx ? 'has-wx' : ''}">${wxLayer(wx)}<div class="hero-top">${pill}<span class="hero-tr">${wxChip(wx)}<span class="dday">${dday(sid)}</span></span></div>
       <div class="hero-date">${m}.${d}<small>${dow(sid)}요일</small></div><div class="hero-info"><div class="hi-row hi-time"><span class="hi-ico">${XICO.clock}</span><b>${esc(s.time || '시간 미정')}</b><small>킥오프</small></div>
       <div class="hi-row hi-venue"><span class="hi-ico">${XICO.pin}</span><b>${esc(venueTxt(s) || '장소 미정')}</b></div></div>
       ${memFlow(s, st)}

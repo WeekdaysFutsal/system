@@ -2180,5 +2180,38 @@ button.metag{border:0;cursor:pointer;font:inherit}
 .tier-rules{margin:8px 0 0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:6px;font-size:13px}
 :root{--cssv:"0.4.85"}
 :root{--cssv:"0.4.86"}
+/* 경기 당일 날씨 배경 */
+.hero.has-wx{isolation:isolate}
+.wx{position:absolute;inset:0;z-index:-1;overflow:hidden;border-radius:inherit;pointer-events:none}
+.wx.wx-rain,.wx.wx-storm,.wx.wx-drizzle{background:linear-gradient(180deg,rgba(40,56,90,.55),rgba(10,20,50,.15))}
+.wx.wx-cloud,.wx.wx-fog{background:linear-gradient(180deg,rgba(90,100,125,.45),rgba(20,30,60,.1))}
+.wx.wx-snow{background:linear-gradient(180deg,rgba(150,170,210,.35),rgba(20,30,70,.1))}
+.wx.wx-clear.day,.wx.wx-partly.day{background:radial-gradient(70% 60% at 88% 8%,rgba(255,200,80,.35),transparent 70%)}
+.wx.night{background-color:rgba(2,6,20,.25)}
+.wx-hero-top{}
+.hero-tr{display:inline-flex;align-items:center;gap:6px}
+.wx-chip{font-size:12px;font-weight:800;padding:4px 9px;border-radius:999px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.2);color:#fff;white-space:nowrap;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.wx i{position:absolute;display:block}
+.wx-d{top:-20%;width:1.5px;height:22px;background:linear-gradient(transparent,rgba(190,215,255,.85));transform:rotate(12deg);animation:wxRain .7s linear infinite}
+.wx-d.sm{height:12px;opacity:.6;animation-duration:1.3s}
+@keyframes wxRain{to{transform:translate(-30px,520px) rotate(12deg)}}
+.wx-s{top:-10px;width:var(--sz,4px);height:var(--sz,4px);border-radius:50%;background:#fff;opacity:.9;animation:wxSnow 6s linear infinite}
+@keyframes wxSnow{0%{transform:translate(0,0)}50%{transform:translate(14px,240px)}100%{transform:translate(-6px,500px)}}
+.wx-c{width:220px;height:70px;border-radius:999px;background:radial-gradient(closest-side,rgba(230,236,250,.32),rgba(230,236,250,0));filter:blur(4px);animation:wxCloud 38s linear infinite}
+.wx-c.c0{top:4%;left:-40%}.wx-c.c1{top:22%;left:-60%;animation-duration:52s;animation-delay:-20s;transform:scale(1.4)}.wx-c.c2{top:44%;left:-50%;animation-duration:44s;animation-delay:-8s}.wx-c.c3{top:62%;left:-70%;animation-duration:60s;animation-delay:-33s}
+.wx-cloud .wx-c,.wx-fog .wx-c{background:radial-gradient(closest-side,rgba(210,218,235,.45),rgba(210,218,235,0))}
+@keyframes wxCloud{to{left:110%}}
+.wx-sun{top:-40px;right:-70px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(255,214,102,.55),rgba(255,214,102,0) 65%);animation:wxPulse 6s ease-in-out infinite}
+@keyframes wxPulse{50%{transform:scale(1.12);opacity:.8}}
+.wx-moon{top:62px;right:26px;width:34px;height:34px;border-radius:50%;box-shadow:inset -9px -3px 0 0 rgba(255,244,200,.85);filter:drop-shadow(0 0 10px rgba(255,240,190,.45));opacity:.9}
+.wx-st{width:2px;height:2px;border-radius:50%;background:#fff;animation:wxTw 3s ease-in-out infinite}
+@keyframes wxTw{50%{opacity:.15}}
+.wx-fl{inset:0;background:rgba(220,230,255,.0);animation:wxFlash 7s steps(1) infinite}
+@keyframes wxFlash{0%,100%{background:rgba(220,230,255,0)}61%{background:rgba(220,230,255,.35)}62%{background:rgba(220,230,255,0)}64%{background:rgba(220,230,255,.22)}65%{background:rgba(220,230,255,0)}}
+.wx-fog{left:-30%;width:160%;height:45%;top:30%;background:linear-gradient(90deg,transparent,rgba(220,225,240,.22),transparent);filter:blur(10px);animation:wxFog 18s ease-in-out infinite alternate}
+.wx-fog.f2{top:60%;animation-duration:24s;animation-direction:alternate-reverse}
+@keyframes wxFog{to{transform:translateX(18%)}}
+@media (prefers-reduced-motion:reduce){.wx i{animation:none!important}}
+:root{--cssv:"0.4.87"}
 
 #simbar{position:sticky;top:0;z-index:50;background:#FFD21F;color:#1A1400;font:800 12.5px/1.3 var(--body);padding:6px 10px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;justify-content:center}#simbar label{display:flex;gap:6px;align-items:center}#simbar select{font:700 12.5px var(--body);padding:3px 6px;border-radius:6px;border:1px solid #8a7300;background:#fff8d0;color:#1A1400;max-width:62vw}
