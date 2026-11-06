@@ -2213,3 +2213,4 @@ button.metag{border:0;cursor:pointer;font:inherit}
 @keyframes wxFog{to{transform:translateX(18%)}}
 @media (prefers-reduced-motion:reduce){.wx i{animation:none!important}}
 :root{--cssv:"0.4.87"}
+:root{--cssv:"0.4.88"}
