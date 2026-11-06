@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.82';
+const APP_VERSION = '0.4.83';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1337,7 +1337,7 @@ function viewMatch() {
   return h;
 }
 function viewSheet() {
-  const sh = S.sheet; let h = `<div class="scrim" data-act="closesheet"><div class="sheet" role="dialog" aria-modal="true" data-stop><div class="grab"></div>`;
+  const sh = S.sheet; let h = `<div class="scrim" data-act="closesheet"><div class="sheet${sh.type === 'stltbl' ? ' wide' : ''}" role="dialog" aria-modal="true" data-stop><div class="grab"></div>`;
   if (sh.type === 'adminpin') h += `<h4>운영모드</h4><p>운영진 비밀번호를 입력하세요.</p><div class="panel"><div class="field"><label for="ap-pin">비밀번호</label><input id="ap-pin" class="inp pin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="••••"></div></div><div class="row" style="margin-top:12px"><button class="btn primary cta" data-act="adminpinok">운영모드 들어가기</button></div>`;
   else if (sh.type === 'cappop') { const s = S.sessions[sh.sid]; const k = myTeam(s);
     h += `<div class="cappop"><div class="cp-crown">👑</div><h4>${esc(pname(myPid()))} 님, 주장으로 지정됐어요!</h4><p>${fmtDate(sh.sid)} ${esc(s.time || '')} 경기의 <b>${esc(team(s, k).name)}</b> 주장이에요.<br>${s.room?.open ? (s.draftStatus === 'live' ? '드래프트 진행 중… 지금 입장해 주세요.' : '드래프트 대기 중… 지금 입장해 주세요.') : '운영진이 드래프트 방을 열면 팀원을 선정해요.'}</p><button class="btn primary block cta" data-act="gocap" data-id="${sh.sid}">팀 선정 화면으로 가기</button></div>` }
@@ -1347,6 +1347,7 @@ function viewSheet() {
   else if (sh.type === 'duty') h += dutySheet(sh.sid);
   else if (sh.type === 'park') h += parkSheet(sh.sid);
   else if (sh.type === 'drinkbuy') { h += drinkBuySheet(sh.sid) }
+  else if (sh.type === 'stltbl') { const s1 = S.sessions[sh.sid]; if (s1) { const C1 = stlCalc(s1); h += `<h4>📋 정산표 <small class="muted">${fmtDate(sh.sid)}</small>${ib(`정산 금액은 계산 금액을 ${wn(C1.unit)}원 단위로 맞춘 값이에요. ${wn(C1.unit)}원으로 나눈 나머지가 ${wn(C1.cut)}원 미만이면 버리고, 이상이면 올려요. 벌금은 그대로 더해요. 칩을 눌러 역할을 바꾸면 바로 다시 계산돼요.`)}</h4><div id="stl-tb">${stlTable(s1, C1)}</div>` } }
   else if (sh.type === 'feeedit') { h += feeEditSheet(sh.sid) }
   else if (sh.type === 'mmpair') { const m = M(sh.mid), s = S.sessions[S.mmSid] || cur(); h += m && s && (m.status === 'pending' || m.status === 'live') ? mmPairPick(s, m) : '<p class="empty">대진을 바꿀 수 있는 경기가 없어요.</p>' }
   else if (sh.type === 'rcpt') { const v = S.sessions[sh.sid]?.drinkBuy?.[sh.pid] || {}; const L = sh.imgs; h += `<h4>🧾 ${esc(pname(sh.pid))} 님 영수증${L?.length > 1 ? ` <small class="muted">${L.length}장</small>` : ''}</h4><p>${fmtDate(sh.sid)} 경기 · 구입 금액 ${wn(+v.amt || 0)}원</p>${v.memo ? `<p class="rc-memo">📝 ${esc(v.memo)}</p>` : ''}${L === null ? '<p class="empty">불러오는 중…</p>' : L.length ? L.map((u, i) => `<img class="rcpt-big" src="${u}" alt="영수증 ${i + 1}" referrerpolicy="no-referrer">${sh.drives?.[i] ? `<a class="btn sm" style="margin:6px 0 14px" href="https://drive.google.com/file/d/${esc(sh.drives[i])}/view" target="_blank" rel="noopener">구글 드라이브에서 보기${L.length > 1 ? ` (${i + 1})` : ''}</a>` : ''}`).join('') : '<p class="empty">영수증 사진이 없어요.</p>'}` }
@@ -1400,6 +1401,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.83','2026.11.06',['[운영진] 정산 ③ 금액 확정의 “정산표 자세히 보기”가 팝업으로 열려요 (PC에서는 넓게)']],
   ['0.4.82','2026.11.06',['[운영진] 정산 안내 문구 정리: 경기 운영자·운영진이 구장을 예약한 경우 경고 대신 “○○ 님(경기 운영자)이 구장을 예약해서 사례금이 없어요” 안내가 나와요 · 예약자를 아직 안 정했으면 ② 참가자·역할에서 “예약”을 누르도록 안내']],
   ['0.4.81','2026.11.06',['[운영진] 이 경기 입출금의 “들어온 돈”은 실제로 입금 확인한 회원 입금만 잡혀요. 정산 전(지출 확인 단계)에는 0원이고, 받을 돈 남은 금액과 “다 받으면 남는 돈”은 따로 보여 줘요']],
   ['0.4.80','2026.11.06',['작은 버튼 글자가 두 줄로 꺾이지 않게 정리 (정산 화면 위 “예약자·운영자”, “정산 규칙” 버튼 등)']],
@@ -2494,7 +2496,7 @@ function vSettle(s) { const st = stlGet(s.date); const lock = !!s.closed; const 
       <div class="stl-f"><span><b>물·음료 구입비 <small style="display:inline">합계 ${wn(C.D)}원</small></b>${ib('물당이 각자 등록한 금액만큼 그 물당의 낼 금액에서 빼요')}</span></div>${stlDrinkPanel(s)}</section></div><div class="stl-col"><div id="stl-pay">${stlPayPanel(s)}</div><div id="stl-bank">${stlLedger(s, C)}</div></div></div>`;
   else if (k === 1) body = `<div id="stl-roles">${stlRoleList(s, C)}</div>`;
   else if (k === 2) body = `<div id="stl-res">${stlSummary(s, C)}</div><section><h3 class="stl-h">누가 얼마를 내고 받나요 <small>+ 낼 돈 · − 모임에서 보낼 돈</small></h3><div id="stl-grp">${stlGroupsHTML(C)}</div></section>
-    <details class="stl-det"><summary>정산표 자세히 보기${ib(`정산 금액은 계산 금액을 ${wn(C.unit)}원 단위로 맞춘 값이에요. ${wn(C.unit)}원으로 나눈 나머지가 ${wn(C.cut)}원 미만이면 버리고, 이상이면 올려요. 벌금은 그대로 더해요. 규칙은 설정에서 바꿔요.`)}</summary><div id="stl-tb">${stlTable(s, C)}</div></details>
+    <button class="btn block stl-tbtn" data-act="stltbl">📋 정산표 자세히 보기 <small>${C.rows.length}명 · 구장·사례·음료·물 구입·벌금</small></button>
     ${s.closed ? `<section class="stl-done"><div><b>✅ 정산 완료</b><small>${fmtTS(s.closed.at).replace(/:\d\d\.\d{3}$/, '')}${s.closed.by ? ' · ' + esc(s.closed.by) : ''} · 이 경기의 신청·팀·경기 기록·정산이 모두 잠겨 있어요.${stlPayLeft(s).length ? `<br>💸 구장비 송금 대기: ${stlPayLeft(s).map(x => esc(pname(x.pid)) + ' ' + wn(x.amt + x.rw) + '원').join(', ')}` : ''}</small></div><button class="btn sm" data-act="stlunlock">🔓 잠금 풀기</button></section>`
     : `<section class="stl-close"><div><b>정산을 마치면 경기를 마감해요${ib('낼 금액·받을 금액이 이대로 기록되고, 이 경기의 신청·팀·경기 기록·물당 등록·정산을 더 고칠 수 없게 잠가요.')}</b></div></section>`}`;
   else body = `<div class="stl-grid"><div class="stl-col">${stlShare(s, C)}</div><div class="stl-col"><div id="stl-recv">${stlRecvPanel(s, C)}</div></div></div>`;
@@ -3993,6 +3995,7 @@ document.addEventListener('click', async e => {
     case 'stlcopy': { const ss = S.sessions[S.sid]; const t = stlKakao(ss, stlCalc(ss)); try { await navigator.clipboard.writeText(t); toast('정산 안내문을 복사했어요.') } catch { prompt('아래 내용을 복사하세요', t) } break }
     case 'stlimg': { const ss = S.sessions[S.sid]; toast('이미지를 만드는 중이에요…'); try { const c = await drawSettle(ss); const b = await new Promise(r => c.toBlob(r, 'image/png')); await shareBlob(b, `WDFS_운영비정산_${ss.date}.png`, el.dataset.v === 'dl') } catch (e) { console.error(e); toast('이미지를 만들지 못했어요.') } break }
     case 'stldb0': { if (!needAdmin()) break; const ss = S.sessions[S.sid]; if (ss.closed) { toast('정산이 끝나 기록이 잠긴 경기예요.'); break } const old = ss.drinkBuy?.[id] || {}; await w(() => S.store.update(sp(S.sid), { [`drinkBuy.${id}`]: { ...old, amt: 0, at: Date.now(), by: myPid() || 'admin' } }), `${pname(id)} 님 물 구입비를 0원(산 것 없음)으로 기록했어요.`); break }
+    case 'stltbl': S.sheet = { type: 'stltbl', sid: S.sid }; render(); break;
     case 'stlstep': { const v = Math.max(0, Math.min(3, +el.dataset.v || 0)); S.stlStep = { ...(S.stlStep || {}), [S.sid]: v }; S.stlConfirm = null; render(); window.scrollTo(0, 0); break }
     case 'stlrecv': { if (!needAdmin()) break; const ss = S.sessions[S.sid]; const on = !!ss?.settle?.recv?.[id]; await w(() => S.store.update(sp(S.sid), { [`settle.recv.${id}`]: on ? null : { at: Date.now(), by: S.me || '운영진' } })); break }
     case 'stlclose': { if (!needAdmin()) break; const ss = S.sessions[S.sid]; if (ss.closed) break; if (!el.dataset.v) { S.stlConfirm = S.sid; render(); break } if (el.dataset.v === '0') { S.stlConfirm = null; render(); break }
