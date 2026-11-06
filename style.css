@@ -2160,3 +2160,5 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .btn.sm{white-space:nowrap}
 .stl-head .row{flex-wrap:wrap;gap:6px}
 :root{--cssv:"0.4.80"}
+.lg-wait{display:inline-block;font-size:11px;color:#FBBF24;font-weight:700}
+:root{--cssv:"0.4.81"}

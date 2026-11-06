@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.80';
+const APP_VERSION = '0.4.81';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1400,6 +1400,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.81','2026.11.06',['[운영진] 이 경기 입출금의 “들어온 돈”은 실제로 입금 확인한 회원 입금만 잡혀요. 정산 전(지출 확인 단계)에는 0원이고, 받을 돈 남은 금액과 “다 받으면 남는 돈”은 따로 보여 줘요']],
   ['0.4.80','2026.11.06',['작은 버튼 글자가 두 줄로 꺾이지 않게 정리 (정산 화면 위 “예약자·운영자”, “정산 규칙” 버튼 등)']],
   ['0.4.79','2026.11.06',['물당 구입 금액에서 “미제출”과 “0원(산 것 없음)”을 구분해요. 가지고 있던 물을 가져왔다면 물당 등록 화면의 “산 게 없어요”로 0원 등록','[운영진] 정산 ① 지출 확인의 물당 칸: 비어 있으면 미제출, “0원 처리” 버튼으로 0원 기록 · 칸을 지우면 다시 미제출로 돌아가요 · 미제출이 있으면 지출 확인 단계가 완료로 표시되지 않아요']],
   ['0.4.78','2026.11.06',['[운영진] 운영비 정산을 4단계로 새로 만들었어요: ① 지출 확인(구장 사용료·사례금·물 구입·송금) → ② 참가자·역할(정산 대상과 제외 인원을 나눠서) → ③ 금액 확정(1인 계산·누가 얼마·정산표) → ④ 공지·입금','[운영진] 새 기능: ④ 단계에서 회원 입금(받을 돈)과 모임에서 보낸 돈을 이름을 눌러 체크해요. 정산을 잠근 뒤에도 체크할 수 있어요','[운영진] 아래 버튼이 단계를 따라 “다음: …” → “정산 확정하고 잠그기” → “공지·입금 확인”으로 바뀌어요']],
@@ -2430,14 +2431,16 @@ function gameEnded(x) { if (x.date < today()) return true; const ms = sessMatche
 const sgn = v => (v > 0 ? '+' : v < 0 ? '−' : '') + wn(Math.abs(v));
 function ledgerOf(s, C) { C = C || stlCalc(s); const ex = Array.isArray(s.settle?.extra) ? s.settle.extra.filter(x => x && +x.amt) : [];
   const pay = stlPayList(s).filter(x => x.amt > 0 || x.rw > 0); const court = pay.length ? pay.reduce((a, x) => a + x.amt, 0) : C.F;
-  const IN = [{ k: 'mem', memo: `회원 입금 (${C.rows.filter(x => x.owe > 0).length}명)`, amt: C.inSum }, ...ex.filter(x => x.k === 'in').map(x => ({ ...x, k: 'xin' }))].filter(x => x.amt > 0);
+  /* 회원 입금은 실제로 입금 확인(④ 단계 체크)한 돈만 들어온 돈으로 봐요 — 정산 전에는 0 */
+  const rec = s.settle?.recv || {}; const owers = C.rows.filter(x => x.owe > 0); const got = owers.filter(x => rec[x.pid]); const memIn = got.reduce((a, x) => a + x.owe, 0); const pending = C.inSum - memIn;
+  const IN = [{ k: 'mem', memo: `회원 입금 (확인 ${got.length}/${owers.length}명)`, amt: memIn, keep: owers.length > 0, wait: pending }, ...ex.filter(x => x.k === 'in').map(x => ({ ...x, k: 'xin' }))].filter(x => x.amt > 0 || x.keep);
   const OUT = [{ k: 'court', memo: pay.length ? `구장 예약비 (${pay.map(x => pname(x.pid)).join(', ')})` : '구장 예약비', amt: court, left: pay.filter(x => !x.done).length },
     ...(C.Rtot ? [{ k: 'rwd', memo: `예약자 사례금 (${wn(C.Rper)}원 × ${rwdRes(s).length}명 · 구장비와 함께 미리)`, amt: C.Rtot, left: pay.length ? pay.filter(x => !x.done && x.rw).length : 0 }] : []),
     { k: 'back', memo: '회원에게 보낼 돈 (물 구입비 등)', amt: C.outSum }, ...ex.filter(x => x.k === 'out').map(x => ({ ...x, k: 'xout' }))].filter(x => x.amt > 0);
-  const tin = IN.reduce((a, x) => a + x.amt, 0), tout = OUT.reduce((a, x) => a + x.amt, 0); return { IN, OUT, tin, tout, net: tin - tout, ex } }
+  const tin = IN.reduce((a, x) => a + x.amt, 0), tout = OUT.reduce((a, x) => a + x.amt, 0); return { IN, OUT, tin, tout, net: tin - tout, ex, pending, expNet: tin + pending - tout } }
 function stlLedger(s, C) { const L = ledgerOf(s, C); const ad = S.admin; const kd = S.lgKind || 'out';
-  const li = x => `<li class="lg-${x.k}"><span>${esc(x.memo)}${x.left ? ` <b class="warn-t">송금 전</b>` : ''}${x.by && (x.k === 'xin' || x.k === 'xout') ? ` <small>${esc(x.by)}</small>` : ''}</span><b>${wn(x.amt)}</b>${ad && (x.k === 'xin' || x.k === 'xout') ? `<button class="x" data-act="lgdel" data-id="${x.id}" aria-label="지우기" title="지우기">×</button>` : ''}</li>`;
-  return `<section class="panel pad lg"><h3 class="stl-h">이 경기 입출금${ib('통장 잔액과 상관없이 이 경기에서 들어온 돈과 나간 돈만 정리해요. 회원 입금·구장 예약비·사례금·물 구입비는 정산에서 자동으로 들어오고, 찬조금이나 장비 구입처럼 이 경기에 딸린 돈은 아래에서 직접 넣어요. 정산을 확정한 뒤에도 넣고 지울 수 있어요.')}<small class="${L.net < 0 ? 'warn' : 'ok'}">${L.net < 0 ? '모자라는 돈' : '남는 돈'} ${wn(Math.abs(L.net))}원</small></h3>
+  const li = x => `<li class="lg-${x.k}"><span>${esc(x.memo)}${x.left ? ` <b class="warn-t">송금 전</b>` : ''}${x.wait ? ` <small class="lg-wait">받을 돈 ${wn(x.wait)}원 남음</small>` : ''}${x.by && (x.k === 'xin' || x.k === 'xout') ? ` <small>${esc(x.by)}</small>` : ''}</span><b>${wn(x.amt)}</b>${ad && (x.k === 'xin' || x.k === 'xout') ? `<button class="x" data-act="lgdel" data-id="${x.id}" aria-label="지우기" title="지우기">×</button>` : ''}</li>`;
+  return `<section class="panel pad lg"><h3 class="stl-h">이 경기 입출금${ib('통장 잔액과 상관없이 이 경기에서 들어온 돈과 나간 돈만 정리해요. 회원 입금은 ④ 공지·입금 단계에서 입금 확인을 체크한 돈만 들어온 돈으로 잡혀요(정산 전에는 0). 구장 예약비·사례금·물 구입비는 정산에서 자동으로 들어오고, 찬조금이나 장비 구입처럼 이 경기에 딸린 돈은 아래에서 직접 넣어요. 정산을 확정한 뒤에도 넣고 지울 수 있어요.')}<small class="${L.pending ? 'muted' : L.net < 0 ? 'warn' : 'ok'}">${L.pending ? `입금 다 받으면 ${L.expNet < 0 ? '모자라는 돈' : '남는 돈'} ${wn(Math.abs(L.expNet))}원` : `${L.net < 0 ? '모자라는 돈' : '남는 돈'} ${wn(Math.abs(L.net))}원`}</small></h3>
     <div class="lg-cols"><div class="lg-col in"><div class="lg-hd"><b>＋ 들어온 돈</b><em>${wn(L.tin)}</em></div><ul>${L.IN.map(li).join('') || '<li class="muted"><span>아직 없어요</span></li>'}</ul></div>
     <div class="lg-col out"><div class="lg-hd"><b>− 나간 돈</b><em>${wn(L.tout)}</em></div><ul>${L.OUT.map(li).join('') || '<li class="muted"><span>아직 없어요</span></li>'}</ul></div></div>
     ${ad ? `<div class="lg-add"><div class="stl-seg" role="group" aria-label="구분">${[['out', '− 지출'], ['in', '＋ 매입']].map(([k, t]) => `<button class="${kd === k ? 'on' : ''}" data-act="lgkind" data-v="${k}" aria-pressed="${kd === k}">${t}</button>`).join('')}</div><input id="lg-memo" class="inp" maxlength="40" placeholder="${kd === 'out' ? '내용 (예: 조끼 구입, 공 바람 넣기)' : '내용 (예: 홍길동 찬조, 게스트비)'}"><span class="stl-m"><input id="lg-amt" class="inp" inputmode="numeric" placeholder="0" aria-label="금액"><em>원</em></span><button class="btn sm primary" data-act="lgadd" data-id="${s.date}">추가</button></div>` : ''}
@@ -3265,10 +3268,10 @@ function viewFee() { const ids = Object.keys(S.sessions).filter(id => { const s 
   return `<div class="fee">
   <div class="fee-kpi"><div class="kpi"><small>들어온 돈 (매입)</small><b class="pos">${wn(T('tin'))}<em>원</em></b><i>${shown.length}경기</i></div><div class="kpi"><small>나간 돈 (지출)</small><b class="neg">${wn(T('tout'))}<em>원</em></b><i>구장비·사례금·환급·기타</i></div><div class="kpi hl"><small>${T('net') < 0 ? '모자라는 돈' : '남는 돈'}</small><b class="${T('net') < 0 ? 'neg' : ''}">${T('net') < 0 ? '−' : ''}${wn(Math.abs(T('net')))}<em>원</em></b><i>들어온 돈 − 나간 돈</i></div></div>
   ${mk.length > 1 ? `<div class="stl-seg fee-ft" role="group" aria-label="달">${[['all', '전체'], ...mk.map(m => [m, +m.slice(5) + '월'])].map(([k, t]) => `<button class="${sel === k ? 'on' : ''}" data-act="feemonth" data-v="${k}">${t}</button>`).join('')}</div>` : ''}
-  <div class="fee-games">${shown.map(({ id, s, L }) => `<section class="panel pad lg fg"><div class="fg-hd"><button class="linkbtn" data-act="gosettle" data-id="${id}">${fmtDate(id)} 경기</button><small>${esc(venueTxt(s) || '')} · ${s.closed ? '정산 완료' : '정산 전'}</small><b class="${L.net < 0 ? 'neg' : 'pos'}">${L.net < 0 ? '모자람 ' : '남음 '}${sgn(L.net)}</b></div>
-    <div class="lg-cols"><div class="lg-col in"><div class="lg-hd"><b>＋ 들어온 돈</b><em>${wn(L.tin)}</em></div><ul>${L.IN.map(x => `<li><span>${esc(x.memo)}</span><b>${wn(x.amt)}</b></li>`).join('') || '<li class="muted"><span>없어요</span></li>'}</ul></div>
+  <div class="fee-games">${shown.map(({ id, s, L }) => `<section class="panel pad lg fg"><div class="fg-hd"><button class="linkbtn" data-act="gosettle" data-id="${id}">${fmtDate(id)} 경기</button><small>${esc(venueTxt(s) || '')} · ${s.closed ? '정산 완료' : '정산 전'}</small><b class="${L.net < 0 ? 'neg' : 'pos'}">${L.net < 0 ? '모자람 ' : '남음 '}${sgn(L.net)}</b>${L.pending ? `<small class="lg-wait" style="flex-basis:100%">아직 받을 돈 ${wn(L.pending)}원 · 다 받으면 ${sgn(L.expNet)}</small>` : ''}</div>
+    <div class="lg-cols"><div class="lg-col in"><div class="lg-hd"><b>＋ 들어온 돈</b><em>${wn(L.tin)}</em></div><ul>${L.IN.map(x => `<li><span>${esc(x.memo)}${x.wait ? ` <small class="lg-wait">받을 돈 ${wn(x.wait)}원 남음</small>` : ''}</span><b>${wn(x.amt)}</b></li>`).join('') || '<li class="muted"><span>없어요</span></li>'}</ul></div>
     <div class="lg-col out"><div class="lg-hd"><b>− 나간 돈</b><em>${wn(L.tout)}</em></div><ul>${L.OUT.map(x => `<li><span>${esc(x.memo)}${x.left ? ' <b class="warn-t">송금 전</b>' : ''}</span><b>${wn(x.amt)}</b></li>`).join('') || '<li class="muted"><span>없어요</span></li>'}</ul></div></div></section>`).join('') || '<p class="note">아직 정리할 경기가 없어요. 경기 일정에 구장 예약비를 넣으면 여기에 나와요.</p>'}</div>
-  ${ibm('경기 날짜를 누르면 그 경기의 정산 화면으로 가요. 기타 매입·지출은 정산 화면의 “이 경기 입출금”에서 넣어요. 모두 입금·송금했다고 보고 계산해요.')}</div>` }
+  ${ibm('경기 날짜를 누르면 그 경기의 정산 화면으로 가요. 기타 매입·지출은 정산 화면의 “이 경기 입출금”에서 넣어요. 회원 입금은 정산 ④ 단계에서 입금 확인한 돈만 들어온 돈으로 잡혀요.')}</div>` }
 function viewNoticeMenu() {
   const nt = S.noticeTab || 'team';
   let h = subnav([['team', '팀 공지'], ['month', '월간 일정표'], ['recruit', '신청 안내 글'], ['push', '알림 보내기'], ['fee', '경기별 입출금']], nt, 'ntab');
