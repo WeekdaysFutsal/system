@@ -2116,3 +2116,5 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .fg-hd small{color:var(--muted);font-size:12px;flex:1;min-width:0}
 .fg-hd b{font-family:var(--latin);font-weight:800}
 .fg-hd b.pos{color:#4ADE80}.fg-hd b.neg{color:#FF9C9C}
+.pay-sum{display:block;font-size:12.5px;color:var(--ink);opacity:.85;margin:1px 0}.pay-sum b{font-weight:800}
+:root{--cssv:"0.4.76"}

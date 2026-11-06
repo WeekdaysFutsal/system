@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.75';
+const APP_VERSION = '0.4.76';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1400,6 +1400,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.76','2026.11.06',['예약자 사례금은 구장 예약비와 함께 미리(구장 예약 때) 보내는 돈이라, 경기 정산에서 예약자에게 −사례금으로 빼 주지 않아요 · 예약자도 다른 참가자와 똑같이 자기 몫을 내요','[운영진] 정산 화면의 송금 기록이 “구장비 · 사례금 송금”으로 바뀌어 예약자마다 구장비 + 사례금 = 보낼 돈을 보여 주고, 지급 완료 체크 하나로 둘 다 기록해요','[운영진] 이 경기 입출금의 사례금도 구장비 송금 상태(송금 전/완료)를 따라가요']],
   ['0.4.75','2026.11.06',['[운영진] 통장 잔액 기능(잔액 넣기·잔액 계산·잔액 다시 맞추기)을 모두 뺐어요','[운영진] 정산 화면의 통장 잔액 카드 자리에 “이 경기 입출금”이 생겼어요: 들어온 돈(회원 입금·기타 매입)과 나간 돈(구장 예약비·예약자 사례금·회원에게 보낼 돈·기타 지출), 남는 돈을 한눈에 보고, 찬조금·장비 구입 같은 기타 매입·지출을 그 경기에 넣어요','[운영진] 운영 → “회비 관리”는 “경기별 입출금”으로 바뀌어 경기마다 들어온 돈·나간 돈·남는 돈과 달별 합계를 보여 줘요']],
   ['0.4.74','2026.11.06',['[운영진] 경기 추가(일정 등록) 때 구장 예약비와 예약자 사례금(1인당)을 넣고, 예약비를 예약자에게 보냈으면 “지급 완료”를 체크해요','[운영진] 경기 일정 관리 표에 “예약비 · 사례금” 칸이 생겼어요. 눌러서 이미 만든 경기도 금액과 지급 여부를 고쳐요','운영비 정산은 일정에 넣은 예약비·사례금을 그대로 불러와요','예약자 사례금은 이제 경기 정산(회원이 낼 돈·정산 공지 이미지·안내문)에 넣지 않고, 회비 관리 내역에 “예약자 사례금” 지출로만 들어가요 · 이미 정산 완료한 경기는 예전 방식 그대로']],
   ['0.4.73','2026.11.06',['신청 현황의 신청 시각을 서버에 기록된 자리수까지 모두 보여 줘요: 시:분:초 + 소수점 6자리(마이크로초), 서버 시각이 없는 신청은 3자리(밀리초)','같은 밀리초 안의 신청도 마이크로초까지 비교해서 순서를 정해요','모바일에서는 시:분:초 아래 줄에 소수점 이하를 작게 표시']],
@@ -2233,7 +2234,7 @@ function viewManageList() {
       <td><input class="cell w-venue" type="text" value="${esc(venueTxt(s) || '')}" list="venue-list" data-in="cell" data-sid="${id}" data-f="venue"></td>
       <td><input class="cell w-num" type="number" min="3" max="60" value="${s.capacity || ''}" data-in="cell" data-sid="${id}" data-f="capacity"></td>
       <td><button class="cellbtn staffcell" data-act="staffedit" data-id="${id}">${(s.p0 || []).length || (s.ops || []).length ? `<span>예약 ${esc(idsToNames(s.p0) || '-')}</span><span>운영 ${esc(idsToNames(s.ops) || '-')}</span>` : '<span class="muted">+ 지정</span>'}</button></td>
-      <td>${(() => { const st = stlGet(id), L = stlPayList(s); const fee = st.fee + (nC(s) === 2 ? st.fee2 : 0); const paid = L.length && L.filter(x => x.amt > 0 || x.def > 0).every(x => x.done); return `<button class="cellbtn staffcell" data-act="feeedit" data-id="${id}">${fee ? `<span>예약비 ${wn(fee)}${L.length ? (paid ? ' <b class="ok-t">✓지급</b>' : ' <b class="warn-t">미지급</b>') : ''}</span>` : '<span class="muted">예약비 + 입력</span>'}<span>사례금 ${wn(st.reward ?? (+stlCfg().reward || 0))}${st.reward == null ? ' <small class="muted">기본</small>' : ''}</span></button>` })()}</td>
+      <td>${(() => { const st = stlGet(id), L = stlPayList(s); const fee = st.fee + (nC(s) === 2 ? st.fee2 : 0); const paid = L.length && L.filter(x => x.amt > 0 || x.def > 0 || x.rw > 0).every(x => x.done); return `<button class="cellbtn staffcell" data-act="feeedit" data-id="${id}">${fee ? `<span>예약비 ${wn(fee)}${L.length ? (paid ? ' <b class="ok-t">✓지급</b>' : ' <b class="warn-t">미지급</b>') : ''}</span>` : '<span class="muted">예약비 + 입력</span>'}<span>사례금 ${wn(st.reward ?? (+stlCfg().reward || 0))}${st.reward == null ? ' <small class="muted">기본</small>' : ''}</span></button>` })()}</td>
       <td class="num"><b>${appTotal(s)}</b>${s.capacity ? `<small class="muted"> / ${s.capacity}</small>` : ''}</td>
       <td><button class="cellbtn staffcell" data-act="dutyedit" data-id="${id}">${(s.duty?.ball || []).length || (s.duty?.drink || []).length ? `<span>공 ${esc(idsToNames(s.duty?.ball) || '-')}</span><span>물 ${esc(idsToNames(s.duty?.drink) || '-')}</span>` : `<span class="muted">${dutyReqLabel(s) || (applyClosed(s) ? '+ 지정' : '신청 없음')}</span>`}</button></td>
       <td><button class="cellbtn staffcell" data-act="parkedit" data-id="${id}"><span>신청 ${parkApps(s).length}명</span><span>${(s.parkWin || []).length ? '당첨 ' + esc(idsToNames(s.parkWin)) : '<span class="muted">추첨 전</span>'}</span></button></td>
@@ -2271,11 +2272,11 @@ function calSheet() {
 }
 // 경기 등록·수정: 구장 예약비(+예약자에게 지급했는지)와 예약자 사례금 — 정산 화면에 그대로 불러와요
 function feeFields({ fee, paid, reward, attr, hasRes, two, fee2, paid2 }) { const m = v => v != null && v !== '' && +v ? (+v).toLocaleString('ko-KR') : ''; const dflt = wn(+stlCfg().reward || 0);
-  const row = (lab, f, v, pf, pv) => `<div class="fee-it"><span class="fee-t">${lab}</span><div class="fee-ctl"><span class="stl-m"><input class="inp" inputmode="numeric" placeholder="0" value="${m(v)}" ${attr(f)} aria-label="${lab}"><em>원</em></span><label class="fee-paid ${hasRes ? '' : 'off'}"><input type="checkbox" ${pv ? 'checked' : ''} ${hasRes ? '' : 'disabled'} ${attr(pf)}><span>예약자에게 지급 완료</span></label></div></div>`;
-  return `<div class="field"><span>구장 예약비 · 예약자 사례금${ib('여기 넣은 금액이 경기 정산에 그대로 불러와져요. 예약비는 구장을 예약하며 먼저 낸 예약자에게 모임 돈으로 보내 주는 돈이에요. 보냈으면 “지급 완료”를 체크해요. 사례금은 경기 정산에 넣지 않고 모임 돈에서 따로 나가요(이 경기 입출금의 지출).')}</span><div class="fee-box">
+  const row = (lab, f, v, pf, pv) => `<div class="fee-it"><span class="fee-t">${lab}</span><div class="fee-ctl"><span class="stl-m"><input class="inp" inputmode="numeric" placeholder="0" value="${m(v)}" ${attr(f)} aria-label="${lab}"><em>원</em></span><label class="fee-paid ${hasRes ? '' : 'off'}"><input type="checkbox" ${pv ? 'checked' : ''} ${hasRes ? '' : 'disabled'} ${attr(pf)}><span>예약자에게 지급 완료 <small>(예약비 + 사례금)</small></span></label></div></div>`;
+  return `<div class="field"><span>구장 예약비 · 예약자 사례금${ib('여기 넣은 금액이 경기 정산에 그대로 불러와져요. 예약비는 구장을 예약하며 먼저 낸 예약자에게 모임 돈으로 보내 주는 돈이에요. 사례금도 그때 함께 보내요. 보냈으면 “지급 완료”를 체크해요. 사례금은 미리 받은 돈이라 경기 정산(회원이 낼 돈)에는 넣지 않아요.')}</span><div class="fee-box">
     ${two ? row('1구장 예약비', 'fee', fee, 'paid', paid) + row('2구장 예약비', 'fee2', fee2, 'paid2', paid2) : row('구장 예약비', 'fee', fee, 'paid', paid)}
     ${hasRes ? '' : '<small class="muted">지급 완료 체크는 구장 예약자를 정하면 할 수 있어요.</small>'}
-    <div class="fee-it"><span class="fee-t">예약자 사례금 <small>1인당 · 모임 돈에서 지급 (정산 미포함)</small></span><div class="fee-ctl"><span class="stl-m"><input class="inp" inputmode="numeric" placeholder="${dflt}" value="${reward != null && reward !== '' ? (+reward).toLocaleString('ko-KR') : ''}" ${attr('reward')} aria-label="예약자 사례금 1인당"><em>원</em></span>${reward == null || reward === '' ? `<small class="muted">비우면 기본 ${dflt}원</small>` : ''}</div></div></div></div>` }
+    <div class="fee-it"><span class="fee-t">예약자 사례금 <small>1인당 · 예약비와 함께 미리 지급 (경기 정산 미포함)</small></span><div class="fee-ctl"><span class="stl-m"><input class="inp" inputmode="numeric" placeholder="${dflt}" value="${reward != null && reward !== '' ? (+reward).toLocaleString('ko-KR') : ''}" ${attr('reward')} aria-label="예약자 사례금 1인당"><em>원</em></span>${reward == null || reward === '' ? `<small class="muted">비우면 기본 ${dflt}원</small>` : ''}</div></div></div></div>` }
 function feeEditSheet(sid) { const s = S.sessions[sid]; if (!s) return ''; const st = stlGet(sid); const L = stlPayList(s); const two = nC(s) === 2; const d = S.feeDraft || {};
   const pd = i => d['paid' + (i ? 2 : '')] ?? !!L[i]?.done;
   return `<h4>💰 ${fmtDate(sid)} 구장 예약비 · 사례금</h4><p class="muted" style="margin-top:-4px">예약자: ${esc(idsToNames(s.p0) || '없음')}</p>
@@ -2420,10 +2421,10 @@ const tsDay = t => { const d = new Date(t || Date.now()); return d.getFullYear()
 function gameEnded(x) { if (x.date < today()) return true; const ms = sessMatches(x.date); return ms.length > 0 && ms.every(m => m.status === 'done') }
 const sgn = v => (v > 0 ? '+' : v < 0 ? '−' : '') + wn(Math.abs(v));
 function ledgerOf(s, C) { C = C || stlCalc(s); const ex = Array.isArray(s.settle?.extra) ? s.settle.extra.filter(x => x && +x.amt) : [];
-  const pay = stlPayList(s).filter(x => x.amt > 0); const court = pay.length ? pay.reduce((a, x) => a + x.amt, 0) : C.F;
+  const pay = stlPayList(s).filter(x => x.amt > 0 || x.rw > 0); const court = pay.length ? pay.reduce((a, x) => a + x.amt, 0) : C.F;
   const IN = [{ k: 'mem', memo: `회원 입금 (${C.rows.filter(x => x.owe > 0).length}명)`, amt: C.inSum }, ...ex.filter(x => x.k === 'in').map(x => ({ ...x, k: 'xin' }))].filter(x => x.amt > 0);
   const OUT = [{ k: 'court', memo: pay.length ? `구장 예약비 (${pay.map(x => pname(x.pid)).join(', ')})` : '구장 예약비', amt: court, left: pay.filter(x => !x.done).length },
-    ...(C.rb ? [{ k: 'rwd', memo: `예약자 사례금 (${wn(C.Rper)}원 × ${C.Rper ? Math.round(C.Rtot / C.Rper) : 0}명)`, amt: C.Rtot }] : []),
+    ...(C.rb ? [{ k: 'rwd', memo: `예약자 사례금 (${wn(C.Rper)}원 × ${C.Rper ? Math.round(C.Rtot / C.Rper) : 0}명 · 구장비와 함께 미리)`, amt: C.Rtot, left: pay.length ? pay.filter(x => !x.done).length : 0 }] : []),
     { k: 'back', memo: '회원에게 보낼 돈 (물 구입비 등)', amt: C.outSum }, ...ex.filter(x => x.k === 'out').map(x => ({ ...x, k: 'xout' }))].filter(x => x.amt > 0);
   const tin = IN.reduce((a, x) => a + x.amt, 0), tout = OUT.reduce((a, x) => a + x.amt, 0); return { IN, OUT, tin, tout, net: tin - tout, ex } }
 function stlLedger(s, C) { const L = ledgerOf(s, C); const ad = S.admin; const kd = S.lgKind || 'out';
@@ -2434,16 +2435,18 @@ function stlLedger(s, C) { const L = ledgerOf(s, C); const ad = S.admin; const k
     ${ad ? `<div class="lg-add"><div class="stl-seg" role="group" aria-label="구분">${[['out', '− 지출'], ['in', '＋ 매입']].map(([k, t]) => `<button class="${kd === k ? 'on' : ''}" data-act="lgkind" data-v="${k}" aria-pressed="${kd === k}">${t}</button>`).join('')}</div><input id="lg-memo" class="inp" maxlength="40" placeholder="${kd === 'out' ? '내용 (예: 조끼 구입, 공 바람 넣기)' : '내용 (예: 홍길동 찬조, 게스트비)'}"><span class="stl-m"><input id="lg-amt" class="inp" inputmode="numeric" placeholder="0" aria-label="금액"><em>원</em></span><button class="btn sm primary" data-act="lgadd" data-id="${s.date}">추가</button></div>` : ''}
     <p class="note" style="margin:8px 0 0"><button class="linkbtn" data-act="gofee">경기별 입출금 모아 보기 ›</button></p></section>` }
 /* 구장비 송금 기록: 운영진이 구장을 예약하고 먼저 낸 회원(예약자)에게 구장비를 보내면 체크해요. 정산 확정·잠금과 상관없이 언제든 기록해요. */
+// 예약자 사례금 1인당 (경기마다 넣은 값, 없으면 설정 기본값) — 구장 예약비를 보낼 때 함께 미리 보내요
+const stlRwdPer = s => { const v = s?.settle?.reward; return Math.max(0, Math.round(v != null && v !== '' ? +v : +stlCfg().reward || 0)) };
 function stlPayList(s) { const st = stlGet(s.date); const rec = s.settle?.payout || {}; const two = nC(s) === 2;
-  return (s.p0 || []).filter(p => p && S.players[p]).map((pid, i) => { const def = two ? (i === 0 ? st.fee : i === 1 ? st.fee2 : 0) : (i === 0 ? st.fee : 0); const r = rec[pid] || {}; return { pid, court: two ? i + 1 : 0, def, amt: r.amt != null ? +r.amt : def, done: !!r.done, at: r.at || 0, by: r.by || '', paidAt: r.paidAt || '' } }) }
-const stlPayLeft = s => stlPayList(s).filter(x => !x.done && x.amt > 0);
+  return (s.p0 || []).filter(p => p && S.players[p]).map((pid, i) => { const def = two ? (i === 0 ? st.fee : i === 1 ? st.fee2 : 0) : (i === 0 ? st.fee : 0); const r = rec[pid] || {}; const rw = stlRwdPer(s); return { pid, court: two ? i + 1 : 0, def, rw, amt: r.amt != null ? +r.amt : def, done: !!r.done, at: r.at || 0, by: r.by || '', paidAt: r.paidAt || '' } }) }
+const stlPayLeft = s => stlPayList(s).filter(x => !x.done && x.amt + x.rw > 0);
 function stlPayPanel(s) { const L = stlPayList(s); const dt = v => { const d = new Date(v); return `${d.getMonth() + 1}/${d.getDate()} ${p2(d.getHours())}:${p2(d.getMinutes())}` };
   const body = !L.length ? '<p class="note" style="margin:0">예약자를 정하면 여기에 나와요.</p>' : L.map(x => `<div class="pay-r ${x.done ? 'done' : ''}">
     <button class="pay-ck" data-act="stlpay" data-id="${x.pid}" aria-pressed="${x.done}" aria-label="${esc(pname(x.pid))} 구장비 송금 ${x.done ? '완료 취소' : '완료'}">${x.done ? '✓' : ''}</button>
-    <div class="pay-who"><b>${esc(pname(x.pid))}</b><small>${x.court ? x.court + '구장 예약자' : '예약자'}${x.done ? ` · ✓ 송금 완료 <span class="muted">(${dt(x.at)} 체크${x.by ? ' · ' + esc(x.by) : ''})</span>` : ' · 송금 전'}</small></div>
-    <span class="stl-m pay-amt"><input class="inp" inputmode="numeric" data-in="stlpayamt" data-id="${x.pid}" value="${x.amt ? x.amt.toLocaleString('ko-KR') : ''}" placeholder="0" aria-label="${esc(pname(x.pid))} 송금액"><em>원</em></span>
+    <div class="pay-who"><b>${esc(pname(x.pid))}</b>${x.rw ? `<span class="pay-sum">구장비 ${wn(x.amt)} + 사례금 ${wn(x.rw)} = <b>${wn(x.amt + x.rw)}원</b></span>` : ''}<small>${x.court ? x.court + '구장 예약자' : '예약자'}${x.done ? ` · ✓ 송금 완료 <span class="muted">(${dt(x.at)} 체크${x.by ? ' · ' + esc(x.by) : ''})</span>` : ' · 송금 전'}</small></div>
+    <span class="stl-m pay-amt"><input class="inp" inputmode="numeric" data-in="stlpayamt" data-id="${x.pid}" value="${x.amt ? x.amt.toLocaleString('ko-KR') : ''}" placeholder="0" aria-label="${esc(pname(x.pid))} 구장비"><em>원</em></span>
     ${x.done ? `<label class="pay-at"><small>입금 일시 <span class="muted">(선택)</span></small><input class="inp" type="datetime-local" data-in="stlpayat" data-id="${x.pid}" value="${esc(x.paidAt)}" aria-label="${esc(pname(x.pid))} 실제 입금 일시"></label>` : ''}</div>`).join('');
-  const left = stlPayLeft(s); return `<section class="panel pad pay-card"><h3 class="stl-h">구장비 송금${ib('구장을 예약하며 구장비를 먼저 낸 예약자에게 모임 돈으로 구장비를 보내면 체크해요. 체크한 시각과 운영진 이름이 자동으로 남고, 실제 입금 일시는 필요할 때만 적어요. 정산을 확정해 잠근 뒤에도 기록할 수 있어요.')}<small class="${left.length ? 'warn' : 'ok'}">${!L.length ? '' : left.length ? `송금 대기 ${left.length}명 · ${wn(left.reduce((a, x) => a + x.amt, 0))}원` : '모두 송금 완료'}</small></h3>${body}</section>` }
+  const left = stlPayLeft(s); return `<section class="panel pad pay-card"><h3 class="stl-h">구장비 · 사례금 송금${ib('사례금은 경기 정산에 넣지 않고, 구장 예약비를 보낼 때 함께 미리 보내요(보통 경기 전, 구장을 예약했을 때). 칸에는 구장비를 넣고, 사례금은 자동으로 더해져요. 구장을 예약하며 구장비를 먼저 낸 예약자에게 모임 돈으로 구장비를 보내면 체크해요. 체크한 시각과 운영진 이름이 자동으로 남고, 실제 입금 일시는 필요할 때만 적어요. 정산을 확정해 잠근 뒤에도 기록할 수 있어요.')}<small class="${left.length ? 'warn' : 'ok'}">${!L.length ? '' : left.length ? `송금 대기 ${left.length}명 · ${wn(left.reduce((a, x) => a + x.amt + x.rw, 0))}원` : '모두 송금 완료'}</small></h3>${body}</section>` }
 function vSettle(s) { const st = stlGet(s.date); const lock = !!s.closed; const ps = stlPeople(s); const all = byName(Object.keys(S.players).filter(p => !ps.includes(p)));
   const C = stlCalc(s);
   return `<div class="stl ${s.closed ? 'locked' : ''}"><div class="stl-head"><h2>💰 경기 운영비 정산<small>${fmtDate(s.date)} · ${esc(venueTxt(s) || '')}</small></h2><div class="row">${nC(s) === 2 ? `<button class="btn sm" data-act="flowgo" data-v="captain">✏️ 구장별 예약자 · 운영자</button>` : `<button class="btn sm" data-act="staffedit" data-id="${s.date}">✏️ 예약자 · 경기 운영자</button>`}<button class="btn sm" data-act="tab" data-v="settings">⚙️ 정산 규칙 설정</button></div></div>
@@ -2456,7 +2459,7 @@ function vSettle(s) { const st = stlGet(s.date); const lock = !!s.closed; const 
     <div class="stl-add"><input id="stl-add" class="inp" list="stl-list" placeholder="명단에 없는 회원 추가 (당일 불참자 등)"><datalist id="stl-list">${all.map(p => `<option value="${esc(pname(p))}">`).join('')}</datalist><button class="btn sm" data-act="stladd" data-id="${s.date}">추가</button></div>
     </section>
   <section id="stl-more">${stlMore(s, C)}</section>
-  ${s.closed ? `<section class="stl-done"><div><b>✅ 정산 완료</b><small>${fmtTS(s.closed.at).replace(/:\d\d\.\d{3}$/, '')}${s.closed.by ? ' · ' + esc(s.closed.by) : ''} · 이 경기의 신청·팀·경기 기록·정산이 모두 잠겨 있어요.${stlPayLeft(s).length ? `<br>💸 구장비 송금 대기: ${stlPayLeft(s).map(x => esc(pname(x.pid)) + ' ' + wn(x.amt) + '원').join(', ')}` : ''}</small></div><button class="btn sm" data-act="stlunlock">🔓 잠금 풀기</button></section>`
+  ${s.closed ? `<section class="stl-done"><div><b>✅ 정산 완료</b><small>${fmtTS(s.closed.at).replace(/:\d\d\.\d{3}$/, '')}${s.closed.by ? ' · ' + esc(s.closed.by) : ''} · 이 경기의 신청·팀·경기 기록·정산이 모두 잠겨 있어요.${stlPayLeft(s).length ? `<br>💸 구장비 송금 대기: ${stlPayLeft(s).map(x => esc(pname(x.pid)) + ' ' + wn(x.amt + x.rw) + '원').join(', ')}` : ''}</small></div><button class="btn sm" data-act="stlunlock">🔓 잠금 풀기</button></section>`
     : `<section class="stl-close"><div><b>정산을 마치면 경기를 마감해요${ib('낼 금액·받을 금액이 이대로 기록되고, 이 경기의 신청·팀·경기 기록·물당 등록·정산을 더 고칠 수 없게 잠가요.')}</b></div></section>`}</div>` }
 /* 정산 결과 공지 이미지 */
 function stlAcct() { const cf = stlCfg(); const a = [cf.bank, cf.acct].map(x => String(x || '').trim()).filter(Boolean).join(' '); return a ? { line: a, holder: String(cf.holder || '').trim() } : null }
@@ -3944,7 +3947,7 @@ document.addEventListener('click', async e => {
     case 'stlpay': { if (!needAdmin()) break; const s1 = S.sessions[S.sid]; const x = stlPayList(s1).find(y => y.pid === id); if (!x) break;
       if (x.done) { if (!confirm(`${pname(id)} 님 구장비 송금 기록을 취소할까요?`)) break; await w(() => S.store.update(sp(S.sid), { [`settle.payout.${id}`]: { done: false, amt: x.amt, at: null, by: null, paidAt: null } }), '송금 기록을 취소했어요.'); break }
       if (!x.amt && !confirm('송금액이 0원이에요. 그래도 완료로 체크할까요?')) break;
-      await w(() => S.store.update(sp(S.sid), { [`settle.payout.${id}`]: { done: true, amt: x.amt, at: Date.now(), by: S.me || '운영진', paidAt: x.paidAt || null } }), `${pname(id)} 님 구장비 ${wn(x.amt)}원 송금 완료로 기록했어요.`); break }
+      await w(() => S.store.update(sp(S.sid), { [`settle.payout.${id}`]: { done: true, amt: x.amt, at: Date.now(), by: S.me || '운영진', paidAt: x.paidAt || null } }), `${pname(id)} 님 구장비${x.rw ? ' + 사례금' : ''} ${wn(x.amt + x.rw)}원 송금 완료로 기록했어요.`); break }
     case 'stlrm': { if (!needAdmin()) break; const st = stlGet(S.sid); await stlPut(S.sid, { add: st.add.filter(p => p !== id), rm: [...new Set([...st.rm, id])] }); break }
     case 'stladd': { if (!needAdmin()) break; const v = document.getElementById('stl-add')?.value || ''; const pid = findPlayer(v); if (!pid) { toast('회원 목록에서 이름을 찾지 못했어요.'); break } const st = stlGet(S.sid); await stlPut(S.sid, { rm: st.rm.filter(p => p !== pid), add: [...new Set([...st.add, pid])] }); break }
     case 'stlcopy': { const ss = S.sessions[S.sid]; const t = stlKakao(ss, stlCalc(ss)); try { await navigator.clipboard.writeText(t); toast('정산 안내문을 복사했어요.') } catch { prompt('아래 내용을 복사하세요', t) } break }
@@ -4285,4 +4288,4 @@ function swipeTab(dir) {
   S.store.watchCol('events', docs => { const o = { ...(S.oldEvents || {}) }; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); S.events = o; renderSoon() }, { where: [['session', '>=', S.cut]] }, onErr);
   if (!IS_ARTIFACT && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => r.update()).catch(() => { });
 })();
-;window.__T={stlCalc,drawSettle,stlKakao,S,render,M,sessMatches,standings,TK,NG,nT,nC,genGames,courtMs,stlCalc,pickTeamAt,elapsed};
+;window.__T={stlCalc,S,render,M,sessMatches,standings,TK,NG,nT,nC,genGames,courtMs,stlCalc,pickTeamAt,elapsed};
