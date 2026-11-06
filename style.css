@@ -2156,3 +2156,7 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .db-zero{font-size:12px;font-weight:800;color:#7FE3F0;padding:3px 9px;border-radius:999px;background:rgba(127,227,240,.12)}
 .db0{margin-top:8px;justify-self:start}
 :root{--cssv:"0.4.79"}
+/* 작은 버튼은 글자가 꺾이지 않게 */
+.btn.sm{white-space:nowrap}
+.stl-head .row{flex-wrap:wrap;gap:6px}
+:root{--cssv:"0.4.80"}

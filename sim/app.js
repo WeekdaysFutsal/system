@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.79';
+const APP_VERSION = '0.4.80';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1400,6 +1400,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.80','2026.11.06',['작은 버튼 글자가 두 줄로 꺾이지 않게 정리 (정산 화면 위 “예약자·운영자”, “정산 규칙” 버튼 등)']],
   ['0.4.79','2026.11.06',['물당 구입 금액에서 “미제출”과 “0원(산 것 없음)”을 구분해요. 가지고 있던 물을 가져왔다면 물당 등록 화면의 “산 게 없어요”로 0원 등록','[운영진] 정산 ① 지출 확인의 물당 칸: 비어 있으면 미제출, “0원 처리” 버튼으로 0원 기록 · 칸을 지우면 다시 미제출로 돌아가요 · 미제출이 있으면 지출 확인 단계가 완료로 표시되지 않아요']],
   ['0.4.78','2026.11.06',['[운영진] 운영비 정산을 4단계로 새로 만들었어요: ① 지출 확인(구장 사용료·사례금·물 구입·송금) → ② 참가자·역할(정산 대상과 제외 인원을 나눠서) → ③ 금액 확정(1인 계산·누가 얼마·정산표) → ④ 공지·입금','[운영진] 새 기능: ④ 단계에서 회원 입금(받을 돈)과 모임에서 보낸 돈을 이름을 눌러 체크해요. 정산을 잠근 뒤에도 체크할 수 있어요','[운영진] 아래 버튼이 단계를 따라 “다음: …” → “정산 확정하고 잠그기” → “공지·입금 확인”으로 바뀌어요']],
   ['0.4.77','2026.11.06',['예약자 사례금 계산을 바로잡았어요: 구장 예약비(구장 사용료 + 사례금)로 예약자에게 미리 보내고, 정산에서는 사례금을 참가자가 나눠 내요(예약자는 사례금 몫에서 빠짐). 미리 받았으니 정산에서 예약자에게 −사례금으로 빼 주지 않아요','운영진이 구장을 예약한 경우 사례금이 없어요 (참가자도 사례금 몫을 안 내요)','정산 공지 이미지·안내문에 다시 사례금이 지출로 나와요','이미 정산 완료한 경기도 같은 규칙으로 다시 보여 줘요 (예약자에게 빼 주던 사례금만 없어짐)']],
@@ -2493,7 +2494,7 @@ function vSettle(s) { const st = stlGet(s.date); const lock = !!s.closed; const 
     ${s.closed ? `<section class="stl-done"><div><b>✅ 정산 완료</b><small>${fmtTS(s.closed.at).replace(/:\d\d\.\d{3}$/, '')}${s.closed.by ? ' · ' + esc(s.closed.by) : ''} · 이 경기의 신청·팀·경기 기록·정산이 모두 잠겨 있어요.${stlPayLeft(s).length ? `<br>💸 구장비 송금 대기: ${stlPayLeft(s).map(x => esc(pname(x.pid)) + ' ' + wn(x.amt + x.rw) + '원').join(', ')}` : ''}</small></div><button class="btn sm" data-act="stlunlock">🔓 잠금 풀기</button></section>`
     : `<section class="stl-close"><div><b>정산을 마치면 경기를 마감해요${ib('낼 금액·받을 금액이 이대로 기록되고, 이 경기의 신청·팀·경기 기록·물당 등록·정산을 더 고칠 수 없게 잠가요.')}</b></div></section>`}`;
   else body = `<div class="stl-grid"><div class="stl-col">${stlShare(s, C)}</div><div class="stl-col"><div id="stl-recv">${stlRecvPanel(s, C)}</div></div></div>`;
-  return `<div class="stl ${lock ? 'locked' : ''}"><div class="stl-head"><h2>💰 경기 운영비 정산<small>${fmtDate(s.date)} · ${esc(venueTxt(s) || '')}${lock ? ' · <b class="ok-t">정산 완료</b>' : ''}</small></h2><div class="row">${nC(s) === 2 ? `<button class="btn sm" data-act="flowgo" data-v="captain">✏️ 구장별 예약자 · 운영자</button>` : `<button class="btn sm" data-act="staffedit" data-id="${s.date}">✏️ 예약자 · 경기 운영자</button>`}<button class="btn sm" data-act="tab" data-v="settings">⚙️ 정산 규칙 설정</button></div></div>
+  return `<div class="stl ${lock ? 'locked' : ''}"><div class="stl-head"><h2>💰 경기 운영비 정산<small>${fmtDate(s.date)} · ${esc(venueTxt(s) || '')}${lock ? ' · <b class="ok-t">정산 완료</b>' : ''}</small></h2><div class="row">${nC(s) === 2 ? `<button class="btn sm" data-act="flowgo" data-v="captain">✏️ 구장별 예약자·운영자</button>` : `<button class="btn sm" data-act="staffedit" data-id="${s.date}">✏️ 예약자·운영자</button>`}<button class="btn sm" data-act="tab" data-v="settings">⚙️ 정산 규칙</button></div></div>
   ${steps}<div class="stl-body">${body}</div>
   <div class="stl-nav">${k > 0 ? `<button class="btn" data-act="stlstep" data-v="${k - 1}">← ${STL_STEPS[k - 1][1]}</button>` : '<span></span>'}${k < 3 ? `<button class="btn ${k === 2 && !lock ? '' : 'primary'}" data-act="stlstep" data-v="${k + 1}">${STL_STEPS[k + 1][1]} →</button>` : ''}</div></div>` }
 /* 정산 결과 공지 이미지 */
@@ -4327,4 +4328,4 @@ function swipeTab(dir) {
   S.store.watchCol('events', docs => { const o = { ...(S.oldEvents || {}) }; docs.forEach(d => { const { id, ...rest } = d; o[id] = rest }); S.events = o; renderSoon() }, { where: [['session', '>=', S.cut]] }, onErr);
   if (!IS_ARTIFACT && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => r.update()).catch(() => { });
 })();
-;window.__T={stlCalc,S,render,M,sessMatches,standings,TK,NG,nT,nC,genGames,courtMs,stlCalc,pickTeamAt,elapsed};
+;window.__T={S,render,M,sessMatches,standings,TK,NG,nT,nC,genGames,courtMs,stlCalc,pickTeamAt,elapsed};
