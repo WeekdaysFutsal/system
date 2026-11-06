@@ -2152,3 +2152,7 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 .rv-r.on{border-color:color-mix(in srgb,var(--accent) 55%,transparent);background:color-mix(in srgb,var(--accent) 10%,var(--surface2))}
 .rv-r.on i{background:var(--accent);border-color:var(--accent);color:#0B0D10}
 :root{--cssv:"0.4.78"}
+.stl-dr.unreg{border-color:color-mix(in srgb,#FBBF24 45%,var(--line))}
+.db-zero{font-size:12px;font-weight:800;color:#7FE3F0;padding:3px 9px;border-radius:999px;background:rgba(127,227,240,.12)}
+.db0{margin-top:8px;justify-self:start}
+:root{--cssv:"0.4.79"}
