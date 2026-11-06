@@ -2068,5 +2068,22 @@ body:has(.chatdock) .nb-sp{height:calc(var(--cdh,0px) + 96px)!important}@media (
 @media (min-width:700px){.ts{flex-direction:row;align-items:baseline;gap:0}.ts .tsd{display:inline;margin-right:4px}.ts b{font-size:inherit}.ts small{font-size:inherit}}
 .aptbl td.num{overflow:visible;text-overflow:clip}
 :root{--cssv:"0.4.73"}
+/* 일정 등록: 구장 예약비 · 사례금 */
+.fee-box{display:flex;flex-direction:column;gap:12px;margin-top:4px;padding:12px;border-radius:14px;background:var(--surface2);border:1px solid var(--line)}
+.fee-it{display:flex;flex-direction:column;gap:6px}
+.fee-t{font-size:13.5px;font-weight:800;color:var(--ink)}
+.fee-t small{display:block;margin-top:2px;font-size:11.5px;font-weight:600;color:var(--muted)}
+.fee-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px}
+.fee-ctl .stl-m{flex:0 0 auto;min-width:0}
+.fee-ctl .stl-m .inp{width:140px}
+.field .fee-paid{display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:13.5px;font-weight:700;color:var(--ink);cursor:pointer;white-space:nowrap}
+.fee-paid input{width:18px;height:18px;margin:0;accent-color:var(--accent);flex:none}
+.fee-paid:has(input:checked){border-color:color-mix(in srgb,var(--accent) 60%,transparent);background:color-mix(in srgb,var(--accent) 12%,var(--surface))}
+.fee-paid.off{opacity:.5;cursor:not-allowed}
+.ok-t{color:#4ADE80;font-weight:800;font-size:11.5px}.warn-t{color:#FBBF24;font-weight:800;font-size:11.5px}
+.stl-rw small{color:var(--muted)}
+:root{--cssv:"0.4.74"}
+.fk-rwd{background:rgba(198,255,61,.12);color:var(--accent);border-color:transparent}
+@media (min-width:900px){.subnav + .subact.up{z-index:12}}
 
 #simbar{position:sticky;top:0;z-index:50;background:#FFD21F;color:#1A1400;font:800 12.5px/1.3 var(--body);padding:6px 10px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;justify-content:center}#simbar label{display:flex;gap:6px;align-items:center}#simbar select{font:700 12.5px var(--body);padding:3px 6px;border-radius:6px;border:1px solid #8a7300;background:#fff8d0;color:#1A1400;max-width:62vw}
