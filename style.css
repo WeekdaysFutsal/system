@@ -2216,3 +2216,9 @@ button.metag{border:0;cursor:pointer;font:inherit}
 :root{--cssv:"0.4.88"}
 :root{--cssv:"0.4.89"}
 :root{--cssv:"0.4.90"}
+/* 주차 신청 목록: 이름 아래 상태, 차량번호는 같은 줄 맞춤 */
+.prow .pnm{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.prow .pnm b{flex:none;font-size:16px}
+.prow .pnm small{color:var(--muted);font-weight:700}
+.prow .car{flex:none;font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+:root{--cssv:"0.4.91"}

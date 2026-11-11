@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.90';
+const APP_VERSION = '0.4.91';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1395,6 +1395,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.91','2026.11.11',['[운영진] 주차 추첨이 “저장할 수 없는 값이 있어요” 오류로 안 되던 문제를 고쳤어요 (사다리 모양을 저장하는 방식 수정)','[운영진] 주차 신청자 목록에서 “대기 · 선발되면 대상” 글씨가 두 줄로 꺾이지 않게 정리']],
   ['0.4.90','2026.11.10',['대기 중에 신청을 취소한 사람도 신청 현황의 취소자 명단에 “대기 취소”로 남아요 (전에는 선발 상태에서 취소한 사람만 남았어요)']],
   ['0.4.89','2026.11.06',['알림이 기본으로 켜져요: 로그인한 회원이 아직 알림 허용을 정하지 않았으면 처음 화면을 누를 때 한 번 허용을 물어봐요 (직접 끈 사람은 그대로 꺼 둬요)','앱이 업데이트돼도 알림이 계속 오도록 업데이트 직후 알림 등록을 다시 맞춰요 · 휘슬·알림 설정은 이 폰과 서버에 함께 저장돼 업데이트 뒤에도 그대로예요']],
   ['0.4.88','2026.11.06',['날씨 배경을 경기 당일뿐 아니라 다음 경기 카드에도 보여 줘요: 그 경기 날 킥오프 시각의 예보로 표현 (예보는 15일 뒤 경기까지 나와요)']],
@@ -2894,7 +2895,7 @@ function parkSheet(sid) {
   const spin = S.parkSpin && S.parkSpin.sid === sid;
   let h = `<h4>${fmtDate(sid)} 주차 추첨</h4><p>${P.auto.length ? `${P.auto.length}명 확정 + ` : ''}대상 ${elig.length}명 중 ${P.seats}명 추첨${ib('선발된 신청자만 추첨해요. 신청자가 자리보다 많으면 지난 경기 당첨자는 추첨에서 빠지고, 자리가 남을 때만 지난 당첨자끼리 추첨해요.')}</p>`;
   h += `<div class="panel plist ${spin ? 'spin' : ''}">${list.length ? list.map(a => { const ok = ps.has(a.pid) && !exc.has(a.pid); const w0 = win.includes(a.pid);
-    return `<div class="prow ${ok ? '' : 'x'} ${w0 ? 'won' : ''} ${spin && S.parkSpin.hl === a.pid ? 'hl' : ''}"><b>${esc(pname(a.pid))}</b><span class="car">${esc(a.car)}</span><small>${w0 ? '🎉 당첨' : !ps.has(a.pid) ? '대기 · 선발되면 대상' : exc.has(a.pid) ? '지난 경기 당첨 · 이번엔 제외' : auto.has(a.pid) ? '자리 확정' : parkBanned(s, a.pid) && P.base.length > parkN(s) ? '지난 당첨 · 남는 자리 추첨' : '추첨 대상'}</small><button class="btn sm" data-act="parkwin" data-id="${a.pid}">${w0 ? '당첨 취소' : '당첨'}</button><button class="btn sm danger" data-act="parkdel" data-id="${a.pid}" aria-label="삭제">×</button></div>` }).join('') : '<p class="empty">아직 주차 신청자가 없어요.</p>'}</div>`;
+    return `<div class="prow ${ok ? '' : 'x'} ${w0 ? 'won' : ''} ${spin && S.parkSpin.hl === a.pid ? 'hl' : ''}"><div class="pnm"><b>${esc(pname(a.pid))}</b><small>${w0 ? '🎉 당첨' : !ps.has(a.pid) ? '신청 대기 중 · 선발되면 추첨 대상' : exc.has(a.pid) ? '지난 경기 당첨 · 이번엔 제외' : auto.has(a.pid) ? '자리 확정' : parkBanned(s, a.pid) && P.base.length > parkN(s) ? '지난 당첨 · 남는 자리 추첨' : '추첨 대상'}</small></div><span class="car">${esc(a.car)}</span><button class="btn sm" data-act="parkwin" data-id="${a.pid}">${w0 ? '당첨 취소' : '당첨'}</button><button class="btn sm danger" data-act="parkdel" data-id="${a.pid}" aria-label="삭제">×</button></div>` }).join('') : '<p class="empty">아직 주차 신청자가 없어요.</p>'}</div>`;
   h += `<div class="panel pad" style="margin-top:10px"><b class="dk">직접 추가</b><div style="display:flex;gap:6px;flex-wrap:wrap"><input id="pk-nm" class="inp" style="flex:1;min-width:110px" type="text" list="pk-list" placeholder="이름"><datalist id="pk-list">${byName(participants(s)).map(id => `<option value="${esc(pname(id))}">`).join('')}</datalist><input id="pk-cr" class="inp" style="flex:1;min-width:110px" type="text" placeholder="차량번호"><button class="btn" data-act="parkadd" data-id="${sid}">추가</button></div></div>`;
   if (!applyClosed(s)) h += `<p class="note">마감 후 추첨할 수 있어요.${ibm(`당첨자는 목록의 "당첨" 버튼으로 직접 정할 수도 있어요.`)}</p>`;
   else h += `<div class="row" style="margin-top:12px"><button class="btn primary" data-act="parkdraw" data-id="${sid}" ${P.base.length && !spin ? '' : 'disabled'}>${win.length ? '🎲 다시 추첨' : `🎲 ${Math.min(PARK_SLOTS, P.base.length)}명 추첨하기`}</button></div>`;
@@ -2902,18 +2903,18 @@ function parkSheet(sid) {
 }
 // 주차 추첨: 사다리타기. 위에 신청자, 아래에 '당첨' 칸을 무작위로 놓고 다리를 따라 내려가요.
 function parkLadderMake(names, seats = PARK_SLOTS) { const n = names.length; const rows = Math.max(8, n * 2); const rungs = [];
-  for (let r = 0; r < rows; r++) { if (n < 2) break; const c = Math.floor(Math.random() * (n - 1)); if (Math.random() < .85) rungs.push([r, c]) }
+  for (let r = 0; r < rows; r++) { if (n < 2) break; const c = Math.floor(Math.random() * (n - 1)); if (Math.random() < .85) rungs.push({ r, c }) } /* Firestore는 배열 안의 배열을 저장 못 해요 → {r,c} */
   const slots = Array.from({ length: n }, (_, i) => i < Math.min(seats, n)); for (let i = n - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [slots[i], slots[j]] = [slots[j], slots[i]] }
   return { names, rows, rungs, slots, at: Date.now() } }
 function parkLadderPaths(L, W, top, bot, pad = 40) { const n = L.names.length; const X = i => n < 2 ? W / 2 : pad + i * (W - pad * 2) / (n - 1); const ry = r => top + (bot - top) * (r + 1) / (L.rows + 1);
-  return L.names.map((pid, c0) => { let c = c0; const pts = [[X(c), top]]; for (let r = 0; r < L.rows; r++) { const g = L.rungs.find(x => x[0] === r && (x[1] === c || x[1] === c - 1)); if (g) { const y = ry(r); pts.push([X(c), y]); c = g[1] === c ? c + 1 : c - 1; pts.push([X(c), y]) } } pts.push([X(c), bot]); return { pid, to: c, pts, win: !!L.slots[c] } }) }
+  return L.names.map((pid, c0) => { let c = c0; const pts = [[X(c), top]]; for (let r = 0; r < L.rows; r++) { const g = rungList(L).map(x => [x.r, x.c]).find(x => x[0] === r && (x[1] === c || x[1] === c - 1)); if (g) { const y = ry(r); pts.push([X(c), y]); c = g[1] === c ? c + 1 : c - 1; pts.push([X(c), y]) } } pts.push([X(c), bot]); return { pid, to: c, pts, win: !!L.slots[c] } }) }
 const PL_COL = ['#C6FF3D', '#6EA8FF', '#FFB547', '#FF7A9A', '#7FE3F0', '#B9C3FF', '#F5C400', '#9BE8A0', '#FF9F6E', '#D9A6FF'];
 function parkLadderSVG(s) { const L = s.parkLadder; if (!L) return ''; const n = L.names.length; const W = Math.max(320, n * 74), top = 46, bot = 46 + Math.max(220, L.rows * 22), H = bot + 50; const P = parkLadderPaths(L, W, top, bot);
   const X = i => n < 2 ? W / 2 : 40 + i * (W - 80) / (n - 1); const ry = r => top + (bot - top) * (r + 1) / (L.rows + 1);
   const len = pts => pts.reduce((a, p, i) => i ? a + Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) : 0, 0);
   return `<svg class="pl-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="주차 사다리 결과: ${P.filter(p => p.win).map(p => esc(pname(p.pid))).join(', ')} 당첨">
     ${L.names.map((_, i) => `<line x1="${X(i)}" y1="${top}" x2="${X(i)}" y2="${bot}" class="pl-v"/>`).join('')}
-    ${L.rungs.map(([r, c]) => `<line x1="${X(c)}" y1="${ry(r)}" x2="${X(c + 1)}" y2="${ry(r)}" class="pl-v"/>`).join('')}
+    ${rungList(L).map(({ r, c }) => `<line x1="${X(c)}" y1="${ry(r)}" x2="${X(c + 1)}" y2="${ry(r)}" class="pl-v"/>`).join('')}
     ${P.map((p, i) => { const l = len(p.pts).toFixed(0); return `<polyline points="${p.pts.map(q => q.join(',')).join(' ')}" fill="none" stroke="${PL_COL[i % PL_COL.length]}" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" style="stroke-dasharray:${l};stroke-dashoffset:${l};animation:pl-draw 1.1s ease ${(i * .45).toFixed(2)}s forwards"/>` }).join('')}
     ${L.names.map((pid, i) => `<text x="${X(i)}" y="${top - 16}" text-anchor="middle" class="pl-nm" fill="${PL_COL[i % PL_COL.length]}">${esc(pname(pid))}</text>`).join('')}
     ${L.slots.map((w, i) => `<g><rect x="${X(i) - 30}" y="${bot + 10}" width="60" height="28" rx="8" class="${w ? 'pl-win' : 'pl-lose'}"/><text x="${X(i)}" y="${bot + 29}" text-anchor="middle" class="${w ? 'pl-wt' : 'pl-lt'}">${w ? '당첨' : '꽝'}</text></g>`).join('')}
@@ -2926,7 +2927,7 @@ async function drawParkImg(sid) { const s = S.sessions[sid]; const L = s.parkLad
   const c = document.createElement('canvas'); c.width = W * 2; c.height = H * 2; const g = c.getContext('2d'); g.scale(2, 2); const F = '"Noto Sans KR","Apple SD Gothic Neo",sans-serif';
   g.fillStyle = '#0B0D10'; g.fillRect(0, 0, W, H); g.fillStyle = '#C6FF3D'; g.font = `900 30px ${F}`; g.textAlign = 'left'; g.fillText(`${fmtDate(sid)} 주차 추첨`, 40, 64); g.fillStyle = '#9AA3AE'; g.font = `500 18px ${F}`; g.fillText(`${venueTxt(s) || ''} · 신청 ${n}명 · ${PARK_SLOTS}자리`, 40, 96);
   const X = i => n < 2 ? W / 2 : PD + i * (W - PD * 2) / (n - 1); const ry = r => top + (bot - top) * (r + 1) / (L.rows + 1);
-  g.strokeStyle = '#3D4450'; g.lineWidth = 4; for (let i = 0; i < n; i++) { g.beginPath(); g.moveTo(X(i), top); g.lineTo(X(i), bot); g.stroke() } L.rungs.forEach(([r, cc]) => { g.beginPath(); g.moveTo(X(cc), ry(r)); g.lineTo(X(cc + 1), ry(r)); g.stroke() });
+  g.strokeStyle = '#3D4450'; g.lineWidth = 4; for (let i = 0; i < n; i++) { g.beginPath(); g.moveTo(X(i), top); g.lineTo(X(i), bot); g.stroke() } rungList(L).forEach(({ r, c: cc }) => { g.beginPath(); g.moveTo(X(cc), ry(r)); g.lineTo(X(cc + 1), ry(r)); g.stroke() });
   P.forEach((p, i) => { g.strokeStyle = PL_COL[i % PL_COL.length]; g.lineWidth = 6; g.lineJoin = 'round'; g.beginPath(); p.pts.forEach((q, k) => k ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])); g.stroke(); g.fillStyle = PL_COL[i % PL_COL.length]; g.font = `800 20px ${F}`; g.textAlign = 'center'; g.fillText(pname(p.pid), X(i), top - 16) });
   L.slots.forEach((w, i) => { g.fillStyle = w ? '#C6FF3D' : '#262B33'; rr(g, X(i) - 44, bot + 14, 88, 40, 10); g.fill(); g.fillStyle = w ? '#0B0D10' : '#9AA3AE'; g.font = `900 20px ${F}`; g.textAlign = 'center'; g.fillText(w ? '당첨' : '꽝', X(i), bot + 41) });
   g.textAlign = 'left'; g.fillStyle = '#F2F4F7'; g.font = `900 24px ${F}`; g.fillText('당첨', 40, bot + 110); let x = 110; (s.parkWin || []).forEach(id => { const tx = pname(id) + ((s.park || {})[id]?.car ? `  ${s.park[id].car}` : ''); g.font = `800 20px ${F}`; const w = g.measureText(tx).width + 28; g.fillStyle = '#C6FF3D'; rr(g, x, bot + 86, w, 36, 18); g.fill(); g.fillStyle = '#0B0D10'; g.fillText(tx, x + 14, bot + 110); x += w + 10 });
