@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.92';
+const APP_VERSION = '0.4.93';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1403,6 +1403,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.93','2026.11.13',['[경기모드] 3팀 경기 순서: 1경기·2경기 대진을 고르면 3경기는 남은 두 팀으로 정해지고, 4경기부터는 1·2·3경기 순서를 되풀이해요 (2경기 때 바꾼 대진이 5·8경기 등에도 반영)']],
   ['0.4.92','2026.11.13',['[경기모드] 골이 들어가면 그 팀 점수를 눌러요 → 양 팀 선수 목록이 팝업으로 떠서 넣은 선수를 골라요 (상대 팀 선수를 고르면 자책골, 선수 미지정 골도 가능)','[경기모드] 선수 목록 자리에 “골 기록 · 현재 순위 · 경기별 기록”을 한 화면에 모았어요 · 경기별 기록에서 끝난 경기를 눌러 점수를 고쳐요','[경기모드] 대진 선택·변경은 점수판 위 “⇅ 대진” 버튼으로 해요 · 위쪽 고정 점수바의 점수를 눌러도 골을 기록해요']],
   ['0.4.91','2026.11.11',['[운영진] 주차 추첨이 “저장할 수 없는 값이 있어요” 오류로 안 되던 문제를 고쳤어요 (사다리 모양을 저장하는 방식 수정)','[운영진] 주차 신청자 목록에서 “대기 · 선발되면 대상” 글씨가 두 줄로 꺾이지 않게 정리']],
   ['0.4.90','2026.11.10',['대기 중에 신청을 취소한 사람도 신청 현황의 취소자 명단에 “대기 취소”로 남아요 (전에는 선발 상태에서 취소한 사람만 남았어요)']],
@@ -3533,7 +3534,18 @@ function mmPairPick(s, m) { const ks = TK(s); const combos = []; for (let i = 0;
 async function mmSetPair(mid, v) { const m = M(mid); if (!m) return; const [x, y] = v.split(''); if ([m.home, m.away].sort().join('') === [x, y].sort().join('')) return;
   const keepH = [x, y].includes(m.home) ? m.home : null; const nh = keepH || x, na = nh === x ? y : x; const od = [m.home, m.away], nw = [nh, na]; const add = nw.find(t => !od.includes(t)); const map = Object.fromEntries(od.map(t => [t, nw.includes(t) ? t : add]));
   if (m.status !== 'pending' && !confirm(`진행 중인 ${m.n}경기 대진을 ${team(cur(), nh).name} vs ${team(cur(), na).name}(으)로 바꿀까요?\n빠진 팀의 골 기록은 새로 들어온 팀으로 옮겨져요.`)) return;
-  await w(async () => { await withTimeout(S.store.update(mp(mid), { home: nh, away: na }), 10000); if (m.status !== 'pending') for (const e of evsOf(mid)) if (map[e.team] && map[e.team] !== e.team) await withTimeout(S.store.update('events/' + e.id, { team: map[e.team] }), 10000) }, `${m.n}경기: ${team(cur(), nh).name} vs ${team(cur(), na).name}`) }
+  await w(async () => { await withTimeout(S.store.update(mp(mid), { home: nh, away: na }), 10000); if (m.status !== 'pending') for (const e of evsOf(mid)) if (map[e.team] && map[e.team] !== e.team) await withTimeout(S.store.update('events/' + e.id, { team: map[e.team] }), 10000);
+    for (const [id, v] of Object.entries(mmCyclePlan(m, nh, na))) await withTimeout(S.store.update(mp(id), v), 10000) }, `${m.n}경기: ${team(cur(), nh).name} vs ${team(cur(), na).name}`) }
+/* 3팀 경기 순서: 1경기·2경기 대진을 고르면 3경기는 남은 두 팀, 4경기부터는 1·2·3경기 순서를 되풀이해요.
+   (4경기 이후를 직접 바꾸면 그 뒤의 같은 순번 경기에만 반영) — 아직 시작 안 한 경기만 바꿔요 */
+function mmCyclePlan(m, nh, na) { const s = S.sessions[m.session]; if (!s || nT(s) !== 3 || nC(s) === 2) return {}; const ms = courtMs(s, mcourt(m)).slice().sort((a, b) => a.n - b.n);
+  const P = {}; ms.forEach(x => P[x.n] = { id: x.id, home: x.home, away: x.away, st: x.status }); P[m.n] = { ...P[m.n], home: nh, away: na }; const up = {};
+  const key = p => [p.home, p.away].sort().join(''); const set = (n, h, aw) => { const g = P[n]; if (!g || g.st !== 'pending' || (g.home === h && g.away === aw)) return; P[n] = { ...g, home: h, away: aw }; up[g.id] = { home: h, away: aw } };
+  if (m.n <= 2 && P[1] && P[2] && P[3]) { const all = ['AB', 'AC', 'BC'].filter(k => TK(s).join('').includes(k[0]) && TK(s).join('').includes(k[1])); const used = new Set([key(P[1]), key(P[2])]); const miss = all.filter(k => !used.has(k));
+    const k3 = miss.length === 1 ? miss[0] : miss.includes(key(P[3])) ? key(P[3]) : miss[0];
+    if (k3 && key(P[3]) !== k3) { const h = [...k3].find(t => t === P[2].home || t === P[2].away) || k3[0]; set(3, h, k3.replace(h, '')) } }
+  for (const x of ms) { if (x.n <= 3 && m.n <= 3) continue; if (x.n <= m.n && m.n > 3) continue; const src = m.n <= 3 ? P[((x.n - 1) % 3) + 1] : (x.n - m.n) % 3 === 0 ? P[m.n] : null; if (src) set(x.n, src.home, src.away) }
+  return up }
 /* 점수판이 화면 위로 지나가면 위쪽에 작은 점수·시간 바를 고정해서 보여 줘요 */
 function mmMiniTop() { return Math.max(0, ...[...document.querySelectorAll('.appbar,.tabs,.mmtab')].map(e => { const r = e.getBoundingClientRect(), p = getComputedStyle(e).position; return (p === 'fixed' || p === 'sticky') && r.top < 150 && r.height < 200 ? r.bottom : 0 })) }
 function mmMiniWire() { const bd = document.querySelector('.mm-play .mm-board'), mini = document.querySelector('.mm-play .mm-mini'); if (!bd || !mini) return;

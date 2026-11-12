@@ -2294,5 +2294,6 @@ button.mm-pptag{border:1px solid rgba(255,255,255,.3);cursor:pointer;font:inheri
 .mm-board{position:relative}
 @media (max-width:700px){.mm-board button.mm-pptag{right:auto;width:auto;grid-column:auto}}
 :root{--cssv:"0.4.92"}
+:root{--cssv:"0.4.93"}
 
 #simbar{position:sticky;top:0;z-index:50;background:#FFD21F;color:#1A1400;font:800 12.5px/1.3 var(--body);padding:6px 10px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;justify-content:center}#simbar label{display:flex;gap:6px;align-items:center}#simbar select{font:700 12.5px var(--body);padding:3px 6px;border-radius:6px;border:1px solid #8a7300;background:#fff8d0;color:#1A1400;max-width:62vw}
