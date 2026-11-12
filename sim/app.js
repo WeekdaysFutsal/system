@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.91';
+const APP_VERSION = '0.4.92';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -312,18 +312,18 @@ function clockInfo(m) {
   if (e < c) return { label: '후반' + ps, time: fmt(Math.ceil(c - e)), phase: 'h2', e, a, b, c };
   return { label: '경기 시간 종료' + ps, time: '00:00', phase: 'full', over: true, e, a, b, c };
 }
-function table(sid, filter) {
+function table(sid, filter, live) { /* live: 진행 중인 경기도 지금 점수로 넣어서 계산 */
   const rows = {}; TK(S.sessions[sid]).forEach(k => rows[k] = { k, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 });
-  for (const m of sessMatches(sid)) { if (m.status !== 'done' || (filter && !filter(m))) continue; const [h, a] = score(m); const H = rows[m.home], A = rows[m.away]; if (!H || !A) continue;
+  for (const m of sessMatches(sid)) { if ((m.status !== 'done' && !(live && m.status === 'live')) || (filter && !filter(m))) continue; const [h, a] = score(m); const H = rows[m.home], A = rows[m.away]; if (!H || !A) continue;
     H.p++; A.p++; H.gf += h; H.ga += a; A.gf += a; A.ga += h;
     if (h > a) { H.w++; A.l++; H.pts += 3 } else if (h < a) { A.w++; H.l++; A.pts += 3 } else { H.d++; A.d++; H.pts++; A.pts++ } }
   return rows;
 }
-function standings(sid) {
-  const list = Object.values(table(sid)); const base = (a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf;
+function standings(sid, live) {
+  const list = Object.values(table(sid, null, live)); const base = (a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf;
   list.sort(base); let i = 0;
   while (i < list.length) { let j = i + 1; while (j < list.length && base(list[i], list[j]) === 0) j++;
-    if (j - i > 1) { const grp = list.slice(i, j).map(r => r.k); const mini = table(sid, m => grp.includes(m.home) && grp.includes(m.away));
+    if (j - i > 1) { const grp = list.slice(i, j).map(r => r.k); const mini = table(sid, m => grp.includes(m.home) && grp.includes(m.away), live);
       list.splice(i, j - i, ...list.slice(i, j).sort((a, b) => mini[b.k].pts - mini[a.k].pts || (mini[b.k].gf - mini[b.k].ga) - (mini[a.k].gf - mini[a.k].ga))) }
     i = j }
   let rank = 0; list.forEach((r, x) => { if (x === 0 || base(list[x - 1], r) !== 0) rank = x + 1; r.rank = rank }); return list;
@@ -1347,6 +1347,7 @@ function viewSheet() {
   else if (sh.type === 'duty') h += dutySheet(sh.sid);
   else if (sh.type === 'park') h += parkSheet(sh.sid);
   else if (sh.type === 'drinkbuy') { h += drinkBuySheet(sh.sid) }
+  else if (sh.type === 'mmgoal') { h += mmGoalSheet(sh) }
   else if (sh.type === 'stltbl') { const s1 = S.sessions[sh.sid]; if (s1) { const C1 = stlCalc(s1); h += `<h4>📋 정산표 <small class="muted">${fmtDate(sh.sid)}</small>${ib(`정산 금액은 계산 금액을 ${wn(C1.unit)}원 단위로 맞춘 값이에요. ${wn(C1.unit)}원으로 나눈 나머지가 ${wn(C1.cut)}원 미만이면 버리고, 이상이면 올려요. 벌금은 그대로 더해요. 칩을 눌러 역할을 바꾸면 바로 다시 계산돼요.`)}</h4><div id="stl-tb">${stlTable(s1, C1)}</div>` } }
   else if (sh.type === 'feeedit') { h += feeEditSheet(sh.sid) }
   else if (sh.type === 'mmpair') { const m = M(sh.mid), s = S.sessions[S.mmSid] || cur(); h += m && s && (m.status === 'pending' || m.status === 'live') ? mmPairPick(s, m) : '<p class="empty">대진을 바꿀 수 있는 경기가 없어요.</p>' }
@@ -1402,6 +1403,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.92','2026.11.13',['[경기모드] 골이 들어가면 그 팀 점수를 눌러요 → 양 팀 선수 목록이 팝업으로 떠서 넣은 선수를 골라요 (상대 팀 선수를 고르면 자책골, 선수 미지정 골도 가능)','[경기모드] 선수 목록 자리에 “골 기록 · 현재 순위 · 경기별 기록”을 한 화면에 모았어요 · 경기별 기록에서 끝난 경기를 눌러 점수를 고쳐요','[경기모드] 대진 선택·변경은 점수판 위 “⇅ 대진” 버튼으로 해요 · 위쪽 고정 점수바의 점수를 눌러도 골을 기록해요']],
   ['0.4.91','2026.11.11',['[운영진] 주차 추첨이 “저장할 수 없는 값이 있어요” 오류로 안 되던 문제를 고쳤어요 (사다리 모양을 저장하는 방식 수정)','[운영진] 주차 신청자 목록에서 “대기 · 선발되면 대상” 글씨가 두 줄로 꺾이지 않게 정리']],
   ['0.4.90','2026.11.10',['대기 중에 신청을 취소한 사람도 신청 현황의 취소자 명단에 “대기 취소”로 남아요 (전에는 선발 상태에서 취소한 사람만 남았어요)']],
   ['0.4.89','2026.11.06',['알림이 기본으로 켜져요: 로그인한 회원이 아직 알림 허용을 정하지 않았으면 처음 화면을 누를 때 한 번 허용을 물어봐요 (직접 끈 사람은 그대로 꺼 둬요)','앱이 업데이트돼도 알림이 계속 오도록 업데이트 직후 알림 등록을 다시 맞춰요 · 휘슬·알림 설정은 이 폰과 서버에 함께 저장돼 업데이트 뒤에도 그대로예요']],
@@ -3538,24 +3540,37 @@ function mmMiniWire() { const bd = document.querySelector('.mm-play .mm-board'),
   const top = mmMiniTop(), box = bd.getBoundingClientRect(); mini.style.top = top + 'px'; mini.style.left = box.left + 'px'; mini.style.width = box.width + 'px'; mini.classList.toggle('show', box.top + box.height * .55 < top) }
 addEventListener('scroll', () => { if (S.tab === 'mm') mmMiniWire() }, { passive: true });
 addEventListener('resize', () => { clearTimeout(S.mmMiniT); S.mmMiniT = setTimeout(mmMiniWire, 150) });
+/* 경기모드 아래쪽: 골 기록 · 경기별 기록 · 현재 순위를 한 화면에 */
+function mmDash(s, m, ms, curM, ctl) { const evs = Object.entries(S.events).filter(([, e]) => e.match === m.id).sort((a, b) => (b[1].sec || 0) - (a[1].sec || 0) || (b[1].at || 0) - (a[1].at || 0)); const me = myTeamIn(s);
+  const glog = `<section class="md-box md-goal"><div class="md-hd"><b>⚽ ${m.n}경기 골 기록</b><small>${evs.length}골</small></div>${evs.length ? `<ul class="md-gl">${evs.map(([id, e]) => { const T = team(s, e.team); return `<li><em>${e.sec != null ? `${Math.floor(e.sec / 60)}:${p2(e.sec % 60)}` : '-'}</em>${bib(T.color)}<b>${e.scorer ? esc(pname(e.scorer)) : '선수 미지정'}</b>${e.og ? '<small>자책</small>' : ''}${ctl ? `<button class="mm-x" data-act="mmdelg" data-e="${id}" aria-label="이 골 취소">✕</button>` : ''}</li>` }).join('')}</ul>` : `<p class="ms-empty">${m.status === 'pending' ? '경기 시작 전이에요' : '아직 골이 없어요'}</p>`}</section>`;
+  const games = `<section class="md-box md-games"><div class="md-hd"><b>📋 경기별 기록</b><small>${ms.filter(x => x.status === 'done').length}/${ms.length}</small></div><div class="md-gm">${ms.map(x => { const [a, b] = score(x); const X = team(s, x.home), Y = team(s, x.away); const can = ctl && (x.status === 'done' || x.id === curM.id);
+    return `<button class="md-g ${x.id === m.id ? 'cur' : ''} st-${x.status}" ${can ? `data-act="mmsel" data-id="${x.status === 'done' ? x.id : ''}"` : 'disabled'} aria-label="${x.n}경기"><em>${x.n}</em><i class="dt" style="--tc:${X.color}" title="${esc(X.name)}"></i><b>${x.status === 'pending' ? 'vs' : `${a}<i>:</i>${b}`}</b><i class="dt" style="--tc:${Y.color}" title="${esc(Y.name)}"></i>${x.status === 'live' ? '<small class="lv">LIVE</small>' : ''}</button>` }).join('')}</div></section>`;
+  const st = `<section class="md-box md-st"><div class="md-hd"><b>🏆 현재 순위</b><small>${ms.some(x => x.status === 'live') ? 'LIVE 포함' : '승점'}</small></div><table class="md-tb"><tbody>${standings(s.date, true).map(r => { const T = team(s, r.k); return `<tr class="${me === r.k ? 'me' : ''}"><td class="mrk">${r.p ? r.rank : '-'}</td><td class="l"><span class="teamcell">${bib(T.color)}${esc(T.name)}</span></td><td class="sm">${r.w}승${r.d}무${r.l}패</td><td class="sm">${r.gf - r.ga > 0 ? '+' : ''}${r.gf - r.ga}</td><td class="pts">${r.pts}</td></tr>` }).join('')}</tbody></table></section>`;
+  return `<div class="mm-dash">${glog}${st}${games}</div>` }
+function mmGoalSheet(sh) { const m = M(sh.mid); const s = m && S.sessions[m.session]; if (!m || !s) return '<p>경기를 찾지 못했어요.</p>'; const k = sh.k, o = k === m.home ? m.away : m.home; const T = team(s, k), O = team(s, o);
+  const cnt = id => Object.values(S.events).filter(e => e.match === m.id && e.scorer === id && !e.og).length;
+  const btns = (tk, og) => teamPlayers(s, tk).map(id => `<button class="gp-p ${og ? 'og' : ''}" data-act="mmgsel" data-id="${m.id}" data-k="${k}" data-p="${id}" data-og="${og ? 1 : ''}">${id === captainOf(s, tk) ? '<i class="cb">C</i>' : ''}<span>${esc(pname(id))}</span>${!og && cnt(id) ? `<em>${'⚽'.repeat(Math.min(cnt(id), 3))}</em>` : ''}</button>`).join('');
+  return `<h4 class="gp-h" style="--tc:${T.color};--ti:${inkOn(T.color)}"><span>⚽ ${esc(T.name)} 골!</span><small>누가 넣었나요?</small></h4>
+    <div class="gp-sec" style="--tc:${T.color};--ti:${inkOn(T.color)}"><div class="gp-l">${bib(T.color)}<b>${esc(T.name)}</b> 선수 <small>득점</small></div><div class="gp-ps">${btns(k, false)}</div></div>
+    <div class="gp-sec og" style="--tc:${O.color};--ti:${inkOn(O.color)}"><div class="gp-l">${bib(O.color)}<b>${esc(O.name)}</b> 선수 <small>누르면 자책골 → ${esc(T.name)} 득점</small></div><div class="gp-ps">${btns(o, true)}</div></div>
+    <button class="btn block gp-ng" data-act="mmgsel" data-id="${m.id}" data-k="${k}" data-p="">선수 미지정 골로 기록</button>` }
 function mmPlayView(s, ctl) {
   const ms = courtMs(s, mmC(s)); const curM = ms.find(x => x.status === 'live') || ms.find(x => x.status === 'pending') || ms[ms.length - 1]; const m = (ctl && S.mmSel && ms.find(x => x.id === S.mmSel)) || curM; const editing = m.status === 'done' && m.id !== curM.id || (m.status === 'done' && S.mmSel === m.id);
   const H = team(s, m.home), A = team(s, m.away); const [hs, as] = score(m); const ci = clockInfo(m); const run = !!m.timer?.running; const T = timing(s);
-  const allDone = ms.every(x => x.status === 'done'); const canPair = ctl && !editing && nT(s) > 2 && (m.status === 'pending' || m.status === 'live');
+  const allDone = ms.every(x => x.status === 'done'); const canPair = ctl && !editing && nT(s) > 2 && (m.status === 'pending' || m.status === 'live'); const canGoal = ctl && (m.status === 'live' || editing);
+  const tbtn = (k, sc, side) => { const T = team(s, k); return canGoal ? `<button class="mm-team goal" style="--tc:${T.color};--ti:${inkOn(T.color)}" data-act="mmgpop" data-id="${m.id}" data-k="${k}" aria-label="${esc(T.name)} 골 기록"><b>${esc(T.name)}</b><em>${sc}</em><small>＋ 골</small></button>` : `<div class="mm-team" style="--tc:${T.color};--ti:${inkOn(T.color)}"><b>${esc(T.name)}</b><em>${sc}</em></div>` };
   let h = `<div class="mm-play">${editing ? `<div class="mm-edit">✏️ <b>${m.n}경기(종료) 점수 수정 중</b><button class="btn sm" data-act="mmsel" data-id="">현재 경기로 ›</button></div>` : ''}<div class="mm-meta"><span>${nT(s) === 2 ? '' : nC(s) === 2 ? mcourt(m) + '구장 · ' : m.round + '라운드 · '}${m.n}경기 <small>/ ${NG(s)}</small> <button class="fsbtn" data-act="fson">⛶ 크게 보기</button></span>${ctl ? `<button class="linkbtn" data-act="mmstage" data-v="time">⏱ 시간 ${T.h1 / 60}+${T.gk}″+${T.h2 / 60}</button>` : `<span class="muted">⏱ ${T.h1 / 60}+${T.gk}″+${T.h2 / 60}</span>`}</div>
-    <div class="mm-board ${canPair ? 'pp' : ''}" ${canPair ? `data-act="mmpp" data-id="${m.id}" role="button" tabindex="0" aria-label="${m.n}경기 대진 ${m.status === 'pending' ? '선택' : '변경'}"` : ''}>${canPair ? `<span class="mm-pptag ${m.status}">⇅ ${m.status === 'pending' ? '눌러서 대진 선택' : '눌러서 대진 변경'}</span>` : ''}<div class="mm-team" style="--tc:${H.color};--ti:${inkOn(H.color)}"><b>${esc(H.name)}</b><em>${hs}</em></div>
+    <div class="mm-board ${canGoal ? 'gl' : ''}">${canPair ? `<button class="mm-pptag ${m.status}" data-act="mmpp" data-id="${m.id}">⇅ ${m.status === 'pending' ? '대진 선택' : '대진 변경'}</button>` : ''}${canGoal ? '<span class="mm-gtip">골이 들어가면 그 팀 점수를 눌러요</span>' : ''}${tbtn(m.home, hs)}
       <div class="mm-mid"><div class="mm-clock ${ci.phase}" data-bigclock="${m.id}">${ci.time}</div><div class="mm-ph" data-phase="${m.id}">${ci.label}</div>
         <div class="mm-bar">${[0, 1, 2].map(i => `<i class="${i === 1 ? 'gk' : ''}"><b data-seg="${m.id}:${i}"></b></i>`).join('')}</div>${ctl && m.status === 'pending' ? `<button class="mm-side" data-act="mmsidesw" data-id="${m.id}" aria-label="양 팀 좌우 위치 바꾸기">⇄ 진영 변경</button>` : ''}</div>
-      <div class="mm-team" style="--tc:${A.color};--ti:${inkOn(A.color)}"><b>${esc(A.name)}</b><em>${as}</em></div></div>
-    <div class="mm-mini" aria-hidden="true"><span class="mmi-t" style="--tc:${H.color};--ti:${inkOn(H.color)}"><b>${esc(H.name)}</b><em>${hs}</em></span><span class="mmi-c"><i class="mm-clock ${ci.phase}" data-bigclock="${m.id}">${ci.time}</i><small data-phase="${m.id}">${ci.label}</small></span><span class="mmi-t r" style="--tc:${A.color};--ti:${inkOn(A.color)}"><em>${as}</em><b>${esc(A.name)}</b></span></div>
+      ${tbtn(m.away, as)}</div>
+    <div class="mm-mini"><span class="mmi-t" style="--tc:${H.color};--ti:${inkOn(H.color)}" ${canGoal ? `data-act="mmgpop" data-id="${m.id}" data-k="${m.home}" role="button"` : ''}><b>${esc(H.name)}</b><em>${hs}</em></span><span class="mmi-c"><i class="mm-clock ${ci.phase}" data-bigclock="${m.id}">${ci.time}</i><small data-phase="${m.id}">${ci.label}</small></span><span class="mmi-t r" style="--tc:${A.color};--ti:${inkOn(A.color)}" ${canGoal ? `data-act="mmgpop" data-id="${m.id}" data-k="${m.away}" role="button"` : ''}><em>${as}</em><b>${esc(A.name)}</b></span></div>
     <div class="mm-ctl">${!ctl ? (allDone ? `<div class="mm-done">🎉 ${nC(s) === 2 ? mmC(s) + '구장 ' + ms.length : '오늘 ' + NG(s)}경기가 모두 끝났어요!</div>` : '') : editing ? '' : m.status === 'pending' ? `<button class="btn primary mm-big cta" data-act="mmstart" data-id="${m.id}">▶ 경기 시작</button>`
       : m.status === 'live' ? `${run ? `<button class="btn mm-big" data-act="mmpause" data-id="${m.id}">⏸ 일시정지</button>` : `<button class="btn primary mm-big" data-act="mmresume" data-id="${m.id}">▶ 재개</button>`}<button class="btn ${ci.phase === 'full' ? 'primary' : ''} mm-big" data-act="mmend" data-id="${m.id}">경기 종료</button>`
       : allDone ? `<div class="mm-done">🎉 ${nC(s) === 2 ? mmC(s) + '구장 ' + ms.length : '오늘 ' + NG(s)}경기가 모두 끝났어요!</div>` : ''}</div>
-    ${mmRoster(s, m, ctl, ctl && (m.status === 'live' || editing))}
-    ${ctl ? '' : `<div class="panel tblwrap mm-stand"><table><thead><tr><th class="l">실시간 순위</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득실</th><th>승점</th></tr></thead><tbody>${standings(s.date).map(r => { const T = team(s, r.k); return `<tr class="${myTeamIn(s) === r.k ? 'me' : ''}"><td class="l"><span class="teamcell"><b class="rk">${r.p ? r.rank : '-'}</b>${bib(T.color)}${esc(T.name)}</span></td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf - r.ga > 0 ? '+' : ''}${r.gf - r.ga}</td><td class="pts">${r.pts}</td></tr>` }).join('')}</tbody></table></div>`}
-    <div class="mm-list">${ms.map(x => { const [a, b] = score(x); const X = team(s, x.home), Y = team(s, x.away); return `<button class="mm-li ${x.id === m.id ? 'cur' : ''} st-${x.status}" data-act="mmsel" data-id="${x.status === 'done' ? x.id : ''}" ${ctl && (x.status === 'done' || x.id === curM.id) ? '' : 'disabled'} aria-label="${x.n}경기${x.status === 'done' ? ' 점수 수정' : ''}"><em>${x.n}</em><i style="background:${X.color}"></i><span>${x.status === 'pending' ? 'vs' : a + ':' + b}</span><i style="background:${Y.color}"></i></button>` }).join('')}</div>
+    ${mmDash(s, m, ms, curM, ctl)}
     ${ctl ? '<button class="btn danger block mm-reset" data-act="mmreset">⟲ 경기 셋팅 초기화</button>' : ''}
-    ${ibm(`${ctl ? '끝난 경기는 아래 목록에서 눌러 점수를 고칠 수 있어요. ' : ''}경기모드 화면에 있는 동안은 화면이 꺼지지 않아요. ${ctl ? '다른 메뉴로 가도 시간과 휘슬은 계속 이어져요.' : '휘슬은 진행자 폰에서 울려요.'}`)}</div>`;
+    ${ibm(`${ctl ? '골이 들어가면 그 팀 점수를 눌러 넣은 선수를 골라요(상대 선수를 고르면 자책골). 끝난 경기는 경기별 기록에서 눌러 고칠 수 있어요. ' : ''}경기모드 화면에 있는 동안은 화면이 꺼지지 않아요. ${ctl ? '다른 메뉴로 가도 시간과 휘슬은 계속 이어져요.' : '휘슬은 진행자 폰에서 울려요.'}`)}</div>`;
   return h;
 }
 async function mmSavePairs() {
@@ -4005,6 +4020,8 @@ document.addEventListener('click', async e => {
     case 'mmend': { const m = M(id); if (clockInfo(m).phase !== 'full' && !confirm('아직 시간이 남았어요. 경기를 종료할까요?')) break; const e = elapsed(m); await w(() => S.store.update(mp(id), { status: 'done', timer: { running: false, acc: e, startedAt: 0 }, endedAt: nowS() }), `${m.n}경기를 종료했어요.`); break }
     case 'mmpg': { const m = M(id); if (!m) break; const k = el.dataset.k, p = el.dataset.p; const og = (S.mmOg || {})[m.id] === k; if (og) { (S.mmOg ??= {})[m.id] = null; await addGoal(m, k === m.home ? m.away : m.home, p, null, true) } else { await addGoal(m, k, p, null, false) } try { navigator.vibrate?.(60) } catch { } render(); break }
     case 'mmast': { const A = S.mmAst; S.mmAst = null; if (A && el.dataset.p && S.events[A.eid]) await w(() => S.store.update('events/' + A.eid, { assist: el.dataset.p }), `도움 ${pname(el.dataset.p)}`); render(); break }
+    case 'mmgpop': { if (!mmIsCtl() && !S.admin) break; S.sheet = { type: 'mmgoal', mid: id, k: el.dataset.k }; render(); break }
+    case 'mmgsel': { if (!mmIsCtl() && !S.admin) break; const m = M(id); if (!m) break; const k = el.dataset.k, p = el.dataset.p || null, og = !!el.dataset.og; S.sheet = null; render(); await addGoal(m, k, p, null, og); try { navigator.vibrate?.(60) } catch { } toast(`⚽ ${p ? pname(p) : '선수 미지정'}${og ? ' (자책골)' : ''} → ${team(S.sessions[m.session], k).name} 득점`); render(); break }
     case 'mmog': { const k = el.dataset.k; S.mmOg ??= {}; S.mmOg[id] = S.mmOg[id] === k ? null : k; render(); break }
     case 'mmdelg': { const eid = el.dataset.e; const e = S.events[eid]; if (!e) break; if (!confirm(`${e.scorer ? pname(e.scorer) : '선수 미지정'}${e.og ? '(자책)' : ''} 골을 취소할까요?`)) break; await w(() => S.store.del('events/' + eid), '골을 취소했어요.'); break }
     case 'mmteam': { const m = M(id); if (!m || m.status !== 'pending') break; const k = el.dataset.k; const pos = el.dataset.side; let nh = m.home, na = m.away;
