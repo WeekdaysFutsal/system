@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.93';
+const APP_VERSION = '0.4.94';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1403,6 +1403,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.94','2026.11.13',['경기 결과의 득점왕: 1위가 여러 명이면 3명까지 이름을 모두 보여 주고, 더 많으면 “n명 공동 1위”로 표시해요']],
   ['0.4.93','2026.11.13',['[경기모드] 3팀 경기 순서: 1경기·2경기 대진을 고르면 3경기는 남은 두 팀으로 정해지고, 4경기부터는 1·2·3경기 순서를 되풀이해요 (2경기 때 바꾼 대진이 5·8경기 등에도 반영)']],
   ['0.4.92','2026.11.13',['[경기모드] 골이 들어가면 그 팀 점수를 눌러요 → 양 팀 선수 목록이 팝업으로 떠서 넣은 선수를 골라요 (상대 팀 선수를 고르면 자책골, 선수 미지정 골도 가능)','[경기모드] 선수 목록 자리에 “골 기록 · 현재 순위 · 경기별 기록”을 한 화면에 모았어요 · 경기별 기록에서 끝난 경기를 눌러 점수를 고쳐요','[경기모드] 대진 선택·변경은 점수판 위 “⇅ 대진” 버튼으로 해요 · 위쪽 고정 점수바의 점수를 눌러도 골을 기록해요']],
   ['0.4.91','2026.11.11',['[운영진] 주차 추첨이 “저장할 수 없는 값이 있어요” 오류로 안 되던 문제를 고쳤어요 (사다리 모양을 저장하는 방식 수정)','[운영진] 주차 신청자 목록에서 “대기 · 선발되면 대상” 글씨가 두 줄로 꺾이지 않게 정리']],
@@ -2129,8 +2130,8 @@ function vResultDetail(s) {
   const rounds = `<div class="grows">${[...ms].sort((x, y) => x.n - y.n).map(grow).join('')}</div>`; void mrowR;
   const rk = scorerRank(s); const myRank = rk.find(r => r.id === me);
   const rkHtml = rk.length ? `<div class="panel tblwrap rdrank2"><table><thead><tr><th>순위</th><th class="l">이름</th><th class="l">팀</th><th>골</th></tr></thead><tbody>${rk.map(r => `<tr class="${r.id === me ? 'me' : ''}"><td class="rank"><em class="rkn ${r.rank <= 3 ? 'top' : ''}">${r.rank}</em></td><td class="l"><b>${esc(pname(r.id))}</b></td><td class="l">${r.tname ? `<span class="teamcell">${bib(r.color)}${esc(r.tname)}</span>` : '-'}</td><td><b>${r.g}</b></td></tr>`).join('')}</tbody></table></div>` : '<div class="panel"><p class="empty">선수 이름으로 기록된 골이 없어요.</p></div>';
-  const fin = done === ms.length && ms.length; const ch = fin ? rows.filter(r => r.rank === 1) : []; const top = rk[0];
-  const champ = ch.length ? `<div class="rdchamp"><span class="rcb">1</span><div><b>${ch.map(r => esc(team(s, r.k).name)).join(' · ')} 우승</b><small>${ch.length === 1 ? `${ch[0].w}승 ${ch[0].d}무 ${ch[0].l}패 · 승점 ${ch[0].pts} · 득실 ${ch[0].gf - ch[0].ga > 0 ? '+' : ''}${ch[0].gf - ch[0].ga}` : '공동 1위'}</small></div>${top ? `<div class="r"><small>득점왕</small><b>${esc(pname(top.id))} <em>${top.g}</em></b></div>` : ''}</div>` : '';
+  const fin = done === ms.length && ms.length; const ch = fin ? rows.filter(r => r.rank === 1) : []; const top = rk[0]; const tops = top && top.g > 0 ? rk.filter(r => r.g === top.g) : []; /* 득점 1위가 여럿이면 3명까지 이름, 더 많으면 “n명 공동 1위” */
+  const champ = ch.length ? `<div class="rdchamp"><span class="rcb">1</span><div><b>${ch.map(r => esc(team(s, r.k).name)).join(' · ')} 우승</b><small>${ch.length === 1 ? `${ch[0].w}승 ${ch[0].d}무 ${ch[0].l}패 · 승점 ${ch[0].pts} · 득실 ${ch[0].gf - ch[0].ga > 0 ? '+' : ''}${ch[0].gf - ch[0].ga}` : '공동 1위'}</small></div>${tops.length ? `<div class="r ${tops.length > 1 ? 'multi' : ''}" title="${esc(tops.map(r => pname(r.id)).join(', '))}"><small>득점왕${tops.length > 1 ? ` · 공동 ${tops.length}명` : ''}</small><b>${tops.length <= 3 ? tops.map(r => `<span>${esc(pname(r.id))}</span>`).join('') : `<span>${tops.length}명 공동 1위</span>`} <em>${top.g}</em></b></div>` : ''}</div>` : '';
   return `${champ}<div class="rdgrid"><div class="rd-l"><section class="rd-st"><h2>팀 순위${done === ms.length && ms.length ? '<span class="final">최종</span>' : ''}</h2>${st}</section>
   <section class="rd-ms"><h2>경기별 결과${yt ? ytBtn(yt.pl, '전체 영상', true, 'h2') : ''}</h2>${ms.length ? rounds : '<div class="panel"><p class="empty">경기 기록이 없어요.</p></div>'}</section></div>
   <div class="rd-r"><section class="rd-rk"><h2>득점 순위${myRank ? `<small>나 ${myRank.rank}위 · ${myRank.g}골</small>` : ''}</h2>${rkHtml}</section>
