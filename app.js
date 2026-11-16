@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.94';
+const APP_VERSION = '0.4.95';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1396,6 +1396,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.95','2026.11.16',['신청 현황의 일반 취소자(마감 전 취소·대기 취소) 목록은 운영모드에서만 보여요 · 마감 후 취소자는 지금처럼 모두에게 보여요']],
   ['0.4.94','2026.11.13',['경기 결과의 득점왕: 1위가 여러 명이면 3명까지 이름을 모두 보여 주고, 더 많으면 “n명 공동 1위”로 표시해요']],
   ['0.4.93','2026.11.13',['[경기모드] 3팀 경기 순서: 1경기·2경기 대진을 고르면 3경기는 남은 두 팀으로 정해지고, 4경기부터는 1·2·3경기 순서를 되풀이해요 (2경기 때 바꾼 대진이 5·8경기 등에도 반영)']],
   ['0.4.92','2026.11.13',['[경기모드] 골이 들어가면 그 팀 점수를 눌러요 → 양 팀 선수 목록이 팝업으로 떠서 넣은 선수를 골라요 (상대 팀 선수를 고르면 자책골, 선수 미지정 골도 가능)','[경기모드] 선수 목록 자리에 “골 기록 · 현재 순위 · 경기별 기록”을 한 화면에 모았어요 · 경기별 기록에서 끝난 경기를 눌러 점수를 고쳐요','[경기모드] 대진 선택·변경은 점수판 위 “⇅ 대진” 버튼으로 해요 · 위쪽 고정 점수바의 점수를 눌러도 골을 기록해요']],
@@ -2237,7 +2238,7 @@ function viewApplicants() { const s = cur(); const me = myPid(); const base = is
   const byTime = S.apord === 'time'; if (byTime) rows = rows.slice().sort((a, b) => (a.auto ? 0 : 1) - (b.auto ? 0 : 1) || ((typeof a.n === 'number' ? a.n : 1e9) - (typeof b.n === 'number' ? b.n : 1e9)));
   const inList = new Set(rows.map(r => r.pid).filter(Boolean)); const late = Object.entries(s.late || {}).filter(([, v]) => v);
   const lateSet = new Set(late.map(([p0]) => p0)); const canc = Object.entries(s.cancels || {}).filter(([p0, v]) => v && !inList.has(p0) && !lateSet.has(p0));
-  const off = [...late.map(([p0, t]) => ({ pid: p0, t, k: 'late' })), ...canc.map(([p0, t]) => ({ pid: p0, t, k: 'cancel' }))].filter(x => S.players[x.pid]).sort((a, b) => a.t - b.t);
+  const off = [...late.map(([p0, t]) => ({ pid: p0, t, k: 'late' })), ...(S.admin ? canc.map(([p0, t]) => ({ pid: p0, t, k: 'cancel' })) : [])].filter(x => S.players[x.pid]).sort((a, b) => a.t - b.t);
   const mine = rows.find(r => r.pid && r.pid === me) || (!frozen && myApp(s) && rows.find(r => r.k === myApp(s).k));
   const myLine = mine ? `<div class="mypos ${mine.sel ? 'in' : 'wt'}">${mine.sel ? `✓ 나는 <b>선발</b>이에요${base ? ` · ${TIER[mine.tier]}` : ''}${typeof mine.n === 'number' ? ` · ${mine.n}번째 신청` : mine.auto ? ' · 자동 신청' : ''}` : `⏳ 나는 <b>대기 ${mine.wn}번</b>이에요${base ? ` · ${TIER[mine.tier]}` : ''}`}</div>` : '';
   const tr = r => `<tr class="${r.sel ? 'srow' : 'wrow'} ${mine && r === mine ? 'me' : ''}"><td class="num">${r.auto ? '자동' : r.n}</td><td class="nm"><b>${r.pid ? esc(pname(r.pid)) : '<i class="muted">이름 입력 대기</i>'}</b>${mine && r === mine ? '<i class="metag">나</i>' : ''}${!base && r.tier === 3 ? `<button class="metag late" data-act="tierwhy" data-k="${esc(r.k)}" title="사유 보기">후순위</button>` : ''}</td><td class="num muted">${r.at ? fmtTSh(r.at) : '-'}</td>${base ? `<td><button class="tb t${r.tier} tbw" data-act="tierwhy" data-k="${esc(r.k)}" title="순위 사유 보기">${TIER[r.tier]}</button></td>` : ''}<td>${r.sel ? '<b class="ok">선발</b>' : `<b class="tw">대기 ${r.wn}</b>`}</td></tr>`;
