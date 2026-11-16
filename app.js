@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.95';
+const APP_VERSION = '0.4.96';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1341,6 +1341,7 @@ function viewSheet() {
   else if (sh.type === 'park') h += parkSheet(sh.sid);
   else if (sh.type === 'drinkbuy') { h += drinkBuySheet(sh.sid) }
   else if (sh.type === 'mmgoal') { h += mmGoalSheet(sh) }
+  else if (sh.type === 'gedit') { h += guestEditSheet(sh) }
   else if (sh.type === 'stltbl') { const s1 = S.sessions[sh.sid]; if (s1) { const C1 = stlCalc(s1); h += `<h4>📋 정산표 <small class="muted">${fmtDate(sh.sid)}</small>${ib(`정산 금액은 계산 금액을 ${wn(C1.unit)}원 단위로 맞춘 값이에요. ${wn(C1.unit)}원으로 나눈 나머지가 ${wn(C1.cut)}원 미만이면 버리고, 이상이면 올려요. 벌금은 그대로 더해요. 칩을 눌러 역할을 바꾸면 바로 다시 계산돼요.`)}</h4><div id="stl-tb">${stlTable(s1, C1)}</div>` } }
   else if (sh.type === 'feeedit') { h += feeEditSheet(sh.sid) }
   else if (sh.type === 'mmpair') { const m = M(sh.mid), s = S.sessions[S.mmSid] || cur(); h += m && s && (m.status === 'pending' || m.status === 'live') ? mmPairPick(s, m) : '<p class="empty">대진을 바꿀 수 있는 경기가 없어요.</p>' }
@@ -1396,6 +1397,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.96','2026.11.16',['[운영진] 신청자 표에서 게스트 이름 옆 ✏️를 누르면 게스트 정보를 나중에 고칠 수 있어요: 이름·연락처·메모, 정회원으로 바꾸기, 이미 있는 회원과 합치기(신청·팀·경기 기록·골이 회원 쪽으로 옮겨져요)']],
   ['0.4.95','2026.11.16',['신청 현황의 일반 취소자(마감 전 취소·대기 취소) 목록은 운영모드에서만 보여요 · 마감 후 취소자는 지금처럼 모두에게 보여요']],
   ['0.4.94','2026.11.13',['경기 결과의 득점왕: 1위가 여러 명이면 3명까지 이름을 모두 보여 주고, 더 많으면 “n명 공동 1위”로 표시해요']],
   ['0.4.93','2026.11.13',['[경기모드] 3팀 경기 순서: 1경기·2경기 대진을 고르면 3경기는 남은 두 팀으로 정해지고, 4경기부터는 1·2·3경기 순서를 되풀이해요 (2경기 때 바꾼 대진이 5·8경기 등에도 반영)']],
@@ -2317,6 +2319,17 @@ function feeFields({ fee, paid, reward, attr, hasRes, two, fee2, paid2 }) { cons
     ${two ? row('1구장 예약비', 'fee', fee, 'paid', paid) + row('2구장 예약비', 'fee2', fee2, 'paid2', paid2) : row('구장 예약비', 'fee', fee, 'paid', paid)}
     ${hasRes ? '' : '<small class="muted">지급 완료 체크는 구장 예약자를 정하면 할 수 있어요.</small>'}
     <div class="fee-it"><span class="fee-t">예약자 사례금 <small>1인당 · 예약비와 함께 미리 지급 · 참가자가 나눠 내요(예약자 제외) · 운영진이 예약하면 없음</small></span><div class="fee-ctl"><span class="stl-m"><input class="inp" inputmode="numeric" placeholder="${dflt}" value="${reward != null && reward !== '' ? (+reward).toLocaleString('ko-KR') : ''}" ${attr('reward')} aria-label="예약자 사례금 1인당"><em>원</em></span>${reward == null || reward === '' ? `<small class="muted">비우면 기본 ${dflt}원</small>` : ''}</div></div></div></div>` }
+// 운영모드: 게스트 정보 고치기 (이름·연락처·메모, 정회원 전환, 이미 있는 회원과 합치기)
+function guestEditSheet(sh) { const id = sh.pid; const p = S.players[id]; if (!p) return '<h4>게스트</h4><p>정보를 찾지 못했어요.</p>'; const c = S.contacts?.[id] || {}; const d = S.gDraft || {};
+  const mem = byName(Object.keys(S.players).filter(x => x !== id && !isGone(S.players[x]) && mstatus(S.players[x]) !== 'guest'));
+  return `<h4>✏️ 게스트 정보 <small class="muted">${esc(pname(id))}</small></h4>
+  <div class="field"><label for="ge-name">이름</label><input id="ge-name" class="inp" maxlength="20" value="${esc(d.name ?? p.name)}"></div>
+  <div class="field"><label for="ge-phone">연락처 <small class="muted">(선택)</small></label><input id="ge-phone" class="inp" inputmode="tel" maxlength="20" value="${esc(d.phone ?? c.phone ?? '')}" placeholder="010-0000-0000"></div>
+  <div class="field"><label for="ge-memo">메모 <small class="muted">(선택 · 예: 홍길동 지인)</small></label><input id="ge-memo" class="inp" maxlength="40" value="${esc(d.memo ?? c.memo ?? '')}"></div>
+  <div class="ge-chk"><label><input type="checkbox" id="ge-member" ${d.member ? 'checked' : ''}><span>정회원으로 바꾸기<small>이름 뒤 (게) 표시가 빠져요</small></span></label></div>
+  <div class="row" style="margin-top:8px"><button class="btn primary block" data-act="gesave" data-id="${id}">저장</button></div>
+  <details class="ge-merge"><summary>이미 있는 회원이었나요? 회원과 합치기</summary><p class="note">게스트로 들어간 사람이 사실 회원이면, 그 회원으로 합쳐요. 신청·팀·경기 기록·골이 모두 회원 쪽으로 옮겨지고 게스트는 지워져요.</p>
+    <div class="stl-add"><input id="ge-to" class="inp" list="ge-list" placeholder="회원 이름"><datalist id="ge-list">${mem.map(x => `<option value="${esc(S.players[x].name)}">`).join('')}</datalist><button class="btn sm" data-act="gemerge" data-id="${id}">합치기</button></div></details>` }
 function feeEditSheet(sid) { const s = S.sessions[sid]; if (!s) return ''; const st = stlGet(sid); const L = stlPayList(s); const two = nC(s) === 2; const d = S.feeDraft || {};
   const pd = i => d['paid' + (i ? 2 : '')] ?? !!L[i]?.done;
   return `<h4>💰 ${fmtDate(sid)} 구장 예약비 · 사례금</h4><p class="muted" style="margin-top:-4px">예약자: ${esc(idsToNames(s.p0) || '없음')}</p>
@@ -3038,7 +3051,7 @@ function vApplyTable(s) {
   const vtog = ad && !frozen ? `<div class="vtog" role="group" aria-label="정렬"><button class="btn sm${byTime ? '' : ' primary'}" data-act="aview" data-v="rank">순위순</button><button class="btn sm${byTime ? ' primary' : ''}" data-act="aview" data-v="time">신청순</button><small>${byTime ? `신청이 들어온 순서대로 보여요. 상태 칸에서 선발·대기를 확인하세요.${betaOn() ? ' (▲▼ 순번 변경은 순위순에서 할 수 있어요)' : ''}` : '순위(0~3순위)에 따라 선발 → 대기 순으로 보여요.'}</small></div>` : '';
   const h = dsum + (betaNote || vtog ? `<div class="aptools">${betaNote}${vtog}</div>` : '') + `<div class="panel sheetwrap apscroll"><table class="grid atbl"><thead><tr><th class="seq">No.</th><th>신청순</th><th class="stick">이름</th><th>순위</th><th>구분</th><th>신청 시각</th>${mvOn ? '<th>순번 변경</th>' : ''}<th>주차</th><th>공당</th><th>물당</th><th>상태</th><th>마감 후 취소</th>${ad ? '<th>관리</th>' : ''}</tr></thead><tbody>
   ${rows.length ? rows.map((r, i) => { const pk = r.pid && s.park?.[r.pid]?.car;
-    return `<tr class="${r.sel ? '' : 'wrow'}"><td class="num seq">${i + 1}</td><td class="num">${r.auto ? '자동' : r.n}</td><td class="stick"><b>${r.pid ? esc(pname(r.pid)) : '<i class="nn">이름 입력 대기</i>'}</b>${(() => { const [k, t] = appSrc(s, r); return k === 'auto' ? '' : `<span class="src src-${k}">${t}</span>` })()}${!c.base && r.tier === 3 ? `<button class="metag late" data-act="tierwhy" data-k="${esc(r.k)}" title="사유 보기">후순위</button>` : ''}</td><td>${tcell(r)}</td>
+    return `<tr class="${r.sel ? '' : 'wrow'}"><td class="num seq">${i + 1}</td><td class="num">${r.auto ? '자동' : r.n}</td><td class="stick"><b>${r.pid ? esc(pname(r.pid)) : '<i class="nn">이름 입력 대기</i>'}</b>${r.pid && S.players[r.pid]?.guest ? `<button class="gedit-b" data-act="gedit" data-id="${r.pid}" title="게스트 정보 고치기" aria-label="${esc(pname(r.pid))} 게스트 정보 고치기">✏️</button>` : ''}${(() => { const [k, t] = appSrc(s, r); return k === 'auto' ? '' : `<span class="src src-${k}">${t}</span>` })()}${!c.base && r.tier === 3 ? `<button class="metag late" data-act="tierwhy" data-k="${esc(r.k)}" title="사유 보기">후순위</button>` : ''}</td><td>${tcell(r)}</td>
       <td class="muted">${r.auto ? roleOf(s, r.pid) + ' (자동)' : r.pid ? (roleOf(s, r.pid) || (late.has(r.pid) ? '지난 경기 마감 후 취소' : '')) : ''}</td>
       <td class="num muted">${r.at ? fmtTS(r.at) : '-'}</td>
       ${mvOn ? `<td class="mv">${r.auto ? '' : `<button class="btn sm" data-act="appmove" data-k="${r.k}" data-d="-1" aria-label="위로">▲</button><button class="btn sm" data-act="appmove" data-k="${r.k}" data-d="1" aria-label="아래로">▼</button><button class="btn sm" data-act="appmoveto" data-k="${r.k}" aria-label="순번 입력">#</button>`}</td>` : ''}
@@ -3685,11 +3698,8 @@ function remapSession(s, map) { const R = id => map[id] || id; const arr = a => 
   if (s.dutyReq) put('dutyReq', Object.fromEntries(Object.entries(s.dutyReq).map(([k, v]) => [k, keys(v)])));
   if (s.mmCtl?.pid && map[s.mmCtl.pid]) put('mmCtl', { ...s.mmCtl, pid: R(s.mmCtl.pid) });
   return out }
-async function mergeDups() { const groups = dupGroups(); if (!groups.length) { toast('같은 이름의 회원이 없어요.'); return }
-  const plan = groups.map(ids => { const c = pickCanon(ids); return { canon: c, dups: ids.filter(x => x !== c) } }); const map = {}; plan.forEach(g => g.dups.forEach(d => map[d] = g.canon));
-  if (!confirm(`같은 이름 회원 ${plan.length}명을 한 사람으로 합칠까요?\n${plan.map(g => `· ${S.players[g.canon].name} (${g.dups.length + 1}개 → 1개)`).join('\n')}\n\n신청·팀·경기 기록·골/도움·연락처가 모두 합쳐지고, 되돌릴 수 없어요.`)) return;
-  S.merging = true; toast('합치는 중이에요… 잠시만 기다려 주세요.');
-  const ok = await w(async () => {
+/* 회원 합치기 핵심: map = { 지울id: 남길id } — 신청·팀·경기 기록·골·연락처·로그인·알림을 모두 옮기고 지울 쪽을 삭제 */
+async function applyMerge(map) {
     for (const [sid, ss] of Object.entries(S.sessions)) { const up = remapSession(ss, map); if (Object.keys(up).length) await S.store.update(sp(sid), up);
       const q = S.q?.[sid]; if (q) for (const [qid, d] of Object.entries(q)) { const np = d.pid && map[d.pid]; if (!np) continue; if (q[np] || Object.values(q).some(x => x.pid === np)) { await S.store.del(sp(sid) + '/q/' + qid) } else if (qid === d.pid) { await S.store.set(sp(sid) + '/q/' + np, { ...d, pid: np }); await S.store.del(sp(sid) + '/q/' + qid) } else await S.store.update(sp(sid) + '/q/' + qid, { pid: np }) } }
     for (const d of Object.keys(map)) { const evs = new Map(); Object.entries(S.events).forEach(([id, e]) => { if (e.scorer === d || e.assist === d) evs.set(id, e) });
@@ -3700,7 +3710,12 @@ async function mergeDups() { const groups = dupGroups(); if (!groups.length) { t
       const cc = S.contacts?.[c] || {}, dc = S.contacts?.[d]; if (dc) { const m = { ...dc, ...Object.fromEntries(Object.entries(cc).filter(([, v]) => v)) }; await S.store.set('contacts/' + c, m); await S.store.del('contacts/' + d) }
       for (const col of ['auth', 'notifPrefs']) { try { const dv = await S.store.get(col + '/' + d); if (dv) { const cv = await S.store.get(col + '/' + c); if (!cv) await S.store.set(col + '/' + c, dv); await S.store.del(col + '/' + d) } } catch { } }
       try { for (const t of await S.store.query('pushTokens', [['pid', '==', d]])) await S.store.update('pushTokens/' + t.id, { pid: c }) } catch { }
-      await S.store.del('players/' + d) } });
+      await S.store.del('players/' + d) } }
+async function mergeDups() { const groups = dupGroups(); if (!groups.length) { toast('같은 이름의 회원이 없어요.'); return }
+  const plan = groups.map(ids => { const c = pickCanon(ids); return { canon: c, dups: ids.filter(x => x !== c) } }); const map = {}; plan.forEach(g => g.dups.forEach(d => map[d] = g.canon));
+  if (!confirm(`같은 이름 회원 ${plan.length}명을 한 사람으로 합칠까요?\n${plan.map(g => `· ${S.players[g.canon].name} (${g.dups.length + 1}개 → 1개)`).join('\n')}\n\n신청·팀·경기 기록·골/도움·연락처가 모두 합쳐지고, 되돌릴 수 없어요.`)) return;
+  S.merging = true; toast('합치는 중이에요… 잠시만 기다려 주세요.');
+  const ok = await w(() => applyMerge(map));
   S.merging = false; if (ok) toast(`${plan.length}명의 중복 회원을 합쳤어요.`); render() }
 const MSTAT = { staff: '운영진', special: '특별회원', active: '정회원', dormant: '장불회원', guest: '게스트', left: '탈퇴', expelled: '제명' };
 const GONE = new Set(['left', 'expelled']); const OUTST = new Set(['dormant', 'left', 'expelled']); // 탈퇴·제명: 로그인 불가, 신청·명단에서 빠지고 회원 정보와 지난 기록은 남아요
@@ -4027,6 +4042,15 @@ document.addEventListener('click', async e => {
     case 'mmend': { const m = M(id); if (clockInfo(m).phase !== 'full' && !confirm('아직 시간이 남았어요. 경기를 종료할까요?')) break; const e = elapsed(m); await w(() => S.store.update(mp(id), { status: 'done', timer: { running: false, acc: e, startedAt: 0 }, endedAt: nowS() }), `${m.n}경기를 종료했어요.`); break }
     case 'mmpg': { const m = M(id); if (!m) break; const k = el.dataset.k, p = el.dataset.p; const og = (S.mmOg || {})[m.id] === k; if (og) { (S.mmOg ??= {})[m.id] = null; await addGoal(m, k === m.home ? m.away : m.home, p, null, true) } else { await addGoal(m, k, p, null, false) } try { navigator.vibrate?.(60) } catch { } render(); break }
     case 'mmast': { const A = S.mmAst; S.mmAst = null; if (A && el.dataset.p && S.events[A.eid]) await w(() => S.store.update('events/' + A.eid, { assist: el.dataset.p }), `도움 ${pname(el.dataset.p)}`); render(); break }
+    case 'gedit': if (!needAdmin()) break; S.gDraft = {}; S.sheet = { type: 'gedit', pid: id }; render(); break;
+    case 'gesave': { if (!needAdmin()) break; const p = S.players[id]; if (!p) break; const name = (document.getElementById('ge-name')?.value || '').replace(/\(\s*게(스트)?\s*\)/g, '').trim().slice(0, 20); if (!name) { toast('이름을 넣어 주세요.'); break }
+      const dup = Object.entries(S.players).find(([x, q]) => x !== id && normName(q.name) === normName(name) && !isGone(q)); if (dup && !confirm(`이미 “${dup[1].name}” 회원이 있어요. 같은 사람이면 아래 “회원과 합치기”를 쓰는 게 좋아요.\n그래도 이 이름으로 바꿀까요?`)) break;
+      const phone = (document.getElementById('ge-phone')?.value || '').trim(), memo = (document.getElementById('ge-memo')?.value || '').trim(); const toMem = !!document.getElementById('ge-member')?.checked;
+      const ok = await w(async () => { await S.store.update('players/' + id, { name, ...(toMem ? { guest: false, status: 'active' } : {}) }); const c = S.contacts?.[id] || {}; if (phone !== (c.phone || '') || memo !== (c.memo || '')) await S.store.set('contacts/' + id, { ...c, phone, memo }) }, toMem ? `${name} 님을 정회원으로 바꿨어요.` : '게스트 정보를 저장했어요.');
+      if (ok) { S.sheet = null; S.gDraft = null; render() } break }
+    case 'gemerge': { if (!needAdmin()) break; const nm = (document.getElementById('ge-to')?.value || '').trim(); const to = nm && findPlayer(nm); if (!to || to === id || mstatus(S.players[to]) === 'guest') { toast('합칠 회원 이름을 목록에서 골라 주세요.'); break }
+      if (!confirm(`게스트 “${pname(id)}”를 회원 “${S.players[to].name}”(으)로 합칠까요?\n신청·팀·경기 기록·골이 모두 회원 쪽으로 옮겨지고 게스트는 지워져요. 되돌릴 수 없어요.`)) break;
+      if (await w(() => applyMerge({ [id]: to }), `${S.players[to].name} 회원으로 합쳤어요.`)) { S.sheet = null; render() } break }
     case 'mmgpop': { if (!mmIsCtl() && !S.admin) break; S.sheet = { type: 'mmgoal', mid: id, k: el.dataset.k }; render(); break }
     case 'mmgsel': { if (!mmIsCtl() && !S.admin) break; const m = M(id); if (!m) break; const k = el.dataset.k, p = el.dataset.p || null, og = !!el.dataset.og; S.sheet = null; render(); await addGoal(m, k, p, null, og); try { navigator.vibrate?.(60) } catch { } toast(`⚽ ${p ? pname(p) : '선수 미지정'}${og ? ' (자책골)' : ''} → ${team(S.sessions[m.session], k).name} 득점`); render(); break }
     case 'mmog': { const k = el.dataset.k; S.mmOg ??= {}; S.mmOg[id] = S.mmOg[id] === k ? null : k; render(); break }

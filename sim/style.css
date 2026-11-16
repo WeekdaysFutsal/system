@@ -2299,5 +2299,10 @@ button.mm-pptag{border:1px solid rgba(255,255,255,.3);cursor:pointer;font:inheri
 .rdchamp .r.multi b{font-size:14px;line-height:1.3;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:baseline;gap:0 2px;max-width:170px}
 :root{--cssv:"0.4.94"}
 :root{--cssv:"0.4.95"}
+.gedit-b{margin-left:4px;width:26px;height:26px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);font-size:12px;cursor:pointer;vertical-align:middle}
+.ge-merge{margin-top:14px;border-top:1px dashed var(--line);padding-top:10px}.ge-merge>summary{cursor:pointer;font-size:13.5px;font-weight:700;color:var(--muted)}
+.ge-chk{margin:4px 0 6px}.ge-chk label{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);cursor:pointer}
+.ge-chk input{width:20px;height:20px;accent-color:var(--accent);flex:none;margin:0}.ge-chk span{display:flex;flex-direction:column;font-weight:700;font-size:14px}.ge-chk small{font-weight:500;font-size:12px;color:var(--muted)}
+:root{--cssv:"0.4.96"}
 
 #simbar{position:sticky;top:0;z-index:50;background:#FFD21F;color:#1A1400;font:800 12.5px/1.3 var(--body);padding:6px 10px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;justify-content:center}#simbar label{display:flex;gap:6px;align-items:center}#simbar select{font:700 12.5px var(--body);padding:3px 6px;border-radius:6px;border:1px solid #8a7300;background:#fff8d0;color:#1A1400;max-width:62vw}
