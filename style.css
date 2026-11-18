@@ -2311,3 +2311,7 @@ button.mm-pptag{border:1px solid rgba(255,255,255,.3);cursor:pointer;font:inheri
 .mm-setl{display:inline-flex;gap:12px;align-items:center;flex-wrap:wrap}
 .mm-dflt{margin-top:6px;font-size:13px}
 :root{--cssv:"0.4.97"}
+.mm-setup.adm{margin:0 0 10px}
+.sheet .mm-card{border:0;padding:0;background:none;box-shadow:none}
+.mg-row .mg-btns{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-start}.mg-row .mg-btns .btn{flex:1 1 auto}
+:root{--cssv:"0.4.98"}

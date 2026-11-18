@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.97';
+const APP_VERSION = '0.4.98';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1314,7 +1314,7 @@ function vMatchDay(s) {
   ${ibm(`승 3점, 무 1점. 승점이 같으면 골득실, 다득점, 승자승 순.`)}`;
   let sch = `<h2>경기 일정<small>${done}/${ms.length} 완료</small></h2><div class="gstrip gsched" style="--gc:${nT(s) === 4 ? 4 : 3}">${[...ms].sort((x, y) => x.n - y.n).map(m => gameCard(s, m)).join('')}</div>`;
   if (S.admin) { const st = (key, lab, val, unit) => `<div class="vstep"><button class="vs-b" data-act="tstep" data-key="${key}" data-d="1" aria-label="${lab} 늘리기">＋</button><span class="vs-v"><small>${lab}</small><b>${val}<i>${unit}</i></b></span><button class="vs-b" data-act="tstep" data-key="${key}" data-d="-1" aria-label="${lab} 줄이기">−</button></div>`;
-    sch += `<h2>경기 시간 설정 · 관리${ib(`＋/−로 전반·후반(분), GK 교체(초)를 바꿔요. 대진 삭제는 경기 일정(대진표)과 경기 기록만 지워요. 신청자, 팀 구성, 공지는 그대로 남고, 다시 “경기 일정 만들기”로 새 대진을 만들 수 있어요.`)}</h2><div class="vsteps">${st('h1', '전반', T.h1 / 60, '분')}${st('gk', 'GK 교체', T.gk, '초')}${st('h2', '후반', T.h2 / 60, '분')}<div class="mg-btns"><button class="btn" data-act="substopen">🔁 불참 교체</button><button class="btn primary" data-act="pairedit">⇄ 대진 변경</button><button class="btn danger" data-act="delmatches">대진 삭제</button></div></div>` }
+    sch += `<h2>경기 설정 · 관리${ib(`경기 수·전반·하프타임·후반은 “바꾸기”로 정해요. 이미 한 경기는 그대로 두고 남은 경기만 바뀌어요. 대진 삭제는 경기 일정(대진표)과 경기 기록만 지워요. 신청자, 팀 구성, 공지는 그대로 남고, 다시 “경기 일정 만들기”로 새 대진을 만들 수 있어요.`)}</h2><div class="mm-setup adm"><div><b>⚙️ 오늘 경기 설정</b><small>${NG(s)}경기 · 전반 ${T.h1 / 60}분 · 하프타임 ${T.gk}초 · 후반 ${T.h2 / 60}분</small></div><div class="mm-setup-b"><button class="btn sm primary" data-act="admsetup">바꾸기</button></div></div><div class="mg-row"><div class="mg-btns"><button class="btn" data-act="substopen">🔁 불참 교체</button><button class="btn primary" data-act="pairedit">⇄ 대진 변경</button><button class="btn danger" data-act="delmatches">대진 삭제</button></div></div>` }
   return `<div class="dgrid"><section>${h}</section><section>${sch}</section></div>`;
 }
 function viewMatch() {
@@ -1349,6 +1349,7 @@ function viewSheet() {
   else if (sh.type === 'drinkbuy') { h += drinkBuySheet(sh.sid) }
   else if (sh.type === 'mmgoal') { h += mmGoalSheet(sh) }
   else if (sh.type === 'gedit') { h += guestEditSheet(sh) }
+  else if (sh.type === 'mmsetup') { const ss = S.sessions[sh.sid]; if (ss) { S.mmSid = sh.sid; h += mmSetupView(ss, true) } }
   else if (sh.type === 'stltbl') { const s1 = S.sessions[sh.sid]; if (s1) { const C1 = stlCalc(s1); h += `<h4>📋 정산표 <small class="muted">${fmtDate(sh.sid)}</small>${ib(`정산 금액은 계산 금액을 ${wn(C1.unit)}원 단위로 맞춘 값이에요. ${wn(C1.unit)}원으로 나눈 나머지가 ${wn(C1.cut)}원 미만이면 버리고, 이상이면 올려요. 벌금은 그대로 더해요. 칩을 눌러 역할을 바꾸면 바로 다시 계산돼요.`)}</h4><div id="stl-tb">${stlTable(s1, C1)}</div>` } }
   else if (sh.type === 'feeedit') { h += feeEditSheet(sh.sid) }
   else if (sh.type === 'mmpair') { const m = M(sh.mid), s = S.sessions[S.mmSid] || cur(); h += m && s && (m.status === 'pending' || m.status === 'live') ? mmPairPick(s, m) : '<p class="empty">대진을 바꿀 수 있는 경기가 없어요.</p>' }
@@ -1404,6 +1405,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.98','2026.11.18',['[운영진] 운영모드 경기 진행 단계의 “경기 시간 설정 · 관리”를 “경기 설정 · 관리”로 바꿨어요: 바꾸기를 누르면 경기모드와 같은 설정 창에서 경기 수·전반·하프타임·후반을 정해요']],
   ['0.4.97','2026.11.18',['[경기모드] 첫 경기 시작 전 경기 화면 맨 위에 “오늘 경기 설정”이 나와요: 경기 수 · 전반/후반 시간 · 하프타임을 한 화면에서 그날그날 정하고 시작해요 (기본: 3팀 9경기 · 전후반 6분 · 하프타임 3초)','[경기모드] 경기를 시작한 뒤에도 “⚙ 경기 수·시간”으로 남은 경기 수와 시간을 바꿀 수 있어요 (이미 한 경기는 그대로)','[경기모드] 3팀 경기도 경기 수(3~15경기)를 정할 수 있어요']],
   ['0.4.96','2026.11.16',['[운영진] 신청자 표에서 게스트 이름 옆 ✏️를 누르면 게스트 정보를 나중에 고칠 수 있어요: 이름·연락처·메모, 정회원으로 바꾸기, 이미 있는 회원과 합치기(신청·팀·경기 기록·골이 회원 쪽으로 옮겨져요)']],
   ['0.4.95','2026.11.16',['신청 현황의 일반 취소자(마감 전 취소·대기 취소) 목록은 운영모드에서만 보여요 · 마감 후 취소자는 지금처럼 모두에게 보여요']],
@@ -3488,7 +3490,7 @@ function mmPairView(s) { if (nT(s) !== 3) { S.mmPairs = [['A', 'B']]; return mmN
     ${ok1 ? `<p class="mm-sum">쉬는 팀: <b>${esc(team(s, third).name)}</b> · 2경기 대진은 1경기가 끝나면 골라요</p><button class="btn primary block mm-go cta" data-act="mmpairsave">1경기 대진 확정</button>` : ''}</div>`}`;
 }
 /* 오늘 경기 설정: 경기 수 · 전반/후반 시간 · 하프타임(GK 교체) — 기본 3파전 9경기 · 전후반 6분 · 하프타임 3초 */
-function mmSetupView(s) { const T = timing(s); const four = nT(s) === 4; const ms = sessMatches(s.date); const played = ms.filter(m => m.status !== 'pending').length;
+function mmSetupView(s, inSheet) { const T = timing(s); const four = nT(s) === 4; const ms = sessMatches(s.date); const played = ms.filter(m => m.status !== 'pending').length;
   const f = S.mmSet || (S.mmSet = { n: four ? R4(s) : NG(s), h1: T.h1 / 60, h2: T.h2 / 60, gk: T.gk });
   const lo = four ? 1 : Math.max(nT(s) === 3 ? 3 : 1, played), hi = four ? 3 : 15;
   const st = (k, lab, unit, step, mn, mx, show) => `<div class="mm-st"><span>${lab}</span><div class="stp"><button data-act="mmsetadj" data-k="${k}" data-d="-${step}" data-min="${mn}" data-max="${mx}" ${f[k] <= mn ? 'disabled' : ''} aria-label="${lab} 줄이기">−</button><b>${show || f[k]}<small>${unit}</small></b><button data-act="mmsetadj" data-k="${k}" data-d="${step}" data-min="${mn}" data-max="${mx}" ${f[k] >= mx ? 'disabled' : ''} aria-label="${lab} 늘리기">+</button></div></div>`;
@@ -3498,7 +3500,7 @@ function mmSetupView(s) { const T = timing(s); const four = nT(s) === 4; const m
     ${st('h1', '전반', '분', 0.5, 1, 45)}${st('gk', '하프타임', '초', 1, 0, 600)}${st('h2', '후반', '분', 0.5, 1, 45)}
     <p class="mm-sum">한 경기 ${Math.floor(per / 60)}분 ${Math.round(per % 60)}초 · 모두 ${games}경기 약 ${Math.round(per * games / 60)}분</p>
     <button class="btn block mm-dflt" data-act="mmsetdef">기본값으로 (${nT(s) === 3 ? '9경기 · ' : ''}전후반 6분 · 하프타임 3초)</button>
-    <button class="btn primary block mm-go cta" data-act="mmsetsave">이대로 정하기</button><button class="btn block mm-back" data-act="mmstage" data-v="">← 경기 화면</button></div>` }
+    <button class="btn primary block mm-go cta" data-act="mmsetsave">이대로 정하기</button>${inSheet ? '' : '<button class="btn block mm-back" data-act="mmstage" data-v="">← 경기 화면</button>'}</div>` }
 async function mmSetupSave() { const s = S.sessions[S.mmSid]; const f = S.mmSet; if (!s || !f) return; const four = nT(s) === 4, t3 = nT(s) === 3; const ms = sessMatches(s.date); const by = {}; ms.forEach(m => by[m.n] = m);
   const N = four ? f.n * 6 : f.n; const gen = !t3 ? genGames(s, four ? { r: f.n, swap: s.mm?.swap || {} } : { n: N, swap: s.mm?.swap || {} }) : null;
   const ok = await w(async () => {
@@ -3508,7 +3510,7 @@ async function mmSetupSave() { const s = S.sessions[S.mmSid]; const f = S.mmSet;
       const { id: _i, ...rest } = ex || {}; await S.store.set(mp(`${s.date}_${n}`), { ...JSON.parse(JSON.stringify(rest)), session: s.date, n, round: g.round, slot: g.slot, court: g.court || 1, ...(g.home ? { home: g.home, away: g.away } : {}), status: 'pending', timer: ex?.timer || { running: false, acc: 0, startedAt: 0 }, endedAt: 0 }) }
     for (const m of ms) if (m.n > N && m.status === 'pending') await S.store.del(mp(m.id));
     await S.store.update(sp(s.date), { timingV: 2, timing: { ...timing(s), h1: Math.round(f.h1 * 60), gk: +f.gk, h2: Math.round(f.h2 * 60) }, 'mm.timed': true, ...(four ? { rounds4: f.n } : t3 ? { games3: N } : { games2: N }) }) }, `${N}경기 · 전후반 ${f.h1}/${f.h2}분 · 하프타임 ${f.gk}초로 정했어요.`);
-  if (ok) { S.mmSet = null; S.mmStage = null; render(); window.scrollTo(0, 0) } }
+  if (ok) { S.mmSet = null; S.mmStage = null; if (S.sheet?.type === 'mmsetup') S.sheet = null; render(); if (!S.admin || S.tab === 'mm') window.scrollTo(0, 0) } }
 function mmTimeView(s) {
   const T = timing(s); const f = S.mmT || (S.mmT = { h1: Math.round(T.h1 / 60 * 10) / 10, gk: T.gk, h2: Math.round(T.h2 / 60 * 10) / 10 });
   const st = (k, lab, unit, step) => `<div class="mm-st"><span>${lab}</span><div class="stp"><button data-act="mmtadj" data-k="${k}" data-d="-${step}" aria-label="${lab} 줄이기">−</button><b>${f[k]}<small>${unit}</small></b><button data-act="mmtadj" data-k="${k}" data-d="${step}" aria-label="${lab} 늘리기">+</button></div></div>`;
@@ -4078,6 +4080,7 @@ document.addEventListener('click', async e => {
     case 'mmsetadj': { const f = S.mmSet; if (!f) break; const k = el.dataset.k; f[k] = Math.max(+el.dataset.min, Math.min(+el.dataset.max, Math.round((f[k] + (+el.dataset.d)) * 10) / 10)); render(); break }
     case 'mmsetdef': { const s = S.sessions[S.mmSid]; const ms = sessMatches(s.date); const played = ms.filter(m => m.status !== 'pending').length; S.mmSet = { n: nT(s) === 4 ? 1 : Math.max(played, nT(s) === 3 ? 9 : 6), h1: DEF_TIMING.h1 / 60, h2: DEF_TIMING.h2 / 60, gk: DEF_TIMING.gk }; render(); break }
     case 'mmsetsave': await mmSetupSave(); break;
+    case 'admsetup': if (!needAdmin()) break; S.mmSet = null; S.mmSid = S.sid; S.sheet = { type: 'mmsetup', sid: S.sid }; render(); break;
     case 'mmsetup': S.mmDraft = null; S.mmT = null; S.mmSet = null; S.mmStage = el.dataset.v || 'setup'; render(); window.scrollTo(0, 0); break;
     case 'mmstage': S.mmStage = el.dataset.v; if (el.dataset.v === 'pair') S.mmDraft = null; if (el.dataset.v === 'time') S.mmT = null; render(); break;
     case 'mmtadj': { const f = S.mmT; const k = el.dataset.k; const v = Math.round(((+f[k]) + (+el.dataset.d)) * 10) / 10; f[k] = Math.max(k === 'gk' ? 0 : 0.5, Math.min(k === 'gk' ? 120 : 30, v)); render(); break }
