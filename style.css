@@ -2304,3 +2304,10 @@ button.mm-pptag{border:1px solid rgba(255,255,255,.3);cursor:pointer;font:inheri
 .ge-chk{margin:4px 0 6px}.ge-chk label{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);cursor:pointer}
 .ge-chk input{width:20px;height:20px;accent-color:var(--accent);flex:none;margin:0}.ge-chk span{display:flex;flex-direction:column;font-weight:700;font-size:14px}.ge-chk small{font-weight:500;font-size:12px;color:var(--muted)}
 :root{--cssv:"0.4.96"}
+/* 경기모드: 오늘 경기 설정 */
+.mm-setup{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding:12px 14px;border-radius:16px;border:1.5px solid color-mix(in srgb,var(--accent) 55%,var(--line));background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
+.mm-setup>div:first-child{display:flex;flex-direction:column;gap:2px;min-width:0}.mm-setup b{font-size:15px}.mm-setup small{font-size:12.5px;color:var(--muted)}
+.mm-setup-b{display:flex;gap:6px;flex-wrap:wrap}
+.mm-setl{display:inline-flex;gap:12px;align-items:center;flex-wrap:wrap}
+.mm-dflt{margin-top:6px;font-size:13px}
+:root{--cssv:"0.4.97"}
