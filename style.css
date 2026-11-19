@@ -2315,3 +2315,5 @@ button.mm-pptag{border:1px solid rgba(255,255,255,.3);cursor:pointer;font:inheri
 .sheet .mm-card{border:0;padding:0;background:none;box-shadow:none}
 .mg-row .mg-btns{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-start}.mg-row .mg-btns .btn{flex:1 1 auto}
 :root{--cssv:"0.4.98"}
+.grow .gmin{font-style:normal;font-family:var(--latin);font-size:11px;font-weight:700;color:var(--muted);margin-left:4px;letter-spacing:.2px;white-space:nowrap}
+:root{--cssv:"0.4.99"}

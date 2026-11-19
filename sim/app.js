@@ -23,7 +23,7 @@ function courtMs(s, c) { const ms = sessMatches(s.date); return nC(s) === 2 ? ms
 const recTeams = n => n >= 22 ? 4 : n >= 13 ? 3 : 2; // 인원 기준 추천 팀 수 (팀당 5~7명)
 const PAIRS = [['A', 'B'], ['B', 'C'], ['C', 'A']];
 const STAGES = [['apply', '신청'], ['captain', '주장'], ['draft', '드래프트'], ['trade', '밸런스 조정'], ['notice', '공지'], ['match', '경기']];
-const APP_VERSION = '0.4.98';
+const APP_VERSION = '0.4.99';
 const DEF_TIMING = { h1: 360, gk: 3, h2: 360, rest: 0 }; // 전후반 6분 · GK 교체(하프타임) 3초 · 쉬는 시간 없음
 const PALETTE = CFG.colors || [{ name: 'BLUE', color: '#1E46C8' }, { name: 'BLACK', color: '#16181C' }, { name: 'RED', color: '#D7263D' }, { name: 'WHITE', color: '#F2F3F5' }, { name: 'YELLOW', color: '#F5C518' }, { name: 'GREEN', color: '#1E9E57' }];
 const NEUTRAL = { A: '#5B6573', B: '#8A939E', C: '#B3BAC4', D: '#4A5260' };
@@ -1405,6 +1405,7 @@ function viewSheet() {
   h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="closesheet">닫기</button></div></div></div>`; return h;
 }
 const CHANGELOG = [
+  ['0.4.99','2026.11.19',['경기 결과의 경기별 득점자 옆에 득점 시간이 나와요 (예: 홍길동 4\u2019, 11\u2019 · 경기 시작부터 몇 분째에 넣었는지)']],
   ['0.4.98','2026.11.18',['[운영진] 운영모드 경기 진행 단계의 “경기 시간 설정 · 관리”를 “경기 설정 · 관리”로 바꿨어요: 바꾸기를 누르면 경기모드와 같은 설정 창에서 경기 수·전반·하프타임·후반을 정해요']],
   ['0.4.97','2026.11.18',['[경기모드] 첫 경기 시작 전 경기 화면 맨 위에 “오늘 경기 설정”이 나와요: 경기 수 · 전반/후반 시간 · 하프타임을 한 화면에서 그날그날 정하고 시작해요 (기본: 3팀 9경기 · 전후반 6분 · 하프타임 3초)','[경기모드] 경기를 시작한 뒤에도 “⚙ 경기 수·시간”으로 남은 경기 수와 시간을 바꿀 수 있어요 (이미 한 경기는 그대로)','[경기모드] 3팀 경기도 경기 수(3~15경기)를 정할 수 있어요']],
   ['0.4.96','2026.11.16',['[운영진] 신청자 표에서 게스트 이름 옆 ✏️를 누르면 게스트 정보를 나중에 고칠 수 있어요: 이름·연락처·메모, 정회원으로 바꾸기, 이미 있는 회원과 합치기(신청·팀·경기 기록·골이 회원 쪽으로 옮겨져요)']],
@@ -2129,8 +2130,9 @@ function vResultDetail(s) {
   // 경기별 결과: 왼쪽 게임 번호 · 가운데 두 팀과 점수 · 오른쪽 끝 유튜브 버튼(영상 있을 때만)
   const grow = m => { const H = team(s, m.home), A = team(s, m.away); const [a, b] = score(m); const pend = m.status === 'pending'; const w = m.status === 'done' ? (a > b ? 'h' : a < b ? 'a' : 'd') : ''; const v = yt?.v[m.id];
     const evs = Object.values(S.events).filter(e => e.match === m.id).sort((x, y) => (x.sec ?? 0) - (y.sec ?? 0));
-    const side = k => { const mp = new Map(); evs.filter(e => e.team === k).forEach(e => { const key = (e.og ? 'og:' : '') + (e.scorer || '-'); const o = mp.get(key) || { n: 0, e }; o.n++; mp.set(key, o) });
-      return [...mp.values()].map(({ n, e }) => `<span class="${e.og ? 'og' : ''}">${e.scorer ? esc(pname(e.scorer)) : '미지정'}${n > 1 ? `<b>×${n}</b>` : ''}${e.og ? '<small>자책</small>' : ''}</span>`).join('') };
+    const gmin = e => e.sec != null ? `${Math.floor(e.sec / 60) + 1}'` : ''; // 득점 시간: 축구식 분 표기(0:00~0:59 → 1')
+    const side = k => { const mp = new Map(); evs.filter(e => e.team === k).forEach(e => { const key = (e.og ? 'og:' : '') + (e.scorer || '-'); const o = mp.get(key) || { n: 0, e, t: [] }; o.n++; if (gmin(e)) o.t.push(gmin(e)); mp.set(key, o) });
+      return [...mp.values()].map(({ n, e, t }) => `<span class="${e.og ? 'og' : ''}">${e.scorer ? esc(pname(e.scorer)) : '미지정'}${t.length ? `<i class="gmin">${t.join(', ')}</i>` : n > 1 ? `<b>×${n}</b>` : ''}${e.og ? '<small>자책</small>' : ''}</span>`).join('') };
     const hs = side(m.home), as = side(m.away);
     return `<div class="grow st-${m.status} w-${w}${hs || as ? ' has-sc' : ''}"><div class="grow-b" aria-label="${m.n}경기 ${esc(H.name)} ${pend ? '대' : a + '대' + b} ${esc(A.name)}"><em class="gno">${gno(m.n)}</em><span class="gtm h">${hs ? `<span class="gsi">${hs}</span>` : ''}<b>${esc(H.name)}</b>${bib(H.color)}</span><span class="gs">${pend ? '<i>vs</i>' : `<b class="sh">${a}</b><i>:</i><b class="sa">${b}</b>`}${m.status === 'live' ? '<i class="glive">LIVE</i>' : ''}</span><span class="gtm a">${bib(A.color)}<b>${esc(A.name)}</b>${as ? `<span class="gsi">${as}</span>` : ''}</span></div>${hs || as ? `<div class="grow-sc"><div class="h">${hs}</div><i aria-hidden="true">⚽</i><div class="a">${as}</div></div>` : ''}${v ? ytBtn(v, '', false, 'row') : '<span class="yt-ph" aria-hidden="true"></span>'}</div>` };
   const rounds = `<div class="grows">${[...ms].sort((x, y) => x.n - y.n).map(grow).join('')}</div>`; void mrowR;
